@@ -1,0 +1,63 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": [
+        "icon_256.png",
+        "icon.png"
+      ]
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": {
+          "name": "GridIPScanner2",
+          "version": "2.3.2.0"
+        },
+        "description": "Grid IP Scanner2",
+        "minimum-os": "win7",
+        "execution-level": "require administrator",
+        "ui-access": false,
+        "auto-elevate": false,
+        "dpi-awareness": "system",
+        "use-common-controls-v6": true
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "2.3.2.0",
+          "product_version": "2.3.2.0"
+        },
+        "info": {
+          "0412": {
+            "Comments": "Grid IP Scanner2 - Advanced C-Class Network Scanner with 90k+ OUI Engine (IEEE Bot-Protection Bypass & Tiered Fallback)",
+            "CompanyName": "AhBiYout (Cisnet)",
+            "FileDescription": "Grid IP Scanner2",
+            "FileVersion": "2.3.2.0",
+            "InternalName": "GridIPScanner2",
+            "LegalCopyright": "Copyright (C) 2025-2026 AhBiYout. All rights reserved.",
+            "LegalTrademarks": "Grid IP Scanner2",
+            "OriginalFilename": "Grid IP Scanner2 v2.3.2.exe",
+            "ProductName": "Grid IP Scanner2",
+            "ProductVersion": "2.3.2.0"
+          },
+          "0409": {
+            "Comments": "Grid IP Scanner2 - Advanced C-Class Network Scanner with 90k+ OUI Engine (IEEE Bot-Protection Bypass & Tiered Fallback)",
+            "CompanyName": "AhBiYout (Cisnet)",
+            "FileDescription": "Grid IP Scanner2",
+            "FileVersion": "2.3.2.0",
+            "InternalName": "GridIPScanner2",
+            "LegalCopyright": "Copyright (C) 2025-2026 AhBiYout. All rights reserved.",
+            "LegalTrademarks": "Grid IP Scanner2",
+            "OriginalFilename": "Grid IP Scanner2 v2.3.2.exe",
+            "ProductName": "Grid IP Scanner2",
+            "ProductVersion": "2.3.2.0"
+          }
+        }
+      }
+    }
+  }
+}

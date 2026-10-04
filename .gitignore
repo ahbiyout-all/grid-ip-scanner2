@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs & Bundles
+dist/
+dist_installer/
+dist_electron/
+build/
+bin/
+out/
+release_assets/
+release_files/
+
+# Executables & Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.syso
+*.bin
+*.out
+gridscan-portable
+test_bin
+
+# Mobile & Native Package Artifacts
+*.apk
+*.aab
+*.ipa
+*.app
+*.mobileconfig
+
+# Toolchains & Archives
+go/
+go.zip
+*.zip
+*.tar.gz
+
+# Extra Lockfiles (Project uses npm package-lock.json)
+bun.lock
+yarn.lock
+pnpm-lock.yaml
+
+# Environment & Secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs & Temporary debug files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+
+# OS & Editor specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+

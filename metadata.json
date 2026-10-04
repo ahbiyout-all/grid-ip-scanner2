@@ -1,0 +1,6 @@
+{
+  "name": "Grid IP Scanner2",
+  "description": "A high-visibility IP scanning dashboard with a mobile-responsive grid view and AI-powered device identification. Created by AhBiYout for cisnet.co.kr",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
