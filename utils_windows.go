@@ -12,8 +12,17 @@ import (
 	"unsafe"
 )
 
+const CREATE_NO_WINDOW = 0x08000000
+
 func hideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if cmd == nil {
+		return
+	}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.HideWindow = true
+	cmd.SysProcAttr.CreationFlags |= CREATE_NO_WINDOW
 }
 
 var (
@@ -22,9 +31,13 @@ var (
 
 	moduser32      = syscall.NewLazyDLL("user32.dll")
 	procMessageBox = moduser32.NewProc("MessageBoxW")
+
+	modshell32       = syscall.NewLazyDLL("shell32.dll")
+	procShellExecuteW = modshell32.NewProc("ShellExecuteW")
 )
 
 const (
+	SW_SHOWNORMAL       = 1
 	MB_OK               = 0x00000000
 	MB_OKCANCEL         = 0x00000001
 	MB_YESNOCANCEL      = 0x00000003
@@ -40,6 +53,30 @@ const (
 	IDYES    = 6
 	IDNO     = 7
 )
+
+// shellExecute calls Windows ShellExecuteW directly without spawning any console window
+func shellExecute(verb, file, args, dir string, showCmd int) bool {
+	vPtr, _ := syscall.UTF16PtrFromString(verb)
+	fPtr, _ := syscall.UTF16PtrFromString(file)
+	var aPtr *uint16
+	if args != "" {
+		aPtr, _ = syscall.UTF16PtrFromString(args)
+	}
+	var dPtr *uint16
+	if dir != "" {
+		dPtr, _ = syscall.UTF16PtrFromString(dir)
+	}
+	ret, _, _ := procShellExecuteW.Call(
+		0,
+		uintptr(unsafe.Pointer(vPtr)),
+		uintptr(unsafe.Pointer(fPtr)),
+		uintptr(unsafe.Pointer(aPtr)),
+		uintptr(unsafe.Pointer(dPtr)),
+		uintptr(showCmd),
+	)
+	// ShellExecute returns HINSTANCE > 32 on success
+	return ret > 32
+}
 
 // showNativeMessageBox displays a pure Win32 MessageBox with topmost priority
 func showNativeMessageBox(title, message string, flags uint) int {
@@ -65,51 +102,106 @@ func copyToClipboard(text string) {
 // openWithNotepad launches Windows Notepad to view the report
 func openWithNotepad(filePath string) {
 	cmd := exec.Command("notepad.exe", filePath)
+	hideWindow(cmd)
 	_ = cmd.Start()
 }
 
-// launchBrowserWithFallback implements the 4-tier adaptive browser launch pipeline
+// launchBrowserWithFallback implements the 4-tier adaptive browser launch pipeline without spawning console windows
 func launchBrowserWithFallback(url string, profileDir string) bool {
-	// Candidate browser commands for standalone app mode
-	browsers := []struct {
-		name string
-		exe  string
-		app  bool
-	}{
-		{name: "Microsoft Edge", exe: "msedge", app: true},
-		{name: "Google Chrome", exe: "chrome", app: true},
-		{name: "Naver Whale", exe: "whale", app: true},
-		{name: "Brave Browser", exe: "brave", app: true},
+	progFiles := os.Getenv("ProgramFiles")
+	progFilesX86 := os.Getenv("ProgramFiles(x86)")
+	localAppData := os.Getenv("LOCALAPPDATA")
+
+	// 1. Candidate browser definitions with common install paths
+	type browserTarget struct {
+		name      string
+		exeName   string
+		candidatePaths []string
 	}
 
-	// 1~3단계: Chromium 계열 브라우저 독립 앱 모드 시도
-	for _, b := range browsers {
-		var args []string
-		if b.app {
-			args = []string{"/c", "start", b.exe, "--app=" + url}
-			if profileDir != "" {
-				args = append(args, "--user-data-dir="+profileDir)
+	targets := []browserTarget{
+		{
+			name:    "Microsoft Edge",
+			exeName: "msedge.exe",
+			candidatePaths: []string{
+				filepath.Join(progFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
+				filepath.Join(progFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
+				filepath.Join(localAppData, "Microsoft", "Edge", "Application", "msedge.exe"),
+			},
+		},
+		{
+			name:    "Google Chrome",
+			exeName: "chrome.exe",
+			candidatePaths: []string{
+				filepath.Join(progFiles, "Google", "Chrome", "Application", "chrome.exe"),
+				filepath.Join(progFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
+				filepath.Join(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
+			},
+		},
+		{
+			name:    "Naver Whale",
+			exeName: "whale.exe",
+			candidatePaths: []string{
+				filepath.Join(progFiles, "Naver", "Naver Whale", "Application", "whale.exe"),
+				filepath.Join(progFilesX86, "Naver", "Naver Whale", "Application", "whale.exe"),
+				filepath.Join(localAppData, "Naver", "Naver Whale", "Application", "whale.exe"),
+			},
+		},
+		{
+			name:    "Brave Browser",
+			exeName: "brave.exe",
+			candidatePaths: []string{
+				filepath.Join(progFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+				filepath.Join(progFilesX86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+				filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+			},
+		},
+	}
+
+	// 1~3단계: 직접 실행 파일 경로를 찾아 CUI 래퍼 없이 직접 실행 (가장 깨끗함, 콘솔 창 0% 노출)
+	for _, target := range targets {
+		var resolvedPath string
+		for _, p := range target.candidatePaths {
+			if p != "" {
+				if _, err := os.Stat(p); err == nil {
+					resolvedPath = p
+					break
+				}
 			}
-		} else {
-			args = []string{"/c", "start", b.exe, url}
 		}
 
-		cmd := exec.Command("cmd", args...)
-		hideWindow(cmd)
-		if err := cmd.Start(); err == nil {
-			fmt.Printf("Successfully launched via %s (App Mode)\n", b.name)
+		appArgs := []string{"--app=" + url}
+		if profileDir != "" {
+			appArgs = append(appArgs, "--user-data-dir="+profileDir)
+		}
+
+		if resolvedPath != "" {
+			cmd := exec.Command(resolvedPath, appArgs...)
+			hideWindow(cmd)
+			if err := cmd.Start(); err == nil {
+				fmt.Printf("Successfully launched via %s (Direct App Mode)\n", target.name)
+				return true
+			}
+		}
+
+		// 경로를 직접 못 찾았을 경우 Windows ShellExecuteW를 통해 App Paths 레지스트리로 실행 (콘솔 창 없음)
+		paramStr := fmt.Sprintf("--app=%s", url)
+		if profileDir != "" {
+			paramStr += fmt.Sprintf(" --user-data-dir=\"%s\"", profileDir)
+		}
+		if shellExecute("open", target.exeName, paramStr, "", SW_SHOWNORMAL) {
+			fmt.Printf("Successfully launched via %s (ShellExecute App Mode)\n", target.name)
 			return true
 		}
 	}
 
-	// 4단계: 시스템 기본 브라우저 열기 (Universal Fallback via start / rundll32)
-	cmdStart := exec.Command("cmd", "/c", "start", url)
-	hideWindow(cmdStart)
-	if err := cmdStart.Start(); err == nil {
-		fmt.Printf("Successfully launched via default system browser (cmd /c start)\n")
+	// 4단계: 시스템 기본 브라우저 열기 (ShellExecuteW를 통해 직접 URL 오픈 - cmd.exe 호출 없음)
+	if shellExecute("open", url, "", "", SW_SHOWNORMAL) {
+		fmt.Printf("Successfully launched via default system browser (ShellExecuteW)\n")
 		return true
 	}
 
+	// 최후의 폴백 (rundll32 with CREATE_NO_WINDOW)
 	cmdRundll := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url)
 	hideWindow(cmdRundll)
 	if err := cmdRundll.Start(); err == nil {

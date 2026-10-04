@@ -1351,6 +1351,7 @@ func ensureFirewallRulesSilently() {
 
 		for _, r := range rules {
 			checkCmd := exec.Command("netsh", "advfirewall", "firewall", "show", "rule", fmt.Sprintf("name=%s", r.name))
+			hideWindow(checkCmd)
 			if err := checkCmd.Run(); err != nil {
 				addCmd := exec.Command("netsh", "advfirewall", "firewall", "add", "rule",
 					fmt.Sprintf("name=%s", r.name),
@@ -1360,6 +1361,7 @@ func ensureFirewallRulesSilently() {
 					"enable=yes",
 					"profile=any",
 				)
+				hideWindow(addCmd)
 				_ = addCmd.Run()
 			}
 		}

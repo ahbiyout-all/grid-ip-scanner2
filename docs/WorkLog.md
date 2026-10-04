@@ -41,6 +41,16 @@
     - 모바일 상단 헤더: `w-8 h-8 rounded-xl ring-1 ring-cyan-500/30` 꽉 찬 에셋으로 시인성 대폭 강화.
     - 4대 모달(도움말/정보, 라이선스 센터, 인스톨러 안내, 업데이트 센터): 모달 헤더 로고를 `w-14 h-14` ~ `w-20 h-20` 풀 블리드 스타일로 전면 리뉴얼.
 
+### 5. Windows 실행 시 콘솔/커맨드 창 깜빡임(Flash) 완전 소멸
+* **작업 배경**:
+  - Windows 11 환경에서 `Grid IP Scanner2 v2.3.2.exe` 실행 시, 앱 창이 뜨기 전 검은색 커맨드 창(Console Prompt)이 순간적으로 나타나는 현상 해결.
+* **구현 내용**:
+  - `utils_windows.go`:
+    - `hideWindow()`에 `CREATE_NO_WINDOW (0x08000000)` 및 `HideWindow: true` 플래그를 결합하여 자식 프로세스의 콘솔 세션 생성을 원천 차단.
+    - `launchBrowserWithFallback()`: 기존 `cmd.exe /c start` 방식 대신 브라우저 실행 파일 직접 실행(`exec.Command(path)`) 및 Windows `shell32.dll`의 `ShellExecuteW` API를 통한 무콘솔 직결 실행 구조로 개편.
+  - `main.go`:
+    - 앱 시작 시 방화벽 사전 등록 루틴(`ensureFirewallRulesSilently`)의 `netsh` 명령어에 `hideWindow()`를 적용하여 콘솔 노출 0% 달성.
+
 ---
 
 ## 📅 2026-10-03 (v2.3.2)
