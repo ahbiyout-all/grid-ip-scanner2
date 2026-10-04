@@ -1318,8 +1318,57 @@ func isRunningAsAdmin() bool {
 	return err == nil
 }
 
+// ensureFirewallRulesSilently quietly pre-registers Windows Firewall rules for both the base name (Grid IP Scanner2)
+// and versioned name to prevent network scanning blocks or OS alert dialogs.
+func ensureFirewallRulesSilently() {
+	if runtime.GOOS != "windows" || !isRunningAsAdmin() {
+		return
+	}
+	exePath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	go func() {
+		rules := []struct {
+			name string
+			dir  string
+		}{
+			{"Grid IP Scanner2", "in"},
+			{"Grid IP Scanner2 (Inbound)", "in"},
+			{"Grid IP Scanner2 (Outbound)", "out"},
+		}
+
+		baseName := filepath.Base(exePath)
+		ext := filepath.Ext(baseName)
+		nameWithoutExt := strings.TrimSuffix(baseName, ext)
+		if nameWithoutExt != "" && nameWithoutExt != "Grid IP Scanner2" {
+			rules = append(rules,
+				struct{ name, dir string }{nameWithoutExt, "in"},
+				struct{ name, dir string }{nameWithoutExt + " (Inbound)", "in"},
+				struct{ name, dir string }{nameWithoutExt + " (Outbound)", "out"},
+			)
+		}
+
+		for _, r := range rules {
+			checkCmd := exec.Command("netsh", "advfirewall", "firewall", "show", "rule", fmt.Sprintf("name=%s", r.name))
+			if err := checkCmd.Run(); err != nil {
+				addCmd := exec.Command("netsh", "advfirewall", "firewall", "add", "rule",
+					fmt.Sprintf("name=%s", r.name),
+					fmt.Sprintf("dir=%s", r.dir),
+					"action=allow",
+					fmt.Sprintf("program=%s", exePath),
+					"enable=yes",
+					"profile=any",
+				)
+				_ = addCmd.Run()
+			}
+		}
+	}()
+}
+
 func main() {
 	initOUIProvider()
+	ensureFirewallRulesSilently()
 	
 	// Heartbeat endpoint
 	http.HandleFunc("/api/heartbeat", func(w http.ResponseWriter, r *http.Request) {

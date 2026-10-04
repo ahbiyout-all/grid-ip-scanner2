@@ -5,7 +5,6 @@
   "main": "main.js",
   "author": "AhBiYout",
   "scripts": {
-    "predev": "node generate-assets.js",
     "dev": "tsx server.ts",
     "prebuild": "node generate-assets.js",
     "build": "vite build",

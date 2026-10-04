@@ -1,7 +1,7 @@
 # Grid IP Scanner2 - OUI 데이터베이스 및 동기화 기술 명세서 (OUI Specification)
 
 ## 📌 문서 개요
-본 문서는 **Grid IP Scanner2 (v2.2.3)**에 탑재된 하드웨어 제조사 식별(OUI: Organizationally Unique Identifier) 데이터베이스 구조, IEEE 및 Wireshark 자동 동기화 알고리즘, 계층적 비트 매칭 로직, 그리고 영구 캐시 관리 기술을 상세히 기술합니다.
+본 문서는 **Grid IP Scanner2 (v2.3.2)**에 탑재된 하드웨어 제조사 식별(OUI: Organizationally Unique Identifier) 데이터베이스 구조, IEEE 및 Wireshark 자동 동기화 알고리즘, 계층적 비트 매칭 로직, 그리고 영구 캐시 관리 기술을 상세히 기술합니다.
 
 ---
 

@@ -1,6 +1,6 @@
 # GRID IP Scanner2 - Dual License & Legal Compliance Guide (이중 라이선스 및 준수 명세서)
 
-본 문서는 **Grid IP Scanner2 (v2.2.3)**의 이중 라이선스(Dual Licensing) 정책 및 하부 시스템 오픈소스 준수성(Upstream Compliance)에 대해 기술한 공식 법적 가이드문입니다.
+본 문서는 **Grid IP Scanner2 (v2.3.2)**의 이중 라이선스(Dual Licensing) 정책 및 하부 시스템 오픈소스 준수성(Upstream Compliance)에 대해 기술한 공식 법적 가이드문입니다.
 
 ---
 

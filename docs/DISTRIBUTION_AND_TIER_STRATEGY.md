@@ -113,11 +113,15 @@ export interface LicenseInfo {
 * **주요 자동화 기능**:
   1. **설치 경로**: `{autopf}\Grid IP Scanner2` (64비트 표준 `Program Files`)
   2. **단축 아이콘**: 시작 메뉴 프로그램 그룹 및 바탕화면 바로가기 자동 생성
-  3. **Windows 방화벽 자동 예외 등록**:
+  3. **Windows 방화벽 사전 조용한 자동 예외 등록**:
+     - **기본 앱 이름 규칙**: `Grid IP Scanner2`, `Grid IP Scanner2 (Inbound)`, `Grid IP Scanner2 (Outbound)`
+     - **버전 정보 포함 규칙**: `Grid IP Scanner2 v{VERSION}`, `Grid IP Scanner2 v{VERSION} (Inbound)`, `Grid IP Scanner2 v{VERSION} (Outbound)`
      ```cmd
      netsh advfirewall firewall add rule name="Grid IP Scanner2" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
+     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Inbound)" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
+     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Outbound)" dir=out action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
      ```
-  4. **언인스톨 클린업**: 제어판 제거 시 방화벽 규칙 및 임시 캐시 자동 삭제
+  4. **언인스톨 클린업**: 제어판 제거 시 기본 이름 및 버전 정보 포함 방화벽 규칙 모두 자동 삭제 (Silent clean)
   5. **무인 일괄 설치(Silent Install) 스위치 지원**:
      ```cmd
      Grid_IP_Scanner2_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
@@ -132,15 +136,18 @@ export interface LicenseInfo {
    * 시스템 공유 타입에 `LicenseTier`, `FeatureFlag`, `LicenseInfo` 인터페이스 탑재 (`types.ts`)
    * Inno Setup 인스톨러 컴파일러 스크립트 작성 (`installer/Grid_IP_Scanner2_Setup.iss`)
    * 인스톨러 자동 패키징 빌드 오케스트레이터 작성 (`installer/build-installer.js`)
-2. **2단계 (고급 기능 선개발 & 기능 플래그 연결)**:
-   * 과거-현재 스캔 스냅샷 비교(Diff) 엔진 개발
-   * 상세 포트 스캐너 및 서비스 배너 탐지 모듈 고도화
-   * 라이선스 상태에 따른 UI 조건부 해금(Unlock) 컴포넌트 개발
-3. **3단계 (상용 릴리즈 & 스토어/결제 연동)**:
+2. **2단계 (고급 기능 선개발, 기능 플래그 및 배포 파이프라인 연동 - 완료)**:
+   * 과거-현재 스캔 스냅샷 비교(Diff) 엔진 개발 (`services/diffEngine.ts`)
+   * 상세 포트 스캐너 및 서비스 배너 탐지 모듈 고도화 (`services/portScanner.ts`)
+   * A4 규격 전문 보안 감사 보고서 생성기 연동 (`services/reportGenerator.ts`)
+   * 비대칭 암호키(Ed25519) 오프라인 라이선스 매니저 및 UI 해금 컴포넌트 개발 (`services/licenseManager.ts`)
+   * GitHub Releases 기반 실시간 자동 업데이트 체계 및 안드로이드 APK 생성 파이프라인 완성
+   * 스마트 엣지-투-엣지 아이콘 크롭, 6단계 멀티레이어 ICO 및 PE 리소스 직접 패칭 파이프라인 완비
+3. **3단계 (상용 릴리즈 & 스토어/결제 연동 - 진행 중)**:
    * Gumroad / Paddle 디지털 결제 연동 (라이선스 키 자동 발급)
-   * 공식 블로그 및 홈페이지(www.cisnet.co.kr)에 듀얼 다운로드 센터 개설
+   * 공식 블로그 및 홈페이지(www.cisnet.co.kr)에 듀얼 다운로드 센터 개설 및 배포
 
 ---
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.2.3+
+* **소프트웨어 버전**: v2.3.2
 * **저작권**: Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.

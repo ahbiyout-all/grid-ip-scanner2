@@ -9,14 +9,22 @@ const path = require('path');
 
 console.log('🚀 Grid IP Scanner2 - Installer Packaging Pipeline Initialized');
 
-// 1. Resolve current version from docs/PATCH_NOTE.md or package.json
-let version = '2.2.3';
-const patchNotePath = path.join(__dirname, '..', 'docs', 'PATCH_NOTE.md');
-if (fs.existsSync(patchNotePath)) {
-  const content = fs.readFileSync(patchNotePath, 'utf8');
-  const match = content.match(/#\s*Grid IP Scanner2\s*-\s*Patch Note\s*\(v?([0-9.]+)\)/i) || content.match(/\(v([0-9.]+)\)/i);
-  if (match && match[1]) {
-    version = match[1];
+// 1. Resolve current version from package.json or docs/PATCH_NOTE.md
+let version = '2.3.2';
+const pkgPath = path.join(__dirname, '..', 'package.json');
+if (fs.existsSync(pkgPath)) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    if (pkg.version) version = pkg.version;
+  } catch (e) {}
+} else {
+  const patchNotePath = path.join(__dirname, '..', 'docs', 'PATCH_NOTE.md');
+  if (fs.existsSync(patchNotePath)) {
+    const content = fs.readFileSync(patchNotePath, 'utf8');
+    const match = content.match(/#\s*Grid IP Scanner2\s*-\s*Patch Note\s*\(v?([0-9.]+)\)/i) || content.match(/\(v([0-9.]+)\)/i);
+    if (match && match[1]) {
+      version = match[1];
+    }
   }
 }
 console.log(`📌 Target Product Version: v${version}`);

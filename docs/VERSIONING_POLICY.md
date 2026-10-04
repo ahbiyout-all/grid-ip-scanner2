@@ -65,17 +65,21 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 
 ## 📂 4. `docs/` 폴더 문서 체계 및 관리 지침
 
-`docs/` 폴더는 프로젝트의 모든 기술 사양, 구조, 라이선스, 패치 이력을 중앙 집중식으로 보관합니다.
+`docs/` 폴더는 프로젝트의 모든 기술 사양, 구조, 라이선스, 패치 이력을 중앙 집중식으로 보관하는 11대 공식 문서 체계를 갖추고 있습니다.
 
 | 문서 파일명 | 문서 내용 및 역할 |
 |---|---|
 | **`docs/README.md`** | 문서 저장소 총괄 가이드 및 색인 목차 |
 | **`docs/VERSIONING_POLICY.md`** | SemVer 3단계 버전 관리 규정 및 패치노트 기록 지침 (본 문서) |
 | **`docs/PATCH_NOTE.md`** | 전체 버전별 패치 내역, 버그 수정 및 릴리즈 노트 |
-| **`docs/GRID_IP_SCANNER_2.md`** | 서비스 개요, 기술 사양 및 사용자 매뉴얼 |
-| **`docs/FILE_STRUCTURE_GUIDE.md`** | 프로젝트 전체 디렉터리 및 아키텍처 가이드 |
-| **`docs/PROPRIETARY_TECHNOLOGY.md`** | 독점 고유 기술(5단계 런처, 커널 소켓, OUI 엔진 등) 명세서 |
-| **`docs/LICENSE.md`** | 오픈소스(GPL v3) 및 상용(Commercial) 이중 라이선스 명세서 |
+| **`docs/WorkLog.md`** | 개발 및 기능 구현 공식 작업 일지 (일자별 변경 상세) |
+| **`docs/GRID_IP_SCANNER_2.md`** | 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 |
+| **`docs/FILE_STRUCTURE_GUIDE.md`** | 프로젝트 전체 디렉터리, 컴포넌트 및 아키텍처 가이드 |
+| **`docs/GITHUB_GUIDE.md`** | GitHub 공식 연동 및 GitHub Actions CI/CD 자동 배포 가이드 |
+| **`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`** | 포터블 & 인스톨러 배포 전략 및 유료화 아키텍처 사양서 |
+| **`docs/PROPRIETARY_TECHNOLOGY.md`** | 15대 핵심 독점 기술 및 코어 엔진 기술 명세서 |
+| **`docs/OUI_DATABASE_SPEC.md`** | OUI 계층형 데이터베이스 및 이중 미러링 기술 명세서 |
+| **`docs/LICENSE.md`** | 오픈소스(GPL v3) 및 상용(Commercial) 이중 라이선스 계약서 |
 
 ### 💡 신규 문서 생성 지침
 * 새로운 하위 시스템(예: 새로운 프로토콜, 클라우드 연동, CI/CD 배포 파이프라인 등)이 도입되거나 독립된 설명이 필요할 경우, `docs/` 폴더에 즉시 신규 마크다운 문서를 생성하고 `docs/README.md` 인덱스에 등록합니다.

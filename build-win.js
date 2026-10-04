@@ -145,20 +145,49 @@ async function startBuild() {
   // 3. Generate Windows Resources
   console.log('\n🎨 Step 3: Generating Windows resources (Icon & Metadata)...');
   
-  // Note: go-winres is a host CLI tool that reads winres.json and creates Windows .syso files.
-  // It must run using the host's native OS/ARCH, NOT with GOOS=windows!
-  const resCmd = `"${goExe}" run github.com/tc-hib/go-winres@latest make --in winres.json`;
-  if (!run(resCmd)) {
-    console.warn('⚠️ Warning: Failed to generate resources (icon/metadata).');
-    console.warn('⚠️ The build will continue, but the executable may lack an icon.');
-  } else {
-    // Verify .syso file creation
-    const sysoFiles = fs.readdirSync('.').filter(f => f.endsWith('.syso'));
-    if (sysoFiles.length === 0) {
-      console.warn('⚠️ Warning: Resource file (.syso) was not generated!');
-    } else {
-      console.log(`   - Generated resource files: ${sysoFiles.join(', ')}`);
+  // Ensure winres directory and files exist for standard go-winres make
+  if (!fs.existsSync('winres')) {
+    fs.mkdirSync('winres', { recursive: true });
+  }
+  if (fs.existsSync('winres.json')) {
+    fs.copyFileSync('winres.json', 'winres/winres.json');
+  }
+  if (fs.existsSync('icon_256.png')) {
+    fs.copyFileSync('icon_256.png', 'winres/icon_256.png');
+  }
+  if (fs.existsSync('icon.png')) {
+    fs.copyFileSync('icon.png', 'winres/icon.png');
+  }
+
+  // Method A: Standard go-winres make (using winres/ directory)
+  console.log('   - Running go-winres make...');
+  let sysoGenerated = false;
+  try {
+    if (run(`"${goExe}" run github.com/tc-hib/go-winres@latest make`)) {
+      const sysoFiles = fs.readdirSync('.').filter(f => f.endsWith('.syso'));
+      if (sysoFiles.length > 0) {
+        console.log(`   - [OK] Resource files compiled: ${sysoFiles.join(', ')}`);
+        sysoGenerated = true;
+      }
     }
+  } catch (e) {}
+
+  // Method B: Fallback go-winres simply
+  if (!sysoGenerated) {
+    console.log('   - Trying fallback: go-winres simply...');
+    try {
+      if (run(`"${goExe}" run github.com/tc-hib/go-winres@latest simply --icon icon_256.png --manifest gui`)) {
+        const sysoFiles = fs.readdirSync('.').filter(f => f.endsWith('.syso'));
+        if (sysoFiles.length > 0) {
+          console.log(`   - [OK] Simply generated resource files: ${sysoFiles.join(', ')}`);
+          sysoGenerated = true;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!sysoGenerated) {
+    console.warn('⚠️ Warning: Initial .syso generation skipped. Will apply direct PE icon patch after Go build.');
   }
 
   // 4. Go Build & Version Tag Resolution
@@ -224,6 +253,18 @@ async function startBuild() {
   // Explicitly set GOOS and GOARCH to ensure .syso is picked up correctly
   const buildCmd = `"${goExe}" build -ldflags="-s -w -H windowsgui -X 'main.defaultPort=${customPort}'" -o "${exeName}" .`;
   if (!run(buildCmd, { GOOS: 'windows', GOARCH: 'amd64' })) process.exit(1);
+
+  // 4.5. Secondary Icon Injection Guarantee (Direct PE binary patch)
+  console.log(`\n🎨 Step 4.5: Verifying and embedding icon & metadata into ${exeName}...`);
+  try {
+    const patchTarget = fs.existsSync('winres/winres.json') ? 'winres/winres.json' : 'winres.json';
+    const patchCmd = `"${goExe}" run github.com/tc-hib/go-winres@latest patch --in "${patchTarget}" "${exeName}"`;
+    if (run(patchCmd)) {
+      console.log(`   - [OK] Icon and PE version metadata verified & patched directly into ${exeName}!`);
+    }
+  } catch (patchErr) {
+    console.warn(`   - Notice: Direct patch skipped (standard syso was embedded): ${patchErr.message}`);
+  }
 
   console.log(`\n✅ Build Successful! ${exeName} is ready.`);
   console.log('\n💡 Tip: If the icon is still not visible:');

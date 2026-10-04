@@ -19,20 +19,20 @@
 
 ### 2. 📖 제품 매뉴얼 및 시스템 사양
 * **[서비스 개요 및 제품 설명서 (docs/GRID_IP_SCANNER_2.md)](./GRID_IP_SCANNER_2.md)**
-  * 제품 주요 기능, 16x16 그리드 맵, 고속 탐색 엔진 및 UI 사용 가이드
+  * 제품 주요 기능, 16x16 그리드 맵 & 스냅샷 Diff 비교, 심층 포트 정밀 감사, A4 리포트, 오프라인 라이선스, 전체 어댑터 다차원 필터, 2단 모바일 헤더 및 UI 가이드
 * **[OUI 데이터베이스 및 동기화 기술 명세서 (docs/OUI_DATABASE_SPEC.md)](./OUI_DATABASE_SPEC.md)**
   * 계층형 OUI 아키텍처(MA-S/M/L), IEEE 봇 차단 방어, 이중 미러링(Wireshark Manuf) 및 로컬 캐시 자가 복구 기술
 * **[프로젝트 파일 구조 가이드 (docs/FILE_STRUCTURE_GUIDE.md)](./FILE_STRUCTURE_GUIDE.md)**
-  * 루트 및 하위 디렉터리(`docs/`, `.github/`, `components/`, `services/`, `installer/` 등) 전체 구조 및 역할 정의
+  * 루트 및 하위 디렉터리(`docs/`, `.github/`, `components/`, `services/`, `installer/`, `scripts/` 등) 전체 구조 및 역할 정의
 
 ### 3. 🔬 핵심 기술, 배포 전략 및 깃허브 CI/CD
 * **[GitHub 연동 및 CI/CD 자동 배포 가이드 (docs/GITHUB_GUIDE.md)](./GITHUB_GUIDE.md)**
   * GitHub 계정(`AhBiYout`), 저장소(`AhBiYout-all`) 연동 규격
-  * GitHub Actions 기반 Windows PC(.exe, Inno Setup 인스톨러) 및 모바일 웹/PWA 자동 빌드 워크플로우 명세
+  * GitHub Actions 기반 Windows PC(.exe, Inno Setup 인스톨러), Android APK 및 모바일 웹 자동 빌드/릴리즈 파이프라인
 * **[배포 전략 및 유료화 아키텍처 기술 사양서 (docs/DISTRIBUTION_AND_TIER_STRATEGY.md)](./DISTRIBUTION_AND_TIER_STRATEGY.md)**
-  * 무료(포터블) vs 유료(인스톨러) 듀얼 배포 모델, Inno Setup 6 윈도우 인스톨러 규격, 비대칭 암호키 오프라인 인증 및 기능 플래그 아키텍처
+  * 무료(포터블) vs 유료(인스톨러) 듀얼 배포 모델, Inno Setup 6 윈도우 인스톨러 규격, Ed25519 비대칭 암호키 오프라인 인증 및 기능 플래그 아키텍처
 * **[독점 핵심 기술 명세서 (docs/PROPRIETARY_TECHNOLOGY.md)](./PROPRIETARY_TECHNOLOGY.md)**
-  * 5단계 적응형 런처, 커널 NDIS ARP 소켓, 9만 건 계층적 OUI 엔진, Safe Relaunch 메커니즘
+  * 15대 핵심 기술 (스냅샷 Diff 비교 엔진, 25개 주요 포트 감사, A4 리포트 생성기, Ed25519 오프라인 라이선싱, 어댑터 전수 탐색, 엣지-투-엣지 아이콘 & PE 바이너리 패칭, 실시간 라이브 업데이트 등)
 * **[이중 라이선스 명세서 (docs/LICENSE.md)](./LICENSE.md)**
   * GPL v3 (커뮤니티 에디션) & 상용 독점 라이선스 (Commercial Edition) 안내 및 하부 MIT 라이브러리 준수성
 

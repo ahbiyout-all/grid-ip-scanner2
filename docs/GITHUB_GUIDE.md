@@ -96,8 +96,21 @@
 
 ---
 
-## 🛠️ 3. 깃허브 최초 소스 업로드 절차 (Initial Push Guide)
+## 🛠️ 6. 깃허브 최초 소스 업로드 및 원클릭 푸시 절차 (Initial Push & Sync Guide)
 
+### 방법 A: 원클릭 자동 스크립트 실행 (권장)
+루트 경로에 배치된 원클릭 동기화 스크립트를 더블클릭하거나 터미널에서 실행하면 SSOT 버전 동기화, 커밋, 푸시 및 릴리즈 태그 생성이 전자동 완료됩니다:
+```bash
+# Windows 환경
+github-push.bat
+# 또는
+scripts\github-sync.bat
+
+# Linux / Mac / Git Bash 환경
+bash scripts/github-sync.sh
+```
+
+### 방법 B: 수동 커밋 및 푸시 절차
 로컬 터미널(Git Bash 또는 명령 프롬프트)에서 아래 명령어를 순서대로 실행합니다:
 
 ```bash
@@ -108,7 +121,7 @@ git init
 git add .
 
 # 3. 초기 커밋 생성
-git commit -m "feat: Grid IP Scanner2 v2.3.1 initial release with multi-tier network filter & mobile UI"
+git commit -m "feat: Grid IP Scanner2 v2.3.2 release with edge-to-edge icons, live update & PE patching"
 
 # 4. 기본 브랜치 이름을 main으로 설정
 git branch -M main
@@ -122,23 +135,23 @@ git push -u origin main
 
 ---
 
-## 🏷️ 4. 버전 릴리즈 태그 생성 및 자동 배포 (Release Tagging)
+## 🏷️ 7. 버전 릴리즈 태그 생성 및 자동 배포 (Release Tagging)
 
 새로운 버전을 배포할 때는 태그(`vX.Y.Z`)를 발행하여 GitHub Releases에 자동 등록합니다:
 
 ```bash
 # 버전 태그 생성 (SemVer 준수)
-git tag -a v2.3.1 -m "Release v2.3.1: Network Adapter Multi-Filter & Mobile Non-Clipping TopBar"
+git tag -a v2.3.2 -m "Release v2.3.2: Edge-to-Edge Full-Bleed Icons, PE Resource Patching & Live Update"
 
 # 태그를 원격 저장소에 푸시 (GitHub Actions Release 워크플로우 즉시 발동)
-git push origin v2.3.1
+git push origin v2.3.2
 ```
 
-푸시 후 **GitHub 웹페이지 ➔ [Actions] 탭**에서 빌드 과정을 실시간 모니터링할 수 있으며, 빌드가 완료되면 생성된 `.exe` 파일을 전 세계 어디서든 바로 다운로드받을 수 있습니다.
+푸시 후 **GitHub 웹페이지 ➔ [Actions] 탭**에서 빌드 과정을 실시간 모니터링할 수 있으며, 빌드가 완료되면 생성된 `.exe`, `_Setup.exe`, `*.apk`, `*.zip` 파일이 GitHub Releases에 동시 게시되어 전 세계 어디서든 바로 다운로드받을 수 있습니다.
 
 ---
 
-## 🌿 5. 표준 브랜치 전략 (Git Branching Model)
+## 🌿 8. 표준 브랜치 전략 (Git Branching Model)
 
 1. **`main`**: 상용 제품으로 즉시 배포 가능한 완전 무결한 릴리즈 브랜치
 2. **`develop`**: 차기 버전을 위한 통합 개발 브랜치

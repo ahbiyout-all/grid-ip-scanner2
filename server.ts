@@ -67,10 +67,17 @@ async function waitForGoBackend(url: string, timeoutMs = 10000): Promise<boolean
 }
 
 async function spawnGoBackendAsync() {
-  console.log('Cleaning up any existing Go backend processes...');
+  // Check if Go backend is already running on port 8081
+  const alreadyReady = await waitForGoBackend('http://127.0.0.1:8081/api/info', 1000);
+  if (alreadyReady) {
+    console.log('✅ Existing Go backend is already up and listening on port 8081.');
+    return;
+  }
+
+  console.log('Cleaning up any stale Go backend processes...');
   try {
-    execSync('pkill -9 -f gridscan || true');
-    execSync('pkill -9 -f "go run" || true');
+    execSync('pkill -9 -f gridscan || true', { stdio: 'ignore' });
+    execSync('pkill -9 -f "go run" || true', { stdio: 'ignore' });
   } catch (killErr) {
     console.warn('Failed to clean up old processes:', killErr);
   }
@@ -110,7 +117,25 @@ async function spawnGoBackendAsync() {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+
+  // Parse port and host from environment or command line args
+  let PORT = Number(process.env.PORT) || 3000;
+  let HOST = '0.0.0.0';
+
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === '--port' && process.argv[i + 1]) {
+      const parsed = Number(process.argv[i + 1]);
+      if (!isNaN(parsed) && parsed > 0) PORT = parsed;
+    }
+    if (process.argv[i] === '--host' && process.argv[i + 1]) {
+      HOST = process.argv[i + 1];
+    }
+  }
+
+  // Healthcheck endpoint for proxies and container orchestrators
+  app.get('/healthz', (_req, res) => {
+    res.status(200).send('OK');
+  });
 
   // Proxy API requests to Go backend (port 8081)
   app.use(createProxyMiddleware({
@@ -143,8 +168,8 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Dev server running on http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`🚀 Dev server running on http://${HOST}:${PORT}`);
     // Spawn Go backend concurrently in background without blocking server listen
     spawnGoBackendAsync().catch((err) => {
       console.error('Async Go startup error:', err);

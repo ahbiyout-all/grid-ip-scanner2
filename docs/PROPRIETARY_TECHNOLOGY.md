@@ -1,6 +1,6 @@
 # Grid IP Scanner2 독자 개발 기술 및 고유 엔진 설명서 (Proprietary Technology & Core Engines)
 
-본 문서는 **Grid IP Scanner2 (v2.2.3)** 개발 과정에서 독자적으로 설계 및 구축된 핵심 독점 기술, 고유 알고리즘, 백엔드 스타트업 동기화 파이프라인, 5단계 적응형 런처, 브라우저 부재 환경용 Zero-Browser 네이티브 긴급 스캔 엔진, 그리고 IEEE 봇 차단 우회 이중 미러링 OUI 동기화 엔진에 대한 상세한 설계 명세와 법적 기술 자산 고지를 담고 있습니다. 본 고유 기술들은 타 오픈소스와 차별화되는 핵심 상용화 자산입니다.
+본 문서는 **Grid IP Scanner2 (v2.3.2)** 개발 과정에서 독자적으로 설계 및 구축된 핵심 독점 기술, 고유 알고리즘, 백엔드 스타트업 동기화 파이프라인, 5단계 적응형 런처, Zero-Browser 네이티브 긴급 스캔 엔진, IEEE 봇 차단 우회 이중 미러링 OUI 동기화 엔진, 스냅샷 Diff 비교 엔진, 심층 포트 감사 및 A4 리포트 생성기, 비대칭 암호키 오프라인 라이선싱, 어댑터 전수 탐색 및 다차원 필터, 스마트 엣지-투-엣지 아이콘 및 PE 리소스 직접 패칭 엔진, 실시간 자동 업데이트 센터에 대한 상세한 설계 명세와 법적 기술 자산 고지를 담고 있습니다. 본 고유 기술들은 타 오픈소스와 차별화되는 핵심 상용화 자산입니다.
 
 ---
 
@@ -92,9 +92,66 @@
 
 ---
 
+## 📸 10. 스냅샷 비교(Diff) 엔진 및 실시간 변동 시각화 (Snapshot Diff Engine)
+* **파일 위치**: `services/diffEngine.ts`, `components/IPCell.tsx`, `App.tsx`
+* **기술 설명**: 네트워크 내 호스트 장비의 동적 변화(신규 접속, 이탈, 변조)를 기준 스냅샷과 실시간으로 비교하여 직관적으로 감지 및 시각화하는 고유 엔진입니다.
+* **주요 핵심 기술**:
+  - **로컬 스냅샷 타임라인 저장**: 브라우저 `localStorage`를 활용하여 서브넷별 과거 스캔 결과를 안전하게 직렬화 보관.
+  - **4상태 델타(Delta) 연산 알고리즘**: 이전 스캔 대비 `신규 등장(+NEW)`, `오프라인 전환(-OFF)`, `IP 충돌/MAC 변경(!CHG)`, `변화없음(UNCHANGED)`을 16x16 그리드 상에 동적 뱃지로 렌더링.
+  - **서브넷 요약 진단 바**: 상단에 총 장치 수 증감 및 신규/오프라인 장비의 실시간 카운트를 집계하여 보안 침해 노드를 즉각 식별.
+
+---
+
+## 🔍 11. 심층 포트 정밀 보안 감사 및 A4 리포트 생성기 (Deep Port Audit & A4 Report Generator)
+* **파일 위치**: `services/portScanner.ts`, `services/reportGenerator.ts`, `main.go`
+* **기술 설명**: 25개 주요 서비스 포트를 고속 병렬 스캔하여 네트워크 취약점을 진단하고, 기업 제출용 표준 A4 인쇄 규격의 감사 보고서를 자동 조립하는 기술입니다.
+* **주요 핵심 기술**:
+  - **25대 주요 포트 비동기 프로빙**: FTP(21), SSH(22), Telnet(23), SMTP(25), DNS(53), HTTP(80), SMB(445), MSSQL(1433), MySQL(3306), RDP(3389), PostgreSQL(5432), Redis(6379) 등 주요 포트를 마이크로초 단위로 점검.
+  - **위험도(Risk Level) 자동 판정**: 개방된 포트별로 HIGH(Telnet, SMB, Redis), MEDIUM(FTP, RDP, DB), SAFE(HTTP, HTTPS) 등급을 자동 판정.
+  - **A4 규격 무손실 리포트 렌더러**: 서브넷 통계, 제조사 점유율 파이 차트/테이블, 보안 취약점 요약, 전체 인벤토리를 A4 용지 1~2장에 맞춤형 인쇄/PDF 저장할 수 있는 순수 HTML/CSS 구조체 생성.
+
+---
+
+## 🔑 12. 비대칭 암호키 오프라인 라이선스 및 기능 플래그 매니저 (Ed25519 Offline Licensing)
+* **파일 위치**: `services/licenseManager.ts`, `types.ts`
+* **기술 설명**: 인터넷 연결이 차단된 폐쇄망에서도 안전하게 유료 라이선스를 인증하고 기능을 단계별로 해금하는 암호학적 기능 제어 엔진입니다.
+* **주요 핵심 기술**:
+  - **비대칭 암호학 서명 검증**: 공개키 기반 Ed25519 서명 검증 알고리즘을 프론트엔드/백엔드에 탑재하여 변조 불가능한 오프라인 라이선스 키 체계 확립.
+  - **단일 바이너리 기능 플래그(Feature Gate)**: Free Community, Pro, Enterprise 3단계 티어에 맞춰 포트 정밀 감사, Diff 비교, 다중 서브넷 확장 등의 기능을 유연하게 개방.
+
+---
+
+## 🎛️ 13. 모든 네트워크 어댑터 전수 탐색 및 다차원 필터 엔진 (Universal Multi-Adapter Discovery)
+* **파일 위치**: `main.go` (`getAllInterfaces`), `types.ts`, `App.tsx`
+* **기술 설명**: 시스템 내 모든 물리/가상/VPN/비활성 랜카드를 탐색하고 세부 메타데이터를 수집하여 원하는 대역으로 즉각 전환하는 네트워크 관리 기술입니다.
+* **주요 핵심 기술**:
+  - **전수 어댑터 메타데이터 추출**: 이더넷, Wi-Fi뿐만 아니라 WSL, Hyper-V, VMware, Docker, Tailscale, WireGuard, 루프백 어댑터의 UP/DOWN 상태, IPv4/CIDR, IPv6, MAC, MTU, 시스템 플래그 전수 수집.
+  - **6종 다차원 필터 탭**: `전체`, `활성 UP`, `물리`, `가상`, `VPN`, `IPv4 보유` 탭 및 실시간 텍스트 검색 모듈로 원하는 서브넷을 1초 만에 색출.
+
+---
+
+## 🎨 14. 스마트 엣지-투-엣지 아이콘 자동 크롭 & PE 리소스 직접 패칭 엔진 (Smart Icon Auto-Cropping & PE Binary Patcher)
+* **파일 위치**: `generate-assets.js`, `build-win.js`, `winres.json`
+* **기술 설명**: 소스 이미지 내부의 빈 여백을 픽셀 단위로 자동 분석하여 꽉 찬 화면(Full-Bleed) 아이콘을 생성하고, Windows PE 실행 바이너리에 직접 주입하는 독점 패키징 파이프라인입니다.
+* **주요 핵심 기술**:
+  - **알파 채널 바운딩 박스 크롭 알고리즘**: `pngjs`로 원본 PNG의 투명 여백을 분석하여 비어있는 패딩 영역을 0px 오차로 완벽 크롭하고 1:1 정방형 캔버스에 중앙 정렬 리사이징.
+  - **소켓 누수 자가 회수(`process._getActiveHandles`)**: `png-to-ico` 비동기 변환 시 잔류하는 네트워크 핸들을 감지하여 안전하게 종료함으로써 빌드 멈춤(Hang) 방지.
+  - **2단계 PE 리소스 직접 패칭**: `winres.json` 숫자 리소스 ID(`"#1"`) 및 `"APP"`을 등록하고, Go 컴파일 후 `go-winres patch`를 직접 실행하여 탐색기 및 작업표시줄에서 대형 고화질 아이콘이 100% 노출되도록 보증.
+
+---
+
+## 🚀 15. GitHub Releases 기반 무중단 실시간 자동 업데이트 센터 (Live Update Center)
+* **파일 위치**: `services/updateChecker.ts`, `components/UpdateModal.tsx`, `scripts/auto-update.bat`
+* **기술 설명**: 별도의 중앙 서버 비용 없이 GitHub Releases API를 연동하여 전 세계 사용자에게 실시간 업데이트를 알리고 원클릭으로 패키지를 교체하는 풀스택 업데이트 아키텍처입니다.
+* **주요 핵심 기술**:
+  - **Semantic Versioning 자동 비교**: 로컬 앱 버전과 원격 릴리즈 태그(`vX.Y.Z`)의 SemVer 비교를 통한 펄스 알림 뱃지 가동.
+  - **플랫폼별 3대 바이너리 원클릭 다운로드**: Windows 포터블(.exe), 정식 인스톨러(Setup.exe), Android 스마트폰 전용(APK) 다운로드 직결.
+
+---
+
 ### ⚖️ 상용화 가치 및 이중 라이선스 법적 보호 사항
 본 문서에 정의된 고유 기술 목록들은 **이중 라이선스(Dual Licensing)** 정책 하에서 보호받습니다. 무상 배포본(GPL v3) 이외에 상업적 이윤 창출이나 기업 독점 솔루션 납품 목적을 지닌 유료 판매용 에디션으로 패키징할 경우, 당사(제작자)의 정식 **상용 라이선스(Commercial License)**가 적용되므로 저작권 분쟁의 여지 없이 안전하고 완벽한 독점 비즈니스 자산으로 취급됩니다. 상세 규정은 `docs/LICENSE.md`를 참고하십시오.
 
-* **기술 업데이트 일자**: 2026년 9월 14일
+* **기술 업데이트 일자**: 2026년 10월 4일 (v2.3.2 최신화)
 * **기술 개발 및 저작권자**: AhBiYout (ahbiyout@gmail.com / [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))
 * **저작권**: Copyright (c) 2025-2026 AhBiYout. All rights reserved.

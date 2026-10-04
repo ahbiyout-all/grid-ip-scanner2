@@ -539,9 +539,6 @@ const App: React.FC = () => {
   const [isAuditingPorts, setIsAuditingPorts] = useState(false);
   const [portAuditResult, setPortAuditResult] = useState<PortScanResult | null>(null);
 
-  // Installer vs Portable Guide Modal
-  const [showInstallerModal, setShowInstallerModal] = useState(false);
-
   // GitHub Real-Time Auto-Update State
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -1573,24 +1570,22 @@ const App: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 w-full min-w-0">
               <div className="relative shrink-0 group">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-black/60 to-zinc-900 border border-sky-500/30 p-1 flex items-center justify-center shadow-md shadow-sky-500/10 group-hover:border-sky-400/60 transition-all duration-300">
+                <div className="w-12 h-12 rounded-xl overflow-hidden border border-sky-500/40 shadow-lg shadow-sky-500/20 bg-zinc-950 flex items-center justify-center group-hover:border-sky-400 group-hover:shadow-sky-400/30 transition-all duration-300">
                   <img 
                     src="./logo.png" 
                     alt="Grid IP Scanner2" 
-                    className="w-full h-full object-contain rounded-lg drop-shadow-sm group-hover:scale-105 transition-transform duration-300" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                     referrerPolicy="no-referrer" 
                   />
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-sm" title="Core Engine Ready (정상 가동)" />
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-md ring-1 ring-emerald-400/50" title="Core Engine Ready (정상 가동)" />
               </div>
               <div className="flex flex-col min-w-0 flex-1">
                 <h1 className="text-sm font-black tracking-tight uppercase leading-snug whitespace-nowrap text-zinc-100">
                   {s.title}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 shrink-0">
-                    v2.3.2
-                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 shrink-0">v2.3.2</span>
                   <button
                     onClick={handleManualCheckUpdate}
                     className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold flex items-center gap-1 transition-all shrink-0 ${
@@ -2023,15 +2018,6 @@ const App: React.FC = () => {
                   <span>{s.saveSnapshot}</span>
                 </button>
 
-                {/* Installer vs Portable Distribution Guide */}
-                <button 
-                  onClick={() => setShowInstallerModal(true)}
-                  className="flex items-center justify-center space-x-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 text-[9px] font-bold uppercase tracking-wider opacity-60 hover:opacity-100 transition-all w-full"
-                >
-                  <Package className="w-3 h-3 text-amber-400" />
-                  <span>{s.installerDownloadBtn}</span>
-                </button>
-
                 {showSummary && !isScanning && (
                   <div className={`p-2.5 rounded-lg border ${theme === 'beige' ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
                     <div className="flex items-center space-x-2 mb-1">
@@ -2245,7 +2231,7 @@ const App: React.FC = () => {
                   <img 
                     src="./logo.png" 
                     alt="Grid IP" 
-                    className="w-7 h-7 rounded-lg object-contain shrink-0 shadow-sm border border-white/10 p-0.5 bg-black/30" 
+                    className="w-7 h-7 rounded-lg object-cover shrink-0 shadow-sm border border-sky-500/40" 
                   />
                   <span className="font-black text-xs uppercase tracking-tight truncate">Grid IP</span>
                   <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-400 font-mono font-bold">v2.3.2</span>
@@ -2777,7 +2763,7 @@ const App: React.FC = () => {
                   <img 
                     src="./logo.png" 
                     alt="Grid IP Scanner2" 
-                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-2xl p-1 bg-black/40 border-2 border-sky-500/30 shadow-xl shadow-sky-500/10 shrink-0" 
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-2xl border-2 border-sky-500/40 shadow-xl shadow-sky-500/20 shrink-0" 
                   />
                   <div className="space-y-1">
                     <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
@@ -2873,7 +2859,7 @@ const App: React.FC = () => {
                   <img 
                     src="./logo.png" 
                     alt="Grid IP" 
-                    className="w-12 h-12 rounded-xl object-contain p-1 bg-black/40 border border-sky-500/30 shadow-md shrink-0" 
+                    className="w-12 h-12 rounded-xl object-cover border border-sky-500/40 shadow-md shrink-0" 
                   />
                   <div>
                     <h3 className="font-black text-base uppercase tracking-tight flex items-center gap-2">
@@ -3184,7 +3170,7 @@ const App: React.FC = () => {
                 <img 
                   src="./logo.png" 
                   alt="Grid IP" 
-                  className="w-10 h-10 object-contain rounded-xl p-0.5 bg-black/40 border border-amber-500/30 shrink-0" 
+                  className="w-10 h-10 object-cover rounded-xl border border-sky-500/40 shadow-sm shrink-0" 
                 />
                 <div>
                   <h3 className="font-black text-sm uppercase tracking-tight">{s.licenseTitle}</h3>
@@ -3296,78 +3282,6 @@ const App: React.FC = () => {
             <button 
               onClick={() => setShowLicenseModal(false)}
               className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-black text-xs uppercase transition-all flex-shrink-0"
-            >
-              {s.done || "Done"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Installer vs Portable Distribution Guide Modal */}
-      {showInstallerModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
-            <div className="flex justify-between items-center pb-2 border-b border-white/10">
-              <div className="flex items-center space-x-3">
-                <img 
-                  src="./logo.png" 
-                  alt="Grid IP" 
-                  className="w-10 h-10 object-contain rounded-xl p-0.5 bg-black/40 border border-sky-500/30 shrink-0" 
-                />
-                <div>
-                  <h3 className="font-black text-sm uppercase tracking-tight">배포 패키지 안내 (인스톨러 vs 포터블)</h3>
-                  <div className="text-[10px] opacity-60 font-mono">Grid IP Scanner2 v2.3.2 (AhBiYout-all)</div>
-                </div>
-              </div>
-              <button onClick={() => setShowInstallerModal(false)} className="p-1 hover:opacity-50 transition-opacity"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs leading-relaxed no-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Portable Card */}
-                <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2">
-                  <div className="flex items-center space-x-2 text-sky-400 font-black text-xs uppercase">
-                    <Zap className="w-4 h-4" />
-                    <span>무설치 포터블 (.exe)</span>
-                  </div>
-                  <ul className="text-[11px] space-y-1.5 opacity-90">
-                    <li>• <b>설치 없는 1초 실행</b>: 다운로드 즉시 실행</li>
-                    <li>• <b>USB 휴대용 최적화</b>: 현장 외근 및 긴급 점검</li>
-                    <li>• <b>시스템 흔적 없음</b>: 레지스트리 미등록</li>
-                    <li>• 무료 커뮤니티 기본 제공</li>
-                  </ul>
-                </div>
-
-                {/* Installer Card */}
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-                  <div className="flex items-center space-x-2 text-emerald-400 font-black text-xs uppercase">
-                    <Package className="w-4 h-4" />
-                    <span>정식 인스톨러 (Setup.exe)</span>
-                  </div>
-                  <ul className="text-[11px] space-y-1.5 opacity-90">
-                    <li>• <b>제어판 정식 등록</b>: 기업 보안 감사 통과</li>
-                    <li>• <b>24시간 상시 감시</b>: 부팅 시 트레이 자동 실행</li>
-                    <li>• <b>방화벽 자동 예외</b>: ICMP/포트 차단 방지</li>
-                    <li>• <b>무인 일괄 배포</b>: `/VERYSILENT` GPO 배포</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/10'} space-y-2`}>
-                <div className="font-bold text-[11px] text-zinc-200">🛠️ Inno Setup 6 인스톨러 빌드 파이프라인</div>
-                <div className="text-[10.5px] opacity-80 leading-relaxed font-mono bg-black/40 p-2.5 rounded-lg select-all">
-                  npm run build:installer<br />
-                  ➔ dist_installer/Grid_IP_Scanner2_v2.3.2_Setup.exe
-                </div>
-                <div className="text-[10px] opacity-60">
-                  * 정식 규격 스크립트: <code>installer/Grid_IP_Scanner2_Setup.iss</code>
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setShowInstallerModal(false)}
-              className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-black text-xs uppercase transition-all flex-shrink-0"
             >
               {s.done || "Done"}
             </button>
