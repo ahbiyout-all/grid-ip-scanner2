@@ -47,7 +47,22 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build Windows Installer (Setup.exe)
-        run: npm run build:installer || echo "Installer build finished"
+        shell: pwsh
+        run: |
+          $innoDir = "C:\Program Files (x86)\Inno Setup 6"
+          if (Test-Path $innoDir) {
+            Write-Host "Adding Inno Setup to PATH: $innoDir"
+            $innoDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+          npm run build:installer || echo "Installer build finished"
+
+      - name: Verify Windows Executables
+        shell: pwsh
+        run: |
+          Write-Host "=== Generated Root Executables ==="
+          Get-ChildItem -Path . -Filter "*.exe" | Select-Object Name, Length
+          Write-Host "=== Generated Installer Executables ==="
+          Get-ChildItem -Path dist_installer -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object Name, Length
 
       - name: Upload PC Binaries
         uses: actions/upload-artifact@v4
@@ -132,17 +147,34 @@ jobs:
           if-no-files-found: ignore
 
   # ====================================================================
-  # JOB 4: Automated GitHub Releases Publisher (Triggered on Tag v*)
+  # JOB 4: Automated GitHub Releases Publisher (Push to main, Tag, or Manual)
   # ====================================================================
   publish-github-release:
     name: Publish to GitHub Releases
     needs: [build-windows, build-web-mobile, build-android-apk]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js (for version resolution)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve Release Version Tag
+        id: resolve_tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            RELEASE_TAG="${{ github.ref_name }}"
+          else
+            APP_VERSION=$(node -p "try{require('./package.json').version}catch(e){'2.3.2'}")
+            RELEASE_TAG="v${APP_VERSION}"
+          fi
+          echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "Resolved Target Release Tag: ${RELEASE_TAG}"
 
       - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
@@ -167,13 +199,21 @@ jobs:
         run: |
           mkdir -p release_files
           find release_assets/ -type f \( -name "*.exe" -o -name "*.apk" -o -name "*.zip" \) -exec cp {} release_files/ \;
+          echo "=== Collected Release Binaries ==="
           ls -la release_files/
+          if [ -z "$(ls -A release_files)" ]; then
+            echo "ERROR: No binary files found in release_assets!"
+            exit 1
+          fi
 
       - name: Publish Official GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.resolve_tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }}
           files: release_files/*
           generate_release_notes: true
-          name: Grid IP Scanner2 ${{ github.ref_name }}
+          make_latest: true
           draft: false
           prerelease: false
