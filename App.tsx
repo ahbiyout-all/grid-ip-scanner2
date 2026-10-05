@@ -682,6 +682,11 @@ const App: React.FC = () => {
   };
 
   const handleRunDeepPortAudit = async (ip: string) => {
+    if (!license.features.portScanDeep) {
+      showToast("심층 포트 정밀 보안 감사 기능은 PRO 이상에서 제공됩니다.");
+      setShowLicenseModal(true);
+      return;
+    }
     setIsAuditingPorts(true);
     setPortAuditResult(null);
     try {
@@ -697,6 +702,11 @@ const App: React.FC = () => {
   };
 
   const handleExportAuditReport = () => {
+    if (!license.features.exportReport) {
+      showToast("보안 감사 보고서 내보내기 기능은 PRO 이상에서 제공됩니다.");
+      setShowLicenseModal(true);
+      return;
+    }
     const activeCount = Object.values(results).filter(r => r.status === 'active').length;
     if (activeCount === 0) {
       showToast(s.noData || "내보낼 활성 데이터가 없습니다.");
@@ -2329,6 +2339,11 @@ const App: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
+                      if (!license.features.diffCompare) {
+                        showToast("스냅샷 비교(Diff) 기능은 PRO 이상에서 제공됩니다.");
+                        setShowLicenseModal(true);
+                        return;
+                      }
                       if (snapshots.length === 0 && Object.values(results).some(r => r.status === 'active')) {
                         handleSaveSnapshot();
                       }
@@ -3456,19 +3471,33 @@ const App: React.FC = () => {
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span>스냅샷 비교 (Diff Engine)</span>
-                    <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    {license.features.diffCompare ? (
+                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                    )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span>심층 포트 정밀 보안 감사</span>
-                    <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    {license.features.portScanDeep ? (
+                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                    )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span>A4 보안 감사 보고서 (HTML)</span>
-                    <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    {license.features.exportReport ? (
+                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                    )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span>다중 서브넷 허용 한도</span>
-                    <span className="text-[10px] font-bold mono text-sky-400">{license.maxSubnets}개 대역</span>
+                    <span className="text-[10px] font-bold mono text-sky-400">
+                      {license.maxSubnets === 999 ? '무제한' : `${license.maxSubnets}개 대역`}
+                    </span>
                   </div>
                 </div>
               </div>
