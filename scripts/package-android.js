@@ -55,6 +55,44 @@ function copyRecursive(src, dest) {
 
 copyRecursive(distDir, assetsDir);
 
+// 2.5: Cross-compile or embed native Go ARM64 Engine
+console.log('   - Checking for Go ARM64 native engine...');
+let goExe = 'go';
+let hasGo = false;
+try {
+  execSync('go version', { stdio: 'ignore' });
+  hasGo = true;
+} catch (e) {
+  const localGoWin = path.join(rootDir, 'go', 'bin', 'go.exe');
+  const localGoNix = path.join(rootDir, 'go', 'bin', 'go');
+  if (fs.existsSync(localGoWin)) { goExe = localGoWin; hasGo = true; }
+  else if (fs.existsSync(localGoNix)) { goExe = localGoNix; hasGo = true; }
+}
+
+const engineArm64Path = path.join(rootDir, 'engine_arm64');
+if (!fs.existsSync(engineArm64Path) && hasGo) {
+  try {
+    console.log('   - Cross-compiling native Go engine for Android ARM64 (CGO_ENABLED=0 GOOS=android GOARCH=arm64)...');
+    execSync(`"${goExe}" build -ldflags="-s -w" -o "${engineArm64Path}" .`, {
+      cwd: rootDir,
+      env: { ...process.env, CGO_ENABLED: '0', GOOS: 'android', GOARCH: 'arm64' },
+      stdio: 'inherit'
+    });
+  } catch (err) {
+    console.warn('   - Warning: Could not cross-compile Go engine locally:', err.message);
+  }
+}
+
+// If engine_arm64 exists, bundle into lib/arm64-v8a/libengine.so and assets/
+if (fs.existsSync(engineArm64Path)) {
+  const libArm64Dir = path.join(androidDir, 'lib', 'arm64-v8a');
+  fs.mkdirSync(libArm64Dir, { recursive: true });
+  fs.copyFileSync(engineArm64Path, path.join(libArm64Dir, 'libengine.so'));
+  fs.copyFileSync(engineArm64Path, path.join(androidDir, 'assets', 'engine_arm64'));
+  const engineSize = (fs.statSync(engineArm64Path).size / (1024 * 1024)).toFixed(2);
+  console.log(`   - [OK] Embedded native Go ARM64 engine into APK lib/arm64-v8a/libengine.so (${engineSize} MB)`);
+}
+
 // Generate AndroidManifest.xml
 const manifestContent = `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -64,6 +102,8 @@ const manifestContent = `<?xml version="1.0" encoding="utf-8"?>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

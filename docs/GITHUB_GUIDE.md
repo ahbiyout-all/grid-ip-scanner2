@@ -41,11 +41,16 @@
   3. 스마트폰 모바일 브라우저를 통한 반응형 웹 접속 완벽 지원
 
 ### 🤖 Job 3: Android 스마트폰 설치 파일 빌드 (`build-android-apk`)
-* **구동 환경**: `ubuntu-latest` + Java 17 Temurin
+* **구동 환경**: `ubuntu-latest` + Go 1.22 + Java 17 Temurin
 * **수행 절차**:
-  1. 안드로이드 빌드 툴체인 및 Web 번들 구조 연동
-  2. `node scripts/package-android.js` 실행 ➔ **안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.3.2.apk`) 생성**
-  3. 생성된 APK 파일을 `android-binaries` 아티팩트로 업로드
+  1. `actions/setup-go@v5`로 Go 1.22 런타임 활성화
+  2. `CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build` 실행 ➔ **안드로이드 ARM64 네이티브 스캔 엔진(`engine_arm64`) 크로스 컴파일**
+  3. `npm run build`로 모바일 최적화 웹 프론트엔드 자산 생성
+  4. `node scripts/package-android.js` 실행:
+     - 네이티브 ARM64 엔진을 APK `lib/arm64-v8a/libengine.so` 및 `assets/engine_arm64`에 동시 임베딩
+     - 멀티캐스트 및 소켓 권한(`CHANGE_WIFI_MULTICAST_STATE`, `WAKE_LOCK`)이 포함된 매니페스트 결합
+     - **안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.3.2.apk`) 생성**
+  5. 생성된 APK 파일을 `android-binaries` 아티팩트로 업로드
 
 ### 📦 Job 4: GitHub Releases 공식 릴리즈 자동 발행 (`publish-github-release`)
 * **발동 조건**: `v*` 형태의 시맨틱 버전 태그 푸시 시 자동 실행

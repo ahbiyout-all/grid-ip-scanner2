@@ -26,7 +26,7 @@
        ⑧ `docs/WorkLog.md` (작업 일지)
   2. **PC / Android 스마트폰 설치 및 배포 파일 생성 (아이폰 설치 파일 생성 보류)**:
      - **Windows PC**: 포터블 무설치 단일 바이너리(`Grid IP Scanner2 v2.3.2.exe`) 및 Inno Setup 6 공식 인스톨러(`Grid_IP_Scanner2_v2.3.2_Setup.exe`) 생성.
-     - **Android 스마트폰**: `scripts/package-android.js`를 통해 네이티브 매니페스트와 웹 자산이 통합된 안드로이드 전용 APK(`Grid_IP_Scanner2_v2.3.2.apk`) 생성 파이프라인 구축.
+     - **Android 스마트폰**: `scripts/package-android.js` 및 GitHub Actions 파이프라인에서 Go 1.22 기반 ARM64 네이티브 스캔 엔진(`engine_arm64`)을 크로스 컴파일하여 APK 내부 `lib/arm64-v8a/libengine.so` 및 `assets/`에 임베딩하고 소켓/멀티캐스트 권한을 연동한 단독 실행형 APK(`Grid_IP_Scanner2_v2.3.2.apk`) 생성 파이프라인 구축.
      - **아이폰 (iOS)**: 사용자 요구사항에 따라 아이폰용 별도 설치 파일 생성은 당분간 배제하고 표준 반응형 모바일 웹 접속 방식으로 유지.
   3. **GitHub Releases 기반 실시간 자동 업데이트 시스템 구축**:
      - **인앱 업데이트 센터 (`services/updateChecker.ts`, `components/UpdateModal.tsx`)**: 앱 구동 시 GitHub Releases API를 조회하여 최신 릴리즈를 실시간 감지하고, 플랫폼별(PC 포터블, 인스톨러, 안드로이드 APK) 다운로드 링크 및 릴리즈 노트를 직관적 제공.

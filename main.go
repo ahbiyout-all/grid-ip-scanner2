@@ -284,6 +284,12 @@ func openAppWindow(url string) {
 		return
 	}
 
+	// For Android or headless daemon mode, remain running and await client connections
+	if runtime.GOOS != "windows" {
+		fmt.Printf("Engine running in mobile/headless mode on port %s. Listening for connections...\n", port)
+		return
+	}
+
 	// 5단계: 브라우저 실행이 모두 차단되었거나 실패한 경우, Windows 네이티브 안내창 및 긴급 스캔 모드 가동
 	fmt.Println("All automated browser launches failed. Activating native emergency dialog...")
 	emergencyModeMutex.Lock()
@@ -2075,8 +2081,11 @@ func main() {
 			openAppWindow("http://127.0.0.1:" + port)
 		}()
 
-		// Heartbeat checker: Exit if no heartbeat for 10 seconds (unless in emergency dialog/scan mode)
+		// Heartbeat checker: Exit if no heartbeat for 10 seconds (unless in emergency dialog/scan mode or mobile/Android)
 		go func() {
+			if runtime.GOOS == "android" || os.Getenv("GRIDSCAN_MODE") == "mobile" {
+				return
+			}
 			for {
 				time.Sleep(5 * time.Second)
 				emergencyModeMutex.Lock()

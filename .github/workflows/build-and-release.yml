@@ -129,6 +129,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Cross-compile Go Engine for Android ARM64
+        run: |
+          echo "Cross-compiling native Go scanning engine for Android ARM64..."
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -ldflags="-s -w" -o engine_arm64 .
+          ls -lh engine_arm64
+
       - name: Install Dependencies
         run: npm ci || npm install
 
