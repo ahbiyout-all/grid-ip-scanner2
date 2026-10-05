@@ -67,6 +67,12 @@
       - 공식 안내 시작 대화상자 탑재, 기존 프로세스 자동 정지(`taskkill`), `%LOCALAPPDATA%\Programs\Grid IP Scanner2` 권한 자동 폴백 및 추출 실패 시 명확한 사유 안내 팝업을 포함한 고도화 설치 엔진 완성.
   15. **반응형 UI 레이아웃 보정 및 짤림 방지 규칙 강화**:
       - 모달, 배지 및 카드 컨테이너에 `flex-wrap`, `min-w-0`, `break-words`, `max-h-[90vh] overflow-y-auto` 반응형 CSS 보정 규칙을 적용하여 전 화면 영역 짤림 방지 최적화.
+  16. **GitHub Actions 러너 Node.js 22 LTS 최신화 (Node 20 EOL 대책 선제 적용)**:
+      - GitHub Actions 실행 환경의 Node.js 20 Deprecated 및 EOL 방침에 발맞추어 `.github/workflows/build-and-release.yml`의 모든 Job(`build-windows`, `build-web-mobile`, `build-android-apk`, `publish-github-release`)에서 `node-version: 22` LTS로 전면 업그레이드 및 CI/CD 경고 소멸.
+  17. **인스톨 파일 설치 사전 필수 고지 사항 (False Positive, 이중 라이선스, 방화벽) 명시**:
+      - `installer/setup_builder.go`, `installer/Grid_IP_Scanner2_Setup.iss`, `installer/NOTICE_BEFORE_INSTALL.txt`: 설치 대화상자 첫 화면에 백신 오탐지(False Positive) 안내, GPL v3 & 상용 이중 라이선스 고지, 방화벽 자동 등록 사항을 사용자가 명확히 확인 후 진행하도록 보강.
+  18. **인앱 UI 시인성 및 가독성 (폰트 색상/대비/크기) 전면 개선**:
+      - `components/IPCell.tsx` & `App.tsx`: 비활성 노드 및 모달 서브텍스트의 투명도와 대비를 강화(`opacity-70`, `text-zinc-200`, `text-[11px] md:text-[13px] font-black`), 포트 배지 크기 보정 등 글씨 시인성 및 가독성을 대폭 향상.
 
 ---
 

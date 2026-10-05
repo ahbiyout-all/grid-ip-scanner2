@@ -1562,9 +1562,9 @@ const App: React.FC = () => {
   }, [allIps, results, searchTerm, s, sortMode]);
 
   const t = {
-    dark: { bg: 'bg-zinc-950', sidebar: 'bg-zinc-900 border-zinc-950', main: 'bg-zinc-950', header: 'bg-zinc-900/80 border-zinc-950 backdrop-blur-md', text: 'text-zinc-100', textMuted: 'text-zinc-500', input: 'bg-zinc-900 border-zinc-800 text-zinc-100', panel: 'bg-zinc-900 border-zinc-950', accent: 'text-emerald-500' },
-    gray: { bg: 'bg-[#1e1f22]', sidebar: 'bg-[#2b2d31] border-[#1e1f22]', main: 'bg-[#313338]', header: 'bg-[#313338]/80 border-[#1e1f22] backdrop-blur-md', text: 'text-[#dbdee1]', textMuted: 'text-[#949ba4]', input: 'bg-[#1e1f22] border-[#1e1f22] text-[#dbdee1]', panel: 'bg-[#2b2d31] border-[#1e1f22]', accent: 'text-[#5865f2]' },
-    beige: { bg: 'bg-[#fcf8f2]', sidebar: 'bg-[#f5ebd6] border-[#e6d0a7]', main: 'bg-[#fcf8f2]', header: 'bg-[#f5ebd6]/80 border-[#e6d0a7] backdrop-blur-md', text: 'text-[#5c4a37]', textMuted: 'text-[#9c8268]', input: 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]', panel: 'bg-[#f5ebd6] border-[#e6d0a7] shadow-xl backdrop-blur-md', accent: 'text-[#b45309]' }
+    dark: { bg: 'bg-zinc-950', sidebar: 'bg-zinc-900 border-zinc-800', main: 'bg-zinc-950', header: 'bg-zinc-900/90 border-zinc-800 backdrop-blur-md', text: 'text-zinc-100', textMuted: 'text-zinc-300', input: 'bg-zinc-950 border-zinc-700 text-zinc-100', panel: 'bg-zinc-900 border-zinc-800', accent: 'text-emerald-400' },
+    gray: { bg: 'bg-[#1e1f22]', sidebar: 'bg-[#2b2d31] border-[#18191c]', main: 'bg-[#313338]', header: 'bg-[#2b2d31]/90 border-[#18191c] backdrop-blur-md', text: 'text-[#f2f3f5]', textMuted: 'text-[#c2c7d0]', input: 'bg-[#1e1f22] border-[#383a40] text-[#f2f3f5]', panel: 'bg-[#2b2d31] border-[#18191c]', accent: 'text-[#5865f2]' },
+    beige: { bg: 'bg-[#faf5eb]', sidebar: 'bg-[#ebdcb9] border-[#d4be9c]', main: 'bg-[#faf5eb]', header: 'bg-[#ebdcb9]/95 border-[#d4be9c] backdrop-blur-md', text: 'text-[#1a0f05]', textMuted: 'text-[#422e1b]', input: 'bg-[#ffffff] border-[#c8ae95] text-[#1a0f05]', panel: 'bg-[#ebdcb9] border-[#d4be9c] shadow-xl backdrop-blur-md', accent: 'text-[#853a03]' }
   }[theme];
 
   return (
@@ -1609,7 +1609,7 @@ const App: React.FC = () => {
                 <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-md ring-1 ring-emerald-400/50" title="Core Engine Ready (정상 가동)" />
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <h1 className="text-sm font-black tracking-tight uppercase leading-snug whitespace-nowrap text-zinc-100">
+                <h1 className={`text-sm font-black tracking-tight uppercase leading-snug whitespace-nowrap ${t.text}`}>
                   {s.title}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-1.5">
@@ -1617,8 +1617,8 @@ const App: React.FC = () => {
                     onClick={handleManualCheckUpdate}
                     className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold flex items-center gap-1 transition-all shrink-0 ${
                       updateInfo?.hasUpdate
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 animate-pulse shadow-sm'
-                        : 'bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/10'
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 animate-pulse shadow-sm'
+                        : (theme === 'beige' ? 'bg-[#ffffff] text-[#422e1b] border border-[#c8ae95] hover:bg-[#faf5eb]' : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10')
                     }`}
                     title="GitHub Releases 기반 실시간 업데이트 점검"
                   >
@@ -1642,12 +1642,12 @@ const App: React.FC = () => {
                   <button
                     onClick={handleElevateAdmin}
                     disabled={isElevating}
-                    className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit cursor-pointer bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50"
+                    className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit cursor-pointer bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50"
                   >
                     {s.standardMode}
                   </button>
                 ) : (
-                  <div className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit bg-emerald-500/10 border-emerald-500/20 text-emerald-500">
+                  <div className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                     {s.adminMode}
                   </div>
                 )}
@@ -1660,7 +1660,7 @@ const App: React.FC = () => {
               </div>
               <button
                 onClick={resetScanState}
-                className="px-2 py-0.5 border border-red-500/20 bg-red-500/10 text-red-500 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-red-500/20 transition-colors"
+                className="px-2 py-0.5 border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-red-500/20 transition-colors"
                 title={s.resetState}
               >
                 {s.resetBtn}
@@ -1670,36 +1670,36 @@ const App: React.FC = () => {
 
           {/* 현재 PC 정보 (Host PC Info) */}
           {localIpInfo && (
-            <div className={`mb-5 p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7] text-[#5c4a37]' : 'bg-white/5 border-white/5 text-slate-200'}`}>
-              <div className="flex items-center gap-1.5 mb-2 font-black uppercase tracking-wider text-[10px] opacity-75">
+            <div className={`mb-5 p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' : 'bg-white/5 border-white/10 text-slate-100'}`}>
+              <div className="flex items-center gap-1.5 mb-2 font-black uppercase tracking-wider text-[10px] opacity-90">
                 <div className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                <span>{s.hostPcInfo}</span>
+                <span className={theme === 'beige' ? 'text-[#1a0f05] font-black' : 'text-slate-100'}>{s.hostPcInfo}</span>
               </div>
               <div className="space-y-1.5 text-[10.5px]">
                 {localIpInfo.computerName && (
                   <div className="flex justify-between items-center">
-                    <span className="opacity-60">{s.computerName}</span>
-                    <span className="font-extrabold text-sky-500 max-w-[130px] truncate" title={localIpInfo.computerName}>{localIpInfo.computerName}</span>
+                    <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.computerName}</span>
+                    <span className="font-extrabold text-sky-600 dark:text-sky-400 max-w-[130px] truncate" title={localIpInfo.computerName}>{localIpInfo.computerName}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className="opacity-60">{s.ipAddress}</span>
-                  <span className="font-bold mono">{localIpInfo.ip}</span>
+                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.ipAddress}</span>
+                  <span className="font-black mono">{localIpInfo.ip}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="opacity-60">{s.subnetTarget}</span>
-                  <span className="font-bold mono">{localIpInfo.subnet}.0/24</span>
+                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.subnetTarget}</span>
+                  <span className="font-black mono">{localIpInfo.subnet}.0/24</span>
                 </div>
               </div>
             </div>
           )}
 
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
-            <div className="space-y-4 p-3.5 bg-black/10 rounded-xl border border-white/5">
+            <div className={`space-y-4 p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c]' : 'bg-black/10 border-white/5'}`}>
               <div className="flex items-center justify-between relative group">
                 <div className="flex items-center gap-1.5">
                   <label className={`text-[11px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.deepScan}</label>
-                  <Info className="w-3.5 h-3.5 opacity-30 cursor-help" />
+                  <Info className="w-3.5 h-3.5 opacity-50 cursor-help" />
                 </div>
                 <button 
                   onClick={() => setDeepScan(!deepScan)}
@@ -1720,8 +1720,8 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('fast')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'fast' 
-                        ? 'bg-sky-500/20 border-sky-500/50 text-sky-500' 
-                        : 'bg-zinc-800/50 border-white/5 text-zinc-500 hover:bg-zinc-800'
+                        ? 'bg-sky-500/20 border-sky-500/60 text-sky-600 dark:text-sky-400 font-black shadow-sm' 
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Zap className="w-4 h-4 mb-1" />
@@ -1731,8 +1731,8 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('standard')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'standard' 
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500' 
-                        : 'bg-zinc-800/50 border-white/5 text-zinc-500 hover:bg-zinc-800'
+                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-700 dark:text-emerald-400 font-black shadow-sm' 
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Activity className="w-4 h-4 mb-1" />
@@ -1742,8 +1742,8 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('precision')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'precision' 
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-500' 
-                        : 'bg-zinc-800/50 border-white/5 text-zinc-500 hover:bg-zinc-800'
+                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-700 dark:text-amber-400 font-black shadow-sm' 
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Search className="w-4 h-4 mb-1" />
@@ -1751,12 +1751,13 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 
-                <div className={`p-2 rounded-lg border ${
-                  scanMode === 'fast' ? 'bg-sky-500/10 border-sky-500/20' : 
-                  scanMode === 'standard' ? 'bg-emerald-500/10 border-emerald-500/20' : 
-                  'bg-amber-500/10 border-amber-500/20'
+                <div className={`p-2.5 rounded-lg border ${
+                  theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] shadow-sm' : 
+                  scanMode === 'fast' ? 'bg-sky-500/10 border-sky-500/20 text-sky-200' : 
+                  scanMode === 'standard' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200' : 
+                  'bg-amber-500/10 border-amber-500/20 text-amber-200'
                 }`}>
-                  <p className="text-[9px] opacity-70 leading-relaxed font-medium">
+                  <p className={`text-[9.5px] leading-relaxed font-bold ${theme === 'beige' ? 'text-[#2c1d11]' : 'opacity-90'}`}>
                     {scanMode === 'fast' && s.scanFastDesc}
                     {scanMode === 'standard' && s.scanStandardDesc}
                     {scanMode === 'precision' && s.scanPrecisionDesc}
@@ -1766,7 +1767,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Network Adapter & Filter Selection */}
-            <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-black/10 border-white/5'} space-y-2.5`}>
+            <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' : 'bg-black/10 border-white/5'} space-y-2.5`}>
               <div className="flex items-center justify-between">
                 <label className={`text-[11px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1.5`}>
                   <Network className="w-3.5 h-3.5 text-sky-400" />
@@ -1799,8 +1800,8 @@ const App: React.FC = () => {
                     onClick={() => setInterfaceFilter(tab.key as any)}
                     className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all ${
                       interfaceFilter === tab.key
-                        ? 'bg-sky-500 text-white shadow-sm'
-                        : 'bg-white/5 hover:bg-white/10 text-zinc-400'
+                        ? 'bg-sky-600 text-white shadow-sm'
+                        : (theme === 'beige' ? 'bg-[#f0e2be] hover:bg-[#e2ceaa] text-[#1a0f05] font-bold border border-[#d4be9c]' : 'bg-white/5 hover:bg-white/10 text-zinc-300')
                     }`}
                   >
                     {tab.label}
@@ -1823,7 +1824,7 @@ const App: React.FC = () => {
                     }
                   }}
                   value={localIpInfo?.ip || (filteredInterfaces[0]?.ip || '')}
-                  className={`w-full ${t.input} rounded-lg px-2.5 py-2 text-[11px] font-bold focus:outline-none transition-all cursor-pointer truncate`}
+                  className={`w-full ${t.input} rounded-lg px-2.5 py-2 text-[11px] font-bold focus:outline-none transition-all cursor-pointer truncate shadow-sm`}
                 >
                   {filteredInterfaces.map(iface => (
                     <option key={`${iface.name}-${iface.ip}`} value={iface.ip || iface.name}>
@@ -1832,7 +1833,7 @@ const App: React.FC = () => {
                   ))}
                 </select>
               ) : (
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 flex items-center justify-between">
+                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 flex items-center justify-between">
                   <span>{s.noMatchingAdapters}</span>
                   <button 
                     onClick={() => setInterfaceFilter('all')}
@@ -1848,8 +1849,8 @@ const App: React.FC = () => {
                 onClick={() => setShowInterfaceModal(true)}
                 className={`w-full py-1.5 px-2 rounded-lg border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all ${
                   theme === 'beige' 
-                    ? 'bg-[#f0e4cf] border-[#dfceb0] hover:bg-[#ebdcc0] text-[#5c4a37]' 
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300'
+                    ? 'bg-[#ffffff] border-[#c8ae95] hover:bg-[#faf5eb] text-[#1a0f05] shadow-sm' 
+                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
                 }`}
               >
                 <Filter className="w-3 h-3 text-sky-400" />
@@ -2002,7 +2003,11 @@ const App: React.FC = () => {
               <div className="flex flex-col space-y-3">
                 <button 
                   onClick={() => handleExportCSV('active')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-current border-opacity-10 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest w-full ${
+                    theme === 'beige' 
+                      ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb] shadow-sm' 
+                      : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
+                  } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                 >
                   <Zap className="w-3.5 h-3.5 text-sky-500" />
                   <span>{s.exportActive} (CSV)</span>
@@ -2010,7 +2015,11 @@ const App: React.FC = () => {
                 
                 <button 
                   onClick={() => handleExportCSV('all')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-current border-opacity-10 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest w-full ${
+                    theme === 'beige' 
+                      ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb] shadow-sm' 
+                      : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
+                  } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                 >
                   <Box className="w-3.5 h-3.5 text-zinc-500" />
                   <span>{s.exportAll} (CSV)</span>
@@ -2018,7 +2027,7 @@ const App: React.FC = () => {
 
                 <button 
                   onClick={handleExportGrid}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                 >
                   <Monitor className="w-3.5 h-3.5 text-sky-500" />
                   <span>{s.exportGrid} (HTML)</span>
@@ -2026,7 +2035,7 @@ const App: React.FC = () => {
 
                 <button 
                   onClick={handleExportExcelGrid}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                 >
                   <Database className="w-3.5 h-3.5 text-emerald-500" />
                   <span>{s.exportExcelGrid} (XLS)</span>
@@ -2035,20 +2044,20 @@ const App: React.FC = () => {
                 {/* Professional Security Audit Report (Pro/Enterprise Feature) */}
                 <button 
                   onClick={handleExportAuditReport}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                   title={s.exportAuditReportBtn}
                 >
-                  <FileText className="w-3.5 h-3.5 text-sky-400" />
+                  <FileText className="w-3.5 h-3.5 text-sky-500" />
                   <span>{s.exportAuditReportBtn}</span>
                 </button>
 
                 {/* Save Current Scan Snapshot for Diff Comparison */}
                 <button 
                   onClick={handleSaveSnapshot}
-                  className={`flex items-center justify-center space-x-2 py-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 transition-all text-[9.5px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-30 cursor-not-allowed'}`}
+                  className={`flex items-center justify-center space-x-2 py-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-[9.5px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
                   title={s.saveSnapshot}
                 >
-                  <BookmarkPlus className="w-3.5 h-3.5 text-indigo-400" />
+                  <BookmarkPlus className="w-3.5 h-3.5 text-indigo-500" />
                   <span>{s.saveSnapshot}</span>
                 </button>
 
@@ -2726,7 +2735,7 @@ const App: React.FC = () => {
                     <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.listeningPorts}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {results[selectedIp].device?.openPorts?.map(p => (
-                        <div key={p} className={`px-2 py-1 rounded text-[20px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
+                        <div key={p} className={`px-2 py-0.5 rounded text-[11px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
                           {p}
                         </div>
                       ))}

@@ -73,6 +73,25 @@
 * **구현 내용**:
   - `App.tsx`: 반응형 CSS 가독성 보정 규칙(`flex-wrap`, `min-w-0`, `break-words`, `max-h-[90vh] overflow-y-auto`)을 강화하여 전 화면 영역에서 짤림 없는 깨끗한 렌더링 환경 완성.
 
+### 9. GitHub Actions 러너 Node.js 22 LTS 최신화 (Node 20 EOL 대책 선제 적용)
+* **작업 배경**:
+  - GitHub 공식 공지(GitHub Actions 러너의 Node.js 20 Deprecated 및 EOL 마이그레이션)에 발맞추어 워크플로우 내 경고 및 강제 실행 방지.
+* **구현 내용**:
+  - `.github/workflows/build-and-release.yml`: 모든 빌드/배포 워크플로우 Job(`build-windows`, `build-web-mobile`, `build-android-apk`, `publish-github-release`)의 `node-version`을 최신 **Node.js 22 LTS**로 업그레이드하여 CI/CD 실행 경고 소멸 및 안정성 확보.
+
+### 10. 인스톨 파일 설치 사전 필수 고지 사항 (False Positive, 이중 라이선스, 방화벽) 명시
+* **작업 배경**:
+  - 인스톨러 실행 시 사용자에게 필수 고지되어야 하는 백신 오탐지, 이용 약관 및 방화벽 연동 정보 고지 강화 요구 반영.
+* **구현 내용**:
+  - `installer/setup_builder.go`, `installer/Grid_IP_Scanner2_Setup.iss`, `installer/NOTICE_BEFORE_INSTALL.txt`: 설치 시작 첫 대화상자 및 사전 안내 화면에 백신 오탐지(False Positive) 원인/해결책, GPL v3 & 상용 이중 라이선스, Windows 방화벽 인바운드/아웃바운드 자동 예외 등록 사항을 포함한 사용자 사전 필수 고지 안내를 정교하게 탑재.
+
+### 11. 인앱 UI 시인성 및 가독성 (폰트 색상/대비/크기) 전면 개선
+* **작업 배경**:
+  - 글씨가 잘 안 보인다는 사용자 피드백("글씨가 잘 안보여요")에 따라 그리드 노드 및 모달 내부 서브텍스트 시인성 대폭 강화.
+* **구현 내용**:
+  - `components/IPCell.tsx` & `App.tsx`: 비활성 IP 셀의 투명도 및 글꼴 굵기/크기를 `opacity-70`, `text-zinc-200`, `text-[11px] md:text-[13px] font-black`으로 대폭 증대.
+  - 사이드바, 모달, 포트 배지, 테이블 헤더 및 안내 문구의 색상 대비(Color Contrast)와 드롭 섀도를 최적화하여 어두운 테마 및 베이지 테마 모두에서 글씨 독해 편의성을 최대화.
+
 ---
 
 ## 📅 2026-10-03 (v2.3.2)

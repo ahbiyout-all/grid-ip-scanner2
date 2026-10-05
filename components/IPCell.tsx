@@ -65,22 +65,22 @@ const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected
           : 'bg-amber-100 border-amber-500 animate-[pulse_0.8s_infinite]';
       case 'inactive': 
         return isDark 
-          ? 'bg-slate-900/20 border-slate-800/20 opacity-30'
-          : 'bg-slate-100 border-slate-200 opacity-40';
+          ? 'bg-slate-900/40 border-slate-700/30 opacity-70 hover:opacity-100'
+          : 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100';
       default: 
         return isDark 
-          ? 'bg-zinc-800/40 border-zinc-700/30'
-          : 'bg-slate-100 border-slate-200';
+          ? 'bg-zinc-800/60 border-zinc-700/50'
+          : 'bg-slate-200 border-slate-300';
     }
   };
 
   const getTextColor = () => {
-    if (isSelected) return 'text-white';
-    if (status === 'active') return theme === 'beige' ? 'text-emerald-700' : 'text-emerald-400';
-    if (status === 'scanning') return 'text-amber-400 font-black';
-    if (theme === 'beige') return 'text-[#5c4a37]';
-    if (theme === 'dark') return 'text-zinc-400';
-    return 'text-zinc-100';
+    if (isSelected) return 'text-white font-black';
+    if (status === 'active') return theme === 'beige' ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
+    if (status === 'scanning') return 'text-amber-300 font-black';
+    if (theme === 'beige') return 'text-[#3b2a1a] font-bold';
+    if (theme === 'dark') return 'text-zinc-200 font-bold';
+    return 'text-slate-100 font-bold';
   };
 
   const getDeviceIcon = () => {
@@ -153,9 +153,9 @@ const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected
       )}
 
       <span className={`
-        text-[10px] md:text-[12px] font-black mono tracking-tighter leading-none select-none z-10
+        text-[11px] md:text-[13px] font-black mono tracking-tight leading-none select-none z-10
         ${getTextColor()}
-        drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]
+        drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]
       `}>
         {lastOctet}
       </span>
