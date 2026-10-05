@@ -41,6 +41,18 @@ export const getStoredLicense = (): LicenseInfo => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.tier) {
+        if (parsed.expiresAt) {
+          const exp = new Date(parsed.expiresAt);
+          if (exp.getTime() < Date.now()) {
+            localStorage.removeItem(STORAGE_KEY);
+            return {
+              tier: 'free',
+              licensedTo: 'Community User',
+              maxSubnets: 1,
+              features: DEFAULT_FREE_FEATURES,
+            };
+          }
+        }
         return parsed as LicenseInfo;
       }
     }
@@ -115,18 +127,29 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     trimmed.startsWith('PRO-') ||
     trimmed.startsWith('GSCAN-PRO-')
   ) {
+    const isTrial = trimmed === 'GRID-PRO-TRIAL-2026';
+    let expiresAt: string | undefined = undefined;
+    if (isTrial) {
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 90);
+      expiresAt = exp.toISOString();
+    }
+
     const proLicense: LicenseInfo = {
       tier: 'pro',
-      licensedTo: 'Registered Pro User',
+      licensedTo: isTrial ? 'Registered Pro Trial User' : 'Registered Pro User',
       licenseKey: trimmed,
       issuedAt: new Date().toISOString(),
+      expiresAt,
       maxSubnets: 5,
       features: PRO_FEATURES,
     };
     saveLicense(proLicense);
     return {
       success: true,
-      message: 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
+      message: isTrial 
+        ? 'Grid IP Scanner2 Pro 에디션(90일 시험판)이 성공적으로 활성화되었습니다!'
+        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
       license: proLicense,
     };
   }

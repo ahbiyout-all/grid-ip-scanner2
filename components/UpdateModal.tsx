@@ -100,13 +100,13 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               onClick={onRefreshCheck}
               disabled={isChecking}
               title="GitHub Releases 실시간 재확인"
-              className={`px-3 py-1.5 border rounded-lg text-[11px] font-black uppercase transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm ${
+              className={`px-3.5 py-1.5 border rounded-lg text-[11px] font-black uppercase transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
                 theme === 'beige'
-                  ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
-                  : 'bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30 text-sky-400'
+                  ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 hover:shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30 text-sky-400 hover:shadow-[0_0_12px_rgba(56,189,248,0.35)]'
               }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isChecking ? 'animate-spin' : 'group-hover:rotate-180'}`} />
               <span>업데이트 확인</span>
             </button>
             <button

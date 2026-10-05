@@ -1551,6 +1551,109 @@ func main() {
 		})
 	})
 
+	http.HandleFunc("/api/license", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		exePath, err := os.Executable()
+		var exeDir string
+		if err == nil {
+			exeDir = filepath.Dir(exePath)
+		}
+
+		portableKeyPath := ""
+		if exeDir != "" {
+			portableKeyPath = filepath.Join(exeDir, "license.key")
+		}
+
+		homeDir, _ := os.UserHomeDir()
+		fallbackKeyPath := ""
+		if homeDir != "" {
+			fallbackKeyPath = filepath.Join(homeDir, ".cisnet_grid", "license.key")
+		}
+
+		if r.Method == http.MethodGet {
+			var data []byte
+			if portableKeyPath != "" {
+				if b, err := os.ReadFile(portableKeyPath); err == nil && len(b) > 0 {
+					data = b
+				}
+			}
+			if len(data) == 0 && fallbackKeyPath != "" {
+				if b, err := os.ReadFile(fallbackKeyPath); err == nil && len(b) > 0 {
+					data = b
+				}
+			}
+
+			if len(data) == 0 {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"licenseKey":""}`))
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(data)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusInternalServerError)
+				return
+			}
+
+			var js map[string]interface{}
+			if err := json.Unmarshal(body, &js); err != nil {
+				http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
+				return
+			}
+
+			saved := false
+			if portableKeyPath != "" {
+				if err := os.WriteFile(portableKeyPath, body, 0644); err == nil {
+					saved = true
+					fmt.Println("Saved license key to portable storage (next to executable)")
+				} else {
+					fmt.Printf("Failed to write portable license key: %v (trying fallback)\n", err)
+				}
+			}
+
+			if fallbackKeyPath != "" {
+				_ = os.MkdirAll(filepath.Dir(fallbackKeyPath), 0755)
+				if err := os.WriteFile(fallbackKeyPath, body, 0644); err == nil {
+					if !saved {
+						saved = true
+						fmt.Println("Saved license key to local cache")
+					}
+				}
+			}
+
+			if !saved {
+				http.Error(w, `{"error":"Failed to save license key"}`, http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success":true}`))
+			return
+		}
+
+		if r.Method == http.MethodDelete {
+			if portableKeyPath != "" {
+				_ = os.Remove(portableKeyPath)
+			}
+			if fallbackKeyPath != "" {
+				_ = os.Remove(fallbackKeyPath)
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success":true}`))
+			return
+		}
+
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+	})
+
 	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		ip, subnet := getLocalIP()

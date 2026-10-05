@@ -662,23 +662,39 @@ const App: React.FC = () => {
     showToast("스냅샷이 삭제되었습니다.");
   };
 
-  const handleActivateLicense = () => {
+  const handleActivateLicense = async () => {
     const res = activateLicenseKey(licenseKeyInput);
     if (res.success && res.license) {
       setLicense(res.license);
       showToast(res.message);
       setLicenseKeyInput('');
       setShowLicenseModal(false);
+      try {
+        await fetch(getApiUrl('/api/license'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(res.license)
+        });
+      } catch (e) {
+        console.warn('Failed to sync license key to Go backend:', e);
+      }
     } else {
       showToast(res.message);
     }
   };
 
-  const handleResetLicense = () => {
+  const handleResetLicense = async () => {
     const free = clearLicense();
     setLicense(free);
     showToast("라이선스가 커뮤니티 에디션(무료)으로 초기화되었습니다.");
     setShowLicenseModal(false);
+    try {
+      await fetch(getApiUrl('/api/license'), {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.warn('Failed to clear license key in Go backend:', e);
+    }
   };
 
   const handleRunDeepPortAudit = async (ip: string) => {
@@ -841,6 +857,24 @@ const App: React.FC = () => {
     const heartbeatTimer = setInterval(() => {
       fetch(getApiUrl('/api/heartbeat')).catch(() => {});
     }, 3000);
+
+    const loadLicenseFromBackend = async () => {
+      try {
+        const res = await fetch(getApiUrl('/api/license'));
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.licenseKey) {
+            const keyRes = activateLicenseKey(data.licenseKey);
+            if (keyRes.success && keyRes.license) {
+              setLicense(keyRes.license);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load license from portable storage:', err);
+      }
+    };
+    loadLicenseFromBackend();
 
     syncOUI();
     return () => {
@@ -1625,14 +1659,16 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <button
                     onClick={handleManualCheckUpdate}
-                    className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold flex items-center gap-1 transition-all shrink-0 ${
+                    className={`px-2 py-1 rounded text-[9px] font-black flex items-center gap-1 transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
                       updateInfo?.hasUpdate
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 animate-pulse shadow-sm'
-                        : (theme === 'beige' ? 'bg-[#ffffff] text-[#422e1b] border border-[#c8ae95] hover:bg-[#faf5eb]' : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10')
+                        ? 'bg-emerald-500/25 text-emerald-500 border border-emerald-500/50 hover:bg-emerald-500/35 shadow-[0_0_12px_rgba(16,185,129,0.35)] hover:shadow-[0_0_16px_rgba(16,185,129,0.55)] animate-pulse'
+                        : (theme === 'beige' 
+                            ? 'bg-[#ffffff] text-[#422e1b] border border-[#c8ae95] hover:bg-[#faf5eb] hover:border-amber-500/50 hover:text-amber-700' 
+                            : 'bg-white/5 hover:bg-white/10 hover:border-sky-500/30 hover:text-sky-400 text-zinc-300 border border-white/10')
                     }`}
                     title="GitHub Releases 기반 실시간 업데이트 점검"
                   >
-                    <RefreshCw className={`w-2.5 h-2.5 ${isCheckingUpdate ? 'animate-spin text-sky-400' : ''}`} />
+                    <RefreshCw className={`w-3 h-3 ${isCheckingUpdate ? 'animate-spin text-sky-400' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
                     <span>{updateInfo?.hasUpdate ? `v${updateInfo.latestVersion} 업데이트` : '업데이트 확인'}</span>
                   </button>
                 </div>
@@ -3007,9 +3043,9 @@ const App: React.FC = () => {
                       초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
                     </p>
                     <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5 flex-wrap">
-                      <span>개발자: AhBiYout-all</span>
+                      <span>개발자: ahbiyout-all</span>
                       <span>•</span>
-                      <span>GitHub: AhBiYout</span>
+                      <span>GitHub: ahbiyout-all</span>
                       <span>•</span>
                       <span>저장소: grid-ip-scanner2</span>
                     </div>
@@ -3051,9 +3087,9 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-2.5 text-[11px] opacity-90">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout-all</span> <span className="text-[10px] font-mono opacity-60">(@AhBiYout)</span></span>
+                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">ahbiyout-all</span> <span className="text-[10px] font-mono opacity-60">(@ahbiyout-all)</span></span>
                       <a 
-                        href="https://github.com/AhBiYout/grid-ip-scanner2/issues"
+                        href="https://github.com/ahbiyout-all/grid-ip-scanner2/issues"
                         target="_blank"
                         rel="noreferrer"
                         className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
@@ -3065,8 +3101,8 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-white/5">
                       <span className="opacity-70">{lang === 'ko' ? '저장소 (Repo):' : 'Repository:'}</span>
-                      <a href="https://github.com/AhBiYout/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
-                        <span>github.com/AhBiYout/grid-ip-scanner2</span>
+                      <a href="https://github.com/ahbiyout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
+                        <span>github.com/ahbiyout-all/grid-ip-scanner2</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
@@ -3451,6 +3487,14 @@ const App: React.FC = () => {
                   <div className="text-[10.5px] opacity-75 mt-1">
                     등록 대상: <span className="font-bold">{license.licensedTo || '커뮤니티 사용자'}</span>
                   </div>
+                  {license.expiresAt && (
+                    <div className="text-[10.5px] text-amber-500 dark:text-amber-400 font-bold mt-2 flex flex-wrap items-center gap-1.5 leading-none">
+                      <span>만료 예정: {new Date(license.expiresAt).toLocaleDateString()}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[9px] uppercase font-black animate-pulse">
+                        D-{Math.max(0, Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일 남음
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-full bg-current/10">
                   <Sparkles className="w-6 h-6" />
