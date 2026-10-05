@@ -31,7 +31,7 @@ export interface UpdateInfo {
 }
 
 export const CURRENT_APP_VERSION = '2.3.2';
-export const GITHUB_REPO_OWNER = 'AhBiYout';
+export const GITHUB_REPO_OWNER = 'ahbiyout-all';
 export const GITHUB_REPO_NAME = 'grid-ip-scanner2';
 export const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
 
@@ -121,7 +121,7 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
           releaseTitle: `Grid IP Scanner2 v${CURRENT_APP_VERSION} (최신 버전)`,
           releaseNotes: '현재 사용 중인 버전이 최신 공식 빌드입니다.',
           publishedAt: new Date().toISOString(),
-          htmlUrl: `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`,
+          htmlUrl: `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`,
           assets: []
         }
       };

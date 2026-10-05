@@ -6,13 +6,13 @@
 
 ## 📌 1. 공식 깃허브 계정 및 저장소 정보 (Repository Identity)
 
-* **GitHub 사용자 계정 (Account / Username)**: `AhBiYout`
-* **GitHub 사용/표시 이름 (Display Name / Profile)**: `AhBiYout-all`
+* **GitHub 사용자 계정 (Account / Username)**: `ahbiyout-all`
+* **GitHub 사용/표시 이름 (Display Name / Profile)**: `ahbiyout-all`
 * **GitHub 저장소 이름 (Repository Name)**: `grid-ip-scanner2`
 * **원격 저장소 URL**:
-  * SSH 방식: `git@github.com:AhBiYout/grid-ip-scanner2.git`
-  * HTTPS 방식: `https://github.com/AhBiYout/grid-ip-scanner2.git`
-* **공식 이슈(Issues) URL**: `https://github.com/AhBiYout/grid-ip-scanner2/issues`
+  * SSH 방식: `git@github.com:ahbiyout-all/grid-ip-scanner2.git`
+  * HTTPS 방식: `https://github.com/ahbiyout-all/grid-ip-scanner2.git`
+* **공식 이슈(Issues) URL**: `https://github.com/ahbiyout-all/grid-ip-scanner2/issues`
 * **기본 브랜치 (Default Branch)**: `main`
 * **개발 브랜치 (Development Branch)**: `develop`
 
@@ -52,7 +52,7 @@
 * **수행 절차**:
   1. 위 3개 빌드 잡의 산출물(.exe, Setup.exe, .apk, .zip)을 자동 수집
   2. `softprops/action-gh-release@v2`를 통해 GitHub 공식 Releases에 자동 등록
-  3. 전 세계 사용자가 `https://github.com/AhBiYout/grid-ip-scanner2/releases`에서 즉시 다운로드 가능
+  3. 전 세계 사용자가 `https://github.com/ahbiyout-all/grid-ip-scanner2/releases`에서 즉시 다운로드 가능
 
 ---
 
@@ -77,7 +77,7 @@
 
 사용자가 프로그램을 켜면 GitHub의 최신 릴리즈를 실시간 감지하여 원클릭으로 업데이트할 수 있는 풀스택 업데이트 체계가 구축되어 있습니다:
 * **인앱 자동 감지 (`services/updateChecker.ts`, `components/UpdateModal.tsx`)**:
-  - 앱 구동 시 GitHub Releases API(`api.github.com/repos/AhBiYout/grid-ip-scanner2/releases/latest`)를 백그라운드에서 주기적으로 조회.
+  - 앱 구동 시 GitHub Releases API(`api.github.com/repos/ahbiyout-all/grid-ip-scanner2/releases/latest`)를 백그라운드에서 주기적으로 조회.
   - 최신 릴리즈가 존재할 경우 사이드바 및 모바일 상단 바에 **`[🚀 새 버전 vX.X.X 업데이트]` 펄스 뱃지** 활성화.
   - 모달 클릭 시 변경점(Patch Notes)과 함께 Windows 포터블(.exe), 정식 인스톨러(Setup.exe), 안드로이드(APK) 다운로드 링크 원클릭 제공.
 * **자동 업데이트 스크립트 (`scripts/auto-update.bat`)**:
@@ -128,8 +128,8 @@ git commit -m "feat: Grid IP Scanner2 v2.3.2 release with edge-to-edge icons, li
 # 4. 기본 브랜치 이름을 main으로 설정
 git branch -M main
 
-# 5. 원격 저장소 연결 (AhBiYout / grid-ip-scanner2)
-git remote add origin https://github.com/AhBiYout/grid-ip-scanner2.git
+# 5. 원격 저장소 연결 (ahbiyout-all / grid-ip-scanner2)
+git remote add origin https://github.com/ahbiyout-all/grid-ip-scanner2.git
 
 # 6. 원격 저장소로 최초 푸시
 git push -u origin main

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  X, Download, RefreshCw, ExternalLink, CheckCircle2, AlertCircle, 
-  Smartphone, Monitor, Package, Sparkles, ShieldCheck, ArrowRight
+  X, RefreshCw, ExternalLink, CheckCircle2, Sparkles, ArrowRight
 } from 'lucide-react';
 import { UpdateInfo, CURRENT_APP_VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME } from '../services/updateChecker';
 
@@ -22,8 +21,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   onRefreshCheck,
   theme
 }) => {
-  const [activeTab, setActiveTab] = useState<'download' | 'changelog'>('download');
-
   if (!isOpen) return null;
 
   const hasUpdate = updateInfo?.hasUpdate ?? false;
@@ -61,7 +58,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-2xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
+      <div className={`w-full max-w-xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
         
         {/* Modal Header */}
         <div className="flex justify-between items-start pb-3 border-b border-white/10 shrink-0">
@@ -98,14 +95,19 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          <div className="flex items-center gap-2 shrink-0 ml-2">
             <button
               onClick={onRefreshCheck}
               disabled={isChecking}
               title="GitHub Releases 실시간 재확인"
-              className="p-2 hover:bg-white/10 rounded-lg text-zinc-300 transition-all disabled:opacity-50"
+              className={`px-3 py-1.5 border rounded-lg text-[11px] font-black uppercase transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm ${
+                theme === 'beige'
+                  ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
+                  : 'bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30 text-sky-400'
+              }`}
             >
-              <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin text-sky-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+              <span>업데이트 확인</span>
             </button>
             <button
               onClick={onClose}
@@ -152,162 +154,6 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <span>GitHub 릴리즈 보기</span>
             <ExternalLink className="w-3 h-3 opacity-70" />
           </a>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-white/10 pb-1 gap-2 text-xs font-bold shrink-0">
-          <button
-            onClick={() => setActiveTab('download')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              activeTab === 'download' ? t.btnActive : 'opacity-60 hover:opacity-100'
-            }`}
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>플랫폼별 설치 파일 (PC / Android APK)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('changelog')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              activeTab === 'changelog' ? t.btnActive : 'opacity-60 hover:opacity-100'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>패치 노트 & 변경점</span>
-          </button>
-        </div>
-
-        {/* Tab Content Body */}
-        <div className="flex-1 overflow-y-auto pr-1 text-xs space-y-3 no-scrollbar min-h-0">
-          
-          {/* TAB 1: Platform Downloads (PC .exe, Installer, Android APK) */}
-          {activeTab === 'download' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Windows Portable .exe */}
-                <div className={`p-4 rounded-xl border ${t.card} flex flex-col justify-between space-y-3 hover:border-sky-500/40 transition-all group`}>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 text-sky-400 font-black text-xs uppercase">
-                        <Monitor className="w-4 h-4" />
-                        <span>Windows 무설치 포터블</span>
-                      </div>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono">
-                        .exe
-                      </span>
-                    </div>
-                    <p className="text-[11px] opacity-75 mt-1.5 leading-snug">
-                      설치 없이 다운로드 즉시 실행. USB 휴대가 가능한 단일 실행 파일.
-                    </p>
-                  </div>
-                  <a
-                    href={updateInfo?.portableExeUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-center text-[11px] flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-98"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Grid IP Scanner2 v{latestVer}.exe</span>
-                  </a>
-                </div>
-
-                {/* 2. Windows Official Installer */}
-                <div className={`p-4 rounded-xl border ${t.card} flex flex-col justify-between space-y-3 hover:border-emerald-500/40 transition-all group`}>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 text-emerald-400 font-black text-xs uppercase">
-                        <Package className="w-4 h-4" />
-                        <span>Windows 정식 인스톨러</span>
-                      </div>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono">
-                        Setup.exe
-                      </span>
-                    </div>
-                    <p className="text-[11px] opacity-75 mt-1.5 leading-snug">
-                      Inno Setup 기반. 제어판 등록, 방화벽 자동 예외, 256x256 바탕화면 아이콘 자동 설치.
-                    </p>
-                  </div>
-                  <a
-                    href={updateInfo?.installerExeUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center text-[11px] flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-98"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Grid_IP_Scanner2_v{latestVer}_Setup.exe</span>
-                  </a>
-                </div>
-
-                {/* 3. Android Mobile APK */}
-                <div className={`p-4 rounded-xl border ${t.card} flex flex-col justify-between space-y-3 hover:border-purple-500/40 transition-all group sm:col-span-2`}>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center space-x-2 text-purple-400 font-black text-xs uppercase">
-                        <Smartphone className="w-4 h-4" />
-                        <span>Android 스마트폰 설치 파일 (APK)</span>
-                      </div>
-                      <p className="text-[11px] opacity-75 mt-1 leading-snug">
-                        갤럭시 등 안드로이드 스마트폰에 직접 설치 가능한 네이티브 APK 패키지입니다.
-                      </p>
-                    </div>
-                    <span className="text-[9px] px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 font-mono w-fit">
-                      Android 8.0+
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={updateInfo?.androidApkUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-center text-[11px] flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-98"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Grid_IP_Scanner2_v{latestVer}.apk 다운로드</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Automated One-Click Script Notice */}
-              <div className="p-3 rounded-xl bg-black/20 border border-white/5 text-[10.5px] opacity-80 flex items-center justify-between">
-                <span>💡 <b>Windows 자동 업데이트 스크립트</b>: 프로젝트 루트의 <code>scripts\auto-update.bat</code>를 실행하면 최신 버전을 자동으로 내려받습니다.</span>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: Changelog / Release Notes */}
-          {activeTab === 'changelog' && (
-            <div className="space-y-3">
-              <div className="p-4 rounded-xl bg-black/30 border border-white/10 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-black text-xs text-sky-400 uppercase">
-                    {updateInfo?.releaseTitle || `Grid IP Scanner2 v${latestVer}`}
-                  </div>
-                  {updateInfo?.publishedAt && (
-                    <span className="text-[10px] mono opacity-60">
-                      {new Date(updateInfo.publishedAt).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] leading-relaxed opacity-85 whitespace-pre-wrap font-sans max-h-64 overflow-y-auto no-scrollbar border-t border-white/5 pt-2">
-                  {updateInfo?.releaseNotes || '릴리즈 변경 내역이 제공되지 않았습니다.'}
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Modal Footer */}
-        <div className="pt-3 border-t border-white/10 flex items-center justify-between shrink-0">
-          <div className="text-[10px] opacity-60 font-mono">
-            {isChecking ? 'GitHub 릴리즈 상태 점검 중...' : `현재 설치된 버전: v${CURRENT_APP_VERSION}`}
-          </div>
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-black text-xs uppercase transition-all shadow-md shrink-0"
-          >
-            닫기
-          </button>
         </div>
 
       </div>

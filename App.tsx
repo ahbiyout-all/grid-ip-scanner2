@@ -1932,7 +1932,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.github || 'GitHub'}</span>
-                  <a href="https://github.com/AhBiYout/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline flex items-center gap-1">
+                  <a href="https://github.com/ahbiyout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline flex items-center gap-1">
                     <Github className="w-2.5 h-2.5" />
                     <span>grid-ip-scanner2</span>
                   </a>
