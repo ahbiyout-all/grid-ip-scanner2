@@ -86,14 +86,24 @@ func createDesktopShortcut(exePath, targetName string) {
 func main() {
 	silent := isSilent()
 
-	// 1. Interactive Welcome & Install Confirmation Dialog
+	// 1. Interactive Welcome & Detailed Install Disclosure Dialog
 	if !silent {
-		welcomeChoice := showMsgBox("Grid IP Scanner2 v2.3.2 설치 프로그램",
-			"GRID IP SCANNER2 v2.3.2 공식 설치를 시작합니다.\n\n"+
-				"• 설치 경로: Program Files\\Grid IP Scanner2\n"+
-				"• 방화벽 통신 규칙 자동 등록 및 바탕화면 바로가기 생성\n\n"+
-				"설치를 진행하시겠습니까?",
-			MB_OKCANCEL|MB_ICONINFORMATION)
+		welcomeMsg := "GRID IP SCANNER2 v2.3.2 공식 설치를 시작합니다.\n\n" +
+			"[ 📌 설치 및 주요 이용 고지 사항 ]\n\n" +
+			"1. 백신 오탐지 안내 (False Positive Notice)\n" +
+			"   • 본 도구는 빠른 IP/포트 스캔을 수행하는 네트워크 진단 유틸리티입니다.\n" +
+			"   • 무서명 스캐너 특성상 백신(Windows Defender, V3, 알약 등)에서 오탐지로 차단할 수 있으나,\n" +
+			"     개인정보 탈취나 악성 기능이 100% 없는 안전한 프로그램입니다.\n" +
+			"   • 백신 차단 시 백신 설정의 '검사 예외(허용)' 목록에 추가 후 사용하십시오.\n\n" +
+			"2. 이중 라이선스 및 이용 약관 (Dual Licensing Notice)\n" +
+			"   • GPL v3 커뮤니티 무상 사용 및 기업 상용 독점 라이선스 정책을 준수합니다.\n" +
+			"   • IEEE & Wireshark 공식 9만 건 OUI 데이터베이스가 내장되어 있습니다.\n\n" +
+			"3. 시스템 및 방화벽 자동 연동\n" +
+			"   • 기본 설치 경로: Program Files\\Grid IP Scanner2\n" +
+			"   • 원활한 스캔을 위해 Windows 방화벽 예외 규칙이 사전 등록됩니다.\n\n" +
+			"상기 고지 사항을 확인하였으며, 설치를 진행하시겠습니까?"
+
+		welcomeChoice := showMsgBox("Grid IP Scanner2 설치 및 주요 이용 고지 안내", welcomeMsg, MB_OKCANCEL|MB_ICONINFORMATION)
 		if welcomeChoice != IDOK {
 			os.Exit(0)
 		}

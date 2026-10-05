@@ -30,6 +30,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\docs\LICENSE.md
+InfoBeforeFile=NOTICE_BEFORE_INSTALL.txt
 OutputDir=..\dist_installer
 OutputBaseFilename=Grid_IP_Scanner2_v{#MyAppVersion}_Setup
 SetupIconFile=..\icon.ico
