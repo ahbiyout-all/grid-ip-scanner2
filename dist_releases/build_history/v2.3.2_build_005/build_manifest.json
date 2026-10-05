@@ -1,0 +1,87 @@
+{
+  "product": "Grid IP Scanner2",
+  "version": "2.3.2",
+  "buildNumber": 5,
+  "buildKey": "v2.3.2_build_005",
+  "timestamp": "2026-10-05T03:23:45.205Z",
+  "author": "AhBiYout",
+  "publisher": "Cisnet (www.cisnet.co.kr)",
+  "repository": "https://github.com/AhBiYout/grid-ip-scanner2",
+  "unpackedStructure": {
+    "rootExecutables": [
+      "Grid IP Scanner2 v2.3.2.exe",
+      "Grid_IP_Scanner2.exe"
+    ],
+    "dataFiles": [
+      "master_oui.txt",
+      "winres.json",
+      "package.json",
+      "LICENSE.md"
+    ],
+    "assetFiles": [
+      "icon.ico",
+      "icon.png",
+      "logo.png"
+    ],
+    "directories": [
+      "dist/",
+      "public/",
+      "docs/",
+      "scripts/"
+    ]
+  },
+  "firewallRules": [
+    {
+      "name": "Grid IP Scanner2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    }
+  ],
+  "artifacts": {
+    "installer": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+      "sha256": null,
+      "sizeBytes": 0
+    },
+    "portableExe": {
+      "filename": "Grid IP Scanner2 v2.3.2.exe",
+      "sha256": null,
+      "sizeBytes": 0
+    },
+    "mobilePwaZip": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+      "sha256": "f3c7459d439e4b283e514c1e6ca37802e981d7c3d19d5c7bef542d88b97bc060",
+      "sizeBytes": 811971
+    },
+    "androidApk": {
+      "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+      "sha256": "202ac4d3f72fe25a235a901d4fbe74a20b32c5829810499df9e20d86687803d6",
+      "sizeBytes": 1157291
+    }
+  }
+}

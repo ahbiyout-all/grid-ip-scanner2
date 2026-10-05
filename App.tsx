@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders } from 'lucide-react';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense } from './services/licenseManager';
@@ -52,6 +52,7 @@ const translations = {
     author: "제작자",
     website: "웹사이트",
     blog: "블로그",
+    github: "깃허브",
     securityNotice: "보안 공지",
     ouiDb: "OUI DB",
     records: "제조사 수",
@@ -157,8 +158,8 @@ const translations = {
     helpLicenseDesc: "Grid IP Scanner2는 오픈소스 라이선스(GPL v3)와 상용 라이선스(Proprietary Commercial License)의 [이중 라이선스 (Dual Licensing)] 정책을 채택하여 배포됩니다.\n\n[1. 이중 라이선스 모델 안내]\n• 커뮤니티 에디션 (무상 사용): 소스코드를 공개 및 기여해야 하는 카피레프트 의무(GPL v3) 하에 무상으로 자유롭게 사용할 수 있습니다.\n• 상업용 에디션 (유료 판매): 소스코드를 독점적으로 유지한 채 독자적인 상용 라이선스를 적용하여 상업적으로 패키징하고, 유료 솔루션으로 재배포 및 판매하고자 하는 경우 상용 라이선스(Commercial License)를 취득하여 법적 제약 없이 완전한 비즈니스 권리를 누릴 수 있습니다.\n\n[2. 법적 안전성 및 오픈소스 준수]\n• 본 프로그램의 독창적인 UI, 자체 고안된 네트워크 탐색 파이프라인 및 코어 기능은 개발자/배포자(AhBiYout & Cisnet)에게 독점적 저작권이 귀속됩니다.\n• 앱의 하부 구조를 이루는 오픈소스 라이브러리(React, Lucide React, Go runtime 등)는 허용형 라이선스(MIT License)를 준수합니다. MIT 라이선스는 상업적 재배포, 서브라이선스 발행 및 유료 판매권을 완전히 보장하므로, 향후 이를 패키징하여 상용 소프트웨어로 유료 판매하더라도 법적으로 어떠한 분쟁이나 문제가 발생하지 않는 완전무결한 법적 효력을 갖습니다.\n\n[3. 하드웨어 OUI 데이터베이스 귀속 및 엔진]\n• 하드웨어 제조사 매핑 데이터는 IEEE 공식 OUI 레지스트리(MA-L/M/S), Wireshark Manuf Automated Database 및 Ringmast4r OUI Master Database(MIT)를 기반으로 가공된 최신 90,168개 이상의 엔트리를 탑재하고 있습니다. 다중 비트 마스크(/28, /36) 및 24비트 OUI를 완벽 지원하며, 이중 미러링(Tiered Fallback)을 통해 상업용 패키징 유료 판매 과정에서 특허나 라이선스 충돌 요소가 일체 없습니다.\n\n[4. 보증의 부인 및 책임 제한 (Standard Disclaimer)]\n• 본 소프트웨어는 일체의 명시적 또는 묵시적 보증 없이 '있는 그대로(AS IS)' 제공됩니다. 저작권자는 본 프로그램의 사용 또는 탐색 결과로 인해 발생하는 어떠한 직·간접적 손해에 대해서도 법적 책임을 지지 않습니다.",
     helpUsageTitle: "2. 간단한 사용법 (Quick Guide)",
     helpUsageDesc: "• 인터페이스 선택: 왼쪽 설정 패널에서 스캔할 네트워크 인터페이스(이더넷, Wi-Fi 등)를 선택합니다.\n• 스캔 범위 설정: 서브넷 내에서 스캔을 진행할 시작 IP와 종료 IP 범위를 설정합니다.\n• 스캔 모드 조절: 환경에 맞춰 고속, 표준, 정밀 모드 중 하나를 선택합니다. 정밀 모드는 느리지만 더욱 정확하게 기기를 탐색할 수 있습니다.\n• 실시간 그리드 탐색: 스캔이 시작되면 그리드 셀(IPCell)이 실시간으로 상태를 반영합니다. 활성화된 녹색 셀을 클릭하여 세부 프로필(제조사, 열린 포트 목록, OS 식별 정보 등)을 확인할 수 있습니다.\n• 관리자 권한 활성화: MAC 주소 추출 및 더욱 정교한 OUI 하드웨어 식별을 활성화하기 위해 상단의 주황색 '일반 모드' 배지를 클릭하고, UAC(사용자 계정 컨트롤) 승인을 통해 관리자 권한으로 앱을 다시 시작하십시오.",
-    creatorContact: "제작자 문의 (Creator Contact)",
-    creatorEmail: "이메일: ahbiyout@gmail.com",
+    creatorContact: "GitHub 저장소 및 이슈 문의 (GitHub & Issues)",
+    creatorEmail: "GitHub Issues 문의",
     diffMode: "스냅샷 비교 (Diff)",
     gridMode: "그리드 뷰",
     saveSnapshot: "현재 스냅샷 저장",
@@ -170,6 +171,11 @@ const translations = {
     diffGoneBadge: "오프라인 전환",
     diffChangedBadge: "장비 변경 (주의)",
     diffSameBadge: "변화 없음",
+    diffGuideBtn: "스냅샷 비교 사용법",
+    diffSaveNewBtn: "📸 현재 상태 스냅샷 저장 (기준점 캡처)",
+    diffDeleteBtn: "삭제",
+    diffEmptyTitle: "저장된 비교 기준 스냅샷이 없습니다.",
+    diffEmptyDesc: "네트워크가 정상일 때 스캔 후 [📸 현재 상태 스냅샷 저장]을 누르면 기준점이 생성됩니다. 이후 다시 스캔할 때 새로운 침입 기기나 꺼진 장비를 색상으로 자동 감지합니다.",
     deepPortAuditBtn: "심층 포트 정밀 진단 (Pro)",
     deepPortAuditing: "포트 정밀 분석 중...",
     deepPortAuditComplete: "심층 포트 분석 완료",
@@ -232,6 +238,7 @@ const translations = {
     author: "Author",
     website: "Website",
     blog: "Blog",
+    github: "GitHub",
     securityNotice: "Security Notice",
     ouiDb: "OUI DB",
     records: "Records",
@@ -337,8 +344,8 @@ const translations = {
     helpLicenseDesc: "Grid IP Scanner2 is distributed under a [Dual Licensing] scheme, offering both an Open Source License (GPL v3) and a Proprietary Commercial License.\n\n[1. Dual Licensing Model]\n• Community Edition (Free Use): If you use, modify, and distribute the software for personal or open-source projects under the copyleft obligation of sharing your derivative source code under the same terms, the GNU GPL v3 license applies, allowing free usage.\n• Commercial Edition (Paid/Proprietary): If you wish to package, rename, distribute, or sell Grid IP Scanner2 as a proprietary commercial solution without any obligation to disclose your source code, you can obtain a \"Proprietary Commercial License.\" This legally guarantees your right to monetize, lease, and sell the software as a paid proprietary solution.\n\n[2. Legal Security & Upstream Compliance]\n• The user interface, proprietary scanning logic, and specialized pipeline are fully owned by the developer/distributor (AhBiYout & Cisnet), granting complete legal authority for commercialization.\n• Underlying third-party libraries (such as React, Lucide React, Go runtime, etc.) are licensed under the highly permissive MIT License. The MIT License explicitly and fully permits sublicensing, modification, commercial distribution, and paid resale. Therefore, integrating these components into a commercial package is 100% compliant and legally secure.\n\n[3. OUI Database Compliance & Engine]\n• The hardware vendor OUI database is processed and derived from the official IEEE OUI registry (MA-L/M/S), Wireshark Automated Manuf Database, and Ringmast4r OUI Master Database (MIT License), featuring 90,168+ entries. All multi-bit masks (/28, /36) and 24-bit OUIs are supported with robust tiered fallback mirroring, ensuring total compliance and zero legal conflict.\n\n[4. Standard Disclaimer of Warranty & Liability]\n• THIS SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.",
     helpUsageTitle: "2. Quick Guide",
     helpUsageDesc: "• Select Interface: In the left settings panel, select the network adapter/interface (Ethernet, Wi-Fi, etc.) to scan.\n• Configure Scan Range: Set the start and end IP address offsets in the selected subnet.\n• Choose Scan Mode: Select Fast, Standard, or Precision depending on your network conditions. Precision mode is slower but searches with much higher accuracy.\n• Real-Time Grid Nodes: The scanning progress is shown on the IPCell grid in real-time. Click any active (green) cell to view detailed node information (vendor, open ports, OS profiling) in the right sidebar.\n• Admin Elevation: To unlock full scanning features (including local MAC collection and OUI hardware matching), click the orange 'Standard Mode' badge at the top to elevate and restart with Administrator privileges.",
-    creatorContact: "Creator Contact",
-    creatorEmail: "Email: ahbiyout@gmail.com",
+    creatorContact: "GitHub Repository & Issues Inquiry",
+    creatorEmail: "GitHub Issues Inquiry",
     diffMode: "Snapshot Diff",
     gridMode: "Grid View",
     saveSnapshot: "Save Snapshot",
@@ -350,6 +357,11 @@ const translations = {
     diffGoneBadge: "Went Offline",
     diffChangedBadge: "Modified (Alert)",
     diffSameBadge: "Unchanged",
+    diffGuideBtn: "How to use Snapshot Diff",
+    diffSaveNewBtn: "📸 Capture Current State as Snapshot",
+    diffDeleteBtn: "Delete",
+    diffEmptyTitle: "No Baseline Snapshot Saved",
+    diffEmptyDesc: "Scan your network when normal and click [📸 Capture Snapshot] to set a baseline. When you scan again, new rogue devices or offline nodes will be auto-highlighted.",
     deepPortAuditBtn: "Deep Port Security Audit (Pro)",
     deepPortAuditing: "Auditing ports...",
     deepPortAuditComplete: "Port audit completed",
@@ -502,7 +514,7 @@ const App: React.FC = () => {
   const [goEngineAlive, setGoEngineAlive] = useState(false);
   const [localIpInfo, setLocalIpInfo] = useState<{ip: string, subnet: string, computerName?: string} | null>(null);
   const [interfaces, setInterfaces] = useState<InterfaceInfo[]>(DEFAULT_PREVIEW_INTERFACES);
-  const [interfaceFilter, setInterfaceFilter] = useState<'all' | 'up' | 'physical' | 'virtual' | 'vpn' | 'has_ipv4'>('all');
+  const [interfaceFilter, setInterfaceFilter] = useState<'all' | 'up' | 'physical' | 'virtual' | 'vpn' | 'has_ipv4'>('physical');
   const [interfaceSearch, setInterfaceSearch] = useState('');
   const [showInterfaceModal, setShowInterfaceModal] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
@@ -534,6 +546,8 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'diff'>('grid');
   const [snapshots, setSnapshots] = useState<ScanSnapshot[]>(getSavedSnapshots());
   const [baselineSnapshotId, setBaselineSnapshotId] = useState<string | null>(null);
+  const [showDiffGuide, setShowDiffGuide] = useState(false);
+  const [diffFilter, setDiffFilter] = useState<'all' | 'new' | 'offline' | 'changed' | 'same'>('all');
 
   // Deep Port Audit State
   const [isAuditingPorts, setIsAuditingPorts] = useState(false);
@@ -759,10 +773,20 @@ const App: React.FC = () => {
           
           const manualIp = selectedInterfaceIpRef.current;
           const updatedInterfaces: InterfaceInfo[] = data.interfaces || [];
-          const chosenIface = manualIp ? updatedInterfaces.find(i => i.ip === manualIp) : null;
+          const chosenIface = manualIp 
+            ? updatedInterfaces.find(i => i.ip === manualIp) 
+            : (updatedInterfaces.find(i => i.type === 'physical' && i.status === 'up' && i.ip) ||
+               updatedInterfaces.find(i => i.type === 'physical' && i.ip) ||
+               null);
 
           if (chosenIface) {
             setLocalIpInfo({ ip: chosenIface.ip, subnet: chosenIface.subnet, computerName: data.computerName });
+            setConfig(prev => {
+              if (chosenIface.subnet && (prev.subnet === '192.168.0' || prev.subnet === '')) {
+                return { ...prev, subnet: chosenIface.subnet };
+              }
+              return prev;
+            });
           } else {
             setLocalIpInfo({ ip: data.ip, subnet: data.subnet, computerName: data.computerName });
             setConfig(prev => {
@@ -821,6 +845,10 @@ const App: React.FC = () => {
       checkGitHubRelease(false).then(res => {
         if (res.updateInfo) {
           setUpdateInfo(res.updateInfo);
+          // If a new update is available on GitHub Releases, automatically open the update popup modal
+          if (res.hasUpdate) {
+            setShowUpdateModal(true);
+          }
         }
       }).catch(() => {});
     }, 2500);
@@ -1566,7 +1594,7 @@ const App: React.FC = () => {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         ${!isSidebarOpen && 'md:w-64'}
       `}>
-        <div className="p-5 flex flex-col h-full">
+        <div className="p-3.5 flex flex-col h-full overflow-y-auto min-h-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 w-full min-w-0">
               <div className="relative shrink-0 group">
@@ -1585,7 +1613,6 @@ const App: React.FC = () => {
                   {s.title}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 shrink-0">v2.3.2</span>
                   <button
                     onClick={handleManualCheckUpdate}
                     className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold flex items-center gap-1 transition-all shrink-0 ${
@@ -1896,11 +1923,18 @@ const App: React.FC = () => {
               <div className="flex flex-col space-y-2 px-1">
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.author}</span>
-                  <span className="text-[10px] font-bold opacity-80">AhBiYout</span>
+                  <span className="text-[10px] font-bold opacity-90">AhBiYout-all</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.version}</span>
-                  <span className="text-[10px] font-black text-sky-500">v2.3.1</span>
+                  <span className="text-[10px] font-black text-sky-500">{CURRENT_APP_VERSION}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.github || 'GitHub'}</span>
+                  <a href="https://github.com/AhBiYout/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline flex items-center gap-1">
+                    <Github className="w-2.5 h-2.5" />
+                    <span>grid-ip-scanner2</span>
+                  </a>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.website}</span>
@@ -2054,17 +2088,17 @@ const App: React.FC = () => {
         {/* Responsive Header Bar */}
         <header className={`border-b ${t.header} shrink-0 transition-colors`}>
           {/* ================= DESKTOP HEADER (md and above) ================= */}
-          <div className="hidden md:flex h-12 items-center justify-between px-4 lg:px-6 gap-3">
+          <div className="hidden md:flex min-h-[48px] py-1.5 items-center justify-between px-3 lg:px-6 gap-2 flex-wrap">
             {/* Left section: Search and Desktop Scanning Progress */}
-            <div className="flex items-center gap-3 shrink-0 min-w-0">
-              <div className={`flex items-center ${theme === 'beige' ? 'bg-[#fcf8f2]/80 border-[#e6d0a7]' : 'bg-slate-950/80 border-slate-800'} rounded-lg border px-3 py-1.5 min-w-0`}>
-                <Search className={`w-3.5 h-3.5 ${t.textMuted} mr-2 shrink-0`} />
+            <div className="flex items-center gap-2 shrink-0 min-w-0 flex-wrap">
+              <div className={`flex items-center ${theme === 'beige' ? 'bg-[#fcf8f2]/80 border-[#e6d0a7]' : 'bg-slate-950/80 border-slate-800'} rounded-lg border px-2 py-1 min-w-0`}>
+                <Search className={`w-3.5 h-3.5 ${t.textMuted} mr-1.5 shrink-0`} />
                 <input 
                   type="text" 
                   placeholder={s.searchPlaceholder} 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`bg-transparent border-none outline-none text-xs w-44 lg:w-64 ${t.text} placeholder:opacity-30 truncate`}
+                  className={`bg-transparent border-none outline-none text-xs w-16 lg:w-32 ${t.text} placeholder:opacity-30 truncate`}
                 />
                 {searchTerm && (
                   <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0 ml-1">
@@ -2183,11 +2217,36 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Desktop Theme Buttons */}
-              <div className="flex items-center gap-0.5 shrink-0">
-                <button onClick={() => setTheme('beige')} title="Beige Theme" className={`p-1.5 rounded-lg ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'hover:bg-white/10'}`}><Sun className="w-4 h-4" /></button>
-                <button onClick={() => setTheme('gray')} title="Gray Theme" className={`p-1.5 rounded-lg ${theme === 'gray' ? 'bg-zinc-700 text-white' : 'hover:bg-black/10'}`}><Square className="w-4 h-4" /></button>
-                <button onClick={() => setTheme('dark')} title="Dark Theme" className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-neutral-800 text-white' : 'hover:bg-white/10'}`}><Moon className="w-4 h-4" /></button>
+              {/* Desktop Theme Selector Dropdown */}
+              <div className="relative group shrink-0">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
+                  theme === 'beige' 
+                    ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' 
+                    : theme === 'gray'
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
+                    : 'bg-slate-900 border-white/10 text-zinc-300'
+                }`}>
+                  {theme === 'beige' ? (
+                    <Sun className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  ) : theme === 'gray' ? (
+                    <Square className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  )}
+                  <select
+                    value={theme}
+                    onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
+                    className="bg-transparent border-none outline-none text-[10px] font-black cursor-pointer appearance-none pr-3"
+                    title={lang === 'ko' ? '테마 스타일 선택' : 'Select Theme Style'}
+                  >
+                    <option value="dark" className={t.bg}>{lang === 'ko' ? '다크 테마' : 'Dark Theme'}</option>
+                    <option value="gray" className={t.bg}>{lang === 'ko' ? '그레이 테마' : 'Gray Theme'}</option>
+                    <option value="beige" className={t.bg}>{lang === 'ko' ? '베이지 테마' : 'Beige Theme'}</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none opacity-50">
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
               </div>
 
               {/* Real-time GitHub Update Button */}
@@ -2234,7 +2293,6 @@ const App: React.FC = () => {
                     className="w-7 h-7 rounded-lg object-cover shrink-0 shadow-sm border border-sky-500/40" 
                   />
                   <span className="font-black text-xs uppercase tracking-tight truncate">Grid IP</span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-400 font-mono font-bold">v2.3.2</span>
                   {updateInfo?.hasUpdate && (
                     <button
                       onClick={() => setShowUpdateModal(true)}
@@ -2285,18 +2343,34 @@ const App: React.FC = () => {
                   <span>{license.tier.toUpperCase()}</span>
                 </button>
 
-                {/* Theme Cycle Button */}
-                <button 
-                  onClick={() => {
-                    if (theme === 'dark') setTheme('gray');
-                    else if (theme === 'gray') setTheme('beige');
-                    else setTheme('dark');
-                  }} 
-                  title="테마 전환" 
-                  className="p-1.5 rounded-lg bg-black/20 hover:bg-white/10 border border-white/5 text-zinc-300"
-                >
-                  {theme === 'beige' ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : theme === 'gray' ? <Square className="w-3.5 h-3.5 text-zinc-200" /> : <Moon className="w-3.5 h-3.5 text-sky-400" />}
-                </button>
+                {/* Theme Selector Dropdown */}
+                <div className="relative group shrink-0">
+                  <div className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all ${
+                    theme === 'beige' 
+                      ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' 
+                      : theme === 'gray'
+                      ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
+                      : 'bg-slate-900 border-white/10 text-zinc-300'
+                  }`}>
+                    {theme === 'beige' ? (
+                      <Sun className="w-3 h-3 text-amber-600 shrink-0" />
+                    ) : theme === 'gray' ? (
+                      <Square className="w-3 h-3 text-zinc-300 shrink-0" />
+                    ) : (
+                      <Moon className="w-3 h-3 text-sky-400 shrink-0" />
+                    )}
+                    <select
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
+                      className="bg-transparent border-none outline-none text-[9px] font-black cursor-pointer appearance-none pr-2"
+                      title={lang === 'ko' ? '테마 선택' : 'Theme'}
+                    >
+                      <option value="dark" className={t.bg}>다크</option>
+                      <option value="gray" className={t.bg}>그레이</option>
+                      <option value="beige" className={t.bg}>베이지</option>
+                    </select>
+                  </div>
+                </div>
 
                 {/* Help Button */}
                 <button 
@@ -2309,10 +2383,10 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Mobile Bottom Row: Full Search Bar, Sort Dropdown & Language */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/10">
-              {/* Search Box */}
-              <div className={`flex-1 flex items-center ${theme === 'beige' ? 'bg-white border-[#dfceb0]' : 'bg-black/30 border-white/10'} rounded-lg border px-2.5 py-1 min-w-0`}>
+            {/* Mobile Bottom Row: Search Bar (30% reduced), Sort Dropdown & Language */}
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-black/10">
+              {/* Search Box (30% reduced width) */}
+              <div className={`w-36 flex items-center ${theme === 'beige' ? 'bg-white border-[#dfceb0]' : 'bg-black/30 border-white/10'} rounded-lg border px-2 py-1 shrink-0`}>
                 <Search className={`w-3.5 h-3.5 ${t.textMuted} mr-1.5 shrink-0`} />
                 <input 
                   type="text" 
@@ -2323,7 +2397,7 @@ const App: React.FC = () => {
                 />
                 {searchTerm && (
                   <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0 ml-1">
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
@@ -2389,53 +2463,188 @@ const App: React.FC = () => {
           )}
         </header>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-auto no-scrollbar">
-          {/* Snapshot Diff Diagnostic Bar */}
+        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
+          {/* Enhanced Snapshot Diff Diagnostic & Control Panel */}
           {viewMode === 'diff' && (
-            <div className="w-full max-w-[800px] mb-2 p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-950/30 backdrop-blur-md flex flex-wrap items-center justify-between gap-2 animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 flex items-center gap-1">
-                  <ArrowRightLeft className="w-3.5 h-3.5" />
-                  {s.baselineSelect}:
-                </span>
-                {snapshots.length > 0 ? (
-                  <select
-                    value={baselineSnapshot?.id || ''}
-                    onChange={(e) => setBaselineSnapshotId(e.target.value)}
-                    className="bg-black/40 border border-white/10 text-zinc-200 text-[10px] font-bold rounded-lg px-2 py-1 outline-none"
+            <div className={`w-full max-w-[800px] mb-2 p-3 rounded-2xl border transition-all duration-300 backdrop-blur-md shadow-xl flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 ${
+              theme === 'beige'
+                ? 'bg-[#fcf7ee] border-[#dfcaa7] text-[#4a341e]'
+                : 'bg-gradient-to-r from-indigo-950/85 via-slate-900/90 to-purple-950/85 border-indigo-500/40 text-indigo-100'
+            }`}>
+              {/* Row 1: Header, Status Badge, Guide & Exit Buttons */}
+              <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2 ${
+                theme === 'beige' ? 'border-[#dfcaa7]/60' : 'border-white/10'
+              }`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`p-1.5 rounded-lg shrink-0 ${
+                    theme === 'beige' ? 'bg-amber-500/20 text-amber-800' : 'bg-indigo-500/20 text-indigo-400'
+                  }`}>
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className={`text-xs font-black uppercase tracking-tight truncate ${
+                      theme === 'beige' ? 'text-[#382613]' : 'text-indigo-300'
+                    }`}>{s.diffMode}</span>
+                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-bold truncate border ${
+                      theme === 'beige'
+                        ? 'bg-[#edd8b6] border-[#d8c09a] text-[#543818]'
+                        : 'bg-indigo-500/30 border-indigo-500/40 text-indigo-200'
+                    }`}>
+                      {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요 (스냅샷 저장)'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setShowDiffGuide(true)}
+                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                      theme === 'beige'
+                        ? 'bg-[#f0e2ca] hover:bg-[#e7d4b4] border-[#d4be94] text-[#4a341e]'
+                        : 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-500/40 text-indigo-300'
+                    }`}
+                    title={s.diffGuideBtn}
                   >
-                    {snapshots.map((snap) => (
-                      <option key={snap.id} value={snap.id}>
-                        {snap.label} ({snap.activeCount}대)
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-[10px] opacity-60 italic">{s.noSnapshots}</span>
-                )}
-                <button
-                  onClick={handleSaveSnapshot}
-                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[9px] font-black uppercase tracking-tight transition-all"
-                >
-                  + {s.saveSnapshot}
-                </button>
+                    <HelpCircle className="w-3.5 h-3.5 opacity-80" />
+                    <span>{s.diffGuideBtn}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                      theme === 'beige'
+                        ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
+                        : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
+                    }`}
+                    title="스냅샷 비교 종료 및 기본 그리드로 복귀"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>그리드 복귀</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center space-x-2 text-[10px] font-black">
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  + {s.diffNewBadge}: {diffAnalysis.summary.newCount}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                  - {s.diffGoneBadge}: {diffAnalysis.summary.offlineCount}
-                </span>
-                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  ! {s.diffChangedBadge}: {diffAnalysis.summary.changedCount}
-                </span>
+              {/* Row 2: Snapshot Actions (Save / Baseline Selector / Delete) & Live Counters */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleSaveSnapshot}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[10.5px] font-black uppercase tracking-tight shadow-md flex items-center gap-1.5 transition-all shrink-0"
+                    title="현재 스캔된 네트워크 상태를 새 기준 스냅샷으로 캡처하여 저장합니다"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{s.diffSaveNewBtn}</span>
+                  </button>
+
+                  {snapshots.length > 0 && (
+                    <div className={`flex items-center gap-1 border rounded-lg px-2 py-0.5 ${
+                      theme === 'beige'
+                        ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]'
+                        : 'bg-black/40 border-white/10 text-zinc-100'
+                    }`}>
+                      <span className={`text-[9.5px] font-bold uppercase tracking-wider ${
+                        theme === 'beige' ? 'text-[#7d5f39]' : 'text-zinc-400'
+                      }`}>{s.baselineSelect}:</span>
+                      <select
+                        value={baselineSnapshot?.id || ''}
+                        onChange={(e) => setBaselineSnapshotId(e.target.value)}
+                        className={`bg-transparent text-[10.5px] font-bold outline-none cursor-pointer py-1 pr-1 max-w-[180px] truncate ${
+                          theme === 'beige' ? 'text-[#3d2711]' : 'text-zinc-100'
+                        }`}
+                      >
+                        {snapshots.map((snap) => (
+                          <option 
+                            key={snap.id} 
+                            value={snap.id} 
+                            className={theme === 'beige' ? 'bg-[#fcf7ee] text-[#3d2711]' : 'bg-zinc-900 text-zinc-100'}
+                          >
+                            {snap.label} ({snap.activeCount}대)
+                          </option>
+                        ))}
+                      </select>
+                      {baselineSnapshot && (
+                        <button
+                          onClick={() => handleDeleteSnapshot(baselineSnapshot.id)}
+                          className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                          title="선택한 기준 스냅샷 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Diff Live Diagnostic Counters (Responsive Adaptive Grid) */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-black">
+                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
+                    theme === 'beige'
+                      ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300'
+                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  }`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>+ {s.diffNewBadge}:</span>
+                    <span className="mono text-xs font-black">{diffAnalysis.summary.newCount}</span>
+                  </div>
+
+                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
+                    theme === 'beige'
+                      ? 'bg-rose-100/90 text-rose-900 border-rose-300'
+                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                  }`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    <span>- {s.diffGoneBadge}:</span>
+                    <span className="mono text-xs font-black">{diffAnalysis.summary.offlineCount}</span>
+                  </div>
+
+                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
+                    theme === 'beige'
+                      ? 'bg-amber-100/90 text-amber-900 border-amber-300'
+                      : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                  }`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    <span>! {s.diffChangedBadge}:</span>
+                    <span className="mono text-xs font-black">{diffAnalysis.summary.changedCount}</span>
+                  </div>
+
+                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 transition-all ${
+                    theme === 'beige'
+                      ? 'bg-stone-100/90 text-stone-800 border-stone-300'
+                      : 'bg-white/5 text-zinc-300 border-white/10'
+                  }`}>
+                    <span>= {s.diffSameBadge}:</span>
+                    <span className="mono text-xs font-black">{diffAnalysis.summary.sameCount}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Friendly Callout if no snapshots exist */}
+              {snapshots.length === 0 && (
+                <div className={`p-2.5 rounded-xl border text-[11px] flex flex-wrap items-center justify-between gap-3 animate-in fade-in ${
+                  theme === 'beige'
+                    ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Info className={`w-4 h-4 shrink-0 ${theme === 'beige' ? 'text-amber-700' : 'text-indigo-400'}`} />
+                    <span>{s.diffEmptyDesc}</span>
+                  </div>
+                  <button
+                    onClick={handleSaveSnapshot}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[10px] shrink-0 uppercase shadow"
+                  >
+                    지금 캡처
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          <div className="grid grid-cols-16 grid-rows-16 gap-[1px] w-full max-w-[800px] aspect-square relative z-10">
+          <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] w-full aspect-square relative z-10 my-auto transition-all ${
+            viewMode === 'diff' 
+              ? 'max-w-[min(800px,calc(100vh-270px))] md:max-w-[min(800px,calc(100vh-220px))]' 
+              : 'max-w-[min(800px,calc(100vh-120px))] md:max-w-[min(800px,calc(100vh-85px))]'
+          }`}>
             {filteredIps.map((ip, index) => (
               <IPCell 
                 key={ip}
@@ -2773,10 +2982,12 @@ const App: React.FC = () => {
                     <p className="text-[11px] opacity-75 leading-snug">
                       초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
                     </p>
-                    <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5">
-                      <span>개발자: AhBiYout</span>
+                    <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5 flex-wrap">
+                      <span>개발자: AhBiYout-all</span>
                       <span>•</span>
-                      <span>저장소: AhBiYout-all</span>
+                      <span>GitHub: AhBiYout</span>
+                      <span>•</span>
+                      <span>저장소: grid-ip-scanner2</span>
                     </div>
                   </div>
                 </div>
@@ -2803,23 +3014,39 @@ const App: React.FC = () => {
                   </p>
                 </div>
 
-                {/* 3. Creator Contact Section */}
+                {/* 3. Creator Contact & GitHub Section */}
                 <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/5'}`}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Mail className="w-4 h-4 text-amber-500" />
-                    <span className="font-black uppercase tracking-wider">{s.creatorContact}</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Github className="w-4 h-4 text-sky-400" />
+                      <span className="font-black uppercase tracking-wider">{s.creatorContact}</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono font-bold">
+                      Open Source & Issues
+                    </span>
                   </div>
-                  <div className="space-y-2 text-[11px] opacity-90">
+                  <div className="space-y-2.5 text-[11px] opacity-90">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout</span></span>
+                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout-all</span> <span className="text-[10px] font-mono opacity-60">(@AhBiYout)</span></span>
                       <a 
-                        href="mailto:ahbiyout@gmail.com"
-                        className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded transition-all"
+                        href="https://github.com/AhBiYout/grid-ip-scanner2/issues"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
                       >
-                        Send Email
+                        <Github className="w-3.5 h-3.5" />
+                        <span>{lang === 'ko' ? 'GitHub 이슈 문의' : 'GitHub Issues'}</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                      <span className="opacity-70">{lang === 'ko' ? '저장소 (Repo):' : 'Repository:'}</span>
+                      <a href="https://github.com/AhBiYout/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
+                        <span>github.com/AhBiYout/grid-ip-scanner2</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="opacity-70">{lang === 'ko' ? '소 속:' : 'Affiliation:'}</span>
                       <a href="http://www.cisnet.co.kr/" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold">
                         www.cisnet.co.kr
@@ -3174,7 +3401,7 @@ const App: React.FC = () => {
                 />
                 <div>
                   <h3 className="font-black text-sm uppercase tracking-tight">{s.licenseTitle}</h3>
-                  <div className="text-[10px] opacity-60 font-mono">Grid IP Scanner2 (AhBiYout-all)</div>
+                  <div className="text-[10px] opacity-60 font-mono">Grid IP Scanner2 (grid-ip-scanner2)</div>
                 </div>
               </div>
               <button onClick={() => setShowLicenseModal(false)} className="p-1 hover:opacity-50 transition-opacity"><X className="w-5 h-5" /></button>
@@ -3298,6 +3525,141 @@ const App: React.FC = () => {
         onRefreshCheck={handleManualCheckUpdate}
         theme={theme}
       />
+
+      {/* Snapshot Diff 3-Step Interactive Guide Modal */}
+      {showDiffGuide && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-2xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
+            {/* Header */}
+            <div className="flex justify-between items-center pb-3 border-b border-white/10">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base uppercase tracking-tight text-indigo-400">
+                    {lang === 'ko' ? '📸 스냅샷 비교(Diff) 사용법 완벽 가이드' : '📸 Snapshot Diff Comparison Guide'}
+                  </h3>
+                  <div className="text-[11px] opacity-70">
+                    {lang === 'ko' 
+                      ? '과거의 정상 기준점과 현재 네트워크를 대조하여 침입 기기 및 연결 끊김을 즉시 감지합니다.' 
+                      : 'Compare past baseline with current network state to detect intruder and offline nodes.'}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowDiffGuide(false)} className="p-1 hover:opacity-50 transition-opacity">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 3 Steps Visual Cards */}
+            <div className="space-y-3.5 overflow-y-auto pr-1 flex-1 text-xs no-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Step 1 */}
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-black text-[10px]">STEP 1</span>
+                    <Camera className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className="font-black text-sm text-zinc-100">
+                    {lang === 'ko' ? '정상 상태 찰칵!' : 'Capture Baseline'}
+                  </div>
+                  <p className="text-[11px] opacity-80 leading-relaxed flex-1">
+                    {lang === 'ko'
+                      ? '네트워크가 정상일 때 스캔을 완료하고 [📸 현재 상태 스냅샷 저장]을 누릅니다.'
+                      : 'Run a scan when normal and click [📸 Save Snapshot] to create a baseline point.'}
+                  </p>
+                </div>
+
+                {/* Step 2 */}
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-black text-[10px]">STEP 2</span>
+                    <RefreshCw className="w-4 h-4 text-sky-400" />
+                  </div>
+                  <div className="font-black text-sm text-zinc-100">
+                    {lang === 'ko' ? '시간 경과 후 재스캔' : 'Re-scan Later'}
+                  </div>
+                  <p className="text-[11px] opacity-80 leading-relaxed flex-1">
+                    {lang === 'ko'
+                      ? '다음 날 또는 의심스러울 때 [그리드 스캔 시작]을 눌러 현재 상태를 새로 수집합니다.'
+                      : 'At a later time, start a new scan to discover the latest network status.'}
+                  </p>
+                </div>
+
+                {/* Step 3 */}
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-black text-[10px]">STEP 3</span>
+                    <ArrowRightLeft className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div className="font-black text-sm text-zinc-100">
+                    {lang === 'ko' ? 'Diff 모드로 자동 진단' : 'Switch to Diff Mode'}
+                  </div>
+                  <p className="text-[11px] opacity-80 leading-relaxed flex-1">
+                    {lang === 'ko'
+                      ? '상단 [Diff] 모드로 전환하면 과거 기준점과 현재 상태를 1:1 대조하여 색상으로 자동 분류합니다.'
+                      : 'Switch to Diff mode to see automatic color-coded discrepancies against your baseline.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Color Code Legend Card */}
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 space-y-2.5">
+                <div className="font-black text-xs uppercase tracking-wider text-indigo-300">
+                  {lang === 'ko' ? '🎨 색상별 진단 의미 (Color Legend)' : '🎨 Color Legend'}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-black/30 border border-white/5">
+                    <div className="w-3.5 h-3.5 rounded bg-emerald-500 shrink-0 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    <div>
+                      <div className="font-bold text-emerald-400">{lang === 'ko' ? '🟢 신규 단말 (+ New)' : '🟢 New Node'}</div>
+                      <div className="opacity-70 text-[10px]">{lang === 'ko' ? '기준점에 없던 새 장치 연결 (외부인/침입 장비)' : 'Newly appeared device not in baseline'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-black/30 border border-white/5">
+                    <div className="w-3.5 h-3.5 rounded bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                    <div>
+                      <div className="font-bold text-rose-400">{lang === 'ko' ? '🔴 오프라인 전환 (- Gone)' : '🔴 Offline Node'}</div>
+                      <div className="opacity-70 text-[10px]">{lang === 'ko' ? '기준점에 켜져 있었으나 전원 꺼짐/연결 끊김' : 'Device went offline or disconnected'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-black/30 border border-white/5">
+                    <div className="w-3.5 h-3.5 rounded bg-amber-500 shrink-0 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                    <div>
+                      <div className="font-bold text-amber-400">{lang === 'ko' ? '🟡 장비 변경 (! Changed)' : '🟡 Changed / Alert'}</div>
+                      <div className="opacity-70 text-[10px]">{lang === 'ko' ? '동일 IP에서 MAC/제조사/포트 변조 감지 (IP 충돌)' : 'MAC or Vendor modified on same IP'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 p-2 rounded-lg bg-black/30 border border-white/5">
+                    <div className="w-3.5 h-3.5 rounded bg-zinc-700 shrink-0 opacity-50" />
+                    <div>
+                      <div className="font-bold text-zinc-300">{lang === 'ko' ? '⚪ 변동 없음 (= Same)' : '⚪ Unchanged'}</div>
+                      <div className="opacity-70 text-[10px]">{lang === 'ko' ? '기준점과 상태가 동일한 안전한 장비' : 'Exact match with baseline state'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] opacity-60">
+                {lang === 'ko' ? '💡 스냅샷은 브라우저/시스템에 안전하게 영구 저장됩니다.' : '💡 Snapshots are safely saved locally.'}
+              </span>
+              <button
+                onClick={() => setShowDiffGuide(false)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs uppercase transition-all shadow-md shrink-0"
+              >
+                {lang === 'ko' ? '이해했습니다 (확인)' : 'Got it (Close)'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

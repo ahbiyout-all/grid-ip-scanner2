@@ -106,25 +106,27 @@ export interface LicenseInfo {
 
 ---
 
-## 6. 윈도우 인스톨러(Inno Setup) 세부 명세
+## 6. 윈도우 인스톨러(Inno Setup & Go Fallback) 세부 명세
 
-* **설치 스크립트 위치**: `installer/Grid_IP_Scanner2_Setup.iss`
-* **빌드 출력물**: `Grid IP Scanner2 v{VERSION} Setup.exe`
-* **주요 자동화 기능**:
-  1. **설치 경로**: `{autopf}\Grid IP Scanner2` (64비트 표준 `Program Files`)
-  2. **단축 아이콘**: 시작 메뉴 프로그램 그룹 및 바탕화면 바로가기 자동 생성
-  3. **Windows 방화벽 사전 조용한 자동 예외 등록**:
+* **설치 스크립트 & 빌더 위치**: `installer/Grid_IP_Scanner2_Setup.iss`, `installer/build-installer.js`, `installer/setup_builder.go`
+* **빌드 출력물**: `Grid_IP_Scanner2_v{VERSION}_Setup.exe`
+* **주요 자동화 및 폴백 기능**:
+  1. **Dual-Compiler 인스톨러 엔진**: Inno Setup 6(ISCC)이 시스템에 설치되어 있으면 정규 Inno Setup 인스톨러를 빌드하고, 미설치 환경에서는 고성능 Go 스탠드얼론 인스톨러 빌더(`setup_builder.go`)로 자동 전환하여 100% 보장 빌드.
+  2. **공식 안내 대화상자 & 프로세스 정지**: 설치 시작 시 안내 팝업을 출력하고, 기존에 실행 중인 `Grid IP Scanner2` 프로세스를 안전 정지(`taskkill /F`)하여 파일 잠금 현상 방지.
+  3. **설치 경로 및 AppData 자동 폴백**: 기본 `{autopf}\Grid IP Scanner2` (64비트 표준 `Program Files`)에 배치하며, 쓰기 권한 제한 시 `%LOCALAPPDATA%\Programs\Grid IP Scanner2`로 자동 대체 설치.
+  4. **단축 아이콘**: 시작 메뉴 프로그램 그룹 및 바탕화면 바로가기 자동 생성.
+  5. **Windows 방화벽 사전 조용한 자동 예외 등록**:
      - **기본 앱 이름 규칙**: `Grid IP Scanner2`, `Grid IP Scanner2 (Inbound)`, `Grid IP Scanner2 (Outbound)`
      - **버전 정보 포함 규칙**: `Grid IP Scanner2 v{VERSION}`, `Grid IP Scanner2 v{VERSION} (Inbound)`, `Grid IP Scanner2 v{VERSION} (Outbound)`
      ```cmd
-     netsh advfirewall firewall add rule name="Grid IP Scanner2" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
-     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Inbound)" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
-     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Outbound)" dir=out action=allow program="{app}\Grid IP Scanner2.exe" enable=yes
+     netsh advfirewall firewall add rule name="Grid IP Scanner2" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes profile=any
+     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Inbound)" dir=in action=allow program="{app}\Grid IP Scanner2.exe" enable=yes profile=any
+     netsh advfirewall firewall add rule name="Grid IP Scanner2 (Outbound)" dir=out action=allow program="{app}\Grid IP Scanner2.exe" enable=yes profile=any
      ```
-  4. **언인스톨 클린업**: 제어판 제거 시 기본 이름 및 버전 정보 포함 방화벽 규칙 모두 자동 삭제 (Silent clean)
-  5. **무인 일괄 설치(Silent Install) 스위치 지원**:
+  6. **언인스톨 클린업**: 제어판 제거 시 기본 이름 및 버전 정보 포함 방화벽 규칙 모두 자동 삭제 (Silent clean)
+  7. **무인 일괄 설치(Silent Install) 스위치 지원**:
      ```cmd
-     Grid_IP_Scanner2_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+     Grid_IP_Scanner2_v2.3.2_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
      ```
 
 ---

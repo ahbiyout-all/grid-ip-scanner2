@@ -126,7 +126,7 @@ async function startBuild() {
 
     // 1. Vite Build
     console.log('\n📦 Step 1: Building Frontend (Vite)...');
-    if (!run('npm run build')) process.exit(1);
+    if (!run('npx vite build')) process.exit(1);
 
   // 2. Clean up old .syso files
   console.log('\n🧹 Step 2: Cleaning up old resource files...');
@@ -267,10 +267,17 @@ async function startBuild() {
   }
 
   console.log(`\n✅ Build Successful! ${exeName} is ready.`);
-  console.log('\n💡 Tip: If the icon is still not visible:');
-  console.log(`   1. Right-click "${exeName}" -> Properties to check metadata.`);
-  console.log(`   2. Try renaming the file to bypass Windows icon cache.`);
-  console.log('   3. Move the file to a different folder.');
+  
+  // 5. Trigger automated multi-folder distribution pipeline
+  console.log(`\n📦 Step 5: Orchestrating multi-folder distribution outputs...`);
+  try {
+    const distScript = path.join(process.cwd(), 'scripts', 'build-distribution.js');
+    if (fs.existsSync(distScript)) {
+      execSync(`node "${distScript}"`, { stdio: 'inherit' });
+    }
+  } catch (distErr) {
+    console.warn(`   - Distribution packaging notice: ${distErr.message}`);
+  }
 } catch (error) {
   console.error('\n❌ Unexpected Build Error!');
   console.error(error.message);

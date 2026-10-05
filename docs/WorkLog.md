@@ -51,6 +51,28 @@
   - `main.go`:
     - 앱 시작 시 방화벽 사전 등록 루틴(`ensureFirewallRulesSilently`)의 `netsh` 명령어에 `hideWindow()`를 적용하여 콘솔 노출 0% 달성.
 
+### 6. 빌드 오케스트레이션 파이프라인 최적화 (`npx vite build` 직결 및 중복 prebuild 정돈)
+* **작업 배경**:
+  - `build.bat` 및 `build-win.js` 실행 시 `npm run build` 스크립트가 `package.json`의 `"prebuild": "node generate-assets.js"` 훅을 중복 호출하여 자산 생성이 2~3회 연속 실행되고, Windows CMD 환경에서 `npm.cmd` 하위 프로세스가 stdio 스트림 블로킹(Hang)을 유발하는 문제 발생.
+* **구현 내용**:
+  - `package.json`: 중복 `prebuild` 스크립트 훅을 제거하여 `npm run build` 및 `npx vite build`가 원본 웹 UI 번들을 즉시 빌드하도록 최적화.
+  - `build-win.js` & `scripts/build-distribution.js`: `npm run build` 대신 `npx vite build`를 직접 실행하도록 변경하여, 자산 생성 완료 후 멈춤 현상 없이 고속으로 다음 바이너리 빌드 단계로 진행.
+
+### 7. 스탠드얼론 인스톨러 빌더 (`installer/setup_builder.go`) 안정화 및 프로세스 격리
+* **작업 배경**:
+  - Inno Setup이 미설치된 환경에서 생성되는 Go 기반 스탠드얼론 인스톨러 실행 시, 사전 안내 없이 "기존 폴더 감지" 팝업창부터 먼저 출력되거나, 백그라운드에 기존 프로세스가 실행 중이거나 권한이 부족할 때 파일 추출 실패 후 에러 메시지 없이 종료되는 문제 해결.
+* **구현 내용**:
+  - `installer/setup_builder.go`:
+    - **공식 안내 대화상자 탑재**: 설치 시작 시 설치 목적, 경로(`Program Files\Grid IP Scanner2`), 방화벽 자동 등록 및 바탕화면 바로가기 안내를 포함한 공식 시작 팝업 제공.
+    - **실행 중인 프로세스 강제 정지**: 기존 앱 실행 파일(`Grid IP Scanner2*.exe`, `Grid_IP_Scanner2.exe`)이 백그라운드에서 동작 중일 경우 `taskkill /F`로 정지시켜 파일 잠금(File Lock) 현상 해제.
+    - **AppData 자동 폴백 & 명확한 오류 안내**: `C:\Program Files` 쓰기 권한 부족 시 `%LOCALAPPDATA%\Programs\Grid IP Scanner2`로 대체 설치를 시도하며, 쓰기 실패 시 원인 사유를 팝업으로 사용자에게 명확히 전달.
+
+### 8. UI 레이아웃 반응형 보정 및 텍스트/모달 짤림 방지
+* **작업 배경**:
+  - 해상도 변경이나 소형 창 상태에서 상단 배지, 모달 팝업 및 스냅샷 Diff 카드 내부의 텍스트가 짤리거나 화면 밖으로 이탈하는 현상 방지.
+* **구현 내용**:
+  - `App.tsx`: 반응형 CSS 가독성 보정 규칙(`flex-wrap`, `min-w-0`, `break-words`, `max-h-[90vh] overflow-y-auto`)을 강화하여 전 화면 영역에서 짤림 없는 깨끗한 렌더링 환경 완성.
+
 ---
 
 ## 📅 2026-10-03 (v2.3.2)
@@ -70,10 +92,10 @@
     - 도움말 모달: **80px(`w-20 h-20`) 대형 앱 히어로 카드** 탑재.
 ### 2. 깃허브 자동 스크립트, 8대 타깃 버전 자동 연동, PC/Android/iOS 설치 파일 및 실시간 업데이트 시스템 구축
 * **작업 배경**:
-  - 사용자 요구: 깃허브 계정 `AhBiYout` / 이름 `AhBiYout-all` 기반 원클릭 자동 스크립트 생성, 코드 수정 시 버전 정보 동시 연동 여부 검증 및 보완, PC용/모바일용(APK)/아이폰(iOS) 설치 파일 생성, GitHub Releases 기반 실시간 자동 업데이트 시스템 구축, 깃허브에 올라가는 불필요한 파일 검출 및 `.gitignore` 최적화.
+  - 사용자 요구: 깃허브 계정 `AhBiYout` / 저장소 `grid-ip-scanner2` 기반 원클릭 자동 스크립트 생성, 코드 수정 시 버전 정보 동시 연동 여부 검증 및 보완, PC용/모바일용(APK)/아이폰(iOS) 설치 파일 생성, GitHub Releases 기반 실시간 자동 업데이트 시스템 구축, 깃허브에 올라가는 불필요한 파일 검출 및 `.gitignore` 최적화.
 * **구현 내용**:
   - **깃허브 자동화 스크립트 (`github-push.bat`, `scripts/github-sync.bat`, `scripts/github-sync.sh`)**:
-    - Git 환경 검사, SSOT 버전 동기화, 원격 저장소(`https://github.com/AhBiYout/AhBiYout-all.git`) 검증 및 연결, 전체 스테이징, 시맨틱 커밋 생성, main 브랜치 푸시 및 릴리즈 태그(`vX.Y.Z`) 동시 발행 자동화.
+    - Git 환경 검사, SSOT 버전 동기화, 원격 저장소(`https://github.com/AhBiYout/grid-ip-scanner2.git`) 검증 및 연결, 전체 스테이징, 시맨틱 커밋 생성, main 브랜치 푸시 및 릴리즈 태그(`vX.Y.Z`) 동시 발행 자동화.
   - **지속적 버전 연동 체계 (Single Source of Truth - 8대 핵심 타깃)**:
     - `scripts/sync-version.js`: `package.json`, `winres.json`, `installer/Grid_IP_Scanner2_Setup.iss`, `App.tsx`, `services/updateChecker.ts`, `docs/PATCH_NOTE.md`, `docs/README.md`, `docs/WorkLog.md`를 1회 명령으로 100% 동기화.
   - **PC 및 Android 스마트폰 전용 설치 파일 생성 (아이폰 설치 파일 생성 보류)**:
@@ -116,7 +138,7 @@
 * **작업 배경**:
   - 소스코드의 안전한 버전 관리 및 깃허브 푸시 시 클라우드 컴퓨터에서 PC용 실행 파일(`.exe`, Inno Setup 인스톨러)과 모바일 웹 산출물이 전자동 생성되도록 구축.
 * **구현 내용**:
-  - 공식 깃허브 계정: `AhBiYout` / 저장소 식별 이름: `AhBiYout-all`
+  - 공식 깃허브 계정: `AhBiYout` / 저장소 저장소: `grid-ip-scanner2`
   - `.github/workflows/build-and-release.yml` 생성:
     - `build-windows`: Node.js 20, Go 1.22, Inno Setup 6 자동 설치 후 `Grid IP Scanner2 v2.3.1.exe` 및 `Grid_IP_Scanner2_v2.3.1_Setup.exe` 컴파일 및 아티팩트 보관.
     - `build-web-mobile`: 모바일 반응형 웹 및 PWA 번들 자동 빌드.
@@ -140,5 +162,5 @@
 
 ---
 
-* **일지 작성자**: Grid IP Scanner2 코어 개발 엔지니어 (AhBiYout / AhBiYout-all)
+* **일지 작성자**: Grid IP Scanner2 코어 개발 엔지니어 (AhBiYout / grid-ip-scanner2)
 * **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)

@@ -720,6 +720,43 @@ func getAllInterfaces() []InterfaceInfo {
 }
 
 func getLocalIP() (string, string) {
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		// 1st pass: Look for an UP physical interface with an IPv4 address
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			lowerName := strings.ToLower(iface.Name)
+			isVirtualOrVpn := strings.Contains(lowerName, "tun") || strings.Contains(lowerName, "tap") ||
+				strings.Contains(lowerName, "vpn") || strings.Contains(lowerName, "wireguard") ||
+				strings.Contains(lowerName, "tailscale") || strings.Contains(lowerName, "docker") ||
+				strings.Contains(lowerName, "veth") || strings.Contains(lowerName, "vmnet") ||
+				strings.Contains(lowerName, "virtual") || strings.Contains(lowerName, "hyper-v") ||
+				strings.Contains(lowerName, "wsl") || strings.Contains(lowerName, "vbox") ||
+				strings.Contains(lowerName, "bridge") || strings.Contains(lowerName, "loopback")
+			if isVirtualOrVpn {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+					if ipnet.IP.To4() != nil {
+						fullIP := ipnet.IP.String()
+						parts := strings.Split(fullIP, ".")
+						if len(parts) == 4 {
+							return fullIP, strings.Join(parts[:3], ".")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2nd pass: Any non-loopback interface with IPv4
 	addrs, _ := net.InterfaceAddrs()
 	for _, address := range addrs {
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {

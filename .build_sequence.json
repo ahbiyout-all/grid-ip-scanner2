@@ -1,0 +1,213 @@
+{
+  "lastBuildNumber": 8,
+  "builds": {
+    "v2.3.2_build_001": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T02:12:36.493Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "2a5b698114dc2cd6da88d4d855d46c0780183beab29b84b601020b32a69966df",
+          "sizeBytes": 810922
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "8f747aeb6128fb8dc0c58870b2f89d45fe629f39db59328066c6606de2a75d5b",
+          "sizeBytes": 1156242
+        }
+      }
+    },
+    "v2.3.2_build_002": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T02:51:16.798Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "bffff532c690f09e10584383307e00e4b640424da603170605f908d19bf1405c",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "fd81441868af473e65749bdd0641613c9dd2f18096fee93dccc60eb977d14e14",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_003": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:10:51.091Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "60546fbca265a80d2192003dba5d69c9115a5c611f9e3ae06084c6b24b5bcbde",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "e253fa867cf6bb6f46539a24a1720557961d3a447badb460fe3227e061e4cfa2",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_004": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:11:59.399Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "7efdb830656efdbee3a0bab91d88ba1e873f17801c3b3a8278149afd4fd10c83",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "cc61bf3fb6f15f44ee92eba9d86e323de9da938453f6f6610d4e30424315d86a",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_005": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:23:45.205Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "f3c7459d439e4b283e514c1e6ca37802e981d7c3d19d5c7bef542d88b97bc060",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "202ac4d3f72fe25a235a901d4fbe74a20b32c5829810499df9e20d86687803d6",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_006": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:24:52.752Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": "1dbdd9a4850757f95ea8a6741c4a72e9d169f67509c9b83af5ec4964d3d9e1d7",
+          "sizeBytes": 5514752
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "531141e428054a65b51f89c50a4df7edbfcf1cff830adc2541e7c921cb20afb0",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "4f5c6c2432d72a200acc083ea59ea1d5966f0b3737271d74698e02561a3d2b9e",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_007": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:26:14.006Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": "3eed2f27125f9ba4664d799a9fc0cdea5e1027710c0381b400d277c1d421bfa9",
+          "sizeBytes": 5721600
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": null,
+          "sizeBytes": 0
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "508290f294e2fc47524e15030407d95be06902f0e8e662abb15a5e7d2282f20a",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "55c53e72eff7b0cd9dc9c84bfbb5937b3d568409a4c3ff0ae4c0393be34fcb9a",
+          "sizeBytes": 1157291
+        }
+      }
+    },
+    "v2.3.2_build_008": {
+      "version": "2.3.2",
+      "timestamp": "2026-10-05T03:44:18.502Z",
+      "artifacts": {
+        "installer": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+          "sha256": "75c45d19744b30b9b906322a6155f96a93366867f18236ad5130f7e092a560eb",
+          "sizeBytes": 5924352
+        },
+        "portableExe": {
+          "filename": "Grid IP Scanner2 v2.3.2.exe",
+          "sha256": "c812f8c55a68bb042d3a52a99cfa7c236e90f9aa8b61935a03396682e4b8306e",
+          "sizeBytes": 11116544
+        },
+        "mobilePwaZip": {
+          "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+          "sha256": "477a90f11be265e28b3b953fc45da94478af535df273e59d28eb2f4ca080d0c0",
+          "sizeBytes": 811971
+        },
+        "androidApk": {
+          "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+          "sha256": "6b1ac15ac7bed19903ee819533bb3fb877862632cc672a1867fd4ece7479c555",
+          "sizeBytes": 1157291
+        }
+      }
+    }
+  }
+}

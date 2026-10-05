@@ -7,7 +7,7 @@
 
 ## 📌 [v2.3.2] - 2026-10-03 (Latest)
 * **분류**: `PATCH` (깃허브 자동 스크립트 구축, 8개 타깃 버전 자동 연동 체계, PC/Android/iOS 원클릭 설치 파일 생성, 실시간 자동 업데이트 및 레포지토리 정리)
-* **공식 깃허브 계정 및 저장소**: `AhBiYout` / `AhBiYout-all`
+* **공식 깃허브 계정 및 저장소**: `AhBiYout` / `grid-ip-scanner2`
 * **배경 및 목적**:
   - 코드 푸시 시 버전 정보가 전체 코드베이스와 깃허브 릴리즈 태그에 누락 없이 자동 연동되는 완벽한 CI/CD 자동화 환경 구축.
   - PC용(포터블/인스톨러), 안드로이드 스마트폰(APK), 그리고 아이폰(iOS WebClip .mobileconfig 프로파일 & PWA)까지 전 플랫폼 지원 설치 파일 생성.
@@ -42,18 +42,37 @@
   6. **아이콘 여백 자동 감지 및 엣지-투-엣지(Edge-to-Edge) 꽉 찬 화면 최적화**:
      - 원본 소스 이미지(`Grid IP Scanner2.png`) 내부의 불필요한 투명 여백(184px 패딩)을 `pngjs` 알파 채널 경계 박스 자동 분석을 통해 완벽히 크롭.
      - 1:1 정방형 캔버스 중앙 정렬 및 고품질 바이리니어 리사이징을 적용하여, 여백 없이 꽉 찬 고화질 에셋(`logo.png`, `icon.png`, `icon_256.png`, `icon.ico` 등) 일괄 생성.
-  7. **Node.js 네트워크 소켓 누수 방지 및 2단계 PE 바이너리 직접 패칭(PE Patching) 파이프라인**:
-     - `png-to-ico` 변환 후 잔류 소켓 핸들을 자동으로 해제(`unref`)하여 자산 생성 및 빌드 스크립트 블로킹(Hang) 문제 해결.
-     - `winres.json`: Windows 탐색기 최우선 순위 숫자 리소스 ID(`"#1"`) 및 `"APP"`을 `RT_GROUP_ICON`에 동시 등록.
-     - `build-win.js`: `go-winres make`에 이어 `go build` 후 `go-winres patch --in winres.json`을 통한 2차 직접 PE 바이너리 리소스 주입 파이프라인 구축으로 탐색기 및 작업표시줄 아이콘 미표시 결함 완벽 해결.
-  8. **인앱 UI 아이콘 풀 블리드(Full-Bleed) 꽉 찬 스타일링 전면 개편**:
-     - `App.tsx`: 사이드바 브랜드 엠블럼, 모바일 헤더, 4대 모달(도움말, 라이선스, 인스톨러 안내, 업데이트 센터)의 내부 패딩(`p-1`) 및 어두운 여백 박스를 제거하고 `w-full h-full object-cover rounded-2xl ring-1 ring-cyan-500/30`으로 꽉 찬 시인성 극대화.
+  7. **Inno Setup 폴더 풀림(Unpacked Multi-File) 개별 파일 설치 구조 구현**:
+     - 인스톨러가 단일 바이너리뿐만 아니라 코어 실행 파일(`{#MyAppExeName}`, `Grid_IP_Scanner2.exe`), 9만 건 MAC OUI 데이터(`master_oui.txt`), 아이콘/로고(`icon.ico`, `logo.png`), 프론트엔드 웹 번들(`dist/`), 정적 자산(`public/`), 기술 백서(`docs/`), 유틸리티 스크립트(`scripts/`), 라이선스(`LICENSE.md`)를 대상 디렉터리(`{app}\`)에 개별 파일로 완벽하게 언팩 설치.
+  8. **기존 앱 설치 감지 및 대화형 삭제/덮어쓰기 질의 & 무인(Silent) 설치 지원**:
+     - **기존 설치 스마트 감지**: Windows 레지스트리 및 Program Files 내 기존 설치본을 감지하여 3가지 선택지(`예`: 기존 버전 완전 삭제 후 클린 설치, `아니오`: 기존 폴더에 덮어쓰기/업그레이드 설치, `취소`: 설치 중단) 제공.
+     - **무인 자동 설치(Silent Install) 완벽 지원**: 엔터프라이즈 환경 및 자동 배포를 위해 `/SILENT`, `/VERYSILENT`, `/SUPPRESSMSGBOXES`, `/NORESTART`, `/DIR="..."` 옵션 전달 시 사용자 대화창 없이 안전하게 자동 덮어쓰기 설치 완료.
+  9. **[배포/설치 단계] 방화벽 규칙 사전 조용히 등록 (기본 이름 및 버전 포함 이름 동시 등록)**:
+     - 인스톨러 실행 시 Windows 방화벽에 프로그램이 사전에 자동 등록되도록 `netsh advfirewall` 명령을 무소음 백그라운드로 실행.
+     - **기본 이름 규칙**: `Grid IP Scanner2` (Inbound/Outbound)
+     - **버전 포함 이름 규칙**: `Grid IP Scanner2 v2.3.2` (Inbound/Outbound)
+     - **언인스톨 시 자동 정리**: 프로그램 제거 시 사전에 등록된 모든 방화벽 규칙을 깨끗하게 자동 삭제.
+  10. **자동 빌드 스크립트 번호별 개별 폴더 격리 생성 파이프라인 (`scripts/build-distribution.js`)**:
+      - 루트 하위 `dist_releases/` 디렉터리 아래에 버전별 폴더(`dist_releases/v2.3.2/`) 및 빌드 시퀀스 번호별 폴더(`dist_releases/build_history/v2.3.2_build_001/`)를 자동 분리 생성.
+      - 각 폴더 내에 `portable/` (포터블 실행 파일), `installer/` (Inno Setup 인스톨러), `unpacked/` (폴더 풀림 개별 파일), `mobile/` (PWA zip, Android APK), `build_manifest.json` (SHA256 해시 및 빌드 메타데이터)를 체계적으로 분리 패키징.
+  11. **Node.js 네트워크 소켓 누수 방지 및 2단계 PE 바이너리 직접 패칭(PE Patching) 파이프라인**:
+      - `png-to-ico` 변환 후 잔류 소켓 핸들을 자동으로 해제(`unref`)하여 자산 생성 및 빌드 스크립트 블로킹(Hang) 문제 해결.
+      - `winres.json`: Windows 탐색기 최우선 순위 숫자 리소스 ID(`"#1"`) 및 `"APP"`을 `RT_GROUP_ICON`에 동시 등록.
+      - `build-win.js`: `go-winres make`에 이어 `go build` 후 `go-winres patch --in winres.json`을 통한 2차 직접 PE 바이너리 리소스 주입 파이프라인 구축으로 탐색기 및 작업표시줄 아이콘 미표시 결함 완벽 해결.
+  12. **인앱 UI 아이콘 풀 블리드(Full-Bleed) 꽉 찬 스타일링 전면 개편**:
+      - `App.tsx`: 사이드바 브랜드 엠블럼, 모바일 헤더, 4대 모달(도움말, 라이선스, 인스톨러 안내, 업데이트 센터)의 내부 패딩(`p-1`) 및 어두운 여백 박스를 제거하고 `w-full h-full object-cover rounded-2xl ring-1 ring-cyan-500/30`으로 꽉 찬 시인성 극대화.
+  13. **빌드 오케스트레이션 파이프라인 최적화 (`npx vite build` 직결 및 중복 prebuild 정돈)**:
+      - `package.json`에서 중복된 `prebuild` 훅을 정돈하고 `build-win.js` 및 `scripts/build-distribution.js`에서 `npx vite build`를 직접 실행하도록 개편하여 자산 생성 후 stdio 블로킹 및 빌드 멈춤 현상 완전 소멸.
+  14. **스탠드얼론 인스톨러 빌더 (`installer/setup_builder.go`) 전면 개편**:
+      - 공식 안내 시작 대화상자 탑재, 기존 프로세스 자동 정지(`taskkill`), `%LOCALAPPDATA%\Programs\Grid IP Scanner2` 권한 자동 폴백 및 추출 실패 시 명확한 사유 안내 팝업을 포함한 고도화 설치 엔진 완성.
+  15. **반응형 UI 레이아웃 보정 및 짤림 방지 규칙 강화**:
+      - 모달, 배지 및 카드 컨테이너에 `flex-wrap`, `min-w-0`, `break-words`, `max-h-[90vh] overflow-y-auto` 반응형 CSS 보정 규칙을 적용하여 전 화면 영역 짤림 방지 최적화.
 
 ---
 
 ## 📌 [v2.3.1] - 2026-10-03
 * **분류**: `PATCH` (모든 네트워크 어댑터 전수 탐색 및 다차원 필터, 모바일 2단 분리형 비잘림 헤더, GitHub CI/CD 파이프라인 구축)
-* **공식 깃허브 계정 및 저장소**: `AhBiYout` / `AhBiYout-all`
+* **공식 깃허브 계정 및 저장소**: `AhBiYout` / `grid-ip-scanner2`
 * **배경 및 목적**:
   - 단일 활성 인터페이스 외에 시스템 내 모든 물리/가상/VPN/비활성 어댑터 정보 확인 및 필터링 요구 수용.
   - 스마트폰 모바일 화면에서 상단 컨트롤이 가로로 짤리는 UI/UX 결함 완전 해결.
@@ -72,7 +91,7 @@
      - 3행: 스캔 실행 시에만 표시되는 전용 진행률 및 실시간 IP 서브바.
      - 스마트폰 화면(360px~412px)에서도 상단 내용 짤림 현상 0% 달성.
   4. **GitHub Actions 자동 빌드 & 릴리즈 워크플로우 구성 (`.github/workflows/build-and-release.yml`)**:
-     - GitHub 계정(`AhBiYout`), 저장소(`AhBiYout-all`) 기반 CI/CD 파이프라인 탑재.
+     - GitHub 계정(`AhBiYout`), 저장소(`grid-ip-scanner2`) 기반 CI/CD 파이프라인 탑재.
      - `build-windows`: Node.js 20 + Go 1.22 + Inno Setup 6 환경에서 `Grid IP Scanner2 v2.3.1.exe` 및 `Setup.exe` 자동 생성 및 아티팩트 업로드.
      - `build-web-mobile`: 모바일 반응형 웹 및 PWA 번들 자동 빌드.
   5. **GitHub 연동 가이드 및 작업 일지 공식 문서 등재**:
@@ -124,7 +143,7 @@
   4. **OUI DB 파일 시스템 저장 위치 실시간 표기 기능 추가**:
      - 상세 모달(ⓘ)에서 현재 메모리에 적재된 실제 OUI 파일 경로(`ouiDatabaseLocation`, `%USERPROFILE%\.cisnet_grid\master_oui.txt`)를 즉시 확인 가능하도록 연동.
   5. **개발자 및 조직 공식 정보 전역 일원화**:
-     - 개발자: `AhBiYout` (`ahbiyout@gmail.com`)
+     - 개발자: `AhBiYout` (``)
      - 소속: `Cisnet` ([www.cisnet.co.kr](http://www.cisnet.co.kr/))
      - 공식 블로그: `ahbiyoutvibe.blogspot.com` ([ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))
   6. **기술 문서 체계 보강**:
@@ -234,7 +253,7 @@
 * **분류**: `MINOR` (포트 스캐닝 및 멀티 프로토콜 식별 기능 확장)
 * **상세 변경 내역**:
   1. **주요 서비스 포트(Well-Known Ports) 간이 탐색 추가**: 80(HTTP), 443(HTTPS), 22(SSH), 3389(RDP), 445(SMB) 열림 여부 판별.
-  2. **NetBIOS 컴퓨터 이름 확인 연동**: UDP 137 포트를 질의하여 Windows PC의 호스트명 및 작업 그룹 자동 수집.
+  2. **NetBIOS 컴퓨터 저장소 확인 연동**: UDP 137 포트를 질의하여 Windows PC의 호스트명 및 작업 그룹 자동 수집.
   3. **스캔 속도 단계 조절(Fast / Normal / Slow) 옵션 추가**.
 
 ---

@@ -6,7 +6,6 @@
   "author": "AhBiYout",
   "scripts": {
     "dev": "tsx server.ts",
-    "prebuild": "node generate-assets.js",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
@@ -16,7 +15,8 @@
     "build:installer": "node installer/build-installer.js",
     "build:mobile": "node scripts/package-mobile.js",
     "build:apk": "node scripts/package-android.js",
-    "build:all": "npm run build && npm run build:mobile && npm run build:apk",
+    "build:dist": "node scripts/build-distribution.js",
+    "build:all": "npm run build && node scripts/build-distribution.js",
     "auto:update": "scripts\\auto-update.bat",
     "git:push": "scripts\\github-sync.bat",
     "dist": "npm run build && npx electron-builder --win"
@@ -30,7 +30,7 @@
       "target": [
         "portable"
       ],
-      "publisherName": "AhBiYout (Cisnet)",
+      "publisherName": "AhBiYout",
       "requestedExecutionLevel": "requireAdministrator"
     },
     "directories": {

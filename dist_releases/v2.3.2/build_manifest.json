@@ -1,0 +1,87 @@
+{
+  "product": "Grid IP Scanner2",
+  "version": "2.3.2",
+  "buildNumber": 8,
+  "buildKey": "v2.3.2_build_008",
+  "timestamp": "2026-10-05T03:44:18.502Z",
+  "author": "AhBiYout",
+  "publisher": "Cisnet (www.cisnet.co.kr)",
+  "repository": "https://github.com/AhBiYout/grid-ip-scanner2",
+  "unpackedStructure": {
+    "rootExecutables": [
+      "Grid IP Scanner2 v2.3.2.exe",
+      "Grid_IP_Scanner2.exe"
+    ],
+    "dataFiles": [
+      "master_oui.txt",
+      "winres.json",
+      "package.json",
+      "LICENSE.md"
+    ],
+    "assetFiles": [
+      "icon.ico",
+      "icon.png",
+      "logo.png"
+    ],
+    "directories": [
+      "dist/",
+      "public/",
+      "docs/",
+      "scripts/"
+    ]
+  },
+  "firewallRules": [
+    {
+      "name": "Grid IP Scanner2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    }
+  ],
+  "artifacts": {
+    "installer": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+      "sha256": "75c45d19744b30b9b906322a6155f96a93366867f18236ad5130f7e092a560eb",
+      "sizeBytes": 5924352
+    },
+    "portableExe": {
+      "filename": "Grid IP Scanner2 v2.3.2.exe",
+      "sha256": "c812f8c55a68bb042d3a52a99cfa7c236e90f9aa8b61935a03396682e4b8306e",
+      "sizeBytes": 11116544
+    },
+    "mobilePwaZip": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+      "sha256": "477a90f11be265e28b3b953fc45da94478af535df273e59d28eb2f4ca080d0c0",
+      "sizeBytes": 811971
+    },
+    "androidApk": {
+      "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+      "sha256": "6b1ac15ac7bed19903ee819533bb3fb877862632cc672a1867fd4ece7479c555",
+      "sizeBytes": 1157291
+    }
+  }
+}

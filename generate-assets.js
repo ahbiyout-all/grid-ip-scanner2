@@ -164,7 +164,6 @@ async function runGenerator() {
     const png512 = resizeBilinear(trimmed, 512, 512);
     const buf512 = PNG.sync.write(png512);
     fs.writeFileSync('public/logo.png', buf512);
-    fs.writeFileSync('dist/logo.png', buf512);
     fs.writeFileSync('icon.png', buf512);
     fs.writeFileSync('winres/icon.png', buf512);
     console.log('   - [OK] Saved trimmed 512x512: public/logo.png, icon.png, winres/icon.png');
@@ -192,8 +191,7 @@ async function runGenerator() {
         'winres/icon.ico',
         'public/icon.ico',
         'public/favicon.ico',
-        'dist/icon.ico',
-        'dist/favicon.ico'
+        'installer/icon.ico'
       ];
 
       targets.forEach(t => {

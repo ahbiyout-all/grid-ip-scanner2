@@ -51,7 +51,7 @@ Grid IP Scanner2의 프론트엔드 및 백엔드 하부 구조를 이루는 오
 ---
 
 ### 📞 라이선스 계약 및 취득 문의
-* **저작권자 / 기술 개발자**: AhBiYout (ahbiyout@gmail.com)
+* **저작권자 / 기술 개발자**: AhBiYout
 * **소속 / 파트너사**: Cisnet ([www.cisnet.co.kr](http://www.cisnet.co.kr))
 * **공식 블로그**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
 

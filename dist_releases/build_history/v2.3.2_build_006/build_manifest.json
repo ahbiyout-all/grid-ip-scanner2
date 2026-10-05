@@ -1,0 +1,87 @@
+{
+  "product": "Grid IP Scanner2",
+  "version": "2.3.2",
+  "buildNumber": 6,
+  "buildKey": "v2.3.2_build_006",
+  "timestamp": "2026-10-05T03:24:52.752Z",
+  "author": "AhBiYout",
+  "publisher": "Cisnet (www.cisnet.co.kr)",
+  "repository": "https://github.com/AhBiYout/grid-ip-scanner2",
+  "unpackedStructure": {
+    "rootExecutables": [
+      "Grid IP Scanner2 v2.3.2.exe",
+      "Grid_IP_Scanner2.exe"
+    ],
+    "dataFiles": [
+      "master_oui.txt",
+      "winres.json",
+      "package.json",
+      "LICENSE.md"
+    ],
+    "assetFiles": [
+      "icon.ico",
+      "icon.png",
+      "logo.png"
+    ],
+    "directories": [
+      "dist/",
+      "public/",
+      "docs/",
+      "scripts/"
+    ]
+  },
+  "firewallRules": [
+    {
+      "name": "Grid IP Scanner2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Inbound)",
+      "direction": "in",
+      "protocol": "any"
+    },
+    {
+      "name": "Grid IP Scanner2 v2.3.2 (Outbound)",
+      "direction": "out",
+      "protocol": "any"
+    }
+  ],
+  "artifacts": {
+    "installer": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Setup.exe",
+      "sha256": "1dbdd9a4850757f95ea8a6741c4a72e9d169f67509c9b83af5ec4964d3d9e1d7",
+      "sizeBytes": 5514752
+    },
+    "portableExe": {
+      "filename": "Grid IP Scanner2 v2.3.2.exe",
+      "sha256": null,
+      "sizeBytes": 0
+    },
+    "mobilePwaZip": {
+      "filename": "Grid_IP_Scanner2_v2.3.2_Mobile_PWA.zip",
+      "sha256": "531141e428054a65b51f89c50a4df7edbfcf1cff830adc2541e7c921cb20afb0",
+      "sizeBytes": 811971
+    },
+    "androidApk": {
+      "filename": "Grid_IP_Scanner2_v2.3.2.apk",
+      "sha256": "4f5c6c2432d72a200acc083ea59ea1d5966f0b3737271d74698e02561a3d2b9e",
+      "sizeBytes": 1157291
+    }
+  }
+}

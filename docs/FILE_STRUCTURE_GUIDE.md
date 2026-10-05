@@ -26,7 +26,7 @@ Grid IP Scanner2 Root/
 │
 ├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (11대 표준 문서)
 │   ├── README.md                   # 문서 저장소 총괄 가이드 및 색인 목차
-│   ├── GITHUB_GUIDE.md             # 깃허브 연동 및 CI/CD 자동 배포 가이드 (AhBiYout / AhBiYout-all)
+│   ├── GITHUB_GUIDE.md             # 깃허브 연동 및 CI/CD 자동 배포 가이드 (AhBiYout / grid-ip-scanner2)
 │   ├── WorkLog.md                  # 개발 및 기능 구현 공식 작업 일지
 │   ├── VERSIONING_POLICY.md        # SemVer 3단계 버전 관리 규정 및 패치노트 기록 지침
 │   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (v2.3.2 최신화)
@@ -151,8 +151,8 @@ Grid IP Scanner2 Root/
 #### 🛠️ `scripts/sync-version.js`
 * **역할**: 1회 실행으로 8대 핵심 타깃(`package.json`, `winres.json`, `Setup.iss`, `App.tsx`, `updateChecker.ts`, `docs/PATCH_NOTE.md`, `docs/README.md`, `docs/WorkLog.md`)의 버전을 100% 동기화하는 중앙 집중식 SSOT 엔진입니다.
 
-#### 🛠️ `installer/Grid_IP_Scanner2_Setup.iss` & `build-installer.js`
-* **역할**: Inno Setup 6 기반의 정식 Windows 인스톨러(`Grid_IP_Scanner2_v2.3.2_Setup.exe`)를 컴파일하고 방화벽 인바운드/아웃바운드 자동 예외 등록 및 제어판 등록을 수행하는 패키징 툴체인입니다.
+#### 🛠️ `installer/Grid_IP_Scanner2_Setup.iss`, `build-installer.js` & `setup_builder.go`
+* **역할**: Inno Setup 6 기반 정식 Windows 인스톨러(`Grid_IP_Scanner2_v2.3.2_Setup.exe`)를 컴파일하며, Inno Setup 미설치 환경에서는 Go 기반 스탠드얼론 인스톨러(`setup_builder.go`)로 폴백 컴파일을 수행합니다. 공식 시작 안내 대화상자, 기존 프로세스 자동 정지(`taskkill`), `%LOCALAPPDATA%\Programs\Grid IP Scanner2` 권한 자동 대체 및 방화벽 인바운드/아웃바운드 자동 등록을 완벽하게 전담하는 패키징 툴체인입니다.
 
 ---
 
@@ -181,5 +181,5 @@ Grid IP Scanner2 Root/
 ---
 
 * **문서 업데이트 일자**: 2026년 10월 4일 (v2.3.2 최신화)
-* **작성 부서**: Grid IP Scanner2 코어 개발 연구팀 (ahbiyoutvibe.blogspot.com / ahbiyout@gmail.com)
+* **작성 부서**: Grid IP Scanner2 코어 개발 연구팀 (ahbiyoutvibe.blogspot.com)
 * **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)

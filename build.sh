@@ -1,7 +1,7 @@
 #!/bin/bash
 # ======================================================================
-# Cisnet Grid IP Scanner2 - Automated Build Script for Unix/Git Bash
-# Copyright (c) 2026 Cisnet. All rights reserved.
+# Grid IP Scanner2 - Automated Multi-Folder Build Script for Unix/Linux
+# Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
 # ======================================================================
 
 # Text formatting helper
@@ -11,12 +11,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}======================================================================${NC}"
-echo -e "${BLUE}          CISNET GRID IP SCANNER - STANDALONE BUILD SCRIPT            ${NC}"
+echo -e "${BLUE}     GRID IP SCANNER2 - AUTOMATED MULTI-FOLDER BUILD PIPELINE        ${NC}"
 echo -e "${BLUE}======================================================================${NC}"
 echo
 
 # Step 1: Check Node.js
-echo -e "${BLUE}[1/4] Checking Node.js environment...${NC}"
+echo -e "${BLUE}[1/5] Checking Node.js environment...${NC}"
 if ! command -v node &> /dev/null; then
     echo -e "${RED}ERROR: Node.js was not found in your system PATH.${NC}"
     echo "Please install Node.js from https://nodejs.org/ first."
@@ -27,7 +27,7 @@ echo "Node.js is present."
 echo
 
 # Step 2: Install dependencies if missing
-echo -e "${BLUE}[2/4] Verifying node_modules dependencies...${NC}"
+echo -e "${BLUE}[2/5] Verifying node_modules dependencies...${NC}"
 if [ ! -d "node_modules" ]; then
     echo "node_modules directory not found. Running dependency installation..."
     npm install
@@ -40,25 +40,31 @@ else
 fi
 echo
 
-# Step 3: Run the build workflow
-echo -e "${BLUE}[3/4] Triggering Windows Build Workflow (build-win.js)...${NC}"
-npm run build:exe
+# Step 3: Synchronize versions
+echo -e "${BLUE}[3/5] Synchronizing Semantic Versions...${NC}"
+node scripts/sync-version.js
+echo
+
+# Step 4: Build web assets and run distribution orchestrator
+echo -e "${BLUE}[4/5] Building Web Front-End and packaging distributions...${NC}"
+node generate-assets.js
+npm run build
+node scripts/build-distribution.js
 if [ $? -ne 0 ]; then
-    echo -e "${RED}ERROR: Build workflow failed during execution.${NC}"
+    echo -e "${RED}ERROR: Distribution build failed during execution.${NC}"
     exit 1
 fi
 
-# Step 4: Verification
+# Step 5: Verification
 echo
-echo -e "${BLUE}[4/4] Verifying generated executable...${NC}"
-GEN_EXE=$(find . -maxdepth 1 -name "Grid IP Scanner2 v*.exe" -print -quit)
-if [ -n "$GEN_EXE" ]; then
+echo -e "${BLUE}[5/5] Verifying generated distribution structure...${NC}"
+APP_VER=$(node -p "require('./package.json').version" 2>/dev/null || echo "2.3.2")
+if [ -d "dist_releases/v${APP_VER}" ]; then
     echo -e "${GREEN}======================================================================${NC}"
-    echo -e "${GREEN}SUCCESS: Standalone Windows Executable built!${NC}"
-    echo "Filename: $(basename "$GEN_EXE")"
+    echo -e "${GREEN}SUCCESS: Distribution folders generated under dist_releases/v${APP_VER}/${NC}"
     echo -e "${GREEN}======================================================================${NC}"
     echo
 else
-    echo -e "${RED}ERROR: Build reported success but versioned executable 'Grid IP Scanner2 v*.exe' was not found.${NC}"
+    echo -e "${RED}ERROR: dist_releases/v${APP_VER} not found.${NC}"
     exit 1
 fi

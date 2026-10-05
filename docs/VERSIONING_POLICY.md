@@ -86,5 +86,27 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 * 모든 문서는 작성 일자, 작성자(AhBiYout), 공식 링크(`ahbiyoutvibe.blogspot.com`, `www.cisnet.co.kr`)를 명시하여 표준성을 유지합니다.
 
 ---
-* **문서 제정 일자**: 2026년 9월 12일
+
+## 🔄 5. 단일 진실 공급원(SSOT) 동적 버전 추출 및 8대 타깃 동기화 파이프라인
+
+배포/빌드 스크립트(`.bat`, `.sh`, `.js`) 내 버전 정보 수동 하드코딩을 원천 금지하며, 다단 동적 추출 및 자동 동기화 엔진(`scripts/sync-version.js`)을 통해 전체 시스템 버전을 단 1회 명령으로 동기화합니다.
+
+### 5.1. 다단 동적 버전 추출 순서 (Tiered Dynamic Resolution)
+1. **1차 기준 (Primary)**: `package.json` 파일의 `"version"` 프로퍼티 값을 Node.js를 통해 읽어옵니다.
+2. **2차 기준 (Fallback)**: `package.json`이 누락되거나 Node 미설치 환경인 경우, `docs/PATCH_NOTE.md` 최상단 헤더(정규식 `\(v?([0-9.]+)\)`)에서 버전 번호를 자동 파싱하여 변수(`%APP_VER%`)에 할당합니다.
+3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.3.2`를 지정합니다.
+
+### 5.2. 8대 핵심 타깃 일괄 동기화 (Single Source of Truth)
+`node scripts/sync-version.js` 실행 시 다음 8개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
+1. `package.json` (`"version": "X.Y.Z"`)
+2. `winres.json` (PE 메타데이터 `RT_MANIFEST` & `RT_VERSION` quad-version `"X.Y.Z.0"`)
+3. `installer/Grid_IP_Scanner2_Setup.iss` (`#define MyAppVersion "X.Y.Z"`)
+4. `App.tsx` (사이드바, 모바일 상단 바, 모달 내부 UI 뱃지 및 파일명 레퍼런스)
+5. `services/updateChecker.ts` (`export const CURRENT_APP_VERSION = 'X.Y.Z'`)
+6. `docs/PATCH_NOTE.md` (최상단 헤더 타이틀 `# Grid IP Scanner2 - Patch Note (vX.Y.Z)`)
+7. `docs/README.md` (`최신 vX.Y.Z 버전`)
+8. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
+
+---
+* **문서 제정 및 최신 개정일**: 2026년 10월 4일 (v2.3.2 적용)
 * **책임 부서**: Grid IP Scanner2 코어 개발 연구팀 (AhBiYout / [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))
