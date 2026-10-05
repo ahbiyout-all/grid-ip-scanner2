@@ -257,6 +257,12 @@ func initOUIProvider() {
 }
 
 func openAppWindow(url string) {
+	port := defaultPort
+	if strings.Contains(url, ":") {
+		parts := strings.Split(url, ":")
+		port = parts[len(parts)-1]
+	}
+
 	// For Windows, use a persistent profile in AppData so that Edge/Chrome can cache and display the custom taskbar icon.
 	// For other OS, use temporary directories.
 	var profileDir string
@@ -301,12 +307,6 @@ func openAppWindow(url string) {
 	interfaces := getAllInterfaces()
 	if len(interfaces) > 0 {
 		localIP = interfaces[0].IP
-	}
-
-	port := defaultPort
-	if strings.Contains(url, ":") {
-		parts := strings.Split(url, ":")
-		port = parts[len(parts)-1]
 	}
 
 	dialogMsg := fmt.Sprintf(
