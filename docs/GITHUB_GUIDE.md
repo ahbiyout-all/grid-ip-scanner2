@@ -26,7 +26,7 @@
 * **구동 환경**: `windows-latest` 가상 머신
 * **수행 절차**:
   1. `actions/checkout@v4`로 최신 소스코드 동기화
-  2. Node.js v20 및 Go v1.22 런타임 자동 설치 & 캐싱
+  2. Node.js v22 LTS 및 Go v1.22 런타임 자동 설치 & 캐싱
   3. `node scripts/sync-version.js`로 전체 파일의 버전 정보 자동 일치
   4. `npm run build:exe` 실행 ➔ **무설치 포터블 단일 실행 파일(`Grid IP Scanner2 v2.3.2.exe`) 자동 생성**
   5. Inno Setup 6 자동 설치 및 `npm run build:installer` 실행 ➔ **정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.3.2_Setup.exe`) 자동 패키징**
