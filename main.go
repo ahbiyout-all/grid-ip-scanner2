@@ -1557,6 +1557,90 @@ func main() {
 		})
 	})
 
+	http.HandleFunc("/api/oui/validate-dll", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		cachePath := getOUICachePath()
+		var rawData []byte
+		var err error
+
+		if _, statErr := os.Stat(cachePath); statErr == nil {
+			rawData, err = os.ReadFile(cachePath)
+		} else if embeddedOui, readErr := ouiFS.ReadFile("master_oui.txt"); readErr == nil {
+			rawData = embeddedOui
+		}
+
+		if err != nil || len(rawData) == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "OUI database file not found for validation",
+			})
+			return
+		}
+
+		sanitized, stats, ok := tryNativeValidateAndSanitizeOUI(string(rawData))
+		dllLoaded := isGridNetDriverLoaded()
+
+		if ok && len(sanitized) > 0 {
+			// Save sanitized copy if requested
+			if r.URL.Query().Get("save") == "true" {
+				_ = os.WriteFile(cachePath, []byte(sanitized), 0644)
+				initOUIProvider()
+			}
+
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":           true,
+				"engine":            "grid_net_driver.dll (Native C Sanitizer)",
+				"dllLoaded":         dllLoaded,
+				"totalLines":        stats.TotalLines,
+				"validEntries":      stats.ValidEntries,
+				"duplicatesRemoved": stats.DuplicatesRemoved,
+				"malformedLines":    stats.MalformedLines,
+				"message":           fmt.Sprintf("grid_net_driver.dll OUI 무결성 검증 완료: %d개 정상, %d개 중복 제거, %d개 오류 복구", stats.ValidEntries, stats.DuplicatesRemoved, stats.MalformedLines),
+			})
+			return
+		}
+
+		// Fallback Go validation if DLL is not active
+		lines := strings.Split(string(rawData), "\n")
+		valid := 0
+		duplicates := 0
+		malformed := 0
+		seen := make(map[string]bool)
+
+		for _, l := range lines {
+			l = strings.TrimSpace(l)
+			if l == "" || strings.HasPrefix(l, "#") {
+				continue
+			}
+			parts := strings.SplitN(l, "\t", 2)
+			if len(parts) == 2 {
+				prefix := strings.ToUpper(strings.TrimSpace(parts[0]))
+				if seen[prefix] {
+					duplicates++
+				} else {
+					seen[prefix] = true
+					valid++
+				}
+			} else {
+				malformed++
+			}
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           true,
+			"engine":            "Go Internal Fallback Validator",
+			"dllLoaded":         false,
+			"totalLines":        len(lines),
+			"validEntries":      valid,
+			"duplicatesRemoved": duplicates,
+			"malformedLines":    malformed,
+			"message":           fmt.Sprintf("OUI 무결성 검증 완료 (Go 폴백): %d개 정상 항목, %d개 중복 감지", valid, duplicates),
+		})
+	})
+
 	http.HandleFunc("/api/license", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")

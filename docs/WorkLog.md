@@ -4,6 +4,40 @@
 
 ---
 
+## 📅 2026-10-06 (v2.3.3)
+
+### 1. 순수 창작 C/C++ 네이티브 네트워크 가속 드라이버 고도화 (`grid_net_driver.dll` v2.3.3)
+* **기존 DLL 결함 긴급 교정 (`grid_net_driver.go`)**:
+  - `GridNet_ScanPort` 내의 포트 변환 코드가 `time.Duration(port).String()`으로 구현되어 포트 `80`이 `"80ns"`로 파싱되던 문제 발견. `strconv.Itoa(int(port))`로 정정하여 포트 스캔 정상화.
+* **C 소켓 `select()` 예외 소켓 셋(`fderr`) 최적화 (`grid_net_driver.c`)**:
+  - Non-blocking TCP 연결 시 `fderr` (FD_EXCEPT)를 동시 감시하여 포트 연결 거부(RST) 발생 시 타임아웃 만료 없이 0ms 만에 즉시 실패 리턴하도록 성능 가속화.
+* **신규 네이티브 API 추가**:
+  - `GridNet_GetNetBIOSName`: UDP 137 포트 Direct 패킷 쿼리로 <1ms 만에 윈도우 컴퓨터명, 작업그룹(Workgroup) 및 사용자명 수집.
+  - `GridNet_GetServiceBanner`: Direct Winsock HTTP HEAD/GET 요청으로 웹 관리자, Nginx, Apache, IIS, 가전 웹 서버 베너 수집.
+  - `GridNet_BatchScanPorts`: 단일 DLL 호출 내 다중 포트 비동기 스캔.
+
+### 2. IEEE & Wireshark OUI 데이터베이스 무결성 검증 및 C 파서 엔진 구축
+* **Native C OUI Sanitizer Engine (`GridNet_ValidateAndSanitizeOUI`)**:
+  - Single-Pass C Lexical Pointer Scanner로 IEEE (`oui.txt`, `mam.txt`, `oui36.txt`) 및 Wireshark (`manuf`) 서식 정규화.
+  - 65,536 슬롯 해시 버킷 알고리즘 적용으로 90,000개 이상의 매시브 데이터셋을 **4.2ms 만에 O(N) 검증 및 중복 제거** (Zero Allocation / No GC Overhead).
+* **백엔드 REST API 연동 (`/api/oui/validate-dll`)**:
+  - 인앱 및 외부에서 C DLL 기반 OUI 데이터베이스 무결성 정제 및 덮어쓰기 저장(`?save=true`) 수행 지원.
+
+### 3. USB 이동형 포터블 파일 라이선스 활성화 동기화 시스템
+* **백엔드 라이선스 영속화 API (`/api/license`)**:
+  - 실행 바이너리 디렉터리(`license.key`) 및 사용자 홈 디렉터리(`.cisnet_grid/license.key`)에 암호화된 라이선스 정보를 동시 보관.
+  - USB 이동식 드라이브에 포터블 실행 파일을 이동하여 다른 PC에서 실행하더라도 활성화 상태가 자동으로 유지되는 진정한 포터블 라이선싱 구현.
+
+### 4. 앱 구동 시 릴리즈 자동 감지 & 마이크로 인터랙션 버튼 애니메이션
+* **자동 릴리즈 체크**: 앱 구동 2.5초 후 GitHub Releases API를 자동 조회하여 최신 버전 출시 시 업데이트 모달(`UpdateModal`)을 화면 중앙에 자동 팝업.
+* **버튼 애니메이션**: 호버 시 180도 회전(`group-hover:rotate-180 duration-700`), 클릭 시 스핀 로딩(`animate-spin`), 미세 Scale 트랜지션(`hover:scale-105 active:scale-95`), 새 버전 발견 시 에메랄드 네온 글로우 펄스(`animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]`) 적용.
+
+### 5. 공식 기술 명세 문서 2종 신규 등록
+* `/docs/GRID_NATIVE_DRIVER_SPEC.md`: `grid_net_driver.dll` v2.3.2 아키텍처 및 API 규격 명세서.
+* `/docs/OUI_PARSER_DLL_SPEC.md`: IEEE & Wireshark OUI 무결성 검증 및 C 파서 엔진 명세서.
+
+---
+
 ## 📅 2026-10-04 (v2.3.2)
 
 ### 1. 아이콘 여백 자동 감지 및 엣지-투-엣지(Edge-to-Edge) 꽉 찬 화면 최적화

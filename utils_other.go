@@ -62,3 +62,42 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 func getDesktopPath() string {
 	return "."
 }
+
+func isGridNetDriverLoaded() bool {
+	return false
+}
+
+func tryNativeFastPing(ip string, timeoutMs int) (int, bool) {
+	return -1, false
+}
+
+func tryNativeGetMacAddress(ip string) (string, bool) {
+	return "", false
+}
+
+func tryNativeScanPort(ip string, port int, timeoutMs int) (bool, bool) {
+	return false, false
+}
+
+func tryNativeGetNetBIOSName(ip string) (string, string, bool) {
+	return "", "", false
+}
+
+func tryNativeGetServiceBanner(ip string, port int, timeoutMs int) (string, bool) {
+	return "", false
+}
+
+func tryNativeBatchScanPorts(ip string, ports []int, timeoutMs int) ([]int, bool) {
+	return nil, false
+}
+
+type OUISanitizerStats struct {
+	TotalLines        int
+	ValidEntries      int
+	DuplicatesRemoved int
+	MalformedLines    int
+}
+
+func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats, bool) {
+	return "", OUISanitizerStats{}, false
+}

@@ -1,14 +1,14 @@
 ; =====================================================================
 ; Grid IP Scanner2 - Inno Setup 6 Official Multi-File Installer Script
-; Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+; Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.3.2"
-#define MyAppPublisher "AhBiYout (Cisnet)"
+#define MyAppVersion "2.3.3"
+#define MyAppPublisher "AhBiYout"
 #define MyAppURL "http://www.cisnet.co.kr"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
-#define MyAppExeName "Grid IP Scanner2 v2.3.2.exe"
+#define MyAppExeName "Grid IP Scanner2 v2.3.3.exe"
 #define MyAppAliasExeName "Grid_IP_Scanner2.exe"
 #define MyAppAssocName MyAppName + " Session File"
 #define MyAppAssocExt ".gscan"

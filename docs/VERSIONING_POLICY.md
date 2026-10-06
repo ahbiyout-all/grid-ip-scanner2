@@ -65,7 +65,7 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 
 ## 📂 4. `docs/` 폴더 문서 체계 및 관리 지침
 
-`docs/` 폴더는 프로젝트의 모든 기술 사양, 구조, 라이선스, 패치 이력을 중앙 집중식으로 보관하는 11대 공식 문서 체계를 갖추고 있습니다.
+`docs/` 폴더는 프로젝트의 모든 기술 사양, 구조, 라이선스, 패치 이력을 중앙 집중식으로 보관하는 13대 공식 문서 체계를 갖추고 있습니다.
 
 | 문서 파일명 | 문서 내용 및 역할 |
 |---|---|
@@ -75,6 +75,8 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 | **`docs/WorkLog.md`** | 개발 및 기능 구현 공식 작업 일지 (일자별 변경 상세) |
 | **`docs/GRID_IP_SCANNER_2.md`** | 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 |
 | **`docs/FILE_STRUCTURE_GUIDE.md`** | 프로젝트 전체 디렉터리, 컴포넌트 및 아키텍처 가이드 |
+| **`docs/GRID_NATIVE_DRIVER_SPEC.md`** | 순수 창작 네이티브 가속 드라이버(`grid_net_driver.dll` v2.3.2) 기술 명세서 |
+| **`docs/OUI_PARSER_DLL_SPEC.md`** | IEEE & Wireshark OUI 무결성 검증 및 C 파서 엔진 기술 명세서 |
 | **`docs/GITHUB_GUIDE.md`** | GitHub 공식 연동 및 GitHub Actions CI/CD 자동 배포 가이드 |
 | **`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`** | 포터블 & 인스톨러 배포 전략 및 유료화 아키텍처 사양서 |
 | **`docs/PROPRIETARY_TECHNOLOGY.md`** | 15대 핵심 독점 기술 및 코어 엔진 기술 명세서 |

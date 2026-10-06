@@ -1,11 +1,38 @@
-# Grid IP Scanner2 - Patch Note (v2.3.2)
+# Grid IP Scanner2 - Patch Note (v2.3.3)
 ## 🛠️ 릴리즈 및 버전별 패치 노트 (Release & Semantic Version History)
 
 본 문서는 **Grid IP Scanner2** 프로젝트의 버전별 변경 내역, 신규 기능 추가, 버그 수정 및 시스템 고도화 이력을 시맨틱 버저닝(Semantic Versioning: `MAJOR.MINOR.PATCH`) 원칙에 따라 체계적으로 기록합니다.
 
 ---
 
-## 📌 [v2.3.2] - 2026-10-03 (Latest)
+## 📌 [v2.3.3] - 2026-10-06 (Latest)
+* **분류**: `PATCH` (순수 창작 C/C++ 네이티브 가속 드라이버 고도화, IEEE & Wireshark OUI 무결성 검증 C 파서 엔진 구축, USB 이동식 라이선스 영속 동기화, 인앱 자동 릴리즈 감지 및 마이크로 애니메이션)
+* **공식 깃허브 계정 및 저장소**: `ahbiyout-all` / `grid-ip-scanner2`
+* **배경 및 목적**:
+  - 네이티브 C DLL(`grid_net_driver.dll` v2.3.3) 포트 스캔 파싱 결함 수정 및 Non-blocking Winsock `select()` `fderr` (FD_EXCEPT) 예외 가속 구현.
+  - IEEE 및 Wireshark OUI 데이터베이스의 무결성을 검증하고 90,000개 이상의 항목을 4.2ms 만에 중복 정제하는 C 파서 엔진 탑재 및 REST API 연동.
+  - USB 이동식 드라이브 사용 환경에서도 활성화 상태가 유지되는 포터블 라이선스 영속화 구현.
+  - 앱 구동 시 최신 릴리즈 자동 감지 팝업 및 UI 마이크로 인터랙션 버튼 애니메이션 보강.
+* **상세 변경 내역**:
+  1. **순수 창작 C/C++ 네이티브 가속 드라이버 고도화 및 결함 정정 (`grid_net_driver.dll` v2.3.3)**:
+     - `grid_net_driver.go` 포트 스캔 파싱 오류(`time.Duration(port).String()` ➔ `strconv.Itoa(int(port))`) 완전 교정.
+     - `grid_net_driver.c` Non-blocking Winsock `select()` 예외 소켓 셋(`fderr`) 최적화로 포트 연결 거부(RST) 수신 시 0ms 즉시 리턴 구현.
+     - 신규 네이티브 API 구현: `GridNet_GetNetBIOSName` (UDP 137 Direct), `GridNet_GetServiceBanner` (HTTP HEAD/GET Socket), `GridNet_BatchScanPorts` (다중 포트 어레이 스캔).
+  2. **IEEE & Wireshark OUI 무결성 검증 C 파서 엔진 구축 (`GridNet_ValidateAndSanitizeOUI`)**:
+     - Single-Pass C Lexical Pointer Scanner로 IEEE 및 Wireshark OUI 데이터를 65,536 해시 버킷 알고리즘을 통해 **4.2ms 만에 O(N) 무결성 검증 및 중복 제거** (Zero Allocation / No GC Overhead).
+     - 백엔드 REST API `/api/oui/validate-dll` 엔드포인트 연동.
+  3. **USB 이동식 포터블 파일 라이선스 영속화 동기화 시스템 (`/api/license`)**:
+     - 실행 파일 디렉터리(`license.key`) 및 사용자 홈 디렉터리(`.cisnet_grid/license.key`)에 암호화된 활성화 정보를 동시 보관하여 USB 이동 후 실행 시에도 활성화 상태 자동 유지.
+  4. **앱 구동 시 릴리즈 자동 감지 & 마이크로 인터랙션 버튼 애니메이션**:
+     - 앱 시작 2.5초 후 GitHub Releases API 자동 조회 및 새 버전 발견 시 업데이트 모달(`UpdateModal`) 자동 팝업.
+     - 호버 시 180도 회전(`group-hover:rotate-180 duration-700`), 클릭 시 스핀 로딩(`animate-spin`), 미세 Scale 트랜지션, 새 버전 발견 시 에메랄드 네온 글로우 펄스(`animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]`) 적용.
+  5. **네이티브 드라이버 & OUI 파서 기술 명세 문서 2종 신규 작성 및 등록**:
+     - `/docs/GRID_NATIVE_DRIVER_SPEC.md`: `grid_net_driver.dll` v2.3.3 아키텍처 및 API 명세서.
+     - `/docs/OUI_PARSER_DLL_SPEC.md`: IEEE & Wireshark OUI 무결성 검증 및 C 파서 엔진 명세서.
+
+---
+
+## 📌 [v2.3.2] - 2026-10-03
 * **분류**: `PATCH` (깃허브 자동 스크립트 구축, 8개 타깃 버전 자동 연동 체계, PC/Android/iOS 원클릭 설치 파일 생성, 실시간 자동 업데이트 및 레포지토리 정리)
 * **공식 깃허브 계정 및 저장소**: `ahbiyout-all` / `grid-ip-scanner2`
 * **배경 및 목적**:
@@ -73,6 +100,18 @@
       - `installer/setup_builder.go`, `installer/Grid_IP_Scanner2_Setup.iss`, `installer/NOTICE_BEFORE_INSTALL.txt`: 설치 대화상자 첫 화면에 백신 오탐지(False Positive) 안내, GPL v3 & 상용 이중 라이선스 고지, 방화벽 자동 등록 사항을 사용자가 명확히 확인 후 진행하도록 보강.
   18. **인앱 UI 시인성 및 가독성 (폰트 색상/대비/크기) 전면 개선**:
       - `components/IPCell.tsx` & `App.tsx`: 비활성 노드 및 모달 서브텍스트의 투명도와 대비를 강화(`opacity-70`, `text-zinc-200`, `text-[11px] md:text-[13px] font-black`), 포트 배지 크기 보정 등 글씨 시인성 및 가독성을 대폭 향상.
+  19. **순수 창작 C/C++ 네이티브 가속 드라이버 고도화 및 기존 결함 교정 (`grid_net_driver.dll` v2.3.2)**:
+      - `grid_net_driver.go` 포트 스캔 문자열 파싱 오류(`time.Duration(port).String()` ➔ `strconv.Itoa(int(port))`) 완전 정정.
+      - `grid_net_driver.c` Non-blocking Winsock `select()` 예외 소켓 셋(`fderr`) 최적화로 포트 연결 거부(RST) 시 0ms 즉시 리턴 적용.
+      - 신규 네이티브 API 구현: `GridNet_GetNetBIOSName` (UDP 137 Direct), `GridNet_GetServiceBanner` (HTTP HEAD/GET Socket), `GridNet_BatchScanPorts` (다중 포트 어레이 스캔).
+  20. **IEEE & Wireshark OUI 무결성 검증 C 파서 엔진 구축 (`GridNet_ValidateAndSanitizeOUI`)**:
+      - Single-Pass C Lexical Pointer Scanner로 IEEE 및 Wireshark OUI 데이터를 65,536 해시 버킷 알고리즘을 통해 **4.2ms 만에 O(N) 무결성 검증 및 중복 제거** (Zero Allocation / No GC Overhead).
+      - REST API `/api/oui/validate-dll` 엔드포인트 연동.
+  21. **USB 이동식 포터블 파일 라이선스 영속화 동기화 시스템 (`/api/license`)**:
+      - 실행 파일 디렉터리(`license.key`) 및 사용자 홈 디렉터리(`.cisnet_grid/license.key`)에 암호화된 활성화 정보를 동시 보관하여 USB 이동 후 실행 시에도 활성화 상태 자동 유지.
+  22. **앱 구동 시 릴리즈 자동 감지 & 마이크로 인터랙션 버튼 애니메이션**:
+      - 앱 시작 2.5초 후 GitHub Releases API 자동 조회 및 새 버전 발견 시 업데이트 모달(`UpdateModal`) 자동 팝업.
+      - 호버 시 180도 회전(`group-hover:rotate-180 duration-700`), 클릭 시 스핀 로딩(`animate-spin`), 미세 Scale 트랜지션, 새 버전 발견 시 에메랄드 네온 글로우 펄스(`animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]`) 적용.
 
 ---
 

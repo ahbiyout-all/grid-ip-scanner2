@@ -32,9 +32,235 @@ var (
 	moduser32      = syscall.NewLazyDLL("user32.dll")
 	procMessageBox = moduser32.NewProc("MessageBoxW")
 
-	modshell32       = syscall.NewLazyDLL("shell32.dll")
+	modshell32        = syscall.NewLazyDLL("shell32.dll")
 	procShellExecuteW = modshell32.NewProc("ShellExecuteW")
+
+	// Custom Pure Creative Native Network Acceleration DLL
+	modGridNetDriver          = syscall.NewLazyDLL("grid_net_driver.dll")
+	procGridNetFastPing       = modGridNetDriver.NewProc("GridNet_FastPing")
+	procGridNetGetMac         = modGridNetDriver.NewProc("GridNet_GetMacAddress")
+	procGridNetScanPort       = modGridNetDriver.NewProc("GridNet_ScanPort")
+	procGridNetGetNetBIOS     = modGridNetDriver.NewProc("GridNet_GetNetBIOSName")
+	procGridNetGetServiceBanner = modGridNetDriver.NewProc("GridNet_GetServiceBanner")
+	procGridNetBatchScanPorts = modGridNetDriver.NewProc("GridNet_BatchScanPorts")
+	procGridNetValidateOUI    = modGridNetDriver.NewProc("GridNet_ValidateAndSanitizeOUI")
+	procGridNetGetVersion     = modGridNetDriver.NewProc("GridNet_GetDriverVersion")
+
+	// Direct Win32 Iphlpapi Fallback
+	modiphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+	procSendARP = modiphlpapi.NewProc("SendARP")
 )
+
+// isGridNetDriverLoaded checks if the proprietary grid_net_driver.dll is loaded
+func isGridNetDriverLoaded() bool {
+	return modGridNetDriver.Load() == nil
+}
+
+// tryNativeFastPing executes zero-overhead ICMP Ping via custom DLL
+func tryNativeFastPing(ip string, timeoutMs int) (int, bool) {
+	if procGridNetFastPing.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			ret, _, _ := procGridNetFastPing.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(timeoutMs),
+			)
+			lat := int(int32(ret))
+			if lat >= 0 {
+				return lat, true
+			}
+		}
+	}
+	return -1, false
+}
+
+// tryNativeGetMacAddress resolves MAC address via custom DLL or direct Win32 SendARP API (0.1ms latency)
+func tryNativeGetMacAddress(ip string) (string, bool) {
+	// 1. Try Custom Proprietary DLL
+	if procGridNetGetMac.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			buf := make([]byte, 32)
+			ret, _, _ := procGridNetGetMac.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(unsafe.Pointer(&buf[0])),
+				uintptr(len(buf)),
+			)
+			if ret != 0 {
+				macStr := syscall.ByteSliceToString(buf)
+				if macStr != "" {
+					return macStr, true
+				}
+			}
+		}
+	}
+
+	// 2. Direct Win32 iphlpapi.dll SendARP Fallback
+	if procSendARP.Find() == nil {
+		parsed := net.ParseIP(ip)
+		if parsed != nil && parsed.To4() != nil {
+			ip4 := parsed.To4()
+			destIp := uint32(ip4[0]) | uint32(ip4[1])<<8 | uint32(ip4[2])<<16 | uint32(ip4[3])<<24
+			var macAddr [8]byte
+			macAddrLen := uint32(6)
+
+			ret, _, _ := procSendARP.Call(
+				uintptr(destIp),
+				0,
+				uintptr(unsafe.Pointer(&macAddr[0])),
+				uintptr(unsafe.Pointer(&macAddrLen)),
+			)
+			if ret == 0 && macAddrLen == 6 {
+				return fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
+					macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]), true
+			}
+		}
+	}
+
+	return "", false
+}
+
+// tryNativeScanPort performs non-blocking TCP port scan via custom DLL
+func tryNativeScanPort(ip string, port int, timeoutMs int) (bool, bool) {
+	if procGridNetScanPort.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			ret, _, _ := procGridNetScanPort.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(port),
+				uintptr(timeoutMs),
+			)
+			if ret != 0 {
+				return true, true
+			}
+			return false, true
+		}
+	}
+	return false, false
+}
+
+// tryNativeGetNetBIOSName resolves Windows Hostname / Workgroup via UDP 137 NetBIOS DLL call
+func tryNativeGetNetBIOSName(ip string) (string, string, bool) {
+	if procGridNetGetNetBIOS.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			nameBuf := make([]byte, 64)
+			wgBuf := make([]byte, 64)
+			ret, _, _ := procGridNetGetNetBIOS.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(unsafe.Pointer(&nameBuf[0])),
+				uintptr(len(nameBuf)),
+				uintptr(unsafe.Pointer(&wgBuf[0])),
+				uintptr(len(wgBuf)),
+			)
+			if ret != 0 {
+				hostName := syscall.ByteSliceToString(nameBuf)
+				workgroup := syscall.ByteSliceToString(wgBuf)
+				return hostName, workgroup, true
+			}
+		}
+	}
+	return "", "", false
+}
+
+// tryNativeGetServiceBanner captures HTTP Server Banner via direct Winsock socket DLL call
+func tryNativeGetServiceBanner(ip string, port int, timeoutMs int) (string, bool) {
+	if procGridNetGetServiceBanner.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			bannerBuf := make([]byte, 128)
+			ret, _, _ := procGridNetGetServiceBanner.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(port),
+				uintptr(timeoutMs),
+				uintptr(unsafe.Pointer(&bannerBuf[0])),
+				uintptr(len(bannerBuf)),
+			)
+			if ret != 0 {
+				banner := syscall.ByteSliceToString(bannerBuf)
+				return banner, true
+			}
+		}
+	}
+	return "", false
+}
+
+// tryNativeBatchScanPorts probes multiple TCP ports in a single DLL invocation
+func tryNativeBatchScanPorts(ip string, ports []int, timeoutMs int) ([]int, bool) {
+	if len(ports) == 0 {
+		return nil, false
+	}
+	if procGridNetBatchScanPorts.Find() == nil {
+		ipPtr, err := syscall.BytePtrFromString(ip)
+		if err == nil {
+			cPorts := make([]int32, len(ports))
+			for i, p := range ports {
+				cPorts[i] = int32(p)
+			}
+			outPorts := make([]int32, len(ports))
+			ret, _, _ := procGridNetBatchScanPorts.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(unsafe.Pointer(&cPorts[0])),
+				uintptr(len(cPorts)),
+				uintptr(timeoutMs),
+				uintptr(unsafe.Pointer(&outPorts[0])),
+				uintptr(len(outPorts)),
+			)
+			count := int(int32(ret))
+			if count >= 0 {
+				openPorts := make([]int, count)
+				for i := 0; i < count; i++ {
+					openPorts[i] = int(outPorts[i])
+				}
+				return openPorts, true
+			}
+		}
+	}
+	return nil, false
+}
+
+type OUISanitizerStats struct {
+	TotalLines        int
+	ValidEntries      int
+	DuplicatesRemoved int
+	MalformedLines    int
+}
+
+// tryNativeValidateAndSanitizeOUI validates, repairs, and de-duplicates OUI text data using native DLL C code
+func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats, bool) {
+	if len(rawText) == 0 {
+		return "", OUISanitizerStats{}, false
+	}
+	if procGridNetValidateOUI.Find() == nil {
+		rawBytes := []byte(rawText)
+		outBuf := make([]byte, len(rawBytes)+1024)
+		var total, valid, dup, malformed int32
+
+		ret, _, _ := procGridNetValidateOUI.Call(
+			uintptr(unsafe.Pointer(&rawBytes[0])),
+			uintptr(len(rawBytes)),
+			uintptr(unsafe.Pointer(&outBuf[0])),
+			uintptr(len(outBuf)),
+			uintptr(unsafe.Pointer(&total)),
+			uintptr(unsafe.Pointer(&valid)),
+			uintptr(unsafe.Pointer(&dup)),
+			uintptr(unsafe.Pointer(&malformed)),
+		)
+
+		written := int(int32(ret))
+		if written > 0 {
+			sanitizedText := string(outBuf[:written])
+			stats := OUISanitizerStats{
+				TotalLines:        int(total),
+				ValidEntries:      int(valid),
+				DuplicatesRemoved: int(dup),
+				MalformedLines:    int(malformed),
+			}
+			return sanitizedText, stats, true
+		}
+	}
+	return "", OUISanitizerStats{}, false
+}
 
 const (
 	SW_SHOWNORMAL       = 1

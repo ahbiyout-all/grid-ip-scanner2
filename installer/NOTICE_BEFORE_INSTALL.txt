@@ -1,5 +1,5 @@
 =====================================================================
-Grid IP Scanner2 v2.3.2 - 설치 및 주요 이용 고지 사항 (Notice Before Installation)
+Grid IP Scanner2 v2.3.3 - 설치 및 주요 이용 고지 사항 (Notice Before Installation)
 =====================================================================
 
 [ 1. 백신 오탐지 안내 (False Positive / Antivirus Notice) ]
@@ -18,6 +18,6 @@ Grid IP Scanner2 v2.3.2 - 설치 및 주요 이용 고지 사항 (Notice Before 
 • 제어판에서 프로그램 제거 시 등록된 방화벽 규칙은 자동으로 깨끗하게 삭제됩니다.
 
 =====================================================================
-Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 공식 홈페이지: www.cisnet.co.kr | 블로그: ahbiyoutvibe.blogspot.com
 =====================================================================

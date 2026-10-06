@@ -13,7 +13,7 @@
   * Semantic Versioning 2.0.0 (`MAJOR.MINOR.PATCH`) 3단계 관리 원칙
   * 버전 승급 기준 (대규모 개편 / 기능 추가 / 버그 수정) 및 코드 특이점 발생 시 기록 규칙
 * **[릴리즈 & 패치 노트 (docs/PATCH_NOTE.md)](./PATCH_NOTE.md)**
-  * 최신 v2.3.2 버전을 포함한 전체 버전별 수정 내역, 버그 픽스, 신규 기능 추가 이력
+  * 최신 v2.3.3 버전을 포함한 전체 버전별 수정 내역, 버그 픽스, 신규 기능 추가 이력
 * **[개발 작업 일지 (docs/WorkLog.md)](./WorkLog.md)**
   * 일자별 개발 내역, 아키텍처 개편 및 기능 구현 작업 로그 상세 기록
 
@@ -25,9 +25,13 @@
 * **[프로젝트 파일 구조 가이드 (docs/FILE_STRUCTURE_GUIDE.md)](./FILE_STRUCTURE_GUIDE.md)**
   * 루트 및 하위 디렉터리(`docs/`, `.github/`, `components/`, `services/`, `installer/`, `scripts/` 등) 전체 구조 및 역할 정의
 
-### 3. 🔬 핵심 기술, 배포 전략 및 깃허브 CI/CD
+### 3. 🔬 핵심 기술, 배포 전략, 네이티브 DLL 및 깃허브 CI/CD
+* **[순수 창작 네이티브 네트워크 가속 드라이버 명세서 (docs/GRID_NATIVE_DRIVER_SPEC.md)](./GRID_NATIVE_DRIVER_SPEC.md)**
+  * `grid_net_driver.dll` v2.3.2 아키텍처, Direct Win32 SendARP/IcmpSendEcho/Winsock 소켓 제어, 버그 수정 일지 및 벤치마크
+* **[OUI 무결성 검증 및 파싱 최적화 DLL 명세서 (docs/OUI_PARSER_DLL_SPEC.md)](./OUI_PARSER_DLL_SPEC.md)**
+  * IEEE & Wireshark OUI 무결성 검증 엔진, Single-Pass C Lexer, 65,536 해시 버킷 중복 제거 알고리즘 및 REST API 명세
 * **[GitHub 연동 및 CI/CD 자동 배포 가이드 (docs/GITHUB_GUIDE.md)](./GITHUB_GUIDE.md)**
-  * GitHub 계정(`AhBiYout`), 저장소(`grid-ip-scanner2`) 연동 규격
+  * GitHub 계정(`ahbiyout-all`), 저장소(`grid-ip-scanner2`) 연동 규격
   * GitHub Actions 기반 Windows PC(.exe, Inno Setup 인스톨러), Android APK 및 모바일 웹 자동 빌드/릴리즈 파이프라인
 * **[배포 전략 및 유료화 아키텍처 기술 사양서 (docs/DISTRIBUTION_AND_TIER_STRATEGY.md)](./DISTRIBUTION_AND_TIER_STRATEGY.md)**
   * 무료(포터블) vs 유료(인스톨러) 듀얼 배포 모델, Inno Setup 6 윈도우 인스톨러 규격, Ed25519 비대칭 암호키 오프라인 인증 및 기능 플래그 아키텍처
@@ -56,4 +60,4 @@ Grid IP Scanner2,IP 스캐너,IP Scanner,네트워크 스캐너,Network Scanner,
 * **문서 허브 관리 부서**: Grid IP Scanner2 코어 개발 연구팀
 * **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)
 * **공식 블로그**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
-* **저작권**: Copyright (c) 2025-2026 AhBiYout. All rights reserved.
+* **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.

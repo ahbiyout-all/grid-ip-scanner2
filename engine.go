@@ -100,6 +100,11 @@ func (e *ScanEngine) GetMAC(ip string) string {
 		return mac
 	}
 
+	// 2.5. Try Direct Win32 SendARP API or Proprietary DLL (0.1ms Ultra Fast Resolution)
+	if nativeMac, ok := tryNativeGetMacAddress(ip); ok && nativeMac != "" {
+		return nativeMac
+	}
+
 	// 3. Fallback to direct targeted arp query if cache miss
 	if runtime.GOOS != "windows" {
 		return ""
