@@ -1,7 +1,7 @@
 #!/bin/bash
 # ======================================================================
 # Grid IP Scanner2 - Automated Multi-Folder Build Script for Unix/Linux
-# Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+# Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 # ======================================================================
 
 # Text formatting helper

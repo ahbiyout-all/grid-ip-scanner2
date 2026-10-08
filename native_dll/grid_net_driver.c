@@ -35,7 +35,7 @@ static void EnsureWinsock(void) {
 }
 
 GRID_NET_API int GridNet_GetDriverVersion(void) {
-    return 20303; // v2.3.3
+    return 20400; // v2.4.0
 }
 
 GRID_NET_API int GridNet_FastPing(const char* ip, int timeoutMs) {
@@ -256,7 +256,7 @@ GRID_NET_API int GridNet_GetServiceBanner(const char* ip, int port, int timeoutM
         return 0;
     }
 
-    char req[] = "HEAD / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: GridNetScanner/2.3.3\r\nConnection: close\r\n\r\n";
+    char req[] = "HEAD / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: GridNetScanner/2.4.0\r\nConnection: close\r\n\r\n";
     send(sock, req, (int)strlen(req), 0);
 
     char recvBuf[1024];
@@ -310,10 +310,15 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
     int malformed = 0;
     int writtenBytes = 0;
 
-    // Simple hash table for de-duplicating 24-bit OUI prefixes
-    #define OUI_HASH_SIZE 65536
-    static unsigned char seenHashes[OUI_HASH_SIZE];
-    memset(seenHashes, 0, sizeof(seenHashes));
+    // Collision-safe open-addressing hash table for accurate OUI de-duplication
+    #define OUI_HASH_CAPACITY 131072
+    typedef struct {
+        char prefix[28];
+        unsigned char used;
+    } OUIHashEntry;
+
+    OUIHashEntry* hashTable = (OUIHashEntry*)calloc(OUI_HASH_CAPACITY, sizeof(OUIHashEntry));
+    if (!hashTable) return 0;
 
     const char* ptr = rawBuffer;
     const char* end = rawBuffer + rawLength;
@@ -390,17 +395,30 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
             continue;
         }
 
-        // De-duplication Check (Simple additive Hash)
-        unsigned int hashVal = 0;
+        // Collision-Safe DJB2 Hash + Linear Probing with strcmp check
+        unsigned int h = 5381;
         for (int k = 0; k < pIdx; k++) {
-            hashVal = (hashVal * 31 + (unsigned char)prefixBuf[k]) % OUI_HASH_SIZE;
+            h = ((h << 5) + h) + (unsigned char)prefixBuf[k];
+        }
+        h = h & (OUI_HASH_CAPACITY - 1);
+
+        int isDup = 0;
+        while (hashTable[h].used) {
+            if (strcmp(hashTable[h].prefix, prefixBuf) == 0) {
+                isDup = 1;
+                break;
+            }
+            h = (h + 1) & (OUI_HASH_CAPACITY - 1);
         }
 
-        if (seenHashes[hashVal]) {
+        if (isDup) {
             duplicates++;
-            continue; // Skip duplicate
+            continue; // Skip true duplicate
         }
-        seenHashes[hashVal] = 1;
+
+        // Register prefix into hash table
+        hashTable[h].used = 1;
+        snprintf(hashTable[h].prefix, sizeof(hashTable[h].prefix), "%s", prefixBuf);
 
         // Format into sanitized output buffer (TSV)
         int needed = snprintf(sanitizedBuffer + writtenBytes, sanitizedCapacity - writtenBytes, "%s\t%s\n", prefixBuf, vendorBuf);
@@ -411,6 +429,8 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
             break; // Buffer full
         }
     }
+
+    free(hashTable);
 
     if (outTotalLines) *outTotalLines = totalLines;
     if (outValidEntries) *outValidEntries = validEntries;
@@ -438,7 +458,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 #else
 
 // Fallback stubs for non-Windows platforms
-int GridNet_GetDriverVersion(void) { return 20302; }
+int GridNet_GetDriverVersion(void) { return 20303; }
 int GridNet_FastPing(const char* ip, int timeoutMs) { (void)ip; (void)timeoutMs; return -1; }
 int GridNet_GetMacAddress(const char* ip, char* outMac, int maxLen) { (void)ip; (void)outMac; (void)maxLen; return 0; }
 int GridNet_ScanPort(const char* ip, int port, int timeoutMs) { (void)ip; (void)port; (void)timeoutMs; return 0; }

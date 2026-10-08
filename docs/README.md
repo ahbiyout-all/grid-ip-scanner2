@@ -1,63 +1,86 @@
-# 📚 Grid IP Scanner2 - 공식 기술 문서 저장소 (Documentation Hub)
+# 🌐 Grid IP Scanner2 (v2.4.0)
 
-본 `docs/` 폴더는 **Grid IP Scanner2**의 시스템 아키텍처, 독점 기술 명세, 시맨틱 버전 관리 규정, 릴리즈 패치 노트, 사용자 매뉴얼, 이중 라이선스 가이드를 종합 관리하는 중앙 문서 허브입니다.
-
----
-
-## 🗂️ 문서 목차 (Document Index)
-
-아래의 문서를 통해 Grid IP Scanner2의 모든 기술 사양과 개발 가이드를 확인하실 수 있습니다.
-
-### 1. 📌 버전 관리 및 패치 기록
-* **[소프트웨어 버전 관리 규정 (docs/VERSIONING_POLICY.md)](./VERSIONING_POLICY.md)**
-  * Semantic Versioning 2.0.0 (`MAJOR.MINOR.PATCH`) 3단계 관리 원칙
-  * 버전 승급 기준 (대규모 개편 / 기능 추가 / 버그 수정) 및 코드 특이점 발생 시 기록 규칙
-* **[릴리즈 & 패치 노트 (docs/PATCH_NOTE.md)](./PATCH_NOTE.md)**
-  * 최신 v2.3.3 버전을 포함한 전체 버전별 수정 내역, 버그 픽스, 신규 기능 추가 이력
-* **[개발 작업 일지 (docs/WorkLog.md)](./WorkLog.md)**
-  * 일자별 개발 내역, 아키텍처 개편 및 기능 구현 작업 로그 상세 기록
-
-### 2. 📖 제품 매뉴얼 및 시스템 사양
-* **[서비스 개요 및 제품 설명서 (docs/GRID_IP_SCANNER_2.md)](./GRID_IP_SCANNER_2.md)**
-  * 제품 주요 기능, 16x16 그리드 맵 & 스냅샷 Diff 비교, 심층 포트 정밀 감사, A4 리포트, 오프라인 라이선스, 전체 어댑터 다차원 필터, 2단 모바일 헤더 및 UI 가이드
-* **[OUI 데이터베이스 및 동기화 기술 명세서 (docs/OUI_DATABASE_SPEC.md)](./OUI_DATABASE_SPEC.md)**
-  * 계층형 OUI 아키텍처(MA-S/M/L), IEEE 봇 차단 방어, 이중 미러링(Wireshark Manuf) 및 로컬 캐시 자가 복구 기술
-* **[프로젝트 파일 구조 가이드 (docs/FILE_STRUCTURE_GUIDE.md)](./FILE_STRUCTURE_GUIDE.md)**
-  * 루트 및 하위 디렉터리(`docs/`, `.github/`, `components/`, `services/`, `installer/`, `scripts/` 등) 전체 구조 및 역할 정의
-
-### 3. 🔬 핵심 기술, 배포 전략, 네이티브 DLL 및 깃허브 CI/CD
-* **[순수 창작 네이티브 네트워크 가속 드라이버 명세서 (docs/GRID_NATIVE_DRIVER_SPEC.md)](./GRID_NATIVE_DRIVER_SPEC.md)**
-  * `grid_net_driver.dll` v2.3.2 아키텍처, Direct Win32 SendARP/IcmpSendEcho/Winsock 소켓 제어, 버그 수정 일지 및 벤치마크
-* **[OUI 무결성 검증 및 파싱 최적화 DLL 명세서 (docs/OUI_PARSER_DLL_SPEC.md)](./OUI_PARSER_DLL_SPEC.md)**
-  * IEEE & Wireshark OUI 무결성 검증 엔진, Single-Pass C Lexer, 65,536 해시 버킷 중복 제거 알고리즘 및 REST API 명세
-* **[GitHub 연동 및 CI/CD 자동 배포 가이드 (docs/GITHUB_GUIDE.md)](./GITHUB_GUIDE.md)**
-  * GitHub 계정(`ahbiyout-all`), 저장소(`grid-ip-scanner2`) 연동 규격
-  * GitHub Actions 기반 Windows PC(.exe, Inno Setup 인스톨러), Android APK 및 모바일 웹 자동 빌드/릴리즈 파이프라인
-* **[배포 전략 및 유료화 아키텍처 기술 사양서 (docs/DISTRIBUTION_AND_TIER_STRATEGY.md)](./DISTRIBUTION_AND_TIER_STRATEGY.md)**
-  * 무료(포터블) vs 유료(인스톨러) 듀얼 배포 모델, Inno Setup 6 윈도우 인스톨러 규격, Ed25519 비대칭 암호키 오프라인 인증 및 기능 플래그 아키텍처
-* **[독점 핵심 기술 명세서 (docs/PROPRIETARY_TECHNOLOGY.md)](./PROPRIETARY_TECHNOLOGY.md)**
-  * 15대 핵심 기술 (스냅샷 Diff 비교 엔진, 25개 주요 포트 감사, A4 리포트 생성기, Ed25519 오프라인 라이선싱, 어댑터 전수 탐색, 엣지-투-엣지 아이콘 & PE 바이너리 패칭, 실시간 라이브 업데이트 등)
-* **[이중 라이선스 명세서 (docs/LICENSE.md)](./LICENSE.md)**
-  * GPL v3 (커뮤니티 에디션) & 상용 독점 라이선스 (Commercial Edition) 안내 및 하부 MIT 라이브러리 준수성
+> **초고속 네트워크 IP 스캐닝, IP 충돌 탐지 및 낯선 기기 감지 시스템**  
+> **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
 
 ---
 
-## 🔄 문서 유지보수 규칙
-1. **신규 기능/모듈 추가 시**: 해당 기능에 대한 세부 명세 문서를 `docs/` 폴더에 즉시 작성하고 본 `README.md`에 등재합니다.
-2. **코드 수정에 특이점 발생 시**: `docs/VERSIONING_POLICY.md`의 규칙에 따라 `docs/PATCH_NOTE.md`에 패치 기록을 추가하고 버전을 갱신합니다.
-3. **버전 동기화**: `package.json`, `docs/PATCH_NOTE.md`, `build-win.js`의 버전 표기를 상시 일치시킵니다.
+## 📌 개요 (Overview)
+
+**Grid IP Scanner2**는 C++/Go 기반의 고성능 네이티브 엔진과 React 19 / Vite 기반의 직관적인 사용자 인터페이스를 결합한 종합 네트워크 관리 및 보안 모니터링 솔루션입니다.  
+로컬 네트워크(LAN) 내 활성 기기 탐지, MAC 주소 기반 제조사 분석, IP/MAC 충돌 탐지, 그리고 **Soft Trust 유예 기간을 지원하는 낯선 기기 감시 모드**를 제공합니다.
 
 ---
 
-## 🏷️ 공식 배포 및 블로그 검색 태그 규격 (Official Blog Tags)
-공식 기술 블로그([ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)) 게시 및 온라인 배포 시 사용하는 표준 키워드 라벨 규격입니다 (총 16개 / 공백·쉼표 포함 147자):
+## ✨ 핵심 기능 (Key Features)
 
-```text
-Grid IP Scanner2,IP 스캐너,IP Scanner,네트워크 스캐너,Network Scanner,IP 스캔,IP Scan,MAC 추적,MAC Lookup,OUI 식별,OUI Lookup,포트 스캔,Port Scan,IP 관리,LAN 분석,LAN Tool
+1. **⚡ 초고속 네트워크 IP 스캐닝 (High-Speed Scanning)**
+   - Go 기반 멀티스레드 Ping/ARP 스캐닝 엔진
+   - C/C++ OUI 검증 모듈을 통한 MAC 제조사 즉각 식별
+   - 포트 스캐닝 (HTTP, HTTPS, SSH, RDP, SMB 등 주요 포트 감지)
+
+2. **🛡️ 낯선 기기 감시 및 Soft Trust 유예 시스템 (Intruder Detection & Soft Trust)**
+   - 새롭게 연결된 미등록 기기 실시간 감지 및 경고
+   - **Soft Trust Grace Period**: 동일 OUI, 호스트명, 또는 MAC 주소 무작화(Randomized MAC)를 사용하는 기존 친숙 기기에 대해 과도한 오경보를 방지하는 유예 모드 제공
+   - 지능형 Fingerprint 유사도 분석 (0~100% 매칭 점수 산출)
+
+3. **⚠️ IP / MAC 충돌 감지 (Conflict Detection)**
+   - 동일 IP에 복수 MAC이 응답하거나, IP가 변경된 기기 즉각 포착
+   - 시각적 충돌 아이콘 및 상세 경고 패널 표시
+
+4. **🔒 Secure Vault 네이티브 암호화 (AES-256-GCM)**
+   - C++/Go 네이티브 DLL 기반 초고속 AES-256-GCM 암호화
+   - 기기 별칭(Alias) 및 스냅샷 저장소의 민감 데이터 무단 접근 차단
+
+5. **📦 무설치 포터블 & 설치형 지원 (Portable & Setup Installer)**
+   - 단일 포터블 실행 파일(`Grid IP Scanner2 v2.4.0.exe`) 및 Inno Setup 기반 자동 설치 패키지 제공
+   - 사용자 지정 포트 선택 및 로컬 내장 서버 자동 연동
+
+---
+
+## 🏗️ 시스템 아키텍처 (System Architecture)
+
+```
+[ Electron / Browser Frontend ]  <--- HTTP / WebSockets (Port 3031) --->  [ Embedded Go Backend Engine ]
+         │                                                                             │
+  React 19 + Vite                                                            C/Go Native DLL Bridges
+  Tailwind CSS v4                                                           - SecureVault.dll (AES-256-GCM)
+  Lucide Icons                                                              - OuiValidator.dll (MAC OUI)
 ```
 
 ---
-* **문서 허브 관리 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)
-* **공식 블로그**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
-* **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
+
+## 🚀 시작하기 (Getting Started)
+
+### 개발 환경 구동 (Development)
+```bash
+# 의존성 패키지 설치
+npm install
+
+# 개발 서버 실행 (React UI + Go Proxy Server)
+npm run dev
+```
+
+### 버전에 따른 동기화 빌드 (SSOT Version Sync & Build)
+```bash
+# 패치 버전 자동 상승 및 8개 대상 동기화 빌드
+npm run version:bump
+
+# 실행 파일 및 배포용 패키지 생성
+npm run build:exe
+```
+
+---
+
+## 📂 문서 구조 (Documentation)
+
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트
+- [`docs/WorkLog.md`](./WorkLog.md) : 작업 이력 및 모듈 개발 기록
+- [`docs/NATIVE_DLL_INTEGRATION_GUIDE.md`](./NATIVE_DLL_INTEGRATION_GUIDE.md) : C++/Go 네이티브 DLL FFI 연동 명세
+- [`docs/SECURITY_REPORT.md`](./SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서
+- [`docs/LICENSE_KR.md`](./LICENSE_KR.md) : 한국어 라이선스 전문
+- [`docs/LICENSE_EN.md`](./LICENSE_EN.md) : English License Agreement
+
+---
+
+© 2025-2026 **AhBiYout**. All rights reserved.

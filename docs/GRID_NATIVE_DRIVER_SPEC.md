@@ -1,7 +1,7 @@
 # 🛡️ Grid IP Scanner2 - 순수 창작 네이티브 네트워크 가속 드라이버 (grid_net_driver.dll) 명세서
 
-> **문서 버전**: v2.3.3  
-> **최종 수정일**: 2026-10-06  
+> **문서 버전**: v2.4.0  
+> **최종 수정일**: 2026-10-07  
 > **모듈명**: `grid_net_driver.dll` (Pure C / C++ Custom Native DLL)  
 > **작성자**: AhBiYout (Grid IP Scanner2 Core Team)
 

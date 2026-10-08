@@ -3,7 +3,7 @@
  * Creates dedicated versioned/build-numbered folders under `dist_releases/`
  * including Unpacked Multi-File, Portable EXE, Official Installer, Mobile PWA, and Android APK.
  * 
- * Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+ * Copyright (c) 2025-2026 AhBiYout  All rights reserved.
  */
 
 const fs = require('fs');

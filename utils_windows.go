@@ -5,12 +5,23 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
 	"unsafe"
 )
+
+// byteSliceToString converts a null-terminated byte slice to a Go string
+func byteSliceToString(b []byte) string {
+	for i, c := range b {
+		if c == 0 {
+			return string(b[:i])
+		}
+	}
+	return string(b)
+}
 
 const CREATE_NO_WINDOW = 0x08000000
 
@@ -87,7 +98,7 @@ func tryNativeGetMacAddress(ip string) (string, bool) {
 				uintptr(len(buf)),
 			)
 			if ret != 0 {
-				macStr := syscall.ByteSliceToString(buf)
+				macStr := byteSliceToString(buf)
 				if macStr != "" {
 					return macStr, true
 				}
@@ -154,8 +165,8 @@ func tryNativeGetNetBIOSName(ip string) (string, string, bool) {
 				uintptr(len(wgBuf)),
 			)
 			if ret != 0 {
-				hostName := syscall.ByteSliceToString(nameBuf)
-				workgroup := syscall.ByteSliceToString(wgBuf)
+				hostName := byteSliceToString(nameBuf)
+				workgroup := byteSliceToString(wgBuf)
 				return hostName, workgroup, true
 			}
 		}
@@ -177,7 +188,7 @@ func tryNativeGetServiceBanner(ip string, port int, timeoutMs int) (string, bool
 				uintptr(len(bannerBuf)),
 			)
 			if ret != 0 {
-				banner := syscall.ByteSliceToString(bannerBuf)
+				banner := byteSliceToString(bannerBuf)
 				return banner, true
 			}
 		}

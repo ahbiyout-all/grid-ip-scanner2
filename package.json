@@ -1,6 +1,6 @@
 {
   "name": "grid-ip-scanner2",
-  "version": "2.3.3",
+  "version": "2.4.0",
   "description": "Grid IP Scanner2 - Network Scan Tool",
   "main": "main.js",
   "author": "AhBiYout",

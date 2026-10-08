@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -23,7 +24,7 @@ var (
 
 //export GridNet_GetDriverVersion
 func GridNet_GetDriverVersion() C.int {
-	return C.int(20303) // v2.3.3
+	return C.int(20400) // v2.4.0
 }
 
 //export GridNet_FastPing
@@ -140,12 +141,15 @@ func GridNet_GetServiceBanner(ip *C.char, port C.int, timeoutMs C.int, outBanner
 	n, err := conn.Read(buf)
 	if err == nil && n > 0 {
 		str := string(buf[:n])
-		for _, line := range net.LookupIP(goIp) {
-			_ = line
-		}
-		if idx := strconv.IntSize; idx > 0 {
-			// Basic parse
-			_ = str
+		lines := strings.Split(str, "\r\n")
+		for _, line := range lines {
+			if strings.HasPrefix(strings.ToLower(line), "server:") {
+				serverVal := strings.TrimSpace(line[7:])
+				formatted := C.CString(serverVal)
+				defer C.free(unsafe.Pointer(formatted))
+				C.strncpy(outBanner, formatted, C.size_t(maxLen-1))
+				return C.int(1)
+			}
 		}
 	}
 	return C.int(0)
@@ -156,7 +160,26 @@ func GridNet_BatchScanPorts(ip *C.char, ports *C.int, portCount C.int, timeoutMs
 	if ip == nil || ports == nil || portCount <= 0 || outOpenPorts == nil || maxOpenCount <= 0 {
 		return C.int(0)
 	}
-	return C.int(0)
+	goIp := C.GoString(ip)
+	cPortsSlice := (*[1 << 20]C.int)(unsafe.Pointer(ports))[:int(portCount):int(portCount)]
+	cOutSlice := (*[1 << 20]C.int)(unsafe.Pointer(outOpenPorts))[:int(maxOpenCount):int(maxOpenCount)]
+
+	found := 0
+	timeout := time.Duration(timeoutMs) * time.Millisecond
+	for i := 0; i < int(portCount) && found < int(maxOpenCount); i++ {
+		p := int(cPortsSlice[i])
+		if p <= 0 || p > 65535 {
+			continue
+		}
+		addr := net.JoinHostPort(goIp, strconv.Itoa(p))
+		conn, err := net.DialTimeout("tcp", addr, timeout)
+		if err == nil {
+			conn.Close()
+			cOutSlice[found] = C.int(p)
+			found++
+		}
+	}
+	return C.int(found)
 }
 
 //export GridNet_ValidateAndSanitizeOUI
@@ -164,7 +187,70 @@ func GridNet_ValidateAndSanitizeOUI(raw *C.char, rawLen C.int, outBuf *C.char, c
 	if raw == nil || rawLen <= 0 || outBuf == nil || cap <= 0 {
 		return C.int(0)
 	}
-	return C.int(0)
+	rawStr := C.GoStringN(raw, C.int(rawLen))
+	lines := strings.Split(rawStr, "\n")
+
+	totalCount := len(lines)
+	validCount := 0
+	dupCount := 0
+	malformedCount := 0
+
+	seen := make(map[string]bool)
+	var sb strings.Builder
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) < 2 {
+			f := strings.Fields(line)
+			if len(f) >= 2 {
+				parts = []string{f[0], strings.Join(f[1:], " ")}
+			}
+		}
+		if len(parts) >= 2 {
+			prefix := strings.ToUpper(strings.TrimSpace(parts[0]))
+			prefix = strings.ReplaceAll(prefix, "-", ":")
+			vendor := strings.TrimSpace(parts[1])
+			vendor = strings.TrimPrefix(vendor, "(hex)")
+			vendor = strings.TrimPrefix(vendor, "(base 16)")
+			vendor = strings.TrimSpace(vendor)
+
+			if len(prefix) < 6 || len(vendor) < 2 {
+				malformedCount++
+				continue
+			}
+			if seen[prefix] {
+				dupCount++
+				continue
+			}
+			seen[prefix] = true
+			validCount++
+			sb.WriteString(prefix)
+			sb.WriteString("\t")
+			sb.WriteString(vendor)
+			sb.WriteString("\n")
+		} else {
+			malformedCount++
+		}
+	}
+
+	resBytes := []byte(sb.String())
+	if len(resBytes) > int(cap)-1 {
+		resBytes = resBytes[:int(cap)-1]
+	}
+
+	outSlice := (*[1 << 28]byte)(unsafe.Pointer(outBuf))[:len(resBytes):len(resBytes)]
+	copy(outSlice, resBytes)
+
+	if total != nil { *total = C.int(totalCount) }
+	if valid != nil { *valid = C.int(validCount) }
+	if dup != nil { *dup = C.int(dupCount) }
+	if malformed != nil { *malformed = C.int(malformedCount) }
+
+	return C.int(len(resBytes))
 }
 
 func main() {

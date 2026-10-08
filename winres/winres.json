@@ -32,33 +32,33 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "2.3.2.0",
-          "product_version": "2.3.2.0"
+          "file_version": "2.3.3.0",
+          "product_version": "2.3.3.0"
         },
         "info": {
           "0412": {
             "Comments": "Grid IP Scanner2 - Advanced C-Class Network Scanner with 90k+ OUI Engine (IEEE Bot-Protection Bypass & Tiered Fallback)",
-            "CompanyName": "AhBiYout (Cisnet)",
+            "CompanyName": "AhBiYout",
             "FileDescription": "Grid IP Scanner2",
-            "FileVersion": "2.3.2.0",
+            "FileVersion": "2.3.3.0",
             "InternalName": "GridIPScanner2",
-            "LegalCopyright": "Copyright (C) 2025-2026 AhBiYout. All rights reserved.",
+            "LegalCopyright": "Copyright (c) 2025-2026 AhBiYout  All rights reserved.",
             "LegalTrademarks": "Grid IP Scanner2",
-            "OriginalFilename": "Grid IP Scanner2 v2.3.2.exe",
+            "OriginalFilename": "Grid IP Scanner2 v2.3.3.exe",
             "ProductName": "Grid IP Scanner2",
-            "ProductVersion": "2.3.2.0"
+            "ProductVersion": "2.3.3.0"
           },
           "0409": {
             "Comments": "Grid IP Scanner2 - Advanced C-Class Network Scanner with 90k+ OUI Engine (IEEE Bot-Protection Bypass & Tiered Fallback)",
-            "CompanyName": "AhBiYout (Cisnet)",
+            "CompanyName": "AhBiYout",
             "FileDescription": "Grid IP Scanner2",
-            "FileVersion": "2.3.2.0",
+            "FileVersion": "2.3.3.0",
             "InternalName": "GridIPScanner2",
-            "LegalCopyright": "Copyright (C) 2025-2026 AhBiYout. All rights reserved.",
+            "LegalCopyright": "Copyright (c) 2025-2026 AhBiYout  All rights reserved.",
             "LegalTrademarks": "Grid IP Scanner2",
-            "OriginalFilename": "Grid IP Scanner2 v2.3.2.exe",
+            "OriginalFilename": "Grid IP Scanner2 v2.3.3.exe",
             "ProductName": "Grid IP Scanner2",
-            "ProductVersion": "2.3.2.0"
+            "ProductVersion": "2.3.3.0"
           }
         }
       }

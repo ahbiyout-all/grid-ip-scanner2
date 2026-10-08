@@ -1,6 +1,16 @@
 
 export type IPStatus = 'idle' | 'scanning' | 'active' | 'inactive' | 'error';
 
+export interface SoftTrustInfo {
+  isSoftTrusted: boolean;
+  reason: string;
+  similarityScore: number;
+  matchedPreviousIp?: string;
+  matchedPreviousMac?: string;
+  matchedSignature?: string;
+  graceExpiresAt?: number;
+}
+
 export interface DeviceInfo {
   ip: string;
   mac?: string;
@@ -15,6 +25,12 @@ export interface DeviceInfo {
   mdns?: string;
   upnp?: string;
   snmp?: string;
+  customNickname?: string;
+  notes?: string;
+  isConflict?: boolean;
+  conflictDetails?: string;
+  isNewDevice?: boolean;
+  softTrustInfo?: SoftTrustInfo;
 }
 
 export interface ScanResult {
@@ -22,6 +38,35 @@ export interface ScanResult {
   status: IPStatus;
   device?: DeviceInfo;
   missCount?: number;
+  isConflict?: boolean;
+  conflictDetails?: string;
+  isNewDevice?: boolean;
+  softTrustInfo?: SoftTrustInfo;
+}
+
+export interface DeviceAlias {
+  mac: string;
+  ip?: string;
+  nickname: string;
+  notes?: string;
+  updatedAt: string;
+}
+
+export type RemoteActionType = 'web' | 'web_ssl' | 'rdp' | 'ssh' | 'smb' | 'ping' | 'traceroute';
+
+export interface RemoteActionResult {
+  success: boolean;
+  action: RemoteActionType;
+  message: string;
+  command?: string;
+}
+
+export interface WoLResult {
+  success: boolean;
+  mac: string;
+  ip?: string;
+  packetsSent: number;
+  message: string;
 }
 
 export interface InterfaceInfo {

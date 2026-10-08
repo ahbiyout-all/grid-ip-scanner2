@@ -8,15 +8,38 @@ interface IPCellProps {
   status: IPStatus;
   device?: DeviceInfo;
   onClick: (ip: string) => void;
+  onDoubleClick?: (ip: string, device?: DeviceInfo) => void;
   isSelected: boolean;
   isHost?: boolean;
   theme: 'beige' | 'dark' | 'gray';
   s: any;
   index: number;
   diffStatus?: DiffStatus;
+  isConflict?: boolean;
+  conflictDetails?: string;
+  isNewIntruder?: boolean;
+  isSoftTrust?: boolean;
+  customNickname?: string;
 }
 
-const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected, isHost, theme, s, index, diffStatus }) => {
+const IPCell: React.FC<IPCellProps> = ({ 
+  ip, 
+  status, 
+  device, 
+  onClick, 
+  onDoubleClick,
+  isSelected, 
+  isHost, 
+  theme, 
+  s, 
+  index, 
+  diffStatus,
+  isConflict,
+  conflictDetails,
+  isNewIntruder,
+  isSoftTrust,
+  customNickname
+}) => {
   const lastOctet = ip.split('.').pop();
   
   // Calculate grid position (0-15 for both col and row) based on visual array index
@@ -110,6 +133,7 @@ const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected
   return (
     <div
       onClick={() => onClick(ip)}
+      onDoubleClick={() => onDoubleClick && onDoubleClick(ip, device)}
       className={`
         relative aspect-square cursor-pointer transition-all duration-150 border-[0.5px]
         flex items-center justify-center group
@@ -142,6 +166,44 @@ const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected
         </span>
       )}
 
+      {/* IP Conflict Warning Badge */}
+      {isConflict && (
+        <span 
+          title={conflictDetails || "IP 충돌 의심"}
+          className="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-rose-600 text-white rounded-full text-[8px] font-black tracking-tighter shadow-[0_0_10px_rgba(244,63,94,0.9)] z-30 animate-pulse border border-white"
+        >
+          ⚠️
+        </span>
+      )}
+
+      {/* New Intruder / Unknown Device Badge */}
+      {isNewIntruder && !diffStatus && (
+        <span 
+          title="새로 감지된 낯선 기기"
+          className="absolute -top-1 -left-1 px-1 py-0.2 bg-purple-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(168,85,247,0.8)] z-20 animate-bounce"
+        >
+          🚨NEW
+        </span>
+      )}
+
+      {/* Soft Trust Grace Period Badge */}
+      {isSoftTrust && !isNewIntruder && !diffStatus && (
+        <span 
+          title="식별자 변동 유예 중인 소프트 신뢰 기기"
+          className="absolute -top-1 -left-1 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(245,158,11,0.8)] z-20"
+        >
+          🛡️SOFT
+        </span>
+      )}
+
+      {/* Custom Nickname indicator dot */}
+      {customNickname && (
+        <div 
+          title={`별칭: ${customNickname}`}
+          className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-black/40 z-20 shadow-sm"
+        />
+      )}
+
       {/* 장비 아이콘 (활성 장비일 경우 중앙에 작게 표시) */}
       {(status === 'active' || (status === 'scanning' && device)) && (
         <>
@@ -172,10 +234,24 @@ const IPCell: React.FC<IPCellProps> = ({ ip, status, device, onClick, isSelected
         `}>
           <div className="text-[11px] font-black border-b border-current border-opacity-10 pb-2 mb-2 flex justify-between items-center">
             <span className="truncate">{ip}</span>
-            <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
+            <div className={`w-2 h-2 rounded-full ${isConflict ? 'bg-rose-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
           </div>
           
           <div className="space-y-2">
+            {customNickname && (
+              <div className="flex flex-col bg-amber-500/15 p-1 rounded border border-amber-500/30">
+                <span className="text-[8px] uppercase font-black text-amber-500 tracking-wider">🏷️ 사용자 지정 별칭</span>
+                <span className="text-[10px] font-black truncate text-amber-400 mt-0.5">{customNickname}</span>
+              </div>
+            )}
+
+            {isConflict && (
+              <div className="flex flex-col bg-rose-500/20 p-1 rounded border border-rose-500/40">
+                <span className="text-[8px] uppercase font-black text-rose-400 tracking-wider">⚠️ IP 충돌 주의</span>
+                <span className="text-[9px] font-bold text-rose-300 leading-tight mt-0.5">{conflictDetails || "동일 IP 다중 응답 감지"}</span>
+              </div>
+            )}
+
             <div className="flex flex-col">
               <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">{s.networkIdentity}</span>
               <div className="text-[10px] font-black flex items-center gap-2 mt-0.5">

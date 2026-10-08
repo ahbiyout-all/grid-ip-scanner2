@@ -133,8 +133,8 @@ Windows 탐색기에서 `Grid IP Scanner2 v2.3.2.exe` 우클릭 후 `[속성] ->
 | **저작권 (LegalCopyright)** | `Copyright (C) 2025-2026 AhBiYout. All rights reserved.` |
 | **원본 파일 이름 (OriginalFilename)** | `Grid IP Scanner2 v2.3.2.exe` |
 | **내부 이름 (InternalName)** | `GridIPScanner2` |
-| **회사 / 개발자 (CompanyName)** | `AhBiYout (Cisnet)` |
-| **상표 (LegalTrademarks)** | `Cisnet / Grid IP Scanner2` |
+| **회사 / 개발자 (CompanyName)** | `AhBiYout` |
+| **상표 (LegalTrademarks)** | `Grid IP Scanner2` |
 | **설명 / 주석 (Comments)** | `Grid IP Scanner2 - Advanced Network Scanner with Diff, Deep Port Audit, Live Update & 90k+ OUI Engine` |
 | **지원 언어 (Language)** | `한국어 (0412) / English (0409) / Neutral (0000)` |
 
@@ -142,7 +142,8 @@ Windows 탐색기에서 `Grid IP Scanner2 v2.3.2.exe` 우클릭 후 `[속성] ->
 
 ## 5. 제작자 및 버전 정보
 
-* **소프트웨어 버전**: v2.3.2 (2026-10-04)
+* **소프트웨어 버전**: v2.3.3 (2026-10-06)
+* **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 * **제작자 (Author)**: AhBiYout
 * **공식 GitHub**: [github.com/AhBiYout/grid-ip-scanner2](https://github.com/AhBiYout/grid-ip-scanner2)
 * **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)

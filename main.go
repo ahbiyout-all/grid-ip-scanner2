@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1567,8 +1568,8 @@ func main() {
 
 		if _, statErr := os.Stat(cachePath); statErr == nil {
 			rawData, err = os.ReadFile(cachePath)
-		} else if embeddedOui, readErr := ouiFS.ReadFile("master_oui.txt"); readErr == nil {
-			rawData = embeddedOui
+		} else if len(ouiData) > 0 {
+			rawData = []byte(ouiData)
 		}
 
 		if err != nil || len(rawData) == 0 {
@@ -1643,7 +1644,14 @@ func main() {
 
 	http.HandleFunc("/api/license", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 
 		exePath, err := os.Executable()
 		var exeDir string
@@ -1742,6 +1750,183 @@ func main() {
 		}
 
 		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+	})
+
+	// Wake-on-LAN Magic Packet Broadcaster
+	http.HandleFunc("/api/wol", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req struct {
+			MAC string `json:"mac"`
+			IP  string `json:"ip"`
+		}
+
+		if r.Method == http.MethodPost {
+			_ = json.NewDecoder(r.Body).Decode(&req)
+		}
+		if req.MAC == "" {
+			req.MAC = r.URL.Query().Get("mac")
+			req.IP = r.URL.Query().Get("ip")
+		}
+
+		if req.MAC == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Missing MAC address parameter",
+			})
+			return
+		}
+
+		sent, err := sendWakeOnLan(req.MAC, req.IP)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":     true,
+			"mac":         req.MAC,
+			"ip":          req.IP,
+			"packetsSent": sent,
+			"message":     fmt.Sprintf("Wake-on-LAN 매직 패킷이 [%s]로 %d회 브로드캐스트 전송되었습니다.", req.MAC, sent),
+		})
+	})
+
+	// One-Click Remote Tool Orchestrator
+	http.HandleFunc("/api/remote-action", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		action := r.URL.Query().Get("action")
+		ip := r.URL.Query().Get("ip")
+		port := r.URL.Query().Get("port")
+
+		if ip == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Missing IP parameter",
+			})
+			return
+		}
+
+		var cmdStr string
+		var msg string
+
+		switch action {
+		case "rdp":
+			cmdStr = fmt.Sprintf("mstsc.exe /v:%s", ip)
+			msg = fmt.Sprintf("원격 데스크톱(mstsc.exe /v:%s)을 실행합니다.", ip)
+			if runtime.GOOS == "windows" {
+				exec.Command("mstsc.exe", fmt.Sprintf("/v:%s", ip)).Start()
+			}
+		case "smb":
+			cmdStr = fmt.Sprintf("explorer.exe \\\\%s", ip)
+			msg = fmt.Sprintf("Windows 탐색기로 SMB 공유 폴더(\\\\%s)를 엽니다.", ip)
+			if runtime.GOOS == "windows" {
+				exec.Command("explorer.exe", fmt.Sprintf("\\\\%s", ip)).Start()
+			}
+		case "ssh":
+			if port != "" && port != "22" {
+				cmdStr = fmt.Sprintf("ssh -p %s root@%s", port, ip)
+			} else {
+				cmdStr = fmt.Sprintf("ssh root@%s", ip)
+			}
+			msg = fmt.Sprintf("터미널 SSH 세션을 호출합니다: %s", cmdStr)
+			if runtime.GOOS == "windows" {
+				exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", cmdStr).Start()
+			}
+		case "ping":
+			cmdStr = fmt.Sprintf("ping -t %s", ip)
+			msg = fmt.Sprintf("연속 Ping 콘솔을 엽니다: %s", cmdStr)
+			if runtime.GOOS == "windows" {
+				exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", cmdStr).Start()
+			}
+		case "traceroute":
+			cmdStr = fmt.Sprintf("tracert -d %s", ip)
+			msg = fmt.Sprintf("경로 추적(Traceroute) 콘솔을 엽니다: %s", cmdStr)
+			if runtime.GOOS == "windows" {
+				exec.Command("cmd.exe", "/c", "start", "cmd.exe", "/k", cmdStr).Start()
+			}
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Unsupported action",
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"action":  action,
+			"command": cmdStr,
+			"message": msg,
+		})
+	})
+
+	// Custom Device Aliases & Memos Storage
+	http.HandleFunc("/api/aliases", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		aliasFilePath := "aliases.json"
+		if exe, err := os.Executable(); err == nil {
+			aliasFilePath = filepath.Join(filepath.Dir(exe), "aliases.json")
+		}
+
+		if r.Method == http.MethodGet {
+			data, err := os.ReadFile(aliasFilePath)
+			if err != nil || len(data) == 0 {
+				w.Write([]byte("{}"))
+				return
+			}
+			w.Write(data)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusBadRequest)
+				return
+			}
+			var dummy map[string]interface{}
+			if err := json.Unmarshal(body, &dummy); err != nil {
+				http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
+				return
+			}
+			_ = os.WriteFile(aliasFilePath, body, 0644)
+			w.Write([]byte(`{"success":true}`))
+			return
+		}
 	})
 
 	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
@@ -2197,3 +2382,56 @@ func main() {
 		fmt.Printf("Server failed: %v\n", err)
 	}
 }
+
+// sendWakeOnLan broadcasts UDP magic packet for the given MAC address
+func sendWakeOnLan(macStr string, targetIP string) (int, error) {
+	cleanMac := strings.ReplaceAll(strings.ReplaceAll(macStr, ":", ""), "-", "")
+	if len(cleanMac) != 12 {
+		return 0, fmt.Errorf("invalid MAC address: %s", macStr)
+	}
+	hw, err := net.ParseMAC(macStr)
+	if err != nil {
+		hwBytes, hexErr := hex.DecodeString(cleanMac)
+		if hexErr != nil {
+			return 0, hexErr
+		}
+		hw = net.HardwareAddr(hwBytes)
+	}
+
+	// Magic packet: 6x 0xFF followed by 16x 6-byte MAC (102 bytes total)
+	packet := make([]byte, 102)
+	for i := 0; i < 6; i++ {
+		packet[i] = 0xFF
+	}
+	for i := 0; i < 16; i++ {
+		copy(packet[6+i*6:], hw[:6])
+	}
+
+	destinations := []string{"255.255.255.255:9", "255.255.255.255:7"}
+	if targetIP != "" {
+		parts := strings.Split(targetIP, ".")
+		if len(parts) == 4 {
+			bcast := fmt.Sprintf("%s.%s.%s.255:9", parts[0], parts[1], parts[2])
+			destinations = append(destinations, bcast)
+		}
+	}
+
+	sentCount := 0
+	for _, dst := range destinations {
+		raddr, err := net.ResolveUDPAddr("udp", dst)
+		if err != nil {
+			continue
+		}
+		conn, err := net.DialUDP("udp", nil, raddr)
+		if err != nil {
+			continue
+		}
+		_, writeErr := conn.Write(packet)
+		conn.Close()
+		if writeErr == nil {
+			sentCount++
+		}
+	}
+	return sentCount, nil
+}
+

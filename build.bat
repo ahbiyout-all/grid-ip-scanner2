@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 :: ======================================================================
 :: Grid IP Scanner2 - Master Automated Multi-Folder Distribution Builder
-:: Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+:: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 :: ======================================================================
 
 :: 1. Dynamic Version Extraction (Tier 1: package.json, Tier 2 Fallback: docs/PATCH_NOTE.md)

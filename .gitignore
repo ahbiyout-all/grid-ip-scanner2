@@ -4,7 +4,9 @@ node_modules/
 .pnp.js
 
 # Build Outputs & Bundles
-dist/
+dist/*
+!dist/.gitkeep
+!dist/index.html
 dist_installer/
 dist_electron/
 build/

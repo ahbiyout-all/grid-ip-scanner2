@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 :: ======================================================================
 :: Grid IP Scanner2 - Automated Multi-Folder Distribution Builder
 :: Creates isolated build folders under dist_releases/ for each build sequence
-:: Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+:: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 :: ======================================================================
 
 title Grid IP Scanner2 - Multi-Folder Distribution Builder

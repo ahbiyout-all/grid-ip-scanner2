@@ -149,9 +149,19 @@
 
 ---
 
+## 🔐 16. 순수 창작 초고속 보안 금고 암호화 엔진 (Pure Creative Secure Vault DLL Engine)
+* **파일 위치**: `native_dll/grid_vault_driver.h`, `native_dll/grid_vault_driver.c`, `native_dll/grid_vault_driver.go`, `services/vaultService.ts`, `docs/GRID_VAULT_DRIVER_SPEC.md`
+* **기술 설명**: 로컬 환경에 저장되는 장치별 별칭(Aliases), 관리자 메모(Notes), 네트워크 서브넷 스냅샷 데이터를 AES-256-GCM 및 Win32 DPAPI 커널 API로 0.1ms 이내에 초고속 암/복호화하고 안티 포렌식 메모리 소각을 수행하는 독자 개발 암호화 엔진입니다.
+* **주요 핵심 기술**:
+  - **Win32 DPAPI 무입력 머신 결합 보호**: Windows OS 커널 및 하드웨어 TPM에 암호화 키를 바인딩하여 패스워드 입력 없이도 다른 PC로의 데이터 유출을 원천 차단.
+  - **AES-NI 하드웨어 가속 및 AEAD 인증 봉투 (`GVAULT10`)**: 128비트 무결성 인증 태그를 포함하는 자체 봉투 구조를 통해 데이터 위변조를 100% 감지.
+  - **안티 포렌식 메모리 소각 (`RtlSecureZeroMemory`)**: 메모리 버퍼 및 파생 키 사용 후 RAM 덤프 검사를 무력화하는 즉각 소각 파이프라인.
+
+---
+
 ### ⚖️ 상용화 가치 및 이중 라이선스 법적 보호 사항
 본 문서에 정의된 고유 기술 목록들은 **이중 라이선스(Dual Licensing)** 정책 하에서 보호받습니다. 무상 배포본(GPL v3) 이외에 상업적 이윤 창출이나 기업 독점 솔루션 납품 목적을 지닌 유료 판매용 에디션으로 패키징할 경우, 당사(제작자)의 정식 **상용 라이선스(Commercial License)**가 적용되므로 저작권 분쟁의 여지 없이 안전하고 완벽한 독점 비즈니스 자산으로 취급됩니다. 상세 규정은 `docs/LICENSE.md`를 참고하십시오.
 
-* **기술 업데이트 일자**: 2026년 10월 4일 (v2.3.2 최신화)
+* **기술 업데이트 일자**: 2026년 10월 7일 (v2.4.0 최신화)
 * **기술 개발 및 저작권자**: AhBiYout ([ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))
 * **저작권**: Copyright (c) 2025-2026 AhBiYout. All rights reserved.

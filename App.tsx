@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera } from 'lucide-react';
-import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem } from './types';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame } from 'lucide-react';
+import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense } from './services/licenseManager';
 import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } from './services/diffEngine';
@@ -9,6 +9,10 @@ import { runDeepPortAudit } from './services/portScanner';
 import { generateProfessionalAuditReport } from './services/reportGenerator';
 import { UpdateModal } from './components/UpdateModal';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
+import { executeRemoteAction } from './services/remoteActionService';
+import { sendWakeOnLanPacket } from './services/wolService';
+import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
+import { analyzeNetworkConflicts, findNewIntruderDevices, ConflictInfo } from './services/conflictDetector';
 
 const classifyDevice = (vendor: string, openPorts: number[], s: any) => {
   const v = (vendor || "").toLowerCase();
@@ -211,9 +215,53 @@ const translations = {
     flagsLabel: "시스템 플래그",
     mtuLabel: "MTU",
     openAdapterManager: "어댑터 전체 탐색 / 필터",
-    adapterSubnetNotice: "어댑터 IPv4 서브넷이 스캔 대상으로 지정되었습니다."
+    adapterSubnetNotice: "어댑터 IPv4 서브넷이 스캔 대상으로 지정되었습니다.",
+    quickRemoteActions: "원클릭 빠른 원격 접속",
+    remoteWeb: "웹 관리자 (HTTP)",
+    remoteWebSSL: "보안 웹 (HTTPS)",
+    remoteRdp: "원격 데스크톱 (mstsc)",
+    remoteSsh: "SSH 터미널",
+    remoteSmb: "SMB 파일 공유 (\\\\IP)",
+    remotePing: "콘솔 Ping",
+    remoteTraceroute: "경로 추적 (Tracert)",
+    wolTitle: "원격 부팅 (Wake-on-LAN)",
+    wolSendBtn: "⚡ WoL 매직 패킷 전송",
+    customNickname: "사용자 지정 별칭",
+    customNotes: "관리자 메모",
+    editNickname: "별칭 / 메모 편집",
+    saveNickname: "별칭 저장",
+    deleteNickname: "별칭 삭제",
+    ipConflict: "IP 충돌 의심",
+    intruderWatch: "낯선 기기 감시",
+    intruderDetected: "신규 낯선 기기 감지",
+    trustDevice: "신뢰 기기로 등록",
+    filterConflict: "⚠️ 충돌 의심",
+    filterIntruder: "🚨 낯선 기기",
+    filterCustomAlias: "🏷️ 별칭 지정"
   },
   en: {
+    quickRemoteActions: "Quick Remote Actions",
+    remoteWeb: "Web Console (HTTP)",
+    remoteWebSSL: "Secure Web (HTTPS)",
+    remoteRdp: "Remote Desktop (RDP)",
+    remoteSsh: "SSH Terminal",
+    remoteSmb: "SMB Share (\\\\IP)",
+    remotePing: "Ping Console",
+    remoteTraceroute: "Traceroute Console",
+    wolTitle: "Remote Boot (Wake-on-LAN)",
+    wolSendBtn: "⚡ Send WoL Magic Packet",
+    customNickname: "Custom Nickname",
+    customNotes: "Admin Notes",
+    editNickname: "Edit Alias / Notes",
+    saveNickname: "Save Alias",
+    deleteNickname: "Delete Alias",
+    ipConflict: "IP Conflict Suspected",
+    intruderWatch: "Intruder Watch Mode",
+    intruderDetected: "New Unknown Device Detected",
+    trustDevice: "Trust This Device",
+    filterConflict: "⚠️ Conflicts",
+    filterIntruder: "🚨 Intruders",
+    filterCustomAlias: "🏷️ Aliased",
     hostPcInfo: "Host PC Info",
     computerName: "Computer Name",
     title: "GRID IP Scanner2",
@@ -558,12 +606,113 @@ const App: React.FC = () => {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
+  // Feature 3: Custom Device Nicknames & Notes
+  const [aliases, setAliases] = useState<Record<string, DeviceAlias>>(getStoredAliases());
+  const [isEditingAlias, setIsEditingAlias] = useState(false);
+  const [aliasNicknameInput, setAliasNicknameInput] = useState('');
+  const [aliasNotesInput, setAliasNotesInput] = useState('');
+
+  // Feature 5: Intruder / Unknown Device Watch Mode
+  const [intruderWatchMode, setIntruderWatchMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('grid_intruder_watch_mode') === 'true';
+    } catch (_) { return false; }
+  });
+  const [trustedDevices, setTrustedDevices] = useState<Set<string>>(() => {
+    try {
+      const set = new Set<string>();
+      const rawTrusted = localStorage.getItem('grid_trusted_devices');
+      const rawKnown = localStorage.getItem('grid_known_devices');
+      if (rawTrusted) JSON.parse(rawTrusted).forEach((item: string) => set.add(item));
+      if (rawKnown) JSON.parse(rawKnown).forEach((item: string) => set.add(item));
+      return set;
+    } catch (_) { return new Set<string>(); }
+  });
+
+  // Feature 1 & 2: Quick Remote Actions & Wake-on-LAN Action Status
+  const [isExecutingRemote, setIsExecutingRemote] = useState(false);
+  const [isSendingWol, setIsSendingWol] = useState(false);
+
+  // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
+  const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
+
   const baselineSnapshot = useMemo(() => {
     if (!baselineSnapshotId && snapshots.length > 0) {
       return snapshots[0];
     }
     return snapshots.find(s => s.id === baselineSnapshotId) || null;
   }, [snapshots, baselineSnapshotId]);
+
+  // Comprehensive set of known devices (Trusted + Host PC + Aliased + Snapshots)
+  const effectiveTrustedDevices = useMemo(() => {
+    const combined = new Set<string>(trustedDevices);
+
+    // 1. Host PC IP & Interfaces
+    if (localIpInfo?.ip) combined.add(localIpInfo.ip);
+    interfaces.forEach(iface => {
+      if (iface.ip) combined.add(iface.ip);
+      if (iface.mac) combined.add(iface.mac.toUpperCase());
+    });
+
+    // 2. Custom Aliases
+    Object.values(aliases).forEach(alias => {
+      if (alias.ip) combined.add(alias.ip);
+      if (alias.mac) combined.add(alias.mac.toUpperCase());
+    });
+
+    // 3. Saved Snapshots
+    snapshots.forEach(snap => {
+      Object.values(snap.results).forEach(item => {
+        if (item.status === 'active') {
+          combined.add(item.ip);
+          if (item.device?.mac && item.device.mac !== 'Unknown') {
+            combined.add(item.device.mac.toUpperCase());
+          }
+        }
+      });
+    });
+
+    return combined;
+  }, [trustedDevices, localIpInfo, interfaces, aliases, snapshots]);
+
+  // Feature 4: IP Conflict Detection
+  const detectedConflicts = useMemo(() => {
+    return analyzeNetworkConflicts(results, baselineSnapshot?.results);
+  }, [results, baselineSnapshot]);
+
+  // Historical Device Map for Fingerprint Matching & Soft Trust Grace Period
+  const historicalDevices = useMemo(() => {
+    const history: Record<string, DeviceInfo> = {};
+
+    snapshots.forEach(snap => {
+      Object.values(snap.results).forEach(item => {
+        if (item.status === 'active' && item.device) {
+          history[item.ip] = {
+            ...item.device,
+            lastSeen: new Date(snap.timestamp).toISOString()
+          };
+        }
+      });
+    });
+
+    if (baselineSnapshot?.results) {
+      Object.values(baselineSnapshot.results).forEach(item => {
+        if (item.status === 'active' && item.device) {
+          history[item.ip] = {
+            ...item.device,
+            lastSeen: history[item.ip]?.lastSeen || new Date(baselineSnapshot.timestamp).toISOString()
+          };
+        }
+      });
+    }
+
+    return history;
+  }, [snapshots, baselineSnapshot]);
+
+  // Feature 5: Enhanced Intruder & Soft Trust Detection with Fingerprint Grace Period
+  const { intruders: detectedIntruders, softTrusted: softTrustedDevices } = useMemo(() => {
+    return findNewIntruderDevices(results, effectiveTrustedDevices, historicalDevices, 7);
+  }, [results, effectiveTrustedDevices, historicalDevices]);
 
   const diffAnalysis = useMemo(() => {
     if (viewMode !== 'diff' || !baselineSnapshot) {
@@ -695,6 +844,156 @@ const App: React.FC = () => {
     } catch (e) {
       console.warn('Failed to clear license key in Go backend:', e);
     }
+  };
+
+  const playAlertChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (_) {}
+  };
+
+  const handleRemoteAction = async (ip: string, action: RemoteActionType, port?: number) => {
+    setIsExecutingRemote(true);
+    try {
+      const result = await executeRemoteAction(ip, action, port);
+      showToast(result.message);
+    } catch (e: any) {
+      showToast(e.message || "원격 동작 실행 중 오류가 발생했습니다.");
+    } finally {
+      setIsExecutingRemote(false);
+    }
+  };
+
+  const handleCellDoubleClick = (ip: string, dev?: DeviceInfo) => {
+    setSelectedIp(ip);
+    const ports = dev?.openPorts || [];
+    if (ports.includes(80) || ports.includes(443) || ports.includes(8080)) {
+      handleRemoteAction(ip, ports.includes(443) && !ports.includes(80) ? 'web_ssl' : 'web', ports.includes(80) ? 80 : ports.includes(443) ? 443 : 8080);
+    } else if (ports.includes(3389)) {
+      handleRemoteAction(ip, 'rdp', 3389);
+    } else if (ports.includes(22)) {
+      handleRemoteAction(ip, 'ssh', 22);
+    } else if (ports.includes(445)) {
+      handleRemoteAction(ip, 'smb', 445);
+    } else {
+      handleRemoteAction(ip, 'web', 80);
+    }
+  };
+
+  const handleSendWakeOnLan = async (mac?: string, ip?: string) => {
+    if (!mac || mac === 'Unknown') {
+      showToast("MAC 주소가 식별되지 않아 WoL 패킷을 전송할 수 없습니다.");
+      return;
+    }
+    setIsSendingWol(true);
+    try {
+      const result = await sendWakeOnLanPacket(mac, ip);
+      showToast(result.message);
+    } catch (e: any) {
+      showToast(e.message || "WoL 패킷 전송 실패");
+    } finally {
+      setIsSendingWol(false);
+    }
+  };
+
+  const handleSaveNickname = (mac?: string, ip?: string) => {
+    if (!mac && !ip) return;
+    const key = normalizeMacKey(mac, ip);
+    const updatedAlias: DeviceAlias = {
+      mac: key.startsWith('IP:') ? '' : key,
+      ip,
+      nickname: aliasNicknameInput.trim(),
+      notes: aliasNotesInput.trim(),
+      updatedAt: new Date().toISOString()
+    };
+    saveDeviceAlias(updatedAlias);
+    setAliases(getStoredAliases());
+    setIsEditingAlias(false);
+    showToast(updatedAlias.nickname ? `기기 별칭이 "${updatedAlias.nickname}"(으)로 저장되었습니다.` : "기기 별칭이 초기화되었습니다.");
+  };
+
+  const handleDeleteNickname = (mac?: string, ip?: string) => {
+    removeDeviceAlias(mac, ip);
+    setAliases(getStoredAliases());
+    setAliasNicknameInput('');
+    setAliasNotesInput('');
+    setIsEditingAlias(false);
+    showToast("기기 별칭 및 메모가 삭제되었습니다.");
+  };
+
+  const handleToggleIntruderWatch = () => {
+    const nextVal = !intruderWatchMode;
+    setIntruderWatchMode(nextVal);
+    localStorage.setItem('grid_intruder_watch_mode', String(nextVal));
+    if (nextVal) {
+      const updated = new Set(trustedDevices);
+      Object.values(results).forEach(r => {
+        if (r.status === 'active') {
+          if (r.device?.mac && r.device.mac !== 'Unknown') updated.add(r.device.mac.toUpperCase());
+          if (r.ip) updated.add(r.ip);
+        }
+      });
+      setTrustedDevices(updated);
+      const arr = Array.from(updated);
+      localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+      localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      showToast("🔔 낯선 기기 감시 모드가 활성화되었습니다. 신규 미확인 기기 접속 시 알림을 보냅니다.");
+    } else {
+      showToast("낯선 기기 감시 모드가 비활성화되었습니다.");
+    }
+  };
+
+  const handleTrustDevice = (mac?: string, ip?: string) => {
+    const updated = new Set(trustedDevices);
+    if (mac && mac !== 'Unknown') updated.add(mac.toUpperCase());
+    if (ip) updated.add(ip);
+    setTrustedDevices(updated);
+    const arr = Array.from(updated);
+    localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+    localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    showToast(`신뢰하는 정상 기기 목록에 등록되었습니다 (${ip || mac}).`);
+  };
+
+  const handleTrustAllCurrentDevices = () => {
+    const updated = new Set(trustedDevices);
+    let count = 0;
+    Object.values(results).forEach(r => {
+      if (r.status === 'active') {
+        if (r.device?.mac && r.device.mac !== 'Unknown') updated.add(r.device.mac.toUpperCase());
+        if (r.ip) updated.add(r.ip);
+        count++;
+      }
+    });
+    setTrustedDevices(updated);
+    const arr = Array.from(updated);
+    localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+    localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    showToast(`현재 탐색된 ${count}개 활성 장치가 모두 신뢰/정상 기기로 등록되었습니다.`);
+  };
+
+  const handleResetTrustedDevices = () => {
+    setTrustedDevices(new Set());
+    localStorage.removeItem('grid_trusted_devices');
+    localStorage.removeItem('grid_known_devices');
+    showToast("신뢰 기기 목록이 초기화되었습니다.");
   };
 
   const handleRunDeepPortAudit = async (ip: string) => {
@@ -1126,15 +1425,72 @@ const App: React.FC = () => {
         clearInterval(updateTimerRef.current);
         updateTimerRef.current = null;
       }
-      // Final sync for UI state
+      // Final sync for UI state & persist discovered active devices into known devices store
       setScanningIPs(new Set());
       const finalProcessed = new Set(localProcessedIPs);
       setProcessedIPs(finalProcessed);
       setResults({ ...resultsRef.current });
+
+      try {
+        const existingKnown = new Set<string>(trustedDevices);
+        Object.values(resultsRef.current).forEach(r => {
+          if (r.status === 'active') {
+            existingKnown.add(r.ip);
+            if (r.device?.mac && r.device.mac !== 'Unknown') {
+              existingKnown.add(r.device.mac.toUpperCase());
+            }
+          }
+        });
+        const arr = Array.from(existingKnown);
+        localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+        setTrustedDevices(existingKnown);
+      } catch (e) {
+        console.warn("Failed to persist scan results into known list:", e);
+      }
+
       setIsScanning(false);
       abortControllerRef.current = null;
     }
   };
+
+  // Feature 5: Background Periodic Scanning for Intruder Watch Mode (Portable & Installed)
+  const prevIntrudersCountRef = useRef<number>(0);
+  useEffect(() => {
+    if (!intruderWatchMode) return;
+
+    // Run periodic scan every 60 seconds while watch mode is active
+    const periodicTimer = setInterval(() => {
+      if (!isScanning && goEngineAlive) {
+        startScan();
+      }
+    }, 60000);
+
+    return () => clearInterval(periodicTimer);
+  }, [intruderWatchMode, isScanning, goEngineAlive, config, deepScan, scanMode]);
+
+  // Trigger sound and system notification when new intruder devices are detected (only when scan finishes or during periodic watch scan)
+  useEffect(() => {
+    if (intruderWatchMode && !isScanning && detectedIntruders.length > prevIntrudersCountRef.current) {
+      playAlertChime();
+      const newItems = detectedIntruders.slice(prevIntrudersCountRef.current);
+      if (newItems.length > 0) {
+        const latest = newItems[0];
+        const bodyText = `새로운 낯선 기기 감지: ${latest.ip} (${latest.device?.vendor || '알 수 없음'})`;
+        showToast(`🚨 ${bodyText}`);
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('🚨 Grid IP Scanner2 - 낯선 기기 감지 알림', {
+              body: bodyText,
+              icon: './logo.png'
+            });
+          } catch (_) {}
+        }
+      }
+    }
+    if (!isScanning) {
+      prevIntrudersCountRef.current = detectedIntruders.length;
+    }
+  }, [intruderWatchMode, isScanning, detectedIntruders]);
 
   const handleExportCSV = (mode: 'active' | 'all' = 'active') => {
     const allResults = Object.values(results) as ScanResult[];
@@ -1575,15 +1931,26 @@ const App: React.FC = () => {
   const allIps = useMemo(() => Object.keys(results).sort((a, b) => parseInt(a.split('.').pop()!) - parseInt(b.split('.').pop()!)), [results]);
   const filteredIps = useMemo(() => {
     let ips = allIps.filter(ip => {
-      if (!searchTerm) return true;
       const item = results[ip];
+      const alias = getDeviceAlias(item.device?.mac, ip);
+
+      // Custom Filter Mode (all / active / conflict / intruder / soft_trust / alias)
+      if (customFilterMode === 'active' && item.status !== 'active') return false;
+      if (customFilterMode === 'conflict' && !detectedConflicts.has(ip)) return false;
+      if (customFilterMode === 'intruder' && !detectedIntruders.some(d => d.ip === ip)) return false;
+      if (customFilterMode === 'soft_trust' && !softTrustedDevices.some(d => d.ip === ip)) return false;
+      if (customFilterMode === 'alias' && !alias?.nickname) return false;
+
+      if (!searchTerm) return true;
       const s_term = searchTerm.toLowerCase();
       const classification = classifyDevice(item.device?.vendor || "", item.device?.openPorts || [], s);
       return ip.includes(s_term) || 
              item.device?.vendor?.toLowerCase().includes(s_term) || 
              item.device?.hostname?.toLowerCase().includes(s_term) ||
              item.device?.mac?.toLowerCase().includes(s_term) ||
-             classification.type.toLowerCase().includes(s_term);
+             classification.type.toLowerCase().includes(s_term) ||
+             (alias?.nickname && alias.nickname.toLowerCase().includes(s_term)) ||
+             (alias?.notes && alias.notes.toLowerCase().includes(s_term));
     });
 
     if (sortMode === 'status') {
@@ -2220,6 +2587,89 @@ const App: React.FC = () => {
                 </button>
               </div>
 
+              {/* Status & Security Quick Filter Pills */}
+              <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5 shrink-0 gap-0.5 text-[9.5px]">
+                <button
+                  onClick={() => setCustomFilterMode('all')}
+                  className={`px-2 py-0.5 rounded font-black transition-all ${
+                    customFilterMode === 'all' ? 'bg-sky-500 text-white shadow-sm' : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  {s.all}
+                </button>
+                <button
+                  onClick={() => setCustomFilterMode('active')}
+                  className={`px-2 py-0.5 rounded font-black transition-all ${
+                    customFilterMode === 'active' ? 'bg-emerald-600 text-white shadow-sm' : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  {s.active} ({activeCount})
+                </button>
+                {detectedConflicts.size > 0 && (
+                  <button
+                    onClick={() => setCustomFilterMode('conflict')}
+                    className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
+                      customFilterMode === 'conflict' ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400' : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
+                    }`}
+                    title="IP 충돌 의심 기기만 필터링"
+                  >
+                    <span>⚠️</span>
+                    <span>{detectedConflicts.size}</span>
+                  </button>
+                )}
+                {detectedIntruders.length > 0 && (
+                  <button
+                    onClick={() => setCustomFilterMode('intruder')}
+                    className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
+                      customFilterMode === 'intruder' ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                    }`}
+                    title="신규 감지된 낯선 기기만 필터링"
+                  >
+                    <span>🚨</span>
+                    <span>{detectedIntruders.length}</span>
+                  </button>
+                )}
+                {softTrustedDevices.length > 0 && (
+                  <button
+                    onClick={() => setCustomFilterMode('soft_trust')}
+                    className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
+                      customFilterMode === 'soft_trust' ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400' : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                    }`}
+                    title="식별자 변동/유예 기간 적용된 소프트 신뢰 기기 필터링"
+                  >
+                    <span>🛡️</span>
+                    <span>유예 {softTrustedDevices.length}</span>
+                  </button>
+                )}
+                {Object.keys(aliases).length > 0 && (
+                  <button
+                    onClick={() => setCustomFilterMode('alias')}
+                    className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
+                      customFilterMode === 'alias' ? 'bg-amber-600 text-white shadow-sm' : 'opacity-60 hover:opacity-100'
+                    }`}
+                    title="별칭이 지정된 기기만 필터링"
+                  >
+                    <span>🏷️</span>
+                    <span>{Object.keys(aliases).length}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Feature 5: Intruder Watch Mode Toggle */}
+              <button
+                onClick={handleToggleIntruderWatch}
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all shrink-0 ${
+                  intruderWatchMode
+                    ? 'bg-purple-600/20 border-purple-500/50 text-purple-300 ring-1 ring-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                    : 'bg-black/10 border-white/5 opacity-60 hover:opacity-100 text-zinc-300'
+                }`}
+                title={intruderWatchMode ? "낯선 기기 감시 모드 작동 중 (신규 기기 감지 시 즉시 알림)" : "낯선 기기 감시 모드 켜기"}
+              >
+                <BellRing className={`w-3.5 h-3.5 ${intruderWatchMode ? 'text-purple-400 animate-pulse' : 'text-zinc-400'}`} />
+                <span>{s.intruderWatch}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${intruderWatchMode ? 'bg-purple-400 animate-ping' : 'bg-zinc-600'}`} />
+              </button>
+
               {/* License Tier Badge */}
               <button
                 onClick={() => setShowLicenseModal(true)}
@@ -2705,21 +3155,34 @@ const App: React.FC = () => {
               ? 'max-w-[min(800px,calc(100vh-270px))] md:max-w-[min(800px,calc(100vh-220px))]' 
               : 'max-w-[min(800px,calc(100vh-120px))] md:max-w-[min(800px,calc(100vh-85px))]'
           }`}>
-            {filteredIps.map((ip, index) => (
-              <IPCell 
-                key={ip}
-                ip={ip}
-                index={index}
-                status={results[ip].status}
-                device={results[ip].device}
-                isSelected={selectedIp === ip}
-                isHost={ip === localIpInfo?.ip}
-                onClick={setSelectedIp}
-                theme={theme}
-                s={s}
-                diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
-              />
-            ))}
+            {filteredIps.map((ip, index) => {
+              const res = results[ip];
+              const alias = getDeviceAlias(res?.device?.mac, ip);
+              const conflict = detectedConflicts.get(ip);
+              const isIntruder = detectedIntruders.some(d => d.ip === ip);
+
+              return (
+                <IPCell 
+                  key={ip}
+                  ip={ip}
+                  index={index}
+                  status={res.status}
+                  device={res.device}
+                  isSelected={selectedIp === ip}
+                  isHost={ip === localIpInfo?.ip}
+                  onClick={setSelectedIp}
+                  onDoubleClick={handleCellDoubleClick}
+                  theme={theme}
+                  s={s}
+                  diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
+                  isConflict={!!conflict}
+                  conflictDetails={conflict?.reason}
+                  isNewIntruder={isIntruder}
+                  isSoftTrust={softTrustedDevices.some(d => d.ip === ip)}
+                  customNickname={alias?.nickname}
+                />
+              );
+            })}
           </div>
         </div>
       </main>
@@ -2731,146 +3194,413 @@ const App: React.FC = () => {
               <h2 className={`text-xs font-black ${theme === 'beige' ? 'text-[#5c4a37]' : 'text-white'} uppercase tracking-tighter`}>{s.deviceProfile}</h2>
               <button onClick={() => setSelectedIp(null)} className={`p-1.5 hover:bg-current hover:bg-opacity-10 rounded-lg ${t.textMuted} transition-colors`}><X className="w-5 h-5" /></button>
             </div>
-            {results[selectedIp]?.device ? (
-              <div className="space-y-6">
-                <section className="space-y-2">
-                   <div className={`p-5 ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-sky-500/10 border-sky-500/30'} rounded-2xl border flex flex-col items-center text-center`}>
-                      <Monitor className="w-8 h-8 text-sky-500 mb-3" />
-                      <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest mb-1`}>{s.networkIdentity}</span>
-                      <span className="text-base font-black text-sky-500 break-all leading-tight">
-                        {results[selectedIp].device?.hostname}
-                      </span>
-                      {results[selectedIp].device?.webTitle && (
-                        <div className={`mt-3 px-3 py-1.5 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-slate-800'} border rounded-lg italic text-[10px] ${t.textMuted}`}>
-                          "{results[selectedIp].device?.webTitle}"
-                        </div>
-                      )}
-                      <div className="mt-3 flex items-center space-x-2">
-                         <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                         <span className="text-[10px] font-bold opacity-70">{s.active} - {results[selectedIp].device?.latency}ms</span>
+            {selectedIp && (() => {
+              const selectedResult = results[selectedIp];
+              const selectedDevice = selectedResult?.device;
+              const selectedMac = selectedDevice?.mac;
+              const selectedAlias = getDeviceAlias(selectedMac, selectedIp);
+              const selectedConflict = detectedConflicts.get(selectedIp);
+              const isSelectedIntruder = detectedIntruders.some(d => d.ip === selectedIp);
+              const selectedSoftTrust = softTrustedDevices.find(d => d.ip === selectedIp);
+
+              return (
+                <div className="space-y-5">
+                  {/* IP Conflict Warning Banner */}
+                  {selectedConflict && (
+                    <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
+                      <div className="flex items-center gap-1.5 text-rose-400 font-black text-xs">
+                        <AlertTriangle className="w-4 h-4 text-rose-500" />
+                        <span>⚠️ IP 충돌 경고 (IP Conflict)</span>
                       </div>
-                   </div>
-                </section>
-                <section className="space-y-2">
-                  <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.technicalDetails}</span>
-                  <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3`}>
-                    <div className="flex justify-between items-center">
-                      <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.address}</span>
-                      <a 
-                        href={`http://${selectedIp}`} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="text-xs font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link"
-                        title={lang === 'ko' ? '웹 브라우저로 연결 (HTTP)' : 'Connect via Web Browser (HTTP)'}
-                      >
-                        {selectedIp}
-                        <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
-                      </a>
+                      <p className="text-[10px] leading-relaxed opacity-95">{selectedConflict.reason}</p>
+                      <div className="text-[9px] text-rose-300/90 bg-black/30 p-1.5 rounded mt-1">
+                        💡 해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.macInfo}</span><span className="text-xs font-black mono text-emerald-500">{results[selectedIp].device?.mac}</span></div>
-                    <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.vendor}</span><span className="text-xs font-black truncate ml-4 text-right">{results[selectedIp].device?.vendor}</span></div>
-                    <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.os}</span><span className="text-xs font-black">{results[selectedIp].device?.os}</span></div>
-                    {results[selectedIp].device?.mdns && (
-                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>mDNS</span><span className="text-xs font-black truncate ml-4 text-right text-sky-500">{results[selectedIp].device?.mdns}</span></div>
-                    )}
-                    {results[selectedIp].device?.upnp && (
-                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>UPnP</span><span className="text-xs font-black truncate ml-4 text-right text-purple-500">{results[selectedIp].device?.upnp}</span></div>
-                    )}
-                    {results[selectedIp].device?.snmp && (
-                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>SNMP</span><span className="text-xs font-black truncate ml-4 text-right text-amber-500">{results[selectedIp].device?.snmp}</span></div>
-                    )}
-                  </div>
-                </section>
-                {results[selectedIp].device?.openPorts && results[selectedIp].device!.openPorts!.length > 0 && (
-                  <section className="space-y-2">
-                    <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.listeningPorts}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {results[selectedIp].device?.openPorts?.map(p => (
-                        <div key={p} className={`px-2 py-0.5 rounded text-[11px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
-                          {p}
+                  )}
+
+                  {/* New Intruder Device Banner */}
+                  {isSelectedIntruder && (
+                    <div className="p-3.5 rounded-xl border border-purple-500/50 bg-purple-500/20 text-purple-200 flex flex-col gap-2 shadow-lg">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <BellRing className="w-4 h-4 text-purple-400 animate-bounce shrink-0" />
+                          <div className="truncate">
+                            <div className="text-[11px] font-black text-purple-300">신규 감지 낯선 기기</div>
+                            <div className="text-[9.5px] opacity-80 truncate">신뢰 목록에 없는 기기입니다.</div>
+                          </div>
                         </div>
-                      ))}
+                        <button
+                          onClick={() => handleTrustDevice(selectedMac, selectedIp)}
+                          className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-black text-[9.5px] rounded-lg shrink-0 shadow"
+                        >
+                          이 기기 신뢰 등록
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleTrustAllCurrentDevices}
+                        className="w-full py-1 bg-purple-900/50 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 font-bold text-[9px] rounded-lg transition-colors text-center"
+                      >
+                        ⚡ 현재 탐색된 모든 기기를 정상 기기로 등록
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Soft Trust Grace Period Banner */}
+                  {selectedSoftTrust && !isSelectedIntruder && (
+                    <div className="p-3.5 rounded-xl border border-amber-500/50 bg-amber-500/20 text-amber-100 flex flex-col gap-2 shadow-lg">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="text-[11px] font-black text-amber-300 flex items-center gap-1">
+                              <span>소프트 신뢰 유예 중</span>
+                              {selectedSoftTrust.softTrustInfo?.similarityScore && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 text-[8.5px] font-mono font-bold">
+                                  {Math.round(selectedSoftTrust.softTrustInfo.similarityScore * 100)}% 매칭
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[9.5px] opacity-90 leading-tight mt-0.5">
+                              {selectedSoftTrust.softTrustInfo?.reason || '식별자 변동 유예 중인 기존 신뢰 기기'}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleTrustDevice(selectedMac, selectedIp)}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-black text-[9.5px] rounded-lg shrink-0 shadow"
+                        >
+                          정식 신뢰 등록
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Identity Card */}
+                  <section className="space-y-2">
+                     <div className={`p-4 ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-sky-500/10 border-sky-500/30'} rounded-2xl border flex flex-col items-center text-center`}>
+                        <Monitor className="w-7 h-7 text-sky-500 mb-2" />
+                        <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest mb-0.5`}>{s.networkIdentity}</span>
+                        <span className="text-base font-black text-sky-500 break-all leading-tight">
+                          {selectedAlias?.nickname ? selectedAlias.nickname : (selectedDevice?.hostname || selectedIp)}
+                        </span>
+                        {selectedAlias?.nickname && selectedDevice?.hostname && (
+                          <span className="text-[10px] opacity-60 font-mono mt-0.5">{selectedDevice.hostname}</span>
+                        )}
+                        {selectedDevice?.webTitle && (
+                          <div className={`mt-2 px-3 py-1 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-slate-800'} border rounded-lg italic text-[10px] ${t.textMuted}`}>
+                            "{selectedDevice.webTitle}"
+                          </div>
+                        )}
+                        <div className="mt-2.5 flex items-center space-x-2">
+                           <div className={`w-2 h-2 rounded-full ${selectedResult?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`} />
+                           <span className="text-[10px] font-bold opacity-70">
+                             {selectedResult?.status === 'active' ? `${s.active} - ${selectedDevice?.latency || 1}ms` : '비활성 / 꺼짐 (Offline)'}
+                           </span>
+                        </div>
+                     </div>
+                  </section>
+
+                  {/* Feature 3: Custom Nickname & Memo Section */}
+                  <section className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
+                        <Tag className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{s.customNickname}</span>
+                      </span>
+                      {!isEditingAlias ? (
+                        <button
+                          onClick={() => {
+                            setAliasNicknameInput(selectedAlias?.nickname || '');
+                            setAliasNotesInput(selectedAlias?.notes || '');
+                            setIsEditingAlias(true);
+                          }}
+                          className="px-2 py-0.5 rounded text-[9.5px] font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>{selectedAlias?.nickname ? "수정" : "+ 별칭 추가"}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setIsEditingAlias(false)}
+                          className="text-[9px] text-zinc-400 hover:text-white"
+                        >
+                          취소
+                        </button>
+                      )}
+                    </div>
+
+                    {isEditingAlias ? (
+                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-amber-500/30'} space-y-2.5 animate-in fade-in`}>
+                        <div>
+                          <label className="text-[9px] font-bold opacity-60 block mb-1">기기 별칭 (예: 거실 공기청정기, 메인 NAS)</label>
+                          <input
+                            type="text"
+                            value={aliasNicknameInput}
+                            onChange={e => setAliasNicknameInput(e.target.value)}
+                            placeholder="별칭 입력..."
+                            className={`w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none ${t.input}`}
+                            autoFocus
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold opacity-60 block mb-1">관리자 메모</label>
+                          <textarea
+                            value={aliasNotesInput}
+                            onChange={e => setAliasNotesInput(e.target.value)}
+                            placeholder="설치 위치, 담당자 연락처, 특이사항 등..."
+                            rows={2}
+                            className={`w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none resize-none ${t.input}`}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          {selectedAlias && (
+                            <button
+                              onClick={() => handleDeleteNickname(selectedMac, selectedIp)}
+                              className="text-[10px] text-rose-400 hover:text-rose-300 font-bold"
+                            >
+                              삭제
+                            </button>
+                          )}
+                          <div className="flex gap-1.5 ml-auto">
+                            <button
+                              onClick={() => setIsEditingAlias(false)}
+                              className="px-2.5 py-1 rounded text-[10px] font-bold bg-white/5 hover:bg-white/10"
+                            >
+                              취소
+                            </button>
+                            <button
+                              onClick={() => handleSaveNickname(selectedMac, selectedIp)}
+                              className="px-3 py-1 rounded text-[10px] font-black bg-amber-500 hover:bg-amber-400 text-black shadow"
+                            >
+                              저장
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : selectedAlias ? (
+                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-amber-50/80 border-amber-200 text-[#4a341e]' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'} space-y-1`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-amber-400">🏷️ {selectedAlias.nickname}</span>
+                          <span className="text-[8px] opacity-50 mono">{selectedAlias.updatedAt.split('T')[0]}</span>
+                        </div>
+                        {selectedAlias.notes && (
+                          <p className="text-[10px] opacity-80 leading-relaxed pt-1 border-t border-amber-500/20">
+                            📝 {selectedAlias.notes}
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </section>
+
+                  {/* Feature 1: Quick Remote Actions */}
+                  <section className="space-y-2">
+                    <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
+                      <Zap className="w-3.5 h-3.5 text-sky-400" />
+                      <span>{s.quickRemoteActions}</span>
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'web', 80)}
+                        className="p-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="기본 웹 브라우저로 접속 (http://IP)"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-sky-400" />
+                        <span>{s.remoteWeb}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'web_ssl', 443)}
+                        className="p-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="보안 웹(HTTPS) 접속 (https://IP)"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>{s.remoteWebSSL}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'rdp', 3389)}
+                        className="p-2 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="Windows 원격 데스크톱(mstsc.exe) 실행"
+                      >
+                        <Monitor className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{s.remoteRdp}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'ssh', 22)}
+                        className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="SSH 콘솔/PuTTY 세션 호출"
+                      >
+                        <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{s.remoteSsh}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'smb', 445)}
+                        className="p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="Windows 탐색기로 SMB 공유 폴더 (\\IP) 열기"
+                      >
+                        <Folder className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{s.remoteSmb}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRemoteAction(selectedIp, 'ping')}
+                        className="p-2 rounded-xl border border-zinc-500/30 bg-zinc-500/10 hover:bg-zinc-500/20 text-zinc-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        title="연속 콘솔 Ping 진단 (ping -t IP)"
+                      >
+                        <Activity className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{s.remotePing}</span>
+                      </button>
                     </div>
                   </section>
-                )}
 
-                {/* Deep Port Security Audit Section */}
-                <section className="space-y-3 pt-2 border-t border-white/5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
-                      <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest`}>
-                        {s.deepPortAuditBtn}
+                  {/* Feature 2: Wake-on-LAN (WoL) */}
+                  <section className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
+                        <Power className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{s.wolTitle}</span>
                       </span>
                     </div>
                     <button
-                      onClick={() => handleRunDeepPortAudit(selectedIp)}
-                      disabled={isAuditingPorts}
-                      className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 rounded text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-1"
+                      onClick={() => handleSendWakeOnLan(selectedMac, selectedIp)}
+                      disabled={isSendingWol || !selectedMac || selectedMac === 'Unknown'}
+                      className={`w-full py-2.5 px-3 rounded-xl border font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-md ${
+                        !selectedMac || selectedMac === 'Unknown'
+                          ? 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400'
+                          : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300'
+                      }`}
+                      title={selectedMac && selectedMac !== 'Unknown' ? "UDP 9/7 브로드캐스트로 Magic Packet을 발송하여 원격 장비를 부팅합니다" : "MAC 주소가 확인되지 않아 WoL을 발송할 수 없습니다"}
                     >
-                      {isAuditingPorts ? (
-                        <>
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                          <span>분석 중...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-3 h-3 text-amber-400" />
-                          <span>정밀 진단</span>
-                        </>
-                      )}
+                      <Zap className={`w-4 h-4 text-amber-400 ${isSendingWol ? 'animate-bounce' : ''}`} />
+                      <span>{isSendingWol ? "매직 패킷 발송 중..." : s.wolSendBtn}</span>
                     </button>
-                  </div>
-
-                  {portAuditResult && portAuditResult.ip === selectedIp && (
-                    <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
-                      <div className="flex justify-between items-center text-[9px] opacity-70">
-                        <span>점검 포트: {portAuditResult.totalChecked}개</span>
-                        <span>탐지: {portAuditResult.openPorts.length}개</span>
+                    {selectedMac && selectedMac !== 'Unknown' && (
+                      <div className="text-[8.5px] opacity-60 text-center mono">
+                        Target MAC: {selectedMac} (Broadcast UDP 9/7)
                       </div>
-                      {portAuditResult.openPorts.length > 0 ? (
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
-                          {portAuditResult.openPorts.map((item) => (
-                            <div
-                              key={item.port}
-                              className="p-2 rounded-lg bg-white/5 border border-white/5 flex flex-col space-y-1"
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-black mono text-sky-400">
-                                  {item.port} / {item.service}
-                                </span>
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
-                                    item.risk === 'high'
-                                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                      : item.risk === 'medium'
-                                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  }`}
-                                >
-                                  {item.risk.toUpperCase()}
-                                </span>
-                              </div>
-                              <span className="text-[9px] opacity-70">{item.description}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-emerald-400 py-1 text-center font-bold">
-                          ✓ 점검 결과 주의 대상 포트가 닫혀있습니다.
-                        </div>
+                    )}
+                  </section>
+
+                  {/* Technical Details */}
+                  <section className="space-y-2">
+                    <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.technicalDetails}</span>
+                    <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.address}</span>
+                        <a 
+                          href={`http://${selectedIp}`} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-xs font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link"
+                        >
+                          {selectedIp}
+                          <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
+                        </a>
+                      </div>
+                      <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.macInfo}</span><span className="text-xs font-black mono text-emerald-500">{selectedMac || 'Unknown'}</span></div>
+                      <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.vendor}</span><span className="text-xs font-black truncate ml-4 text-right">{selectedDevice?.vendor || 'Unknown'}</span></div>
+                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.os}</span><span className="text-xs font-black">{selectedDevice?.os || 'Unknown'}</span></div>
+                      {selectedDevice?.mdns && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>mDNS</span><span className="text-xs font-black truncate ml-4 text-right text-sky-500">{selectedDevice.mdns}</span></div>
+                      )}
+                      {selectedDevice?.upnp && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>UPnP</span><span className="text-xs font-black truncate ml-4 text-right text-purple-500">{selectedDevice.upnp}</span></div>
+                      )}
+                      {selectedDevice?.snmp && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>SNMP</span><span className="text-xs font-black truncate ml-4 text-right text-amber-500">{selectedDevice.snmp}</span></div>
                       )}
                     </div>
-                  )}
-                </section>
+                  </section>
 
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center opacity-10">
-                <Wifi className="w-16 h-16 mb-4" />
-                <span className="text-xs font-black uppercase tracking-widest">{s.selectNode}</span>
-              </div>
-            )}
+                  {/* Listening Ports & Port Security Audit */}
+                  {selectedDevice?.openPorts && selectedDevice.openPorts.length > 0 && (
+                    <section className="space-y-2">
+                      <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.listeningPorts}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedDevice.openPorts.map(p => (
+                          <div key={p} className={`px-2 py-0.5 rounded text-[11px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
+                            {p}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Deep Port Security Audit Section */}
+                  <section className="space-y-3 pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                        <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest`}>
+                          {s.deepPortAuditBtn}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleRunDeepPortAudit(selectedIp)}
+                        disabled={isAuditingPorts}
+                        className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 rounded text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {isAuditingPorts ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>분석 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-3 h-3 text-amber-400" />
+                            <span>정밀 진단</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {portAuditResult && portAuditResult.ip === selectedIp && (
+                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
+                        <div className="flex justify-between items-center text-[9px] opacity-70">
+                          <span>점검 포트: {portAuditResult.totalChecked}개</span>
+                          <span>탐지: {portAuditResult.openPorts.length}개</span>
+                        </div>
+                        {portAuditResult.openPorts.length > 0 ? (
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                            {portAuditResult.openPorts.map((item) => (
+                              <div
+                                key={item.port}
+                                className="p-2 rounded-lg bg-white/5 border border-white/5 flex flex-col space-y-1"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[11px] font-black mono text-sky-400">
+                                    {item.port} / {item.service}
+                                  </span>
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                                      item.risk === 'high'
+                                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                        : item.risk === 'medium'
+                                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    }`}
+                                  >
+                                    {item.risk.toUpperCase()}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] opacity-70">{item.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-emerald-400 py-1 text-center font-bold">
+                            ✓ 점검 결과 주의 대상 포트가 닫혀있습니다.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              );
+            })()}
            </div>
         </aside>
       )}

@@ -151,5 +151,5 @@ export interface LicenseInfo {
 
 ---
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.3.2
-* **저작권**: Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+* **소프트웨어 버전**: v2.3.3
+* **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.

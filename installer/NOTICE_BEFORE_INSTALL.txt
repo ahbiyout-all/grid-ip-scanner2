@@ -1,5 +1,5 @@
 =====================================================================
-Grid IP Scanner2 v2.3.3 - 설치 및 주요 이용 고지 사항 (Notice Before Installation)
+Grid IP Scanner2 v2.4.0 - 설치 및 주요 이용 고지 사항 (Notice Before Installation)
 =====================================================================
 
 [ 1. 백신 오탐지 안내 (False Positive / Antivirus Notice) ]

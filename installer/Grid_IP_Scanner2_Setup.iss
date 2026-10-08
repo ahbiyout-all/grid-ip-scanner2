@@ -4,11 +4,11 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.3.3"
+#define MyAppVersion "2.4.0"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "http://www.cisnet.co.kr"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
-#define MyAppExeName "Grid IP Scanner2 v2.3.3.exe"
+#define MyAppExeName "Grid IP Scanner2 v2.4.0.exe"
 #define MyAppAliasExeName "Grid_IP_Scanner2.exe"
 #define MyAppAssocName MyAppName + " Session File"
 #define MyAppAssocExt ".gscan"

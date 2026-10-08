@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 /**
- * Returns the integer version code of grid_net_driver.dll (e.g., 20303 for v2.3.3).
+ * Returns the integer version code of grid_net_driver.dll (e.g., 20400 for v2.4.0).
  */
 GRID_NET_API int GridNet_GetDriverVersion(void);
 

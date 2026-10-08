@@ -1,6 +1,6 @@
 /**
  * Grid IP Scanner2 - Native Dynamic Link Library (DLL) Build Orchestrator
- * Copyright (c) 2025-2026 AhBiYout (Cisnet). All rights reserved.
+ * Copyright (c) 2025-2026 AhBiYout  All rights reserved.
  * 
  * Compiles `grid_net_driver.dll` using GCC, Clang, or Go c-shared compiler
  * and distributes it to the application root and installer payload directories.
