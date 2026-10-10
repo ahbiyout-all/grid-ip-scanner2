@@ -68,8 +68,9 @@ Name: "autostart"; Description: "Windows 부팅 시 백그라운드 자동 실�
 [Files]
 ; =====================================================================
 ; [폴더 풀림(Unpacked Multi-File) 개별파일 설치 구조]
+; - 불필요한 개발/포터블/임시 파일 및 중복 문서 추가 배제
 ; =====================================================================
-; 1. Core Executables (버전 명시 실행 파일 및 범용 런처 실행 파일)
+; 1. Core Executables (버전 명시 메인 바이너리 및 범용 런처 실행 파일)
 Source: "..\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\{#MyAppExeName}"; DestDir: "{app}"; DestName: "{#MyAppAliasExeName}"; Flags: ignoreversion
 
@@ -83,18 +84,14 @@ Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\icon.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
-; 4. Web UI & Frontend Distribution Bundle (Unpacked Web Assets)
+; 4. Web UI & Frontend Distribution Bundle (Unpacked Web Production Assets)
 Source: "..\dist\*"; DestDir: "{app}\dist"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 5. Public Static Assets & Manifests
 Source: "..\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 6. Documentation & Official Whitepapers
-Source: "..\docs\*"; DestDir: "{app}\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
+; 6. Legal License
 Source: "..\docs\LICENSE.md"; DestDir: "{app}"; DestName: "LICENSE.md"; Flags: ignoreversion
-
-; 7. Automation Scripts & Updater Utilities
-Source: "..\scripts\*"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"

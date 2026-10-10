@@ -130,12 +130,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </div>
             <div>
               <div className="text-xs font-black uppercase tracking-wide">
-                {hasUpdate ? '새로운 버전으로 즉시 업데이트할 수 있습니다!' : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.'}
+                {hasUpdate ? '새로운 정식 인스톨러 업데이트가 출시되었습니다!' : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.'}
               </div>
               <div className="text-[11px] opacity-75 mt-0.5 flex items-center gap-2 font-mono">
-                <span>현재: <b>v{CURRENT_APP_VERSION}</b></span>
+                <span>현재 버전: <b>v{CURRENT_APP_VERSION}</b></span>
                 <ArrowRight className="w-3 h-3 opacity-50" />
-                <span>최신: <b className="text-emerald-400">v{latestVer}</b></span>
+                <span>최신 버전: <b className="text-emerald-400">v{latestVer}</b></span>
                 {updateInfo?.publishedAt && (
                   <span className="opacity-60 hidden sm:inline">
                     ({new Date(updateInfo.publishedAt).toLocaleDateString()})
@@ -149,11 +149,68 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             href={updateInfo?.htmlUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all"
+            className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all text-sky-400 hover:text-sky-300"
           >
-            <span>GitHub 릴리즈 보기</span>
+            <span>GitHub 릴리즈 페이지</span>
             <ExternalLink className="w-3 h-3 opacity-70" />
           </a>
+        </div>
+
+        {/* Official Installer Download Action Card */}
+        {hasUpdate && (
+          <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-3 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                  <span>📦 공식 Windows 설치 파일 (Official Setup Installer)</span>
+                </div>
+                <div className="text-[11px] opacity-80 mt-0.5">
+                  릴리즈에 등록된 최신 인스톨러(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`)를 즉시 내려받아 설치할 수 있습니다.
+                </div>
+              </div>
+
+              <a
+                href={updateInfo?.installerExeUrl || updateInfo?.htmlUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
+              >
+                <span>인스톨러 바로 다운로드 (Setup.exe)</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Patch Notes Preview */}
+        {updateInfo?.releaseNotes && (
+          <div className="flex-1 overflow-y-auto space-y-2 p-3.5 rounded-xl bg-black/20 border border-white/5 text-[11px]">
+            <div className="font-bold text-zinc-300 flex items-center justify-between">
+              <span>📋 릴리즈 패치 노트 (Release Notes)</span>
+              <span className="text-[10px] opacity-50 font-mono">GitHub Releases SSOT</span>
+            </div>
+            <div className="opacity-80 whitespace-pre-line leading-relaxed font-mono text-[10.5px]">
+              {updateInfo.releaseNotes}
+            </div>
+          </div>
+        )}
+
+        {/* Repository & Channel Info Footer */}
+        <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-400 font-mono shrink-0">
+          <div>
+            <span>저장소: </span>
+            <a 
+              href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`} 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-sky-400 hover:underline font-bold"
+            >
+              github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}
+            </a>
+          </div>
+          <div>
+            <span>개발자: <b className="text-zinc-200">AhBiYout</b> (네임스페이스: {GITHUB_REPO_OWNER})</span>
+          </div>
         </div>
 
       </div>

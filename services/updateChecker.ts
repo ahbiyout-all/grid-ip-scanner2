@@ -1,6 +1,6 @@
 /**
  * Grid IP Scanner2 - Real-Time GitHub Releases Auto-Update Engine
- * Repository: AhBiYout-all/grid-ip-scanner2
+ * Developer: AhBiYout | GitHub Name / Namespace: AhBiYout-all | Repository: grid-ip-scanner2
  * 
  * Automatically queries official GitHub Releases API, performs Semantic Version
  * comparison, and resolves download URLs for Windows (.exe / Setup.exe),
@@ -31,7 +31,7 @@ export interface UpdateInfo {
 }
 
 export const CURRENT_APP_VERSION = '2.4.0';
-export const GITHUB_REPO_OWNER = 'ahbiyout-all';
+export const GITHUB_REPO_OWNER = 'AhBiYout-all';
 export const GITHUB_REPO_NAME = 'grid-ip-scanner2';
 export const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
 

@@ -66,6 +66,50 @@ async function waitForGoBackend(url: string, timeoutMs = 10000): Promise<boolean
   return false;
 }
 
+function cleanStaleGoProcesses() {
+  try {
+    if (process.platform === 'win32') {
+      try {
+        execSync('taskkill /F /IM "gridscan*.exe" /T 2>nul || exit 0', { stdio: 'ignore' });
+      } catch {
+        // ignore
+      }
+    } else {
+      // Avoid `pkill -f` on strings matching the command line itself which causes self-kill SIGKILL
+      try {
+        execSync('pkill -9 -x gridscan-portable 2>/dev/null || true', { stdio: 'ignore' });
+        execSync('pkill -9 -x gridscan-portab 2>/dev/null || true', { stdio: 'ignore' });
+      } catch {
+        // ignore
+      }
+
+      // Check if port 8081 is held by an unresponsive process
+      try {
+        const ssOutput = execSync("ss -lptn 'sport = :8081' 2>/dev/null || true", { encoding: 'utf-8' });
+        const matches = ssOutput.match(/pid=(\d+)/g);
+        if (matches) {
+          for (const m of matches) {
+            const pid = m.replace('pid=', '').trim();
+            if (pid && pid !== String(process.pid)) {
+              try {
+                process.kill(Number(pid), 'SIGKILL');
+              } catch {
+                // ignore
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // Graceful no-op
+  }
+}
+
+let activeGoProcess: ReturnType<typeof spawn> | null = null;
+
 async function spawnGoBackendAsync() {
   // Check if Go backend is already running on port 8081
   const alreadyReady = await waitForGoBackend('http://127.0.0.1:8081/api/info', 1000);
@@ -75,12 +119,7 @@ async function spawnGoBackendAsync() {
   }
 
   console.log('Cleaning up any stale Go backend processes...');
-  try {
-    execSync('pkill -9 -f gridscan || true', { stdio: 'ignore' });
-    execSync('pkill -9 -f "go run" || true', { stdio: 'ignore' });
-  } catch (killErr) {
-    console.warn('Failed to clean up old processes:', killErr);
-  }
+  cleanStaleGoProcesses();
 
   try {
     const goExecutable = await ensureGoInstalled();
@@ -95,12 +134,15 @@ async function spawnGoBackendAsync() {
       env: { ...process.env, PORT: '8081', GRIDSCAN_MODE: 'preview' }
     });
 
+    activeGoProcess = goBackend;
+
     goBackend.on('error', (err) => {
       console.error('Failed to start Go backend:', err);
     });
 
     goBackend.on('exit', (code) => {
       console.log(`Go backend exited with code ${code}`);
+      activeGoProcess = null;
     });
 
     console.log('Waiting for Go backend to be ready on http://127.0.0.1:8081/api/info...');
@@ -174,6 +216,25 @@ async function startServer() {
     spawnGoBackendAsync().catch((err) => {
       console.error('Async Go startup error:', err);
     });
+  });
+
+  const cleanupAndExit = () => {
+    if (activeGoProcess) {
+      try {
+        activeGoProcess.kill('SIGTERM');
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  process.on('SIGINT', () => {
+    cleanupAndExit();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    cleanupAndExit();
+    process.exit(0);
   });
 }
 

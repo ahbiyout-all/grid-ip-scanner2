@@ -2,7 +2,8 @@
 setlocal enabledelayedexpansion
 :: ======================================================================
 :: Grid IP Scanner2 - Automated Real-Time GitHub Releases Updater
-:: Account: AhBiYout | Repository: grid-ip-scanner2
+:: Developer: AhBiYout | GitHub Account / Namespace: AhBiYout-all
+:: Repository: grid-ip-scanner2
 :: Copyright (c) 2026 AhBiYout. All rights reserved.
 :: ======================================================================
 
@@ -12,7 +13,7 @@ cls
 
 echo ======================================================================
 echo       GRID IP SCANNER2 - AUTOMATED GITHUB RELEASES UPDATER           
-echo       Account: AhBiYout  ^|  Target: grid-ip-scanner2
+echo       Developer: AhBiYout  ^|  Target: AhBiYout-all/grid-ip-scanner2
 echo ======================================================================
 echo.
 
@@ -24,13 +25,13 @@ if %errorlevel% equ 0 (
         for /f "tokens=*" %%v in ('node -p "try{require('./package.json').version}catch(e){}" 2^>nul') do set LOCAL_VER=%%v
     )
 )
-if "%LOCAL_VER%"=="" set LOCAL_VER=2.3.2
+if "%LOCAL_VER%"=="" set LOCAL_VER=2.4.0
 echo [*] Local Version : v%LOCAL_VER%
-echo [*] Checking GitHub Releases API (AhBiYout/grid-ip-scanner2)...
+echo [*] Checking GitHub Releases API (AhBiYout-all/grid-ip-scanner2)...
 echo.
 
 :: 2. Query GitHub Releases API via PowerShell
-set "PS_CHECK=$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout/grid-ip-scanner2/releases/latest' -Headers @{'User-Agent'='Grid-IP-Scanner2-Updater'}; [Console]::WriteLine('TAG:' + $res.tag_name); foreach($a in $res.assets) { if($a.name.EndsWith('.exe')) { [Console]::WriteLine('ASSET:' + $a.name + '|' + $a.browser_download_url) } if($a.name.EndsWith('.apk')) { [Console]::WriteLine('APK:' + $a.name + '|' + $a.browser_download_url) } } } catch { [Console]::WriteLine('ERR:' + $_.Exception.Message) }"
+set "PS_CHECK=$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout-all/grid-ip-scanner2/releases/latest' -Headers @{'User-Agent'='Grid-IP-Scanner2-Updater'}; [Console]::WriteLine('TAG:' + $res.tag_name); foreach($a in $res.assets) { if($a.name.EndsWith('.exe')) { [Console]::WriteLine('ASSET:' + $a.name + '|' + $a.browser_download_url) } if($a.name.EndsWith('.apk')) { [Console]::WriteLine('APK:' + $a.name + '|' + $a.browser_download_url) } } } catch { [Console]::WriteLine('ERR:' + $_.Exception.Message) }"
 
 set REMOTE_TAG=
 set EXE_URL=
@@ -51,7 +52,7 @@ for /f "usebackq tokens=1,* delims=:" %%a in (`powershell -NoProfile -Command "%
 if "%REMOTE_TAG%"=="" (
     color 0E
     echo [i] No published releases found on GitHub repository yet or API rate limit reached.
-    echo     GitHub Repository: https://github.com/AhBiYout/grid-ip-scanner2/releases
+    echo     GitHub Repository: https://github.com/AhBiYout-all/grid-ip-scanner2/releases
     echo     Your current version (v%LOCAL_VER%) is up to date with local source.
     echo.
     pause
@@ -102,7 +103,7 @@ goto EXIT
 :DOWNLOAD_INSTALLER
 echo.
 echo [*] Downloading Grid IP Scanner2 v%REMOTE_TAG% Setup Installer...
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout/grid-ip-scanner2/releases/latest'; $asset = $res.assets | Where-Object { $_.name -like '*Setup*.exe' } | Select-Object -First 1; if($asset) { Write-Host 'Downloading ' $asset.name; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $asset.name; Write-Host 'Download complete: ' $asset.name; Start-Process $asset.name } else { Write-Host 'Setup asset not found, opening release page...'; Start-Process $res.html_url } } catch { Write-Host 'Download failed: ' $_.Exception.Message }"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout-all/grid-ip-scanner2/releases/latest'; $asset = $res.assets | Where-Object { $_.name -like '*Setup*.exe' } | Select-Object -First 1; if($asset) { Write-Host 'Downloading ' $asset.name; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $asset.name; Write-Host 'Download complete: ' $asset.name; Start-Process $asset.name } else { Write-Host 'Setup asset not found, opening release page...'; Start-Process $res.html_url } } catch { Write-Host 'Download failed: ' $_.Exception.Message }"
 echo.
 pause
 goto EXIT
@@ -110,13 +111,13 @@ goto EXIT
 :DOWNLOAD_APK
 echo.
 echo [*] Downloading Grid IP Scanner2 v%REMOTE_TAG% Android APK...
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout/grid-ip-scanner2/releases/latest'; $asset = $res.assets | Where-Object { $_.name -like '*.apk' } | Select-Object -First 1; if($asset) { Write-Host 'Downloading ' $asset.name; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $asset.name; Write-Host 'Download complete: ' $asset.name } else { Write-Host 'Android APK not found, opening release page...'; Start-Process $res.html_url } } catch { Write-Host 'Download failed: ' $_.Exception.Message }"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; try { $res = Invoke-RestMethod -Uri 'https://api.github.com/repos/AhBiYout-all/grid-ip-scanner2/releases/latest'; $asset = $res.assets | Where-Object { $_.name -like '*.apk' } | Select-Object -First 1; if($asset) { Write-Host 'Downloading ' $asset.name; Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $asset.name; Write-Host 'Download complete: ' $asset.name } else { Write-Host 'Android APK not found, opening release page...'; Start-Process $res.html_url } } catch { Write-Host 'Download failed: ' $_.Exception.Message }"
 echo.
 pause
 goto EXIT
 
 :OPEN_BROWSER
-start https://github.com/AhBiYout/grid-ip-scanner2/releases
+start https://github.com/AhBiYout-all/grid-ip-scanner2/releases
 goto EXIT
 
 :EXIT

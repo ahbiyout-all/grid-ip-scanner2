@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame } from 'lucide-react';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense } from './services/licenseManager';
 import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } from './services/diffEngine';
 import { runDeepPortAudit } from './services/portScanner';
-import { generateProfessionalAuditReport } from './services/reportGenerator';
+import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, exportDeviceListToPDF } from './services/reportGenerator';
 import { UpdateModal } from './components/UpdateModal';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
@@ -184,6 +184,16 @@ const translations = {
     deepPortAuditing: "포트 정밀 분석 중...",
     deepPortAuditComplete: "심층 포트 분석 완료",
     exportAuditReportBtn: "보안 감사 보고서 (HTML/인쇄)",
+    exportHubTitle: "내보내기 및 리포트",
+    exportPdfHubBtn: "PDF 리포트 내보내기",
+    exportPdfSearch: "현재 검색 결과 PDF",
+    exportPdfActive: "온라인 활성 장비 PDF",
+    exportPdfAudit: "정밀 보안 감사 보고서 PDF",
+    exportPdfAll: "전체 스캔 대역 PDF",
+    exportGeneratingPdf: "고해상도 PDF 문서를 생성하는 중입니다...",
+    exportPdfSuccess: "PDF 문서가 성공적으로 다운로드되었습니다.",
+    exportPdfModalTitle: "PDF 리포트 내보내기 센터",
+    exportPdfModalDesc: "검색 결과, 활성 장비, 보안 감사 결과를 고품질 PDF 문서로 출력 및 저장합니다.",
     licenseManage: "라이선스 관리",
     licenseTitle: "Grid IP Scanner2 에디션 & 라이선스",
     licenseKeyPlaceholder: "라이선스 키 입력 (예: GRID-PRO-TRIAL-2026)",
@@ -414,6 +424,16 @@ const translations = {
     deepPortAuditing: "Auditing ports...",
     deepPortAuditComplete: "Port audit completed",
     exportAuditReportBtn: "Security Audit Report (HTML/Print)",
+    exportHubTitle: "Export & Reports",
+    exportPdfHubBtn: "Export PDF Reports",
+    exportPdfSearch: "Search Results PDF",
+    exportPdfActive: "Active Devices PDF",
+    exportPdfAudit: "Deep Security Audit PDF",
+    exportPdfAll: "All Scanned Targets PDF",
+    exportGeneratingPdf: "Generating professional PDF document...",
+    exportPdfSuccess: "PDF document downloaded successfully.",
+    exportPdfModalTitle: "PDF Report Export Center",
+    exportPdfModalDesc: "Export search findings, active inventories, and security audit reports into high-resolution PDF documents.",
     licenseManage: "License Manager",
     licenseTitle: "Grid IP Scanner2 Edition & License",
     licenseKeyPlaceholder: "Enter License Key (e.g. GRID-PRO-TRIAL-2026)",
@@ -589,6 +609,8 @@ const App: React.FC = () => {
   const [license, setLicense] = useState<LicenseInfo>(getStoredLicense());
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [licenseKeyInput, setLicenseKeyInput] = useState('');
+  const [showPdfExportModal, setShowPdfExportModal] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Snapshots & Diff Mode State
   const [viewMode, setViewMode] = useState<'grid' | 'diff'>('grid');
@@ -1029,6 +1051,111 @@ const App: React.FC = () => {
     }
     generateProfessionalAuditReport(config.subnet, config.start, config.end, results, license);
     showToast("정밀 보안 감사 보고서(HTML)가 생성되었습니다.");
+  };
+
+  const handleExportPdf = async (type: 'search' | 'active' | 'all' | 'audit') => {
+    if (isExportingPdf) return;
+
+    if (type === 'audit' && !license.features.exportReport) {
+      showToast(lang === 'ko' ? "보안 감사 보고서 내보내기 기능은 PRO 이상에서 제공됩니다." : "Security audit report export is available in PRO or higher.");
+      setShowLicenseModal(true);
+      return;
+    }
+
+    const activeCount = Object.values(results).filter(r => r.status === 'active').length;
+    if (Object.keys(results).length === 0) {
+      showToast(s.noData || "내보낼 스캔 데이터가 없습니다.");
+      return;
+    }
+    if ((type === 'audit' || type === 'active') && activeCount === 0) {
+      showToast(lang === 'ko' ? "내보낼 활성 장비 데이터가 없습니다." : "No active device data found to export.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    showToast(s.exportGeneratingPdf || "PDF 리포트를 생성하는 중입니다...");
+
+    try {
+      if (type === 'audit') {
+        const res = await exportSecurityAuditReportToPDF(config.subnet, config.start, config.end, results, license, lang);
+        if (res.success) {
+          showToast(s.exportPdfSuccess || "보안 감사 PDF 보고서가 다운로드되었습니다.");
+          setShowPdfExportModal(false);
+        } else {
+          showToast(res.error || "PDF 생성 중 오류가 발생했습니다.");
+        }
+      } else if (type === 'search') {
+        const targetIps = filteredIps.length > 0 ? filteredIps : (searchTerm ? [] : Object.keys(results));
+        if (targetIps.length === 0) {
+          showToast(lang === 'ko' ? "검색 조건에 일치하는 결과가 없습니다." : "No items match current search filter.");
+          setIsExportingPdf(false);
+          return;
+        }
+        const res = await exportDeviceListToPDF({
+          title: lang === 'ko' ? '네트워크 검색 및 필터링 결과 보고서' : 'Network Search & Filter Report',
+          subtitle: lang === 'ko' ? '검색어 일치 노드 자산 및 포트 분석 상세' : 'Search Query Matched Node Inventory & Diagnostics',
+          searchQuery: searchTerm || undefined,
+          scopeLabel: lang === 'ko' ? (searchTerm ? `검색결과_${searchTerm}` : '필터링결과') : (searchTerm ? `Search_${searchTerm}` : 'Filtered'),
+          subnet: config.subnet,
+          start: config.start,
+          end: config.end,
+          targetIps,
+          results,
+          license,
+          lang,
+        });
+        if (res.success) {
+          showToast(s.exportPdfSuccess || "검색 결과 PDF가 다운로드되었습니다.");
+          setShowPdfExportModal(false);
+        } else {
+          showToast(res.error || "PDF 생성 중 오류가 발생했습니다.");
+        }
+      } else if (type === 'active') {
+        const targetIps = allIps.filter(ip => results[ip]?.status === 'active');
+        const res = await exportDeviceListToPDF({
+          title: lang === 'ko' ? '온라인 활성 장비 인벤토리 보고서' : 'Active Network Devices Inventory Report',
+          subtitle: lang === 'ko' ? '현재 네트워크에 응답하는 활성 단말 상세 목록' : 'Detailed Inventory of Online Responsive Devices',
+          scopeLabel: lang === 'ko' ? '활성장비' : 'ActiveNodes',
+          subnet: config.subnet,
+          start: config.start,
+          end: config.end,
+          targetIps,
+          results,
+          license,
+          lang,
+        });
+        if (res.success) {
+          showToast(s.exportPdfSuccess || "활성 장비 PDF가 다운로드되었습니다.");
+          setShowPdfExportModal(false);
+        } else {
+          showToast(res.error || "PDF 생성 중 오류가 발생했습니다.");
+        }
+      } else if (type === 'all') {
+        const targetIps = allIps;
+        const res = await exportDeviceListToPDF({
+          title: lang === 'ko' ? '전체 서브넷 스캔 대역 종합 보고서' : 'Complete Subnet Scan Range Comprehensive Report',
+          subtitle: lang === 'ko' ? `서브넷 ${config.subnet}.0/24 전체 노드 상태 인벤토리` : `Full Node Status Map for Subnet ${config.subnet}.0/24`,
+          scopeLabel: lang === 'ko' ? '전체대역' : 'AllNodes',
+          subnet: config.subnet,
+          start: config.start,
+          end: config.end,
+          targetIps,
+          results,
+          license,
+          lang,
+        });
+        if (res.success) {
+          showToast(s.exportPdfSuccess || "전체 결과 PDF가 다운로드되었습니다.");
+          setShowPdfExportModal(false);
+        } else {
+          showToast(res.error || "PDF 생성 중 오류가 발생했습니다.");
+        }
+      }
+    } catch (e: any) {
+      showToast("PDF 내보내기 실패: " + (e?.message || e));
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handleElevateAdmin = async () => {
@@ -2337,7 +2464,7 @@ const App: React.FC = () => {
               <div className="flex flex-col space-y-2 px-1">
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.author}</span>
-                  <span className="text-[10px] font-bold opacity-90">AhBiYout-all</span>
+                  <span className="text-[10px] font-bold opacity-90">AhBiYout</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.version}</span>
@@ -2345,9 +2472,9 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.github || 'GitHub'}</span>
-                  <a href="https://github.com/ahbiyout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline flex items-center gap-1">
+                  <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline flex items-center gap-1">
                     <Github className="w-2.5 h-2.5" />
-                    <span>grid-ip-scanner2</span>
+                    <span>AhBiYout-all/grid-ip-scanner2</span>
                   </a>
                 </div>
                 <div className="flex justify-between items-center">
@@ -2413,66 +2540,123 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col space-y-3">
-                <button 
-                  onClick={() => handleExportCSV('active')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest w-full ${
-                    theme === 'beige' 
-                      ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb] shadow-sm' 
-                      : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
-                  } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+              {/* Space-Saving Unified Export & Reports Hub */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest`}>
+                    {s.exportHubTitle || '내보내기 및 리포트'}
+                  </span>
+                  <span className="text-[8.5px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-bold">
+                    PDF & XLS
+                  </span>
+                </div>
+
+                {/* Primary Space-Saving PDF Export Hub Button */}
+                <button
+                  onClick={() => setShowPdfExportModal(true)}
+                  className={`flex items-center justify-between px-2.5 py-2 rounded-lg border border-sky-500/40 bg-gradient-to-r from-sky-500/20 via-sky-500/10 to-indigo-500/10 hover:from-sky-500/30 hover:to-indigo-500/20 text-sky-600 dark:text-sky-300 transition-all w-full shadow-sm group ${
+                    Object.keys(results).length > 0 ? 'opacity-100 cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                  }`}
+                  title={s.exportPdfHubBtn || 'PDF 리포트 내보내기 (검색/활성/보안감사/전체)'}
                 >
-                  <Zap className="w-3.5 h-3.5 text-sky-500" />
-                  <span>{s.exportActive} (CSV)</span>
+                  <div className="flex items-center space-x-2">
+                    <FileDown className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform shrink-0" />
+                    <div className="text-left">
+                      <div className="text-[10px] font-black uppercase tracking-wider">
+                        {s.exportPdfHubBtn || 'PDF 리포트 내보내기'}
+                      </div>
+                      <div className="text-[8px] opacity-70">
+                        {searchTerm ? `검색("${searchTerm}") 일치` : '검색 • 활성 • 보안감사'}
+                      </div>
+                    </div>
+                  </div>
+                  {searchTerm ? (
+                    <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse">
+                      {filteredIps.length}
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold opacity-60">
+                      ▾
+                    </span>
+                  )}
                 </button>
+
+                {/* 2x2 Compact Grid for Quick Formats (CSV / XLS / HTML) */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => handleExportCSV('active')}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border transition-all text-[9.5px] font-bold tracking-tight ${
+                      theme === 'beige'
+                        ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb]'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
+                    } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                    title="온라인 활성 장비만 CSV로 내보내기"
+                  >
+                    <Zap className="w-3 h-3 text-sky-400" />
+                    <span>CSV (활성)</span>
+                  </button>
                 
-                <button 
-                  onClick={() => handleExportCSV('all')}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest w-full ${
-                    theme === 'beige' 
-                      ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb] shadow-sm' 
-                      : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
-                  } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                >
-                  <Box className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>{s.exportAll} (CSV)</span>
-                </button>
+                  <button 
+                    onClick={() => handleExportCSV('all')}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border transition-all text-[9.5px] font-bold tracking-tight ${
+                      theme === 'beige' 
+                        ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb]' 
+                        : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
+                    } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                    title="전체 스캔 대역 CSV로 내보내기"
+                  >
+                    <Box className="w-3 h-3 text-zinc-400" />
+                    <span>CSV (전체)</span>
+                  </button>
 
-                <button 
-                  onClick={handleExportGrid}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                >
-                  <Monitor className="w-3.5 h-3.5 text-sky-500" />
-                  <span>{s.exportGrid} (HTML)</span>
-                </button>
+                  <button 
+                    onClick={handleExportExcelGrid}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all text-[9.5px] font-bold tracking-tight ${
+                      Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
+                    }`}
+                    title="Excel 스프레드시트 (XLS) 그리드로 내보내기"
+                  >
+                    <Database className="w-3 h-3 text-emerald-500" />
+                    <span>Excel (XLS)</span>
+                  </button>
 
-                <button 
-                  onClick={handleExportExcelGrid}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                >
-                  <Database className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>{s.exportExcelGrid} (XLS)</span>
-                </button>
+                  <button 
+                    onClick={handleExportGrid}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[9.5px] font-bold tracking-tight ${
+                      Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
+                    }`}
+                    title="인터랙티브 웹 HTML 그리드로 내보내기"
+                  >
+                    <Monitor className="w-3 h-3 text-sky-500" />
+                    <span>HTML 그리드</span>
+                  </button>
+                </div>
 
-                {/* Professional Security Audit Report (Pro/Enterprise Feature) */}
-                <button 
-                  onClick={handleExportAuditReport}
-                  className={`flex items-center justify-center space-x-2 py-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[10px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                  title={s.exportAuditReportBtn}
-                >
-                  <FileText className="w-3.5 h-3.5 text-sky-500" />
-                  <span>{s.exportAuditReportBtn}</span>
-                </button>
+                {/* Compact Utility Row (Snapshot & HTML Audit) */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button 
+                    onClick={handleExportAuditReport}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-[9px] font-bold ${
+                      activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
+                    }`}
+                    title="웹 브라우저 즉시 인쇄용 HTML 감사 보고서 열기"
+                  >
+                    <FileText className="w-3 h-3 text-indigo-400" />
+                    <span>감사 (HTML)</span>
+                  </button>
 
-                {/* Save Current Scan Snapshot for Diff Comparison */}
-                <button 
-                  onClick={handleSaveSnapshot}
-                  className={`flex items-center justify-center space-x-2 py-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-[9.5px] font-black uppercase tracking-widest w-full ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                  title={s.saveSnapshot}
-                >
-                  <BookmarkPlus className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>{s.saveSnapshot}</span>
-                </button>
+                  <button 
+                    onClick={handleSaveSnapshot}
+                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-all text-[9px] font-bold ${
+                      activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
+                    }`}
+                    title={s.saveSnapshot}
+                  >
+                    <BookmarkPlus className="w-3 h-3 text-purple-400" />
+                    <span>{s.saveSnapshot}</span>
+                  </button>
+                </div>
+
 
                 {showSummary && !isScanning && (
                   <div className={`p-2.5 rounded-lg border ${theme === 'beige' ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
@@ -2523,9 +2707,20 @@ const App: React.FC = () => {
                   className={`bg-transparent border-none outline-none text-xs w-16 lg:w-32 ${t.text} placeholder:opacity-30 truncate`}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center space-x-1 ml-1 shrink-0">
+                    <button 
+                      onClick={() => handleExportPdf('search')}
+                      disabled={isExportingPdf}
+                      className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 border border-sky-500/40 text-[9.5px] font-bold transition-all shadow-sm"
+                      title={`"${searchTerm}" 검색 결과 PDF 다운로드 (${filteredIps.length}건)`}
+                    >
+                      <FileDown className="w-3 h-3 text-sky-400" />
+                      <span>PDF({filteredIps.length})</span>
+                    </button>
+                    <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -2906,9 +3101,20 @@ const App: React.FC = () => {
                   className={`w-full bg-transparent border-none outline-none text-xs ${t.text} placeholder:opacity-40 truncate`}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0 ml-1">
-                    <X className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center space-x-1 ml-1 shrink-0">
+                    <button 
+                      onClick={() => handleExportPdf('search')}
+                      disabled={isExportingPdf}
+                      className="flex items-center space-x-1 px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[9px] font-bold"
+                      title={`"${searchTerm}" 검색 결과 PDF 다운로드`}
+                    >
+                      <FileDown className="w-2.5 h-2.5 text-sky-400" />
+                      <span>PDF</span>
+                    </button>
+                    <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -3767,15 +3973,15 @@ const App: React.FC = () => {
                   <div className="space-y-1">
                     <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                       <h4 className="text-base sm:text-lg font-black tracking-tight uppercase">Grid IP Scanner2</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 font-mono">v2.3.2</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 font-mono">v{CURRENT_APP_VERSION}</span>
                     </div>
                     <p className="text-[11px] opacity-75 leading-snug">
-                      초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
+                       초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
                     </p>
                     <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5 flex-wrap">
-                      <span>개발자: ahbiyout-all</span>
+                      <span>개발자: AhBiYout</span>
                       <span>•</span>
-                      <span>GitHub: ahbiyout-all</span>
+                      <span>GitHub: AhBiYout-all</span>
                       <span>•</span>
                       <span>저장소: grid-ip-scanner2</span>
                     </div>
@@ -3817,9 +4023,9 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-2.5 text-[11px] opacity-90">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">ahbiyout-all</span> <span className="text-[10px] font-mono opacity-60">(@ahbiyout-all)</span></span>
+                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout</span> <span className="text-[10px] font-mono opacity-60">(@AhBiYout-all)</span></span>
                       <a 
-                        href="https://github.com/ahbiyout-all/grid-ip-scanner2/issues"
+                        href="https://github.com/AhBiYout-all/grid-ip-scanner2/issues"
                         target="_blank"
                         rel="noreferrer"
                         className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
@@ -3831,8 +4037,8 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-white/5">
                       <span className="opacity-70">{lang === 'ko' ? '저장소 (Repo):' : 'Repository:'}</span>
-                      <a href="https://github.com/ahbiyout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
-                        <span>github.com/ahbiyout-all/grid-ip-scanner2</span>
+                      <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
+                        <span>github.com/AhBiYout-all/grid-ip-scanner2</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
@@ -4472,8 +4678,213 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* PDF Export Hub Modal */}
+      {showPdfExportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-4 border-white/10 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                  <FileDown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg tracking-tight">
+                    {s.exportPdfModalTitle || 'PDF 리포트 내보내기 센터'}
+                  </h3>
+                  <p className={`text-xs ${t.textMuted}`}>
+                    {s.exportPdfModalDesc || '검색 결과, 활성 장비, 보안 감사 보고서를 고품질 PDF 문서로 출력 및 저장합니다.'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => !isExportingPdf && setShowPdfExportModal(false)}
+                className="p-1 rounded-lg hover:bg-white/10 opacity-60 hover:opacity-100 transition-opacity"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Subnet & Status Info Strip */}
+            <div className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between text-xs flex-wrap gap-2 shrink-0">
+              <div className="flex items-center space-x-2">
+                <span className="opacity-60">스캔 서브넷:</span>
+                <span className="font-mono font-bold text-sky-400">{config.subnet}.0/24</span>
+                <span className="opacity-40">|</span>
+                <span className="opacity-60">탐지 활성 노드:</span>
+                <span className="font-mono font-bold text-emerald-400">{activeCount}개</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {searchTerm ? (
+                  <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30">
+                    검색어: "{searchTerm}" ({filteredIps.length}건)
+                  </span>
+                ) : (
+                  <span className="opacity-50 text-[11px]">필터 없음 (전체 표시)</span>
+                )}
+              </div>
+            </div>
+
+            {/* PDF Export Options Grid */}
+            <div className="space-y-3 overflow-y-auto pr-1 flex-1">
+              {/* Option 1: Current Search & Filter Results PDF */}
+              <div className={`p-4 rounded-xl border transition-all ${
+                searchTerm 
+                  ? 'border-sky-500/50 bg-sky-500/10 shadow-md ring-1 ring-sky-500/30' 
+                  : 'border-white/10 bg-white/5 hover:border-white/20'
+              }`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-black text-sky-400">🔍 {s.exportPdfSearch || '현재 검색 및 필터 결과 PDF'}</span>
+                      {searchTerm && (
+                        <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase bg-sky-500 text-white animate-pulse">
+                          추천
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs opacity-80">
+                      {searchTerm 
+                        ? `검색어 "${searchTerm}"에 일치하는 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.` 
+                        : `현재 화면에 필터링된 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.`}
+                    </p>
+                    <div className="text-[11px] opacity-60 font-mono">
+                      포함: IP 주소, MAC, 제조사, 호스트명, RTT, 개방 포트 상태
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleExportPdf('search')}
+                    disabled={isExportingPdf || filteredIps.length === 0}
+                    className={`px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                      isExportingPdf || filteredIps.length === 0 ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <FileDown className="w-3.5 h-3.5" />
+                    <span>PDF 다운로드 ({filteredIps.length})</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 2: Active Devices Inventory PDF */}
+              <div className="p-4 rounded-xl border border-white/10 bg-white/5 hover:border-white/20 transition-all">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-black text-emerald-400">🟢 {s.exportPdfActive || '온라인 활성 장비 인벤토리 PDF'}</span>
+                    </div>
+                    <p className="text-xs opacity-80">
+                      현재 네트워크에서 응답이 확인된 온라인 활성 단말 ({activeCount}대) 자산 인벤토리 보고서를 생성합니다.
+                    </p>
+                    <div className="text-[11px] opacity-60 font-mono">
+                      포함: 활성 노드 인벤토리, 제조사별 통계, RTT 응답속도
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleExportPdf('active')}
+                    disabled={isExportingPdf || activeCount === 0}
+                    className={`px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                      isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <FileDown className="w-3.5 h-3.5" />
+                    <span>PDF 다운로드 ({activeCount})</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 3: Deep Security Audit Report PDF (Pro) */}
+              <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:border-indigo-500/50 transition-all">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-black text-indigo-400">🛡️ {s.exportPdfAudit || '정밀 보안 감사 보고서 PDF'}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        PRO EDITION
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-80">
+                      SMB(445) 랜섬웨어 표적, RDP(3389), Telnet(23) 등 보안 위험 포트 분석 및 제조사 점유율 정밀 진단서를 발행합니다.
+                    </p>
+                    <div className="text-[11px] opacity-60 font-mono">
+                      포함: 위험 포트 노출 경고, 위협 완화 권고사항, OUI 제조사 점유율
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleExportPdf('audit')}
+                    disabled={isExportingPdf || activeCount === 0}
+                    className={`px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                      isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <FileDown className="w-3.5 h-3.5" />
+                    <span>보안 감사 PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 4: Full Subnet Map PDF */}
+              <div className="p-4 rounded-xl border border-white/10 bg-white/5 hover:border-white/20 transition-all">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-black text-zinc-300">📋 {s.exportPdfAll || '전체 스캔 대역 종합 보고서 PDF'}</span>
+                    </div>
+                    <p className="text-xs opacity-80">
+                      서브넷 전체 IP 대역 ({config.subnet}.{config.start} ~ .{config.end}, 총 {allIps.length}개 대상)의 상태를 종합 기록합니다.
+                    </p>
+                    <div className="text-[11px] opacity-60 font-mono">
+                      포함: 활성 및 비활성 전체 노드 전수 지도
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleExportPdf('all')}
+                    disabled={isExportingPdf || Object.keys(results).length === 0}
+                    className={`px-3.5 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                      isExportingPdf || Object.keys(results).length === 0 ? 'opacity-40 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <FileDown className="w-3.5 h-3.5" />
+                    <span>전체 대역 PDF</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between shrink-0">
+              <div className="flex items-center space-x-2">
+                {isExportingPdf ? (
+                  <div className="flex items-center space-x-2 text-xs text-sky-400 font-bold animate-pulse">
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    <span>{s.exportGeneratingPdf || 'PDF 문서 생성 및 렌더링 중...'}</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      handleExportAuditReport();
+                      setShowPdfExportModal(false);
+                    }}
+                    className="text-xs text-sky-400 hover:text-sky-300 font-bold underline transition-colors"
+                  >
+                    🌐 대화형 HTML 보고서 (인쇄 창) 열기
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setShowPdfExportModal(false)}
+                disabled={isExportingPdf}
+                className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default App;

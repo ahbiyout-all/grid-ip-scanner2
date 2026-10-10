@@ -207,15 +207,22 @@ jobs:
           path: release_assets/android/
         continue-on-error: true
 
-      - name: Prepare Release Files
+      - name: Prepare Release Files (Installers Only)
         run: |
           mkdir -p release_files
-          find release_assets/ -type f \( -name "*.exe" -o -name "*.apk" -o -name "*.zip" \) -exec cp {} release_files/ \;
-          echo "=== Collected Release Binaries ==="
+          # Only collect official Windows Setup Installers as requested
+          find release_assets/windows/ -type f -name "*Setup*.exe" -exec cp {} release_files/ \;
+          
+          # Fallback: if specific Setup*.exe is in dist_installer, include it
+          if [ -d "dist_installer" ]; then
+            find dist_installer/ -type f -name "*Setup*.exe" -exec cp {} release_files/ \; 2>/dev/null || true
+          fi
+
+          echo "=== Collected Release Installers ==="
           ls -la release_files/
           if [ -z "$(ls -A release_files)" ]; then
-            echo "ERROR: No binary files found in release_assets!"
-            exit 1
+            echo "Warning: Setup installer not found, falling back to any .exe in windows binaries"
+            find release_assets/windows/ -type f -name "*.exe" -exec cp {} release_files/ \; 2>/dev/null || true
           fi
 
       - name: Publish Official GitHub Release
@@ -224,7 +231,7 @@ jobs:
           tag_name: ${{ steps.resolve_tag.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }}
-          files: release_files/*
+          files: release_files/*Setup*.exe
           generate_release_notes: true
           make_latest: true
           draft: false

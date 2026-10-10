@@ -189,7 +189,7 @@ const manifest = {
   timestamp: timestamp,
   author: 'AhBiYout',
   publisher: 'Cisnet (www.cisnet.co.kr)',
-  repository: 'https://github.com/AhBiYout/grid-ip-scanner2',
+  repository: 'https://github.com/AhBiYout-all/grid-ip-scanner2',
   unpackedStructure: {
     rootExecutables: [exeName, 'Grid_IP_Scanner2.exe'],
     dataFiles: ['master_oui.txt', 'winres.json', 'package.json', 'LICENSE.md'],

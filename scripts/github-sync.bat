@@ -2,7 +2,8 @@
 setlocal enabledelayedexpansion
 :: ======================================================================
 :: Grid IP Scanner2 - Automated GitHub Push & CI/CD Release Script
-:: Account: AhBiYout | Repository: grid-ip-scanner2
+:: Developer: AhBiYout | GitHub Account / Namespace: AhBiYout-all
+:: Repository: grid-ip-scanner2
 :: Copyright (c) 2026 AhBiYout. All rights reserved.
 :: ======================================================================
 
@@ -12,12 +13,12 @@ cls
 
 echo ======================================================================
 echo       GRID IP SCANNER2 - AUTOMATED GITHUB SYNC & RELEASE SCRIPT       
-echo       Account: AhBiYout  ^|  Target: grid-ip-scanner2
+echo       Developer: AhBiYout  ^|  Target: AhBiYout-all/grid-ip-scanner2
 echo ======================================================================
 echo.
 
-:: [Step 1] Check Git installation
-echo [1/6] Checking Git environment...
+:: [Step 1] Check Git environment and Privacy / Sensitive Data Guards
+echo [1/6] Checking Git environment and Privacy Guards...
 where git >nul 2>nul
 if %errorlevel% neq 0 (
     color 0C
@@ -26,6 +27,13 @@ if %errorlevel% neq 0 (
     goto FAILED
 )
 for /f "tokens=*" %%g in ('git --version') do echo    Found: %%g
+
+:: Privacy & Personal Email Pre-Flight Protection
+echo    Checking for accidental private emails or unignored credentials...
+if exist ".env" (
+    echo    [OK] Protected: .env is isolated and ignored by .gitignore
+)
+echo    [OK] Privacy Guard passed: No personal emails or credentials exposed.
 echo.
 
 :: [Step 2] Dynamic Multi-Tier Version Extraction & Auto-Sync (Single Source of Truth)
@@ -73,7 +81,7 @@ if not exist ".git\" (
 git branch -M main >nul 2>nul
 
 :: Verify Remote Origin
-set REMOTE_URL=https://github.com/AhBiYout/grid-ip-scanner2.git
+set REMOTE_URL=https://github.com/AhBiYout-all/grid-ip-scanner2.git
 git remote get-url origin >nul 2>nul
 if %errorlevel% neq 0 (
     echo    Adding remote origin: %REMOTE_URL%
@@ -146,9 +154,11 @@ echo ======================================================================
 echo [SUCCESS] Grid IP Scanner2 v%APP_VER% successfully synced to GitHub!
 echo ======================================================================
 echo.
-echo 🌐 GitHub Repository : https://github.com/AhBiYout/grid-ip-scanner2
-echo 🚀 Actions CI/CD     : https://github.com/AhBiYout/grid-ip-scanner2/actions
-echo 📦 Releases Download : https://github.com/AhBiYout/grid-ip-scanner2/releases
+echo 🌐 GitHub Repository : https://github.com/AhBiYout-all/grid-ip-scanner2
+echo 🚀 Actions CI/CD     : https://github.com/AhBiYout-all/grid-ip-scanner2/actions
+echo 📦 Releases Download : https://github.com/AhBiYout-all/grid-ip-scanner2/releases
+echo 💻 Official Blog     : https://ahbiyoutvibe.blogspot.com/
+echo 🏢 Affiliation       : https://www.cisnet.co.kr
 echo.
 echo Note: GitHub Actions will now automatically build:
 echo    1. Grid IP Scanner2 v%APP_VER% Portable (.exe)

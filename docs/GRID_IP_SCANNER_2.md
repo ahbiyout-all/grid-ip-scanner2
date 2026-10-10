@@ -145,7 +145,7 @@ Windows 탐색기에서 `Grid IP Scanner2 v2.3.2.exe` 우클릭 후 `[속성] ->
 * **소프트웨어 버전**: v2.3.3 (2026-10-06)
 * **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 * **제작자 (Author)**: AhBiYout
-* **공식 GitHub**: [github.com/AhBiYout/grid-ip-scanner2](https://github.com/AhBiYout/grid-ip-scanner2)
+* **공식 GitHub**: [github.com/AhBiYout/AhBiYout-all](https://github.com/AhBiYout/AhBiYout-all)
 * **공식 홈페이지**: [www.cisnet.co.kr](http://www.cisnet.co.kr)
 * **공식 기술 블로그**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
 

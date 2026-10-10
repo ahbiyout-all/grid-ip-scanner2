@@ -1,6 +1,6 @@
 # GRID IP SCANNER2 - DUAL LICENSE & COMPLIANCE AGREEMENT
 
-본 문서는 **Grid IP Scanner2 (v2.2.3)**의 공식 라이선스 고지서입니다. Grid IP Scanner2는 오픈소스 커뮤니티 권리를 보호하고 상업적 이용의 법적 안전성을 완벽히 보장하기 위해 **이중 라이선스 (Dual Licensing)** 정책을 엄격히 채택하여 배포됩니다.
+본 문서는 **Grid IP Scanner2 (v2.4.0)**의 공식 라이선스 고지서입니다. Grid IP Scanner2는 오픈소스 커뮤니티 권리를 보호하고 상업적 이용의 법적 안전성을 완벽히 보장하기 위해 **이중 라이선스 (Dual Licensing)** 정책을 엄격히 채택하여 배포됩니다.
 
 ---
 

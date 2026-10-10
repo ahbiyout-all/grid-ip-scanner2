@@ -53,6 +53,11 @@ func isSilent() bool {
 	return false
 }
 
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 func killExistingProcesses() {
 	// Terminate any currently running instances of Grid IP Scanner2 before overwriting
 	cmd1 := exec.Command("taskkill", "/F", "/IM", "Grid IP Scanner2*.exe")
@@ -88,7 +93,7 @@ func main() {
 
 	// 1. Interactive Welcome & Detailed Install Disclosure Dialog
 	if !silent {
-		welcomeMsg := "GRID IP SCANNER2 v2.3.2 공식 설치를 시작합니다.\n\n" +
+		welcomeMsg := "GRID IP SCANNER2 v2.4.0 공식 설치를 시작합니다.\n\n" +
 			"[ 📌 설치 및 주요 이용 고지 사항 ]\n\n" +
 			"1. 백신 오탐지 안내 (False Positive Notice)\n" +
 			"   • 본 도구는 빠른 IP/포트 스캔을 수행하는 네트워크 진단 유틸리티입니다.\n" +
@@ -199,7 +204,7 @@ func main() {
 	}
 
 	// 5. Detect Core Executables and Apply System Registrations
-	mainExe := filepath.Join(targetDir, "Grid IP Scanner2 v2.3.2.exe")
+	mainExe := filepath.Join(targetDir, "Grid IP Scanner2 v2.4.0.exe")
 	aliasExe := filepath.Join(targetDir, "Grid_IP_Scanner2.exe")
 
 	var launchExe string
@@ -210,17 +215,21 @@ func main() {
 	}
 
 	if launchExe != "" {
+		// 기본 이름 및 버전 정보가 붙은 상태의 앱 이름 둘 다 방화벽 규칙 사전 조용 등록
 		registerFirewallRule("Grid IP Scanner2", launchExe)
-		registerFirewallRule("Grid IP Scanner2 v2.3.2", launchExe)
+		registerFirewallRule("Grid IP Scanner2 v2.4.0", launchExe)
+		if launchExe != aliasExe && fileExists(aliasExe) {
+			registerFirewallRule("Grid_IP_Scanner2.exe", aliasExe)
+		}
 		createDesktopShortcut(launchExe, "Grid IP Scanner2")
 	}
 
 	// 6. Installation Finish Dialog
 	if !silent {
 		res := showMsgBox("Grid IP Scanner2 설치 완료",
-			fmt.Sprintf("Grid IP Scanner2 v2.3.2 설치가 성공적으로 완료되었습니다!\n\n"+
+			fmt.Sprintf("Grid IP Scanner2 v2.4.0 설치가 성공적으로 완료되었습니다!\n\n"+
 				"• 설치 경로: %s\n"+
-				"• 방화벽 규칙 사전 조용 등록 완료\n"+
+				"• 방화벽 규칙 사전 조용 등록 완료 (기본 이름 및 v2.4.0 버전 표기 규칙)\n"+
 				"• 바탕화면 바로가기 생성 완료\n\n"+
 				"지금 Grid IP Scanner2를 실행하시겠습니까?", targetDir),
 			MB_YESNOCANCEL|MB_ICONINFORMATION)

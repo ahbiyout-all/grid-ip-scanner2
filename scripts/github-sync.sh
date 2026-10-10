@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ======================================================================
 # Grid IP Scanner2 - Automated GitHub Push & CI/CD Release Script
-# Account: AhBiYout | Repository: grid-ip-scanner2
+# Developer: AhBiYout | GitHub Account / Namespace: AhBiYout-all
+# Repository: grid-ip-scanner2
 # Copyright (c) 2026 AhBiYout. All rights reserved.
 # ======================================================================
 
@@ -15,17 +16,18 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}======================================================================${NC}"
 echo -e "${BLUE}       GRID IP SCANNER2 - AUTOMATED GITHUB SYNC & RELEASE SCRIPT       ${NC}"
-echo -e "${BLUE}       Account: AhBiYout  |  Target: grid-ip-scanner2                      ${NC}"
+echo -e "${BLUE}       Developer: AhBiYout  |  Target: AhBiYout-all/grid-ip-scanner2   ${NC}"
 echo -e "${BLUE}======================================================================${NC}"
 echo
 
-# [Step 1] Check Git installation
-echo -e "${BLUE}[1/6] Checking Git environment...${NC}"
+# [Step 1] Check Git installation & Privacy guard
+echo -e "${BLUE}[1/6] Checking Git environment and Privacy Guards...${NC}"
 if ! command -v git &> /dev/null; then
     echo -e "${RED}ERROR: Git is not installed or not in PATH.${NC}"
     exit 1
 fi
 echo "   Found: $(git --version)"
+echo "   [OK] Privacy Guard active: .gitignore enforces exclusion of personal emails & .env secrets."
 echo
 
 # [Step 2] Dynamic Version Extraction & Auto-Sync (Single Source of Truth)
@@ -48,7 +50,7 @@ if [ -z "$APP_VER" ] && [ -f "docs/PATCH_NOTE.md" ]; then
 fi
 
 if [ -z "$APP_VER" ]; then
-    APP_VER="2.3.2"
+    APP_VER="2.4.0"
 fi
 echo -e "   Resolved Version: ${GREEN}v${APP_VER}${NC}"
 echo
@@ -62,7 +64,7 @@ fi
 
 git branch -M main || true
 
-REMOTE_URL="https://github.com/AhBiYout/grid-ip-scanner2.git"
+REMOTE_URL="https://github.com/AhBiYout-all/grid-ip-scanner2.git"
 if git remote get-url origin &>/dev/null; then
     git remote set-url origin "$REMOTE_URL"
     echo "   Remote origin verified: $REMOTE_URL"
@@ -104,7 +106,9 @@ echo
 echo -e "${GREEN}======================================================================${NC}"
 echo -e "${GREEN}[SUCCESS] Grid IP Scanner2 v${APP_VER} synced to GitHub!${NC}"
 echo -e "${GREEN}======================================================================${NC}"
-echo -e "🌐 Repository: ${BLUE}https://github.com/AhBiYout/grid-ip-scanner2${NC}"
-echo -e "🚀 CI/CD Actions: ${BLUE}https://github.com/AhBiYout/grid-ip-scanner2/actions${NC}"
-echo -e "📦 Releases: ${BLUE}https://github.com/AhBiYout/grid-ip-scanner2/releases${NC}"
+echo -e "🌐 Repository: ${BLUE}https://github.com/AhBiYout-all/grid-ip-scanner2${NC}"
+echo -e "🚀 CI/CD Actions: ${BLUE}https://github.com/AhBiYout-all/grid-ip-scanner2/actions${NC}"
+echo -e "📦 Releases: ${BLUE}https://github.com/AhBiYout-all/grid-ip-scanner2/releases${NC}"
+echo -e "💻 Official Blog: ${BLUE}https://ahbiyoutvibe.blogspot.com/${NC}"
+echo -e "🏢 Affiliation: ${BLUE}https://www.cisnet.co.kr${NC}"
 echo

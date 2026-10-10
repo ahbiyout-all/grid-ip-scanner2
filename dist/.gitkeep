@@ -1,1 +1,0 @@
-# Keep dist folder in git so go:embed all:dist never fails
