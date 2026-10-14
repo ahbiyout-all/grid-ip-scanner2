@@ -62,6 +62,7 @@
 │   - 9만 건 오프라인 OUI 제조사│ │      - 외근/출장 시 USB 점검용       │
 │   - 5단계 적응형 런처         │ │ • 독점 유료 기능:                    │
 │   - 비상 네이티브 메모장 보고서│ │   - 원격 부팅 (Wake-on-LAN)          │
+│                               │ │   - 낯선 기기 감시 (Intruder Watch)  │
 │                               │ │   - 포트 정밀 분석 & 서비스 식별     │
 │                               │ │   - 과거/현재 스캔 Diff 비교         │
 │                               │ │   - 24시간 실시간 백그라운드 감시    │
@@ -88,15 +89,16 @@ export interface LicenseInfo {
   expiresAt?: string;       // 만료일자 (영구 라이선스는 undefined)
   maxSubnets: number;       // 허용 서브넷 수 (Free: 1, Pro: 5, Enterprise: 무제한)
   features: {
-    visualGrid: boolean;    // 기본 16x16 그리드 (모두 허용)
-    fastPing: boolean;      // 초고속 Ping 스캔 (모두 허용)
-    ouiLookup: boolean;     // 9만 건 OUI 제조사 조회 (모두 허용)
-    portScanDeep: boolean;  // 1~65535 포트 정밀 스캔 & 서비스 배너 (Pro+)
-    diffCompare: boolean;   // 과거 스캔과 현재 스캔의 차이 비교 (Pro+)
-    autoMonitor: boolean;   // 24시간 상시 감시 & 시스템 알림 (Pro+)
-    exportReport: boolean;  // PDF/Excel 상세 진단 리포트 (Pro+)
-    multiSubnet: boolean;   // 다중 C클래스/B클래스 동시 스캔 (Enterprise)
-    remoteBoot: boolean;    // 원격 부팅 (Wake-on-LAN / WoL 매직 패킷) (Pro+)
+    visualGrid: boolean;        // 기본 16x16 그리드 (모두 허용)
+    fastPing: boolean;          // 초고속 Ping 스캔 (모두 허용)
+    ouiLookup: boolean;         // 9만 건 OUI 제조사 조회 (모두 허용)
+    portScanDeep: boolean;      // 1~65535 포트 정밀 스캔 & 서비스 배너 (Pro+)
+    diffCompare: boolean;       // 과거 스캔과 현재 스캔의 차이 비교 (Pro+)
+    autoMonitor: boolean;       // 24시간 상시 감시 & 시스템 알림 (Pro+)
+    exportReport: boolean;      // PDF/Excel 상세 진단 리포트 (Pro+)
+    multiSubnet: boolean;       // 다중 C클래스/B클래스 동시 스캔 (Enterprise)
+    remoteBoot: boolean;        // 원격 부팅 (Wake-on-LAN / WoL 매직 패킷) (Pro+)
+    intruderDetection: boolean; // 낯선 기기 실시간 감시 & Soft Trust 침입 탐지 (Pro+)
   };
 }
 ```
@@ -171,11 +173,12 @@ export interface LicenseInfo {
 | 구분 | 기능명 | Free 티어 제한 | Pro / Enterprise 제공 가치 |
 | :--- | :--- | :--- | :--- |
 | **원격 관리** | **원격 부팅 (Wake-on-LAN)** | ❌ 전송 불가 (Pro 잠김 팝업) | ⚡ 타깃 장비 MAC으로 UDP 9/7 매직 패킷 브로드캐스트 즉각 원격 전원 기동 |
+| **침입 감시** | **낯선 기기 실시간 감시 (Intruder Watch)** | ❌ 감시 모드 잠김 (수동 스캔 목록만) | 🚨 60초 주기 무인 백그라운드 감시, 신규 단말 접속 시 비프음 & OS 데스크톱 알림 |
 | **보안 진단** | **심층 포트 정밀 보안 감사** | ❌ 기본 Ping 및 상태만 조회 | 🛡️ 25개 주요 포트 전수 감사, SMB 랜섬웨어 표적, RDP, Telnet 등 위험 포트 진단 |
 | **자산 추적** | **스냅샷 4색 Diff 비교 분석** | ❌ 일회성 현재 스캔만 지원 | 🔍 과거 스캔 대비 신규(+NEW), 이탈(-OFF), 식별변경(!CHG) 상태 진단 및 필터링 |
 | **감사 증빙** | **보안 감사 보고서 내보내기** | ❌ 기본 CSV만 제공 | 📄 A4 규격 출력용 고품질 PDF 보안 감사 진단서 및 자산 인벤토리 보고서 생성 |
 | **규모 확장** | **다중 서브넷 스캔 한도** | 1개 서브넷(`/24`)으로 고정 | 🏢 Pro: 최대 5개 서브넷, Enterprise: 무제한 다중 C클래스/B클래스 동시 관리 |
-| **실시간 감시** | **침입자/IP 충돌 자동 경보** | 수동 스캔 시에만 단순 식별 | 🚨 미인가 신규 단말기 감지 시 시스템 트레이 즉시 팝업 및 방화벽 격리 가이드 |
+| **유예 평가** | **지능형 Soft Trust 유예 시스템** | 단순 낯선 기기로 일괄 표시 | 🛡️ MAC 무작위화/OUI/호스트명 유사도 채점(0~100%)을 통한 지능형 오경보 방지 |
 | **자산 보존** | **장비 별칭 및 관리자 메모** | 브라우저 세션 임시 저장 | 💾 오프라인 로컬 볼트 영구 저장 및 네트워크 장비 변경 이력 타임라인 유지 |
 
 ---
@@ -213,7 +216,31 @@ export interface LicenseInfo {
 
 ---
 
+### 8.3. 🚨 낯선 기기 감시(Intruder Detection & Soft Trust) Pro 특화 세부 전략
+
+#### 🔒 1. 낯선 기기 감지 중 Pro로 제한하는 핵심 항목
+1. **백그라운드 60초 주기 무인 감시 (Intruder Watch Periodic Scanning)**:
+   - Free 사용자는 수동으로 스캔 버튼을 누를 때만 화면에 표기되나, Pro 사용자는 상단 툴바의 `낯선 기기 감시(PRO)`를 활성화하여 24시간 무인 백그라운드 스캔 상시 가동.
+2. **청각적 오디오 비프 & OS 네이티브 데스크톱 팝업 알림 (Audio Chime & OS Notification)**:
+   - 미등록 기기 침입 시 즉각적인 경보 사운드 송출 및 Windows/OS 작업표시줄 알림창 연동.
+3. **지능형 Soft Trust 유예 엔진 (Soft Trust Grace Period Similarity Engine)**:
+   - 사설/무작위 MAC(Randomized MAC), DHCP IP 갱신 단말에 대해 OUI 및 호스트명 유사도 점수(0~100%)를 자동 채점하여 불필요한 보안 피로도(오경보) 차단.
+4. **전체 단말 원클릭 신뢰 화이트리스트 영구 보존 (Batch Trust & Permanent Whitelist)**:
+   - 정상 단말을 로컬 볼트에 영구 등록하고 침입자만 정확하게 선별 격리.
+
+#### 💡 2. 낯선 기기 감지 고도화를 위한 Pro 전용 신규 추천 기능
+1. **침입 단말 네트워크 자동 격리 (Rogue Device Auto Quarantine)**:
+   - 인가되지 않은 낯선 기기가 감지되는 즉시 SNMP를 통해 L2 스위치 포트를 비활성화하거나 ARP 차단 패킷을 전송하여 사내망 침투 원천 차단.
+2. **실시간 외부 보안 채널 웹훅 연동 (Instant Security Webhook)**:
+   - 미등록 낯선 기기 접속 즉시 사내 전산 담당자 Slack / Discord / Telegram 채널로 `[IP, MAC, OUI 제조사, 호스트명, 최초 접속 시간]` JSON 경보 발송.
+3. **미인가 단말 즉시 자동 취약점 진단 (Automatic Rogue Vulnerability Probe)**:
+   - 낯선 기기가 잡히는 즉시 백그라운드에서 445(SMB 랜섬웨어 표적), 3389(RDP 원격데스크톱), 23(Telnet) 등 위험 포트를 스캔하여 위험 등급(High/Medium/Low) 즉각 산출.
+4. **낯선 기기 침입 시계열 타임라인 감사 로그 (Intruder Audit History)**:
+   - 언제 어떤 낯선 기기가 접속했고 언제 망에서 이탈했는지를 시계열 그래프로 추적하고 보안 감사 제출용 PDF로 원클릭 출력.
+
+---
+
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.4.2
+* **소프트웨어 버전**: v2.4.3
 * **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 

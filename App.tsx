@@ -1034,6 +1034,13 @@ const App: React.FC = () => {
   };
 
   const handleToggleIntruderWatch = () => {
+    if (!license.features.intruderDetection) {
+      showToast(lang === 'ko' 
+        ? "낯선 기기 실시간 감시(Intruder Watch) 기능은 PRO 에디션 이상에서 제공됩니다." 
+        : "Intruder Watch Mode is available in PRO edition and higher.");
+      setShowLicenseModal(true);
+      return;
+    }
     const nextVal = !intruderWatchMode;
     setIntruderWatchMode(nextVal);
     localStorage.setItem('grid_intruder_watch_mode', String(nextVal));
@@ -1659,7 +1666,7 @@ const App: React.FC = () => {
   // Feature 5: Background Periodic Scanning for Intruder Watch Mode (Portable & Installed)
   const prevIntrudersCountRef = useRef<number>(0);
   useEffect(() => {
-    if (!intruderWatchMode) return;
+    if (!intruderWatchMode || !license.features.intruderDetection) return;
 
     // Run periodic scan every 60 seconds while watch mode is active
     const periodicTimer = setInterval(() => {
@@ -1669,11 +1676,11 @@ const App: React.FC = () => {
     }, 60000);
 
     return () => clearInterval(periodicTimer);
-  }, [intruderWatchMode, isScanning, goEngineAlive, config, deepScan, scanMode]);
+  }, [intruderWatchMode, license.features.intruderDetection, isScanning, goEngineAlive, config, deepScan, scanMode]);
 
   // Trigger sound and system notification when new intruder devices are detected (only when scan finishes or during periodic watch scan)
   useEffect(() => {
-    if (intruderWatchMode && !isScanning && detectedIntruders.length > prevIntrudersCountRef.current) {
+    if (intruderWatchMode && license.features.intruderDetection && !isScanning && detectedIntruders.length > prevIntrudersCountRef.current) {
       playAlertChime();
       const newItems = detectedIntruders.slice(prevIntrudersCountRef.current);
       if (newItems.length > 0) {
@@ -3226,19 +3233,31 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Feature 5: Intruder Watch Mode Toggle */}
+              {/* Feature 5: Intruder Watch Mode Toggle (PRO) */}
               <button
                 onClick={handleToggleIntruderWatch}
                 className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all shrink-0 ${
-                  intruderWatchMode
+                  intruderWatchMode && license.features.intruderDetection
                     ? 'bg-purple-600/20 border-purple-500/50 text-purple-300 ring-1 ring-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                    : !license.features.intruderDetection
+                    ? 'bg-purple-950/20 border-purple-500/40 text-purple-300 hover:border-purple-400 hover:bg-purple-900/30'
                     : 'bg-black/10 border-white/5 opacity-60 hover:opacity-100 text-zinc-300'
                 }`}
-                title={intruderWatchMode ? "낯선 기기 감시 모드 작동 중 (신규 기기 감지 시 즉시 알림)" : "낯선 기기 감시 모드 켜기"}
+                title={
+                  !license.features.intruderDetection
+                    ? (lang === 'ko' ? "낯선 기기 실시간 감시 모드는 PRO 전용 기능입니다 (클릭하여 업그레이드)" : "Intruder Watch Mode is PRO exclusive (Click to upgrade)")
+                    : intruderWatchMode
+                    ? (lang === 'ko' ? "낯선 기기 감시 모드 작동 중 (신규 기기 감지 시 즉시 알림)" : "Intruder Watch Mode active")
+                    : (lang === 'ko' ? "낯선 기기 감시 모드 켜기" : "Enable Intruder Watch Mode")
+                }
               >
-                <BellRing className={`w-3.5 h-3.5 ${intruderWatchMode ? 'text-purple-400 animate-pulse' : 'text-zinc-400'}`} />
+                <BellRing className={`w-3.5 h-3.5 ${intruderWatchMode && license.features.intruderDetection ? 'text-purple-400 animate-pulse' : 'text-purple-400'}`} />
                 <span>{s.intruderWatch}</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${intruderWatchMode ? 'bg-purple-400 animate-ping' : 'bg-zinc-600'}`} />
+                {!license.features.intruderDetection ? (
+                  <span className="px-1.5 py-0.2 rounded text-[8.5px] font-black bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs">PRO</span>
+                ) : (
+                  <span className={`w-1.5 h-1.5 rounded-full ${intruderWatchMode ? 'bg-purple-400 animate-ping' : 'bg-zinc-600'}`} />
+                )}
               </button>
 
               {/* License Tier Badge */}
@@ -4118,6 +4137,17 @@ const App: React.FC = () => {
                       >
                         ⚡ 현재 탐색된 모든 기기를 정상 기기로 등록
                       </button>
+                      {!license.features.intruderDetection && (
+                        <div className="pt-1 border-t border-purple-500/20 flex items-center justify-between text-[9px] text-purple-300">
+                          <span>🔔 백그라운드 주기 감시 및 데스크톱 알림은 PRO 전용</span>
+                          <button
+                            onClick={() => setShowLicenseModal(true)}
+                            className="underline font-black text-purple-200 hover:text-white transition-colors"
+                          >
+                            PRO 업그레이드
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -5215,6 +5245,17 @@ const App: React.FC = () => {
                       <span>원격 부팅 (Wake-on-LAN)</span>
                     </span>
                     {license.features.remoteBoot ? (
+                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                    )}
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <BellRing className="w-3.5 h-3.5 text-purple-400" />
+                      <span>낯선 기기 감시 (Soft Trust 침입 탐지)</span>
+                    </span>
+                    {license.features.intruderDetection ? (
                       <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
                     ) : (
                       <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>

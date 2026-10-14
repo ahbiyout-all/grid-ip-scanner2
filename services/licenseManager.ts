@@ -10,6 +10,7 @@ const DEFAULT_FREE_FEATURES: LicenseFeatures = {
   exportReport: false,
   multiSubnet: false,
   remoteBoot: false,
+  intruderDetection: false,
 };
 
 const PRO_FEATURES: LicenseFeatures = {
@@ -22,6 +23,7 @@ const PRO_FEATURES: LicenseFeatures = {
   exportReport: true,
   multiSubnet: false,
   remoteBoot: true,
+  intruderDetection: true,
 };
 
 const ENTERPRISE_FEATURES: LicenseFeatures = {
@@ -34,6 +36,7 @@ const ENTERPRISE_FEATURES: LicenseFeatures = {
   exportReport: true,
   multiSubnet: true,
   remoteBoot: true,
+  intruderDetection: true,
 };
 
 const STORAGE_KEY = 'grid_ip_scanner_license_v2';
@@ -64,8 +67,9 @@ export const getStoredLicense = (): LicenseInfo => {
           features: {
             ...tierDefaults,
             ...(parsed.features || {}),
-            // Ensure remoteBoot matches the validated tier
+            // Ensure remoteBoot & intruderDetection match the validated tier
             remoteBoot: parsed.tier === 'pro' || parsed.tier === 'enterprise',
+            intruderDetection: parsed.tier === 'pro' || parsed.tier === 'enterprise',
           },
         } as LicenseInfo;
       }
@@ -177,8 +181,8 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     return {
       success: true,
       message: isTrial 
-        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다! (원격 부팅 WoL, Diff 비교, 심층 포트 스캔, 감사 리포트 30일간 전 기능 이용 가능)'
-        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (원격 부팅 WoL, Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
+        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다! (원격 부팅 WoL, 낯선 기기 실시간 감시, Diff 비교, 심층 포트 스캔, 감사 리포트 30일간 전 기능 이용 가능)'
+        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (원격 부팅 WoL, 낯선 기기 실시간 감시, Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
       license: proLicense,
     };
   }

@@ -102,6 +102,7 @@ export interface LicenseFeatures {
   exportReport: boolean;
   multiSubnet: boolean;
   remoteBoot: boolean;
+  intruderDetection: boolean;
 }
 
 export interface LicenseInfo {

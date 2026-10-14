@@ -2,6 +2,32 @@
 
 ---
 
+## 📅 [2026-10-14] - Grid IP Scanner2 v2.4.3: 낯선 기기 감시 Pro 기능화 및 침입 방어 전략 고도화
+
+### 1. 낯선 기기 감시 (Intruder Watch) Pro 에디션 기능 전환 및 라이선스 게이팅
+- **요구사항**: 낯선 기기 감지 및 감시 모드를 유료 Pro 라이선스 기능으로 제한하고 Pro에 필요한 제한 기준 및 추천 기능 도출.
+- **작업 내용**:
+  - `types.ts`: `LicenseFeatures` 인터페이스에 `intruderDetection: boolean` 속성 추가.
+  - `services/licenseManager.ts`:
+    - `DEFAULT_FREE_FEATURES`: `intruderDetection: false` 설정.
+    - `PRO_FEATURES` & `ENTERPRISE_FEATURES`: `intruderDetection: true` 설정.
+    - `getStoredLicense`: 저장된 라이선스 로드 시 `tier`에 맞춰 `intruderDetection` 플래그 하위 호환성 보장.
+    - 활성화 메시지에 `낯선 기기 실시간 감시` 추가.
+  - `App.tsx`:
+    - `handleToggleIntruderWatch`: Pro 라이선스 체크(`!license.features.intruderDetection`) 추가. 미인증 시 안내 토스트 출력 및 라이선스 등록 모달 연계.
+    - 상단 툴바 낯선 기기 감시 버튼: 미인증 시 `PRO` 그라데이션 뱃지 및 안내 툴팁 노출.
+    - 백그라운드 주기 감시(60초) 및 실시간 오디오/데스크톱 알림: Pro 라이선스 보유 시에만 작동하도록 철저한 권한 제어 적용.
+    - 낯선 기기 상세 카드: 미인증 사용자 대상 실시간 감시 및 데스크톱 알림 Pro 업그레이드 안내 퀵 링크 제공.
+    - 라이선스 관리 모달: 기능 해금 매트릭스에 `낯선 기기 감시 (Soft Trust 침입 탐지)` 항목 반영.
+
+### 2. 낯선 기기 감시 관련 Pro 제한 기준 및 특화 신규 추천 기능 명세
+- **작업 내용**:
+  - `docs/DISTRIBUTION_AND_TIER_STRATEGY.md` 섹션 8.3 신설:
+    - **Pro 제한 4대 항목**: 1) 24/7 60초 주기 무인 백그라운드 감시, 2) 청각적 오디오 비프 & OS 네이티브 데스크톱 알림, 3) 지능형 Soft Trust 유예 유사도 엔진, 4) 단말 화이트리스트 영구 보존.
+    - **Pro 특화 신규 추천 기능 4선**: 1) 침입 단말 네트워크 자동 격리 (Auto Quarantine via ARP/SNMP), 2) 실시간 외부 보안 웹훅 (Slack/Discord/Telegram/Email 即시 통보), 3) 미인가 단말 자동 취약점 진단 (445/3389/23 고위험 포트 자동 프로파일링), 4) 낯선 기기 침입 시계열 타임라인 감사 로그.
+
+---
+
 ## 📅 [2026-10-14] - Grid IP Scanner2 v2.4.2: 원격 부팅 Pro 기능화 및 Pro 전략 수립
 
 ### 1. 원격 부팅 (Wake-on-LAN) Pro 에디션 기능 전환 및 라이선스 게이팅
