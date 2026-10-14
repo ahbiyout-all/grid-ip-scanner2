@@ -14,26 +14,44 @@
 
 ## ✨ 핵심 기능 (Key Features)
 
-1. **⚡ 초고속 네트워크 IP 스캐닝 (High-Speed Scanning)**
-   - Go 기반 멀티스레드 Ping/ARP 스캐닝 엔진
+1. **⚡ 초고속 네트워크 IP 스캐닝 & 16x16 그리드 맵**
+   - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진
    - C/C++ OUI 검증 모듈을 통한 MAC 제조사 즉각 식별
-   - 포트 스캐닝 (HTTP, HTTPS, SSH, RDP, SMB 등 주요 포트 감지)
+   - 25개 주요 서비스 포트 정밀 스캐닝 및 위험도 분류
 
-2. **🛡️ 낯선 기기 감시 및 Soft Trust 유예 시스템 (Intruder Detection & Soft Trust)**
+2. **📸 스냅샷 비교(Diff) 4색 진단 & 대화형 필터**
+   - 과거 기준점 대비 변경 사항을 4색 컬러 시스템으로 직관적 시각화:
+     - 🟢 **신규 접속 (`+NEW`)**: 네온 에메랄드 그린 배경 + 펄스 링
+     - 🔴 **이탈 / 오프라인 (`-OFF`)**: 고대비 로즈 레드 배경 + 대각선 빗금 패턴
+     - 🟠 **식별자 변동 (`!CHG`)**: 선명한 앰버 오렌지 테두리 + 경고 뱃지
+      - 🔵 **기준점 유지 (`=SAME` / `=BASE`)**: 선명한 하늘색(Sky Blue 🔵) 기본 적용 (상단 범례에서 보라/청록/회색 원클릭 색상 변경 팔레트 지원)
+   - 대화형 카테고리 필터(`+신규`, `-이탈`, `!변동`, `=유지`) 및 우측 전후 대조 카드 제공
+   - 오프라인 노드 대상 기준점 MAC 보존 기반 **원격 부팅(Wake-on-LAN, Pro 전용)** 원클릭 지원
+
+3. **📊 내보내기 & A4 보안 감사 리포트 드롭다운 메뉴**
+   - 툴바 공간 효율을 극대화한 통합 드롭다운 팝오버 메뉴
+   - CSV 스프레드시트, JSON 계층 데이터, 기업 전산 감사용 A4 규격 HTML/PDF 보고서 즉각 출력
+
+4. **🛡️ 낯선 기기 감시 및 Soft Trust 유예 시스템 (Intruder Defense & Soft Trust)**
    - 새롭게 연결된 미등록 기기 실시간 감지 및 경고
-   - **Soft Trust Grace Period**: 동일 OUI, 호스트명, 또는 MAC 주소 무작화(Randomized MAC)를 사용하는 기존 친숙 기기에 대해 과도한 오경보를 방지하는 유예 모드 제공
+   - **Soft Trust Grace Period**: 동일 OUI, 호스트명, 또는 사설 MAC(Randomized MAC)을 사용하는 기존 친숙 기기에 대해 과도한 오경보를 방지하는 지능형 유예 모드 제공
    - 지능형 Fingerprint 유사도 분석 (0~100% 매칭 점수 산출)
 
-3. **⚠️ IP / MAC 충돌 감지 (Conflict Detection)**
+5. **⚠️ IP / MAC 충돌 감지 (Conflict Detection)**
    - 동일 IP에 복수 MAC이 응답하거나, IP가 변경된 기기 즉각 포착
    - 시각적 충돌 아이콘 및 상세 경고 패널 표시
 
-4. **🔒 Secure Vault 네이티브 암호화 (AES-256-GCM)**
+6. **🔒 Secure Vault 네이티브 암호화 (AES-256-GCM)**
    - C++/Go 네이티브 DLL 기반 초고속 AES-256-GCM 암호화
    - 기기 별칭(Alias) 및 스냅샷 저장소의 민감 데이터 무단 접근 차단
 
-5. **📦 무설치 포터블 & 설치형 지원 (Portable & Setup Installer)**
-   - 단일 포터블 실행 파일(`Grid IP Scanner2 v2.4.0.exe`) 및 Inno Setup 기반 자동 설치 패키지 제공
+7. **🔑 오프라인 라이선스 매니저, 원격 부팅(WoL) Pro 게이트 & 30일 체험권**
+   - Ed25519 비대칭 암호키 기반 100% 오프라인 라이선스 검증 (폐쇄망 완벽 대응)
+   - 원격 부팅(Wake-on-LAN), Diff 엔진, 심층 포트 감사, A4 리포트 등 Pro 핵심 기능 라이선스 게이팅
+   - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 자동 발급
+
+8. **📦 무설치 포터블 & 설치형 지원 (Portable & Setup Installer)**
+   - 단일 포터블 실행 파일 및 Inno Setup 기반 자동 설치 패키지 제공
    - 사용자 지정 포트 선택 및 로컬 내장 서버 자동 연동
 
 ---

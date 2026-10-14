@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame } from 'lucide-react';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense } from './services/licenseManager';
@@ -185,6 +185,19 @@ const translations = {
     deepPortAuditComplete: "심층 포트 분석 완료",
     exportAuditReportBtn: "보안 감사 보고서 (HTML/인쇄)",
     exportHubTitle: "내보내기 및 리포트",
+    exportDropdownTitle: "내보내기 및 리포트",
+    exportDropdownSubtitle: "PDF • Excel • CSV • HTML",
+    exportSectionPdf: "고품질 PDF 문서 리포트",
+    exportSectionData: "스프레드시트 및 원시 데이터",
+    exportSectionWeb: "웹 대화형 및 보안 감사",
+    exportSectionSnapshot: "네트워크 스냅샷",
+    exportOpenModal: "PDF 리포트 센터 (모달 마법사)...",
+    exportExcelXls: "Excel 스프레드시트 (.xls 그리드)",
+    exportCsvActive: "CSV 내보내기 (온라인 활성 장비)",
+    exportCsvAll: "CSV 내보내기 (전체 스캔 대역)",
+    exportHtmlGrid: "인터랙티브 웹 HTML 그리드",
+    exportHtmlAudit: "보안 감사 보고서 (HTML 즉시 인쇄)",
+    exportSaveSnapshot: "현재 상태 스냅샷 저장 (기준점)",
     exportPdfHubBtn: "PDF 리포트 내보내기",
     exportPdfSearch: "현재 검색 결과 PDF",
     exportPdfActive: "온라인 활성 장비 PDF",
@@ -196,7 +209,7 @@ const translations = {
     exportPdfModalDesc: "검색 결과, 활성 장비, 보안 감사 결과를 고품질 PDF 문서로 출력 및 저장합니다.",
     licenseManage: "라이선스 관리",
     licenseTitle: "Grid IP Scanner2 에디션 & 라이선스",
-    licenseKeyPlaceholder: "라이선스 키 입력 (예: GRID-PRO-TRIAL-2026)",
+    licenseKeyPlaceholder: "라이선스 키 입력 (예: GRID-PRO-TRIAL-2026 / 30일 데모)",
     activateBtn: "라이선스 정품 인증",
     currentTier: "현재 에디션",
     licenseStatus: "라이선스 상태",
@@ -425,6 +438,19 @@ const translations = {
     deepPortAuditComplete: "Port audit completed",
     exportAuditReportBtn: "Security Audit Report (HTML/Print)",
     exportHubTitle: "Export & Reports",
+    exportDropdownTitle: "Export & Reports",
+    exportDropdownSubtitle: "PDF • Excel • CSV • HTML",
+    exportSectionPdf: "High-Resolution PDF Reports",
+    exportSectionData: "Spreadsheet & Raw Data",
+    exportSectionWeb: "Web Interactive & Audit",
+    exportSectionSnapshot: "Network Snapshot",
+    exportOpenModal: "PDF Report Center (Open Wizard)...",
+    exportExcelXls: "Excel Spreadsheet (.xls Grid)",
+    exportCsvActive: "CSV Export (Online Active Devices)",
+    exportCsvAll: "CSV Export (All Scanned Targets)",
+    exportHtmlGrid: "Interactive Web HTML Grid",
+    exportHtmlAudit: "Security Audit Report (HTML/Print)",
+    exportSaveSnapshot: "Capture Current State as Snapshot",
     exportPdfHubBtn: "Export PDF Reports",
     exportPdfSearch: "Search Results PDF",
     exportPdfActive: "Active Devices PDF",
@@ -436,7 +462,7 @@ const translations = {
     exportPdfModalDesc: "Export search findings, active inventories, and security audit reports into high-resolution PDF documents.",
     licenseManage: "License Manager",
     licenseTitle: "Grid IP Scanner2 Edition & License",
-    licenseKeyPlaceholder: "Enter License Key (e.g. GRID-PRO-TRIAL-2026)",
+    licenseKeyPlaceholder: "Enter License Key (e.g. GRID-PRO-TRIAL-2026 / 30-Day Demo)",
     activateBtn: "Activate License",
     currentTier: "Current Tier",
     licenseStatus: "License Status",
@@ -611,6 +637,8 @@ const App: React.FC = () => {
   const [licenseKeyInput, setLicenseKeyInput] = useState('');
   const [showPdfExportModal, setShowPdfExportModal] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
   // Snapshots & Diff Mode State
   const [viewMode, setViewMode] = useState<'grid' | 'diff'>('grid');
@@ -618,6 +646,23 @@ const App: React.FC = () => {
   const [baselineSnapshotId, setBaselineSnapshotId] = useState<string | null>(null);
   const [showDiffGuide, setShowDiffGuide] = useState(false);
   const [diffFilter, setDiffFilter] = useState<'all' | 'new' | 'offline' | 'changed' | 'same'>('all');
+  const [diffBaselineColor, setDiffBaselineColor] = useState<'sky' | 'indigo' | 'teal' | 'slate'>(() => {
+    try {
+      const saved = localStorage.getItem('grid_diff_baseline_color');
+      if (saved === 'sky' || saved === 'indigo' || saved === 'teal' || saved === 'slate') return saved;
+    } catch {
+      // fallback
+    }
+    return 'sky';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('grid_diff_baseline_color', diffBaselineColor);
+    } catch {
+      // ignore
+    }
+  }, [diffBaselineColor]);
 
   // Deep Port Audit State
   const [isAuditingPorts, setIsAuditingPorts] = useState(false);
@@ -805,6 +850,32 @@ const App: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [isScanning, scanStartTime]);
+ 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        exportDropdownRef.current &&
+        !exportDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsExportDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsExportDropdownOpen(false);
+      }
+    };
+
+    if (isExportDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isExportDropdownOpen]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -917,6 +988,11 @@ const App: React.FC = () => {
   };
 
   const handleSendWakeOnLan = async (mac?: string, ip?: string) => {
+    if (!license.features.remoteBoot) {
+      showToast(lang === 'ko' ? "원격 부팅(Wake-on-LAN) 기능은 PRO 에디션 이상에서 제공됩니다." : "Wake-on-LAN remote boot is available in PRO or higher.");
+      setShowLicenseModal(true);
+      return;
+    }
     if (!mac || mac === 'Unknown') {
       showToast("MAC 주소가 식별되지 않아 WoL 패킷을 전송할 수 없습니다.");
       return;
@@ -2540,122 +2616,423 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Space-Saving Unified Export & Reports Hub */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-1">
+              {/* Space-Saving Dropdown Export & Reports Menu */}
+              <div className="relative" ref={exportDropdownRef}>
+                <div className="flex items-center justify-between px-1 mb-1.5">
                   <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest`}>
-                    {s.exportHubTitle || '내보내기 및 리포트'}
+                    {s.exportDropdownTitle || '내보내기 및 리포트'}
                   </span>
-                  <span className="text-[8.5px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-bold">
-                    PDF & XLS
+                  <span className="text-[8px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 font-bold">
+                    드롭다운
                   </span>
                 </div>
 
-                {/* Primary Space-Saving PDF Export Hub Button */}
+                {/* Primary Trigger Button */}
                 <button
-                  onClick={() => setShowPdfExportModal(true)}
-                  className={`flex items-center justify-between px-2.5 py-2 rounded-lg border border-sky-500/40 bg-gradient-to-r from-sky-500/20 via-sky-500/10 to-indigo-500/10 hover:from-sky-500/30 hover:to-indigo-500/20 text-sky-600 dark:text-sky-300 transition-all w-full shadow-sm group ${
-                    Object.keys(results).length > 0 ? 'opacity-100 cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                  type="button"
+                  onClick={() => setIsExportDropdownOpen(prev => !prev)}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl border transition-all shadow-sm group ${
+                    isExportDropdownOpen
+                      ? 'border-sky-500 bg-sky-500/15 shadow-sky-500/10'
+                      : (theme === 'beige'
+                          ? 'bg-[#ffffff] border-[#d4be9c] hover:bg-[#faf5eb] text-[#1a0f05]'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-100')
                   }`}
-                  title={s.exportPdfHubBtn || 'PDF 리포트 내보내기 (검색/활성/보안감사/전체)'}
+                  aria-expanded={isExportDropdownOpen}
+                  aria-haspopup="true"
+                  title="내보내기 및 리포트 메뉴 열기 (PDF, Excel, CSV, HTML, 스냅샷)"
                 >
-                  <div className="flex items-center space-x-2">
-                    <FileDown className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform shrink-0" />
-                    <div className="text-left">
-                      <div className="text-[10px] font-black uppercase tracking-wider">
-                        {s.exportPdfHubBtn || 'PDF 리포트 내보내기'}
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <div className="p-1 rounded-lg bg-sky-500/20 text-sky-400 group-hover:scale-105 transition-transform shrink-0">
+                      <FileDown className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="text-left truncate">
+                      <div className="text-[10px] font-black tracking-tight leading-tight flex items-center gap-1.5">
+                        <span className="truncate">{s.exportDropdownTitle || '내보내기 및 리포트'}</span>
+                        {searchTerm && (
+                          <span className="text-[8px] px-1 py-0.2 rounded-full bg-sky-500 text-white font-bold animate-pulse shrink-0">
+                            {filteredIps.length}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[8px] opacity-70">
-                        {searchTerm ? `검색("${searchTerm}") 일치` : '검색 • 활성 • 보안감사'}
+                      <div className={`text-[8px] ${t.textMuted} font-mono truncate`}>
+                        {isExportingPdf
+                          ? (s.exportGeneratingPdf || 'PDF 생성 진행 중...')
+                          : (searchTerm ? `"${searchTerm}" 검색 일치` : (s.exportDropdownSubtitle || 'PDF • Excel • CSV • HTML'))}
                       </div>
                     </div>
                   </div>
-                  {searchTerm ? (
-                    <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded-full bg-sky-500 text-white animate-pulse">
-                      {filteredIps.length}
-                    </span>
-                  ) : (
-                    <span className="text-[9px] font-bold opacity-60">
-                      ▾
-                    </span>
-                  )}
+                  <ChevronDown className={`w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-transform duration-200 shrink-0 ${isExportDropdownOpen ? 'rotate-180 text-sky-400' : ''}`} />
                 </button>
 
-                {/* 2x2 Compact Grid for Quick Formats (CSV / XLS / HTML) */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => handleExportCSV('active')}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border transition-all text-[9.5px] font-bold tracking-tight ${
-                      theme === 'beige'
-                        ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb]'
-                        : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
-                    } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                    title="온라인 활성 장비만 CSV로 내보내기"
-                  >
-                    <Zap className="w-3 h-3 text-sky-400" />
-                    <span>CSV (활성)</span>
-                  </button>
-                
-                  <button 
-                    onClick={() => handleExportCSV('all')}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border transition-all text-[9.5px] font-bold tracking-tight ${
-                      theme === 'beige' 
-                        ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] hover:bg-[#faf5eb]' 
-                        : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-200'
-                    } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
-                    title="전체 스캔 대역 CSV로 내보내기"
-                  >
-                    <Box className="w-3 h-3 text-zinc-400" />
-                    <span>CSV (전체)</span>
-                  </button>
+                {/* Floating Dropdown Menu */}
+                {isExportDropdownOpen && (
+                  <div className={`absolute left-0 right-0 z-50 mt-1.5 p-2 rounded-xl border shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 max-h-[460px] overflow-y-auto space-y-2.5 ${
+                    theme === 'beige'
+                      ? 'bg-[#fcf8f2]/98 border-[#d4be9c] text-[#1a0f05]'
+                      : 'bg-slate-900/98 border-slate-700/80 text-zinc-100'
+                  }`}>
+                    {/* Section 1: PDF Reports */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-1.5 py-0.5">
+                        <span className={`text-[8.5px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1`}>
+                          <FileDown className="w-2.5 h-2.5 text-sky-400" />
+                          <span>{s.exportSectionPdf || '고품질 PDF 리포트'}</span>
+                        </span>
+                        <span className="text-[7.5px] font-bold px-1 py-0.2 rounded bg-sky-500/20 text-sky-400">
+                          jsPDF
+                        </span>
+                      </div>
 
-                  <button 
-                    onClick={handleExportExcelGrid}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition-all text-[9.5px] font-bold tracking-tight ${
-                      Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
-                    }`}
-                    title="Excel 스프레드시트 (XLS) 그리드로 내보내기"
-                  >
-                    <Database className="w-3 h-3 text-emerald-500" />
-                    <span>Excel (XLS)</span>
-                  </button>
+                      {/* 1.1 Search / Filtered PDF */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportPdf('search');
+                        }}
+                        disabled={isExportingPdf || filteredIps.length === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] group ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${isExportingPdf || filteredIps.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title={searchTerm ? `검색어 "${searchTerm}" 일치 ${filteredIps.length}개 노드 PDF 내보내기` : '현재 필터 결과 PDF 내보내기'}
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Search className="w-3 h-3 text-sky-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold flex items-center gap-1 truncate">
+                              <span>{searchTerm ? `"${searchTerm}" 검색 결과 PDF` : (s.exportPdfSearch || '현재 검색/필터 결과 PDF')}</span>
+                              {searchTerm && (
+                                <span className="text-[7.5px] font-black px-1 py-0.2 rounded bg-sky-500 text-white animate-pulse">
+                                  {filteredIps.length}
+                                </span>
+                              )}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              IP, MAC, 제조사, RTT, 개방 포트
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 shrink-0 ml-1">
+                          PDF
+                        </span>
+                      </button>
 
-                  <button 
-                    onClick={handleExportGrid}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 transition-all text-[9.5px] font-bold tracking-tight ${
-                      Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
-                    }`}
-                    title="인터랙티브 웹 HTML 그리드로 내보내기"
-                  >
-                    <Monitor className="w-3 h-3 text-sky-500" />
-                    <span>HTML 그리드</span>
-                  </button>
-                </div>
+                      {/* 1.2 Active Nodes PDF */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportPdf('active');
+                        }}
+                        disabled={isExportingPdf || activeCount === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] group ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title="온라인 응답 활성 장비 인벤토리 PDF 내보내기"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate">
+                              {s.exportPdfActive || '온라인 활성 장비 PDF'} ({activeCount}대)
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              온라인 활성 단말 인벤토리 보고서
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 shrink-0 ml-1">
+                          PDF
+                        </span>
+                      </button>
 
-                {/* Compact Utility Row (Snapshot & HTML Audit) */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button 
-                    onClick={handleExportAuditReport}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition-all text-[9px] font-bold ${
-                      activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
-                    }`}
-                    title="웹 브라우저 즉시 인쇄용 HTML 감사 보고서 열기"
-                  >
-                    <FileText className="w-3 h-3 text-indigo-400" />
-                    <span>감사 (HTML)</span>
-                  </button>
+                      {/* 1.3 Deep Security Audit PDF */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportPdf('audit');
+                        }}
+                        disabled={isExportingPdf || activeCount === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] group ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title="취약 포트 및 위험 진단 보안 감사 보고서 PDF"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <ShieldAlert className="w-3 h-3 text-indigo-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold flex items-center gap-1 truncate text-indigo-400">
+                              <span>{s.exportPdfAudit || '정밀 보안 감사 보고서 PDF'}</span>
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              위험 포트, 완화 가이드, OUI 분석
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-black px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0 ml-1">
+                          PRO PDF
+                        </span>
+                      </button>
 
-                  <button 
-                    onClick={handleSaveSnapshot}
-                    className={`flex items-center justify-center space-x-1.5 py-1.5 px-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-all text-[9px] font-bold ${
-                      activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
-                    }`}
-                    title={s.saveSnapshot}
-                  >
-                    <BookmarkPlus className="w-3 h-3 text-purple-400" />
-                    <span>{s.saveSnapshot}</span>
-                  </button>
-                </div>
+                      {/* 1.4 All Targets PDF */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportPdf('all');
+                        }}
+                        disabled={isExportingPdf || Object.keys(results).length === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] group ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${isExportingPdf || Object.keys(results).length === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title="스캔 대상 서브넷 전체 IP 종합 보고서 PDF"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <FileText className="w-3 h-3 text-zinc-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate">
+                              {s.exportPdfAll || '전체 스캔 대역 PDF'} ({allIps.length}개)
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              서브넷 전체 IP 노드 현황 종합도
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-zinc-500/20 text-zinc-300 shrink-0 ml-1">
+                          PDF
+                        </span>
+                      </button>
+
+                      {/* 1.5 Open Full Modal Wizard */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          setShowPdfExportModal(true);
+                        }}
+                        className={`w-full flex items-center space-x-1.5 px-2 py-1 rounded text-left transition-colors text-[8.5px] text-sky-400 hover:text-sky-300 font-bold ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/5'
+                        }`}
+                      >
+                        <Layers className="w-2.5 h-2.5" />
+                        <span>{s.exportOpenModal || 'PDF 리포트 센터 (모달 마법사)...'}</span>
+                      </button>
+                    </div>
+
+                    <div className="border-t border-white/10 dark:border-white/10" />
+
+                    {/* Section 2: Spreadsheet & Raw Data */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-1.5 py-0.5">
+                        <span className={`text-[8.5px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1`}>
+                          <Database className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>{s.exportSectionData || '스프레드시트 및 원시 데이터'}</span>
+                        </span>
+                      </div>
+
+                      {/* 2.1 Excel XLS */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportExcelGrid();
+                        }}
+                        disabled={Object.keys(results).length === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="Microsoft Excel 스프레드시트 호환 XLS 파일로 저장"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Database className="w-3 h-3 text-emerald-500 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate text-emerald-700 dark:text-emerald-400">
+                              {s.exportExcelXls || 'Excel 스프레드시트 (.xls 그리드)'}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              엑셀 16열 색상 그리드 시트
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 shrink-0 ml-1">
+                          XLS
+                        </span>
+                      </button>
+
+                      {/* 2.2 CSV Active */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportCSV('active');
+                        }}
+                        disabled={activeCount === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="온라인 응답 활성 장비 목록만 CSV 파일로 저장"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Zap className="w-3 h-3 text-sky-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate">
+                              {s.exportCsvActive || 'CSV 내보내기 (온라인 활성 장비)'} ({activeCount}대)
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              IP, 상태, 호스트명, MAC, 제조사
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 shrink-0 ml-1">
+                          CSV
+                        </span>
+                      </button>
+
+                      {/* 2.3 CSV All */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportCSV('all');
+                        }}
+                        disabled={Object.keys(results).length === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="서브넷 전체 IP 대역 CSV 파일로 저장"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Box className="w-3 h-3 text-zinc-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate">
+                              {s.exportCsvAll || 'CSV 내보내기 (전체 스캔 대역)'}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              서브넷 256개 전체 IP 전수 데이터
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-zinc-500/20 text-zinc-300 shrink-0 ml-1">
+                          CSV
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="border-t border-white/10 dark:border-white/10" />
+
+                    {/* Section 3: Web Interactive & Security Audit */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-1.5 py-0.5">
+                        <span className={`text-[8.5px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1`}>
+                          <Globe className="w-2.5 h-2.5 text-indigo-400" />
+                          <span>{s.exportSectionWeb || '웹 대화형 및 보안 감사'}</span>
+                        </span>
+                      </div>
+
+                      {/* 3.1 Interactive HTML Grid */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportGrid();
+                        }}
+                        disabled={Object.keys(results).length === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${Object.keys(results).length > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="자립형 단일 대화형 HTML 파일로 저장하여 브라우저에서 열기"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <Monitor className="w-3 h-3 text-sky-500 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate text-sky-600 dark:text-sky-400">
+                              {s.exportHtmlGrid || '인터랙티브 웹 HTML 그리드'}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              독립 실행형 브라우저 그리드 파일
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 shrink-0 ml-1">
+                          HTML
+                        </span>
+                      </button>
+
+                      {/* 3.2 Security Audit HTML Report */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleExportAuditReport();
+                        }}
+                        disabled={activeCount === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="웹 브라우저 즉시 인쇄용 HTML 감사 보고서 새 탭에서 열기"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <FileText className="w-3 h-3 text-indigo-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate text-indigo-700 dark:text-indigo-300">
+                              {s.exportHtmlAudit || '보안 감사 보고서 (HTML 즉시 인쇄)'}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              A4 인쇄 최적화 브라우저 감사서
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-400 shrink-0 ml-1">
+                          HTML
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="border-t border-white/10 dark:border-white/10" />
+
+                    {/* Section 4: Snapshot */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-1.5 py-0.5">
+                        <span className={`text-[8.5px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1`}>
+                          <BookmarkPlus className="w-2.5 h-2.5 text-purple-400" />
+                          <span>{s.exportSectionSnapshot || '네트워크 스냅샷'}</span>
+                        </span>
+                      </div>
+
+                      {/* 4.1 Save Snapshot */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportDropdownOpen(false);
+                          handleSaveSnapshot();
+                        }}
+                        disabled={activeCount === 0}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors text-[9.5px] ${
+                          theme === 'beige' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                        } ${activeCount > 0 ? 'opacity-100' : 'opacity-40 cursor-not-allowed'}`}
+                        title="현재 스캔 상태를 기준점 스냅샷으로 저장"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <BookmarkPlus className="w-3 h-3 text-purple-400 shrink-0" />
+                          <div className="truncate">
+                            <div className="font-bold truncate text-purple-700 dark:text-purple-300">
+                              {s.exportSaveSnapshot || '현재 상태 스냅샷 저장 (기준점)'}
+                            </div>
+                            <div className={`text-[7.5px] ${t.textMuted} truncate`}>
+                              비교 분석 및 변경 감지용 기준점 보관
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] font-black px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 shrink-0 ml-1">
+                          SNAP
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
 
                 {showSummary && !isScanning && (
@@ -2687,8 +3064,7 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
       <main className={`flex-1 flex flex-col min-h-0 ${t.main} relative overflow-hidden transition-colors duration-300`}>
         {/* Responsive Header Bar */}
@@ -3291,47 +3667,207 @@ const App: React.FC = () => {
                   )}
                 </div>
 
-                {/* Diff Live Diagnostic Counters (Responsive Adaptive Grid) */}
+                {/* Diff Live Diagnostic Counters (Interactive Color-Coded Filter Buttons) */}
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-black">
-                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
-                    theme === 'beige'
-                      ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300'
-                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                  }`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <button
+                    onClick={() => setDiffFilter(diffFilter === 'new' ? 'all' : 'new')}
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                      diffFilter === 'new'
+                        ? 'ring-2 ring-emerald-400 bg-emerald-500 text-white border-emerald-300'
+                        : theme === 'beige'
+                        ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
+                        : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
+                    }`}
+                    title="초록색: 신규 노드만 필터링하여 강조 (+NEW)"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>+ {s.diffNewBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.newCount}</span>
-                  </div>
+                  </button>
 
-                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
-                    theme === 'beige'
-                      ? 'bg-rose-100/90 text-rose-900 border-rose-300'
-                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
-                  }`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  <button
+                    onClick={() => setDiffFilter(diffFilter === 'offline' ? 'all' : 'offline')}
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                      diffFilter === 'offline'
+                        ? 'ring-2 ring-rose-400 bg-rose-600 text-white border-rose-300'
+                        : theme === 'beige'
+                        ? 'bg-rose-100/90 text-rose-900 border-rose-300 hover:bg-rose-200'
+                        : 'bg-rose-500/20 text-rose-400 border-rose-500/40 hover:bg-rose-500/30'
+                    }`}
+                    title="빨간색: 연결 끊김/오프라인 노드만 필터링 (-OFF)"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                     <span>- {s.diffGoneBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.offlineCount}</span>
-                  </div>
+                  </button>
 
-                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 shadow-sm transition-all ${
-                    theme === 'beige'
-                      ? 'bg-amber-100/90 text-amber-900 border-amber-300'
-                      : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                  }`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <button
+                    onClick={() => setDiffFilter(diffFilter === 'changed' ? 'all' : 'changed')}
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                      diffFilter === 'changed'
+                        ? 'ring-2 ring-amber-400 bg-amber-500 text-black border-amber-300'
+                        : theme === 'beige'
+                        ? 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200'
+                        : 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                    }`}
+                    title="주황색: MAC/호스트명 변동 노드만 필터링 (!CHG)"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                     <span>! {s.diffChangedBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.changedCount}</span>
-                  </div>
+                  </button>
 
-                  <div className={`px-2 py-1 rounded-lg border flex items-center gap-1 transition-all ${
-                    theme === 'beige'
-                      ? 'bg-stone-100/90 text-stone-800 border-stone-300'
-                      : 'bg-white/5 text-zinc-300 border-white/10'
-                  }`}>
+                  <button
+                    onClick={() => setDiffFilter(diffFilter === 'same' ? 'all' : 'same')}
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
+                      diffFilter === 'same'
+                        ? diffBaselineColor === 'sky'
+                          ? 'ring-2 ring-sky-400 bg-sky-500 text-black border-sky-300 font-black'
+                          : diffBaselineColor === 'indigo'
+                          ? 'ring-2 ring-indigo-400 bg-indigo-600 text-white border-indigo-300 font-black'
+                          : diffBaselineColor === 'teal'
+                          ? 'ring-2 ring-teal-400 bg-teal-500 text-black border-teal-300 font-black'
+                          : 'ring-2 ring-slate-400 bg-slate-600 text-white border-slate-300'
+                        : theme === 'beige'
+                        ? diffBaselineColor === 'sky'
+                          ? 'bg-sky-100/90 text-sky-900 border-sky-300 hover:bg-sky-200'
+                          : diffBaselineColor === 'indigo'
+                          ? 'bg-indigo-100/90 text-indigo-900 border-indigo-300 hover:bg-indigo-200'
+                          : diffBaselineColor === 'teal'
+                          ? 'bg-teal-100/90 text-teal-900 border-teal-300 hover:bg-teal-200'
+                          : 'bg-stone-100/90 text-stone-800 border-stone-300 hover:bg-stone-200'
+                        : diffBaselineColor === 'sky'
+                        ? 'bg-sky-500/20 text-sky-400 border-sky-500/40 hover:bg-sky-500/30'
+                        : diffBaselineColor === 'indigo'
+                        ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40 hover:bg-indigo-500/30'
+                        : diffBaselineColor === 'teal'
+                        ? 'bg-teal-500/20 text-teal-400 border-teal-500/40 hover:bg-teal-500/30'
+                        : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+                    }`}
+                    title="기준점과 동일하게 유지되는 정상 노드 필터링 (=SAME)"
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      diffBaselineColor === 'sky' ? 'bg-sky-400' :
+                      diffBaselineColor === 'indigo' ? 'bg-indigo-400' :
+                      diffBaselineColor === 'teal' ? 'bg-teal-400' : 'bg-slate-400'
+                    }`} />
                     <span>= {s.diffSameBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.sameCount}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Color Distinction Legend & Active Filter Bar */}
+              <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl border text-[9.5px] ${
+                theme === 'beige'
+                  ? 'bg-[#f4ebe0] border-[#dfcaa7]/90 text-[#4d351c]'
+                  : 'bg-black/35 border-white/10 text-zinc-300'
+              }`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1 font-black opacity-80">
+                    <span>🎨 색상 차이 구분:</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2.5 font-bold">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] inline-block border border-white/30" />
+                      <span className={theme === 'beige' ? 'text-emerald-900 font-black' : 'text-emerald-300 font-black'}>초록색: 신규 접속 (+NEW)</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-rose-600 shadow-[0_0_6px_rgba(244,63,94,0.8)] inline-block border border-white/30" />
+                      <span className={theme === 'beige' ? 'text-rose-900 font-black' : 'text-rose-300 font-black'}>빨간색: 연결 끊김 (-OFF)</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] inline-block border border-black/30" />
+                      <span className={theme === 'beige' ? 'text-amber-900 font-black' : 'text-amber-300 font-black'}>주황색: 식별자 변동 (!CHG)</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className={`w-2.5 h-2.5 rounded-sm inline-block border border-white/30 ${
+                        diffBaselineColor === 'sky' ? 'bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.8)]' :
+                        diffBaselineColor === 'indigo' ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.8)]' :
+                        diffBaselineColor === 'teal' ? 'bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.8)]' :
+                        'bg-slate-600'
+                      }`} />
+                      <span className={
+                        diffBaselineColor === 'sky' ? (theme === 'beige' ? 'text-sky-900 font-black' : 'text-sky-300 font-black') :
+                        diffBaselineColor === 'indigo' ? (theme === 'beige' ? 'text-indigo-900 font-black' : 'text-indigo-300 font-black') :
+                        diffBaselineColor === 'teal' ? (theme === 'beige' ? 'text-teal-900 font-black' : 'text-teal-300 font-black') :
+                        (theme === 'beige' ? 'text-stone-700' : 'text-zinc-400')
+                      }>
+                        {diffBaselineColor === 'sky' ? '하늘색: 기준 유지 (=SAME)' :
+                         diffBaselineColor === 'indigo' ? '보라색: 기준 유지 (=SAME)' :
+                         diffBaselineColor === 'teal' ? '청록색: 기준 유지 (=SAME)' :
+                         '회색: 상태 동일 (=SAME)'}
+                      </span>
+                    </span>
+                  </div>
+
+                  {/* Quick Baseline Color Switcher */}
+                  <div className={`flex items-center gap-1 pl-2.5 border-l text-[9px] ${theme === 'beige' ? 'border-[#dfcaa7]' : 'border-white/10'}`}>
+                    <span className="opacity-70 text-[9px]">기준 색상:</span>
+                    <button
+                      onClick={() => setDiffBaselineColor('sky')}
+                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
+                        diffBaselineColor === 'sky'
+                          ? 'bg-sky-500 text-black font-black border-sky-300 shadow-sm ring-1 ring-sky-300'
+                          : 'bg-sky-950/40 text-sky-300 border-sky-500/30 hover:bg-sky-900/50'
+                      }`}
+                      title="기준점 색상을 선명한 하늘색(Sky Blue)으로 변경"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                      <span>하늘색</span>
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('indigo')}
+                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
+                        diffBaselineColor === 'indigo'
+                          ? 'bg-indigo-600 text-white font-black border-indigo-300 shadow-sm ring-1 ring-indigo-300'
+                          : 'bg-indigo-950/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-900/50'
+                      }`}
+                      title="기준점 색상을 보라색(Indigo)으로 변경"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                      <span>보라</span>
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('teal')}
+                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
+                        diffBaselineColor === 'teal'
+                          ? 'bg-teal-500 text-black font-black border-teal-300 shadow-sm ring-1 ring-teal-300'
+                          : 'bg-teal-950/40 text-teal-300 border-teal-500/30 hover:bg-teal-900/50'
+                      }`}
+                      title="기준점 색상을 청록색(Teal)으로 변경"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                      <span>청록</span>
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('slate')}
+                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
+                        diffBaselineColor === 'slate'
+                          ? 'bg-slate-600 text-white font-black border-slate-300 shadow-sm ring-1 ring-slate-300'
+                          : 'bg-slate-900/40 text-slate-400 border-slate-600/30 hover:bg-slate-800/50'
+                      }`}
+                      title="기준점 색상을 클래식 회색(Slate)으로 변경"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <span>회색</span>
+                    </button>
                   </div>
                 </div>
+
+                {diffFilter !== 'all' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-bold text-amber-400 animate-pulse">
+                      선택 필터 활성 중
+                    </span>
+                    <button
+                      onClick={() => setDiffFilter('all')}
+                      className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all"
+                    >
+                      전체 보기
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Friendly Callout if no snapshots exist */}
@@ -3386,6 +3922,10 @@ const App: React.FC = () => {
                   isNewIntruder={isIntruder}
                   isSoftTrust={softTrustedDevices.some(d => d.ip === ip)}
                   customNickname={alias?.nickname}
+                  baselineDevice={viewMode === 'diff' && baselineSnapshot ? baselineSnapshot.results[ip]?.device : undefined}
+                  diffFilter={viewMode === 'diff' ? diffFilter : undefined}
+                  isDiffMode={viewMode === 'diff'}
+                  baselineColor={diffBaselineColor}
                 />
               );
             })}
@@ -3403,14 +3943,143 @@ const App: React.FC = () => {
             {selectedIp && (() => {
               const selectedResult = results[selectedIp];
               const selectedDevice = selectedResult?.device;
-              const selectedMac = selectedDevice?.mac;
-              const selectedAlias = getDeviceAlias(selectedMac, selectedIp);
               const selectedConflict = detectedConflicts.get(selectedIp);
               const isSelectedIntruder = detectedIntruders.some(d => d.ip === selectedIp);
               const selectedSoftTrust = softTrustedDevices.find(d => d.ip === selectedIp);
+              
+              const selectedDiffStatus = viewMode === 'diff' ? diffAnalysis.diffMap[selectedIp] : undefined;
+              const selectedBaselineResult = viewMode === 'diff' && baselineSnapshot ? baselineSnapshot.results[selectedIp] : undefined;
+              const selectedBaselineDevice = selectedBaselineResult?.device;
+              const selectedDiffItem = viewMode === 'diff' ? diffAnalysis.items.find(item => item.ip === selectedIp) : undefined;
+              const effectiveDevice = selectedDevice || selectedBaselineDevice;
+              const effectiveMac = selectedDevice?.mac || selectedBaselineDevice?.mac;
+              const selectedMac = effectiveMac;
+              const selectedAlias = getDeviceAlias(effectiveMac, selectedIp);
 
               return (
                 <div className="space-y-5">
+                  {/* Snapshot Diff Diagnostic Card (When in Diff Mode) */}
+                  {viewMode === 'diff' && selectedDiffStatus && (
+                    <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 shadow-lg animate-in fade-in ${
+                      selectedDiffStatus === 'new'
+                        ? (theme === 'beige' ? 'bg-emerald-50 border-emerald-400 text-emerald-950' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100')
+                        : selectedDiffStatus === 'offline'
+                        ? (theme === 'beige' ? 'bg-rose-50 border-rose-400 text-rose-950' : 'bg-rose-500/20 border-rose-500/50 text-rose-100')
+                        : selectedDiffStatus === 'changed'
+                        ? (theme === 'beige' ? 'bg-amber-50 border-amber-400 text-amber-950' : 'bg-amber-500/20 border-amber-500/50 text-amber-100')
+                        : diffBaselineColor === 'sky'
+                        ? (theme === 'beige' ? 'bg-sky-50 border-sky-400 text-sky-950' : 'bg-sky-500/20 border-sky-500/50 text-sky-100')
+                        : diffBaselineColor === 'indigo'
+                        ? (theme === 'beige' ? 'bg-indigo-50 border-indigo-400 text-indigo-950' : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-100')
+                        : diffBaselineColor === 'teal'
+                        ? (theme === 'beige' ? 'bg-teal-50 border-teal-400 text-teal-950' : 'bg-teal-500/20 border-teal-500/50 text-teal-100')
+                        : (theme === 'beige' ? 'bg-[#f0e6d6] border-[#cfbea6] text-[#523d28]' : 'bg-slate-500/15 border-slate-500/30 text-slate-200')
+                    }`}>
+                      <div className="flex items-center justify-between gap-2 border-b pb-2 border-current border-opacity-15">
+                        <div className="flex items-center gap-2">
+                          {selectedDiffStatus === 'new' && <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white font-black text-xs shadow-sm">✚ NEW</span>}
+                          {selectedDiffStatus === 'offline' && <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white font-black text-xs shadow-sm">━ OFF</span>}
+                          {selectedDiffStatus === 'changed' && <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black font-black text-xs shadow-sm">▲ CHG</span>}
+                          {selectedDiffStatus === 'same' && (
+                            <span className={`px-1.5 py-0.5 rounded font-black text-xs shadow-sm ${
+                              diffBaselineColor === 'sky' ? 'bg-sky-500 text-black' :
+                              diffBaselineColor === 'indigo' ? 'bg-indigo-600 text-white' :
+                              diffBaselineColor === 'teal' ? 'bg-teal-500 text-black' :
+                              'bg-slate-600 text-white'
+                            }`}>= BASE</span>
+                          )}
+                          <div>
+                            <h4 className="font-black text-xs leading-none">
+                              {selectedDiffStatus === 'new' && '신규 감지 노드 (+NEW)'}
+                              {selectedDiffStatus === 'offline' && '기기 연결 끊김 (-OFFLINE)'}
+                              {selectedDiffStatus === 'changed' && '기기 식별자 변동 (!CHANGED)'}
+                              {selectedDiffStatus === 'same' && '기준점 상태 동일 유지 (=SAME)'}
+                            </h4>
+                            <span className="text-[9px] opacity-75">
+                              {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 대비 비교'}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                          selectedDiffStatus === 'new' ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' :
+                          selectedDiffStatus === 'offline' ? 'bg-rose-500/30 text-rose-400 border border-rose-500/40' :
+                          selectedDiffStatus === 'changed' ? 'bg-amber-500/30 text-amber-400 border border-amber-500/40 animate-pulse' :
+                          diffBaselineColor === 'sky' ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40' :
+                          diffBaselineColor === 'indigo' ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/40' :
+                          diffBaselineColor === 'teal' ? 'bg-teal-500/30 text-teal-300 border border-teal-500/40' :
+                          'bg-slate-500/30 text-slate-400 border border-slate-500/40'
+                        }`}>
+                          {selectedDiffStatus.toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Snapshot Diff Diagnostic Details */}
+                      {selectedDiffStatus === 'new' && (
+                        <div className="text-[10px] space-y-1">
+                          <p className="leading-relaxed opacity-90">
+                            기준 스냅샷 캡처 당시에는 존재하지 않았던 새로운 기기입니다. 정상 접속 기기인지 확인 후 신뢰 등록을 진행하세요.
+                          </p>
+                          <div className="bg-black/25 p-2 rounded-lg font-mono text-[9px] space-y-0.5 mt-1 border border-white/5">
+                            <div>• 현재 응답: <span className="text-emerald-400 font-bold">온라인 활성 ({selectedDevice?.latency || 1}ms)</span></div>
+                            <div>• MAC: {selectedDevice?.mac || 'Unknown'}</div>
+                            <div>• 제조사: {selectedDevice?.vendor || 'Unknown'}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedDiffStatus === 'offline' && (
+                        <div className="text-[10px] space-y-1.5">
+                          <p className="leading-relaxed opacity-90">
+                            기준 스냅샷에서는 정상 작동 중이었으나, 현재 네트워크 스캔에서 응답하지 않습니다. (장비 전원 차단, LAN 케이블 분리 또는 IP 변경 의심)
+                          </p>
+                          <div className="bg-black/25 p-2 rounded-lg font-mono text-[9px] space-y-0.5 border border-white/5">
+                            <div className="text-rose-400 font-bold">• 이전 기준 상태: 정상 작동 중이었음</div>
+                            <div>• 이전 MAC: {selectedBaselineDevice?.mac || 'N/A'}</div>
+                            <div>• 이전 제조사: {selectedBaselineDevice?.vendor || 'Unknown'}</div>
+                            <div>• 이전 호스트: {selectedBaselineDevice?.hostname || 'Unknown'}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedDiffStatus === 'changed' && (
+                        <div className="text-[10px] space-y-1.5">
+                          <p className="leading-relaxed font-bold text-amber-300">
+                            ⚠️ 동일한 IP에서 기준 스냅샷과 다른 하드웨어 식별자가 감지되었습니다!
+                          </p>
+                          <div className="bg-black/30 p-2 rounded-lg font-mono text-[9px] space-y-1 border border-white/5">
+                            {selectedDiffItem?.changeDetails && selectedDiffItem.changeDetails.length > 0 ? (
+                              selectedDiffItem.changeDetails.map((detail, idx) => (
+                                <div key={idx} className="text-amber-200 leading-tight">
+                                  {detail}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-amber-200">MAC 주소 또는 호스트명 변동 감지됨</div>
+                            )}
+                            <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-white/10 text-[8.5px]">
+                              <div>
+                                <span className="opacity-60 block">기준점 MAC:</span>
+                                <span className="font-bold">{selectedBaselineDevice?.mac || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <span className="opacity-60 block text-amber-400">현재 MAC:</span>
+                                <span className="font-bold text-amber-300">{selectedDevice?.mac || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedDiffStatus === 'same' && (
+                        <div className="text-[10px] space-y-1">
+                          <p className="leading-relaxed opacity-85">
+                            기준 스냅샷 시점과 현재 네트워크 상태가 완벽히 일치하며 안정적으로 운영되고 있습니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* IP Conflict Warning Banner */}
                   {selectedConflict && (
                     <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
@@ -3437,7 +4106,7 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleTrustDevice(selectedMac, selectedIp)}
+                          onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
                           className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-black text-[9.5px] rounded-lg shrink-0 shadow"
                         >
                           이 기기 신뢰 등록
@@ -3473,7 +4142,7 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => handleTrustDevice(selectedMac, selectedIp)}
+                          onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
                           className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-black text-[9.5px] rounded-lg shrink-0 shadow"
                         >
                           정식 신뢰 등록
@@ -3488,20 +4157,35 @@ const App: React.FC = () => {
                         <Monitor className="w-7 h-7 text-sky-500 mb-2" />
                         <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest mb-0.5`}>{s.networkIdentity}</span>
                         <span className="text-base font-black text-sky-500 break-all leading-tight">
-                          {selectedAlias?.nickname ? selectedAlias.nickname : (selectedDevice?.hostname || selectedIp)}
+                          {selectedAlias?.nickname ? selectedAlias.nickname : (effectiveDevice?.hostname || selectedIp)}
                         </span>
-                        {selectedAlias?.nickname && selectedDevice?.hostname && (
-                          <span className="text-[10px] opacity-60 font-mono mt-0.5">{selectedDevice.hostname}</span>
+                        {(selectedAlias?.nickname || selectedDevice?.hostname || selectedBaselineDevice?.hostname) && (
+                          <span className="text-[10px] opacity-60 font-mono mt-0.5">
+                            {selectedAlias?.nickname ? (effectiveDevice?.hostname || selectedIp) : (selectedDiffStatus === 'offline' ? `(이전 기준: ${selectedBaselineDevice?.hostname || selectedBaselineDevice?.vendor || '장치'})` : selectedDevice?.hostname)}
+                          </span>
                         )}
-                        {selectedDevice?.webTitle && (
+                        {effectiveDevice?.webTitle && (
                           <div className={`mt-2 px-3 py-1 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-slate-800'} border rounded-lg italic text-[10px] ${t.textMuted}`}>
-                            "{selectedDevice.webTitle}"
+                            "{effectiveDevice.webTitle}"
                           </div>
                         )}
                         <div className="mt-2.5 flex items-center space-x-2">
-                           <div className={`w-2 h-2 rounded-full ${selectedResult?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`} />
-                           <span className="text-[10px] font-bold opacity-70">
-                             {selectedResult?.status === 'active' ? `${s.active} - ${selectedDevice?.latency || 1}ms` : '비활성 / 꺼짐 (Offline)'}
+                           <div className={`w-2.5 h-2.5 rounded-full ${
+                             selectedDiffStatus === 'offline' ? 'bg-rose-500' :
+                             selectedDiffStatus === 'new' ? 'bg-emerald-500 animate-pulse' :
+                             selectedDiffStatus === 'changed' ? 'bg-amber-500 animate-pulse' :
+                             selectedResult?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'
+                           }`} />
+                           <span className="text-[10px] font-bold opacity-80">
+                             {selectedDiffStatus === 'offline'
+                               ? '연결 끊김 (기준 스냅샷 대비 오프라인)'
+                               : selectedDiffStatus === 'new'
+                               ? `온라인 활성 (+NEW) - ${selectedDevice?.latency || 1}ms`
+                               : selectedDiffStatus === 'changed'
+                               ? `온라인 활성 (!CHG 변동) - ${selectedDevice?.latency || 1}ms`
+                               : selectedResult?.status === 'active'
+                               ? `${s.active} - ${selectedDevice?.latency || 1}ms`
+                               : '비활성 / 꺼짐 (Offline)'}
                            </span>
                         </div>
                      </div>
@@ -3669,24 +4353,61 @@ const App: React.FC = () => {
                         <Power className="w-3.5 h-3.5 text-amber-400" />
                         <span>{s.wolTitle}</span>
                       </span>
+                      {!license.features.remoteBoot ? (
+                        <button
+                          onClick={() => setShowLicenseModal(true)}
+                          className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                          title="Pro 라이선스 활성화 필요"
+                        >
+                          <Key className="w-2.5 h-2.5" />
+                          <span>PRO 전용</span>
+                        </button>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          PRO 활성
+                        </span>
+                      )}
                     </div>
                     <button
-                      onClick={() => handleSendWakeOnLan(selectedMac, selectedIp)}
-                      disabled={isSendingWol || !selectedMac || selectedMac === 'Unknown'}
+                      onClick={() => handleSendWakeOnLan(effectiveMac, selectedIp)}
+                      disabled={isSendingWol || (license.features.remoteBoot && (!effectiveMac || effectiveMac === 'Unknown'))}
                       className={`w-full py-2.5 px-3 rounded-xl border font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-md ${
-                        !selectedMac || selectedMac === 'Unknown'
-                          ? 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400'
-                          : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300'
+                        !license.features.remoteBoot
+                          ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 hover:border-amber-400 text-amber-300 cursor-pointer hover:shadow-amber-500/10 active:scale-98'
+                          : !effectiveMac || effectiveMac === 'Unknown'
+                            ? 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400'
+                            : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300'
                       }`}
-                      title={selectedMac && selectedMac !== 'Unknown' ? "UDP 9/7 브로드캐스트로 Magic Packet을 발송하여 원격 장비를 부팅합니다" : "MAC 주소가 확인되지 않아 WoL을 발송할 수 없습니다"}
+                      title={
+                        !license.features.remoteBoot
+                          ? "원격 부팅(WoL)은 PRO 라이선스 전용 기능입니다. 클릭하여 Pro 라이선스를 활성화하세요."
+                          : effectiveMac && effectiveMac !== 'Unknown'
+                            ? "UDP 9/7 브로드캐스트로 Magic Packet을 발송하여 원격 장비를 부팅합니다"
+                            : "MAC 주소가 확인되지 않아 WoL을 발송할 수 없습니다"
+                      }
                     >
-                      <Zap className={`w-4 h-4 text-amber-400 ${isSendingWol ? 'animate-bounce' : ''}`} />
-                      <span>{isSendingWol ? "매직 패킷 발송 중..." : s.wolSendBtn}</span>
+                      {!license.features.remoteBoot ? (
+                        <>
+                          <Key className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{s.wolSendBtn} (PRO 필요)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className={`w-4 h-4 text-amber-400 ${isSendingWol ? 'animate-bounce' : ''}`} />
+                          <span>{isSendingWol ? "매직 패킷 발송 중..." : s.wolSendBtn}</span>
+                        </>
+                      )}
                     </button>
-                    {selectedMac && selectedMac !== 'Unknown' && (
-                      <div className="text-[8.5px] opacity-60 text-center mono">
-                        Target MAC: {selectedMac} (Broadcast UDP 9/7)
+                    {!license.features.remoteBoot ? (
+                      <div className="text-[8.5px] text-amber-500/80 dark:text-amber-400/80 text-center">
+                        💡 PC/서버 원격 부팅(WoL)은 PRO 에디션 이상에서 이용하실 수 있습니다.
                       </div>
+                    ) : (
+                      effectiveMac && effectiveMac !== 'Unknown' && (
+                        <div className="text-[8.5px] opacity-60 text-center mono">
+                          Target MAC: {effectiveMac} {selectedDiffStatus === 'offline' && '(이전 기록)'} (Broadcast UDP 9/7)
+                        </div>
+                      )
                     )}
                   </section>
 
@@ -3706,27 +4427,42 @@ const App: React.FC = () => {
                           <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
                         </a>
                       </div>
-                      <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.macInfo}</span><span className="text-xs font-black mono text-emerald-500">{selectedMac || 'Unknown'}</span></div>
-                      <div className="flex justify-between items-center"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.vendor}</span><span className="text-xs font-black truncate ml-4 text-right">{selectedDevice?.vendor || 'Unknown'}</span></div>
-                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.os}</span><span className="text-xs font-black">{selectedDevice?.os || 'Unknown'}</span></div>
-                      {selectedDevice?.mdns && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>mDNS</span><span className="text-xs font-black truncate ml-4 text-right text-sky-500">{selectedDevice.mdns}</span></div>
+                      <div className="flex justify-between items-center">
+                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.macInfo}</span>
+                        <span className="text-xs font-black mono text-emerald-500">
+                          {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className="text-[8px] text-rose-400 font-bold ml-1">(이전 기준)</span>}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.vendor}</span>
+                        <span className="text-xs font-black truncate ml-4 text-right">
+                          {effectiveDevice?.vendor || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.os}</span>
+                        <span className="text-xs font-black">{effectiveDevice?.os || 'Unknown'}</span>
+                      </div>
+                      {effectiveDevice?.mdns && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>mDNS</span><span className="text-xs font-black truncate ml-4 text-right text-sky-500">{effectiveDevice.mdns}</span></div>
                       )}
-                      {selectedDevice?.upnp && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>UPnP</span><span className="text-xs font-black truncate ml-4 text-right text-purple-500">{selectedDevice.upnp}</span></div>
+                      {effectiveDevice?.upnp && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>UPnP</span><span className="text-xs font-black truncate ml-4 text-right text-purple-500">{effectiveDevice.upnp}</span></div>
                       )}
-                      {selectedDevice?.snmp && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>SNMP</span><span className="text-xs font-black truncate ml-4 text-right text-amber-500">{selectedDevice.snmp}</span></div>
+                      {effectiveDevice?.snmp && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>SNMP</span><span className="text-xs font-black truncate ml-4 text-right text-amber-500">{effectiveDevice.snmp}</span></div>
                       )}
                     </div>
                   </section>
 
                   {/* Listening Ports & Port Security Audit */}
-                  {selectedDevice?.openPorts && selectedDevice.openPorts.length > 0 && (
+                  {effectiveDevice?.openPorts && effectiveDevice.openPorts.length > 0 && (
                     <section className="space-y-2">
-                      <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.listeningPorts}</span>
+                      <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>
+                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className="text-[8px] text-rose-400 font-bold ml-1">(이전 기준)</span>}
+                      </span>
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedDevice.openPorts.map(p => (
+                        {effectiveDevice.openPorts.map(p => (
                           <div key={p} className={`px-2 py-0.5 rounded text-[11px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
                             {p}
                           </div>
@@ -4474,6 +5210,17 @@ const App: React.FC = () => {
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Power className="w-3.5 h-3.5 text-amber-400" />
+                      <span>원격 부팅 (Wake-on-LAN)</span>
+                    </span>
+                    {license.features.remoteBoot ? (
+                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                    )}
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span>다중 서브넷 허용 한도</span>
                     <span className="text-[10px] font-bold mono text-sky-400">
                       {license.maxSubnets === 999 ? '무제한' : `${license.maxSubnets}개 대역`}
@@ -4510,7 +5257,7 @@ const App: React.FC = () => {
                     }}
                     className="text-[10px] text-sky-400 hover:underline font-semibold"
                   >
-                    💡 시험용 Pro 키 자동 입력 (GRID-PRO-TRIAL-2026)
+                    💡 데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)
                   </button>
                   {license.tier !== 'free' && (
                     <button

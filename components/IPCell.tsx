@@ -20,6 +20,10 @@ interface IPCellProps {
   isNewIntruder?: boolean;
   isSoftTrust?: boolean;
   customNickname?: string;
+  baselineDevice?: DeviceInfo;
+  diffFilter?: 'all' | 'new' | 'offline' | 'changed' | 'same';
+  isDiffMode?: boolean;
+  baselineColor?: 'sky' | 'indigo' | 'teal' | 'slate';
 }
 
 const IPCell: React.FC<IPCellProps> = ({ 
@@ -38,7 +42,11 @@ const IPCell: React.FC<IPCellProps> = ({
   conflictDetails,
   isNewIntruder,
   isSoftTrust,
-  customNickname
+  customNickname,
+  baselineDevice,
+  diffFilter,
+  isDiffMode,
+  baselineColor = 'sky'
 }) => {
   const lastOctet = ip.split('.').pop();
   
@@ -50,29 +58,86 @@ const IPCell: React.FC<IPCellProps> = ({
   const isLeftEdge = col < 4;
   const isRightEdge = col > 11;
   
+  const displayDevice = device || baselineDevice;
+  const isFilteredOut = Boolean(diffFilter && diffFilter !== 'all' && diffFilter !== diffStatus);
+
   const getStatusBase = () => {
     const isDark = theme !== 'beige';
     
-    // In Diff Mode, highlight diff anomalies
+    // In Diff Mode, highlight diff anomalies with unmistakable, high-contrast color differences
     if (diffStatus) {
       if (diffStatus === 'new') {
         return isSelected
-          ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.7)] z-20 ring-2 ring-emerald-400'
-          : 'bg-emerald-500/30 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse';
+          ? (isDark 
+              ? 'bg-emerald-500 border-emerald-200 text-white shadow-[0_0_24px_rgba(16,185,129,0.95)] z-20 ring-2 ring-emerald-300'
+              : 'bg-emerald-600 border-emerald-800 text-white shadow-[0_0_20px_rgba(16,185,129,0.85)] z-20 ring-2 ring-emerald-500')
+          : (isDark
+              ? 'bg-emerald-500/35 border-emerald-400 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.55)] ring-1 ring-emerald-400/80 animate-pulse hover:bg-emerald-500/50 hover:shadow-[0_0_18px_rgba(16,185,129,0.85)]'
+              : 'bg-emerald-100 border-emerald-600 text-emerald-950 shadow-[0_0_9px_rgba(16,185,129,0.4)] ring-1 ring-emerald-500/70 hover:bg-emerald-200');
       }
       if (diffStatus === 'offline') {
         return isSelected
-          ? 'bg-rose-600/80 border-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.7)] z-20'
-          : 'bg-rose-500/20 border-rose-500/40 opacity-70';
+          ? (isDark 
+              ? 'bg-rose-600 border-rose-200 text-white shadow-[0_0_24px_rgba(244,63,94,0.95)] z-20 ring-2 ring-rose-300'
+              : 'bg-rose-600 border-rose-800 text-white shadow-[0_0_20px_rgba(244,63,94,0.85)] z-20 ring-2 ring-rose-500')
+          : (isDark
+              ? 'bg-rose-600/35 border-rose-500 text-rose-200 shadow-[0_0_12px_rgba(244,63,94,0.55)] ring-1 ring-rose-400/80 hover:bg-rose-600/50 hover:shadow-[0_0_18px_rgba(244,63,94,0.85)]'
+              : 'bg-rose-100 border-rose-600 text-rose-950 shadow-[0_0_9px_rgba(244,63,94,0.4)] ring-1 ring-rose-500/70 hover:bg-rose-200');
       }
       if (diffStatus === 'changed') {
         return isSelected
-          ? 'bg-amber-500 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.7)] z-20'
-          : 'bg-amber-500/30 border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
+          ? (isDark 
+              ? 'bg-amber-500 border-amber-200 text-black shadow-[0_0_24px_rgba(245,158,11,0.95)] z-20 ring-2 ring-amber-300'
+              : 'bg-amber-500 border-amber-800 text-black shadow-[0_0_20px_rgba(245,158,11,0.85)] z-20 ring-2 ring-amber-500')
+          : (isDark
+              ? 'bg-amber-500/35 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.55)] ring-1 ring-amber-400/80 animate-pulse hover:bg-amber-500/50 hover:shadow-[0_0_18px_rgba(245,158,11,0.85)]'
+              : 'bg-amber-100 border-amber-600 text-amber-950 shadow-[0_0_9px_rgba(245,158,11,0.4)] ring-1 ring-amber-500/70 hover:bg-amber-200');
       }
       if (diffStatus === 'same') {
-        return isDark ? 'bg-zinc-900/40 border-zinc-800/40 opacity-40' : 'bg-slate-100/60 border-slate-200/50 opacity-40';
+        const bColor = baselineColor || 'sky';
+        if (bColor === 'sky') {
+          return isSelected
+            ? (isDark 
+                ? 'bg-sky-500 border-sky-200 text-black shadow-[0_0_24px_rgba(14,165,233,0.95)] z-20 ring-2 ring-sky-300 font-black'
+                : 'bg-sky-600 border-sky-800 text-white shadow-[0_0_20px_rgba(14,165,233,0.85)] z-20 ring-2 ring-sky-500')
+            : (isDark 
+                ? 'bg-sky-500/20 border-sky-400/60 text-sky-200 shadow-[0_0_10px_rgba(14,165,233,0.35)] ring-1 ring-sky-400/40 hover:bg-sky-500/35 hover:shadow-[0_0_15px_rgba(14,165,233,0.6)]' 
+                : 'bg-sky-100 border-sky-500 text-sky-950 shadow-[0_0_8px_rgba(14,165,233,0.25)] ring-1 ring-sky-400/50 hover:bg-sky-200');
+        }
+        if (bColor === 'indigo') {
+          return isSelected
+            ? (isDark 
+                ? 'bg-indigo-500 border-indigo-200 text-white shadow-[0_0_24px_rgba(99,102,241,0.95)] z-20 ring-2 ring-indigo-300 font-black'
+                : 'bg-indigo-600 border-indigo-800 text-white shadow-[0_0_20px_rgba(99,102,241,0.85)] z-20 ring-2 ring-indigo-500')
+            : (isDark 
+                ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-200 shadow-[0_0_10px_rgba(99,102,241,0.35)] ring-1 ring-indigo-400/40 hover:bg-indigo-500/40' 
+                : 'bg-indigo-100 border-indigo-500 text-indigo-950 shadow-[0_0_8px_rgba(99,102,241,0.25)] ring-1 ring-indigo-400/50 hover:bg-indigo-200');
+        }
+        if (bColor === 'teal') {
+          return isSelected
+            ? (isDark 
+                ? 'bg-teal-500 border-teal-200 text-black shadow-[0_0_24px_rgba(20,184,166,0.95)] z-20 ring-2 ring-teal-300 font-black'
+                : 'bg-teal-600 border-teal-800 text-white shadow-[0_0_20px_rgba(20,184,166,0.85)] z-20 ring-2 ring-teal-500')
+            : (isDark 
+                ? 'bg-teal-500/20 border-teal-400/60 text-teal-200 shadow-[0_0_10px_rgba(20,184,166,0.35)] ring-1 ring-teal-400/40 hover:bg-teal-500/35' 
+                : 'bg-teal-100 border-teal-500 text-teal-950 shadow-[0_0_8px_rgba(20,184,166,0.25)] ring-1 ring-teal-400/50 hover:bg-teal-200');
+        }
+        // slate (classic grey)
+        return isSelected
+          ? (isDark 
+              ? 'bg-slate-600 border-slate-300 shadow-md z-20 ring-1 ring-slate-400'
+              : 'bg-[#d8c5ab] border-[#8c6b48] shadow-md z-20 ring-1 ring-[#8c6b48]')
+          : (isDark 
+              ? 'bg-slate-800/40 border-slate-700/50 opacity-60 hover:opacity-100 hover:bg-slate-800/70' 
+              : 'bg-[#ece1cf]/70 border-[#d6c2a8] opacity-65 hover:opacity-100 hover:bg-[#e4d5be]');
       }
+    }
+
+    if (isDiffMode) {
+      // In Diff mode, empty/inactive nodes recede into the background
+      return isDark 
+        ? 'bg-zinc-950/25 border-zinc-800/20 opacity-20 hover:opacity-60' 
+        : 'bg-[#f7efe3]/30 border-[#e8dacb]/30 opacity-25 hover:opacity-60';
     }
 
     switch (status) {
@@ -99,6 +164,27 @@ const IPCell: React.FC<IPCellProps> = ({
 
   const getTextColor = () => {
     if (isSelected) return 'text-white font-black';
+
+    // In Diff Mode, give distinct, high-contrast text colors matching the diff status
+    if (diffStatus) {
+      if (diffStatus === 'new') {
+        return theme === 'beige' ? 'text-emerald-950 font-black' : 'text-emerald-200 font-black';
+      }
+      if (diffStatus === 'offline') {
+        return theme === 'beige' ? 'text-rose-950 font-black' : 'text-rose-200 font-black';
+      }
+      if (diffStatus === 'changed') {
+        return theme === 'beige' ? 'text-amber-950 font-black' : 'text-amber-200 font-black';
+      }
+      if (diffStatus === 'same') {
+        const bColor = baselineColor || 'sky';
+        if (bColor === 'sky') return theme === 'beige' ? 'text-sky-950 font-black' : 'text-sky-300 font-black';
+        if (bColor === 'indigo') return theme === 'beige' ? 'text-indigo-950 font-black' : 'text-indigo-300 font-black';
+        if (bColor === 'teal') return theme === 'beige' ? 'text-teal-950 font-black' : 'text-teal-300 font-black';
+        return theme === 'beige' ? 'text-[#735c44] font-medium' : 'text-slate-400 font-medium';
+      }
+    }
+
     if (status === 'active') return theme === 'beige' ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
     if (status === 'scanning') return 'text-amber-300 font-black';
     if (theme === 'beige') return 'text-[#3b2a1a] font-bold';
@@ -107,9 +193,9 @@ const IPCell: React.FC<IPCellProps> = ({
   };
 
   const getDeviceIcon = () => {
-    if (!device) return null;
-    const hostname = (device.hostname || '').toLowerCase();
-    const vendor = (device.vendor || '').toLowerCase();
+    if (!displayDevice) return null;
+    const hostname = (displayDevice.hostname || '').toLowerCase();
+    const vendor = (displayDevice.vendor || '').toLowerCase();
     const iconClass = "w-3 h-3 md:w-4 md:h-4 opacity-80";
     
     // 포트 기반 또는 명칭 기반 아이콘 결정
@@ -117,7 +203,7 @@ const IPCell: React.FC<IPCellProps> = ({
     if (hostname.includes('ipad') || hostname.includes('tablet')) return <Tablet className={iconClass} />;
     if (hostname.includes('iphone') || hostname.includes('phone') || hostname.includes('mobile') || vendor.includes('samsung') || vendor.includes('apple')) return <Smartphone className={iconClass} />;
     if (hostname.includes('laptop') || hostname.includes('computer') || vendor.includes('dell') || vendor.includes('intel')) return <Laptop className={iconClass} />;
-    if (hostname.includes('server') || (device.openPorts?.includes(22) && device.openPorts?.length > 0)) return <Server className={iconClass} />;
+    if (hostname.includes('server') || (displayDevice.openPorts?.includes(22) && displayDevice.openPorts?.length > 0)) return <Server className={iconClass} />;
     
     return <Monitor className={iconClass} />;
   };
@@ -130,16 +216,19 @@ const IPCell: React.FC<IPCellProps> = ({
     }
   };
 
+  const showTooltip = Boolean((status === 'active' || (status === 'scanning' && device) || (diffStatus && displayDevice)) && displayDevice);
+
   return (
     <div
       onClick={() => onClick(ip)}
-      onDoubleClick={() => onDoubleClick && onDoubleClick(ip, device)}
+      onDoubleClick={() => onDoubleClick && onDoubleClick(ip, displayDevice)}
       className={`
         relative aspect-square cursor-pointer transition-all duration-150 border-[0.5px]
         flex items-center justify-center group
         ${getStatusBase()}
         ${isSelected ? 'scale-110 rounded-md border-[2px]' : 'rounded-[2px] hover:z-50 hover:scale-125'}
         ${isHost ? 'ring-2 ring-sky-400 ring-offset-1 z-10' : ''}
+        ${isFilteredOut ? 'opacity-20 grayscale scale-95' : ''}
       `}
     >
       {isHost && (
@@ -149,22 +238,57 @@ const IPCell: React.FC<IPCellProps> = ({
         </>
       )}
 
-      {/* Diff Status Indicator Badge */}
+      {/* Diff Status Indicator Badges with Striking Distinct Colors */}
       {diffStatus === 'new' && (
-        <span className="absolute -top-1 -left-1 px-1 py-0.2 bg-emerald-500 text-white rounded text-[7px] font-black tracking-tighter shadow-md z-20 animate-bounce">
-          +NEW
+        <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-emerald-500 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(16,185,129,0.8)] z-20 animate-bounce flex items-center gap-0.5 border border-white/40">
+          <span className="text-[6px]">✚</span>NEW
         </span>
       )}
       {diffStatus === 'offline' && (
-        <span className="absolute -top-1 -left-1 px-1 py-0.2 bg-rose-600 text-white rounded text-[7px] font-black tracking-tighter shadow-md z-20">
-          -OFF
-        </span>
+        <>
+          <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-rose-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(244,63,94,0.8)] z-20 flex items-center gap-0.5 border border-white/40">
+            <span className="text-[6px]">━</span>OFF
+          </span>
+          {/* Diagonal indicator slash for disconnected nodes */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+            <div className="w-full h-[1px] bg-rose-500 rotate-45 transform" />
+          </div>
+        </>
       )}
       {diffStatus === 'changed' && (
-        <span className="absolute -top-1 -left-1 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-md z-20">
-          !CHG
+        <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(245,158,11,0.8)] z-20 flex items-center gap-0.5 border border-black/30">
+          <span className="text-[6px]">▲</span>CHG
         </span>
       )}
+      {diffStatus === 'same' && (() => {
+        const bColor = baselineColor || 'sky';
+        if (bColor === 'sky') {
+          return (
+            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-sky-500 text-black font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(14,165,233,0.7)] z-20 flex items-center gap-0.5 border border-sky-200">
+              <span className="text-[6px]">=</span>BASE
+            </span>
+          );
+        }
+        if (bColor === 'indigo') {
+          return (
+            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-indigo-500 text-white font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(99,102,241,0.7)] z-20 flex items-center gap-0.5 border border-indigo-200">
+              <span className="text-[6px]">=</span>BASE
+            </span>
+          );
+        }
+        if (bColor === 'teal') {
+          return (
+            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-teal-500 text-black font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(20,184,166,0.7)] z-20 flex items-center gap-0.5 border border-teal-200">
+              <span className="text-[6px]">=</span>BASE
+            </span>
+          );
+        }
+        return (
+          <span className="absolute -top-1 -left-1 px-0.5 py-0.2 bg-slate-700/80 text-slate-300 rounded text-[6px] font-black tracking-tighter z-10 opacity-70">
+            =
+          </span>
+        );
+      })()}
 
       {/* IP Conflict Warning Badge */}
       {isConflict && (
@@ -176,7 +300,7 @@ const IPCell: React.FC<IPCellProps> = ({
         </span>
       )}
 
-      {/* New Intruder / Unknown Device Badge */}
+      {/* New Intruder / Unknown Device Badge (Normal scan mode) */}
       {isNewIntruder && !diffStatus && (
         <span 
           title="새로 감지된 낯선 기기"
@@ -204,13 +328,13 @@ const IPCell: React.FC<IPCellProps> = ({
         />
       )}
 
-      {/* 장비 아이콘 (활성 장비일 경우 중앙에 작게 표시) */}
-      {(status === 'active' || (status === 'scanning' && device)) && (
+      {/* 장비 아이콘 (활성 장비 또는 스냅샷 오프라인 장비일 경우 표시) */}
+      {(status === 'active' || (status === 'scanning' && device) || (diffStatus === 'offline' && baselineDevice)) && (
         <>
-          <div className="absolute top-1 left-1 pointer-events-none opacity-40">
+          <div className={`absolute top-1 left-1 pointer-events-none ${diffStatus === 'offline' ? 'opacity-30 text-rose-400' : 'opacity-40'}`}>
              {getDeviceIcon()}
           </div>
-          {status === 'active' && <div className="absolute inset-0 bg-emerald-500/5 animate-[pulse_3s_infinite] pointer-events-none rounded-inherit" />}
+          {status === 'active' && !diffStatus && <div className="absolute inset-0 bg-emerald-500/5 animate-[pulse_3s_infinite] pointer-events-none rounded-inherit" />}
         </>
       )}
 
@@ -222,22 +346,47 @@ const IPCell: React.FC<IPCellProps> = ({
         {lastOctet}
       </span>
 
-      {/* 툴팁 (Hover) */}
-      {(status === 'active' || (status === 'scanning' && device)) && device && (
+      {/* 툴팁 (Hover) - 활성 장비 및 스냅샷 비교 상태 노드 모두 상세 툴팁 지원 */}
+      {showTooltip && displayDevice && (
         <div className={`
           pointer-events-none absolute 
           ${isLeftEdge ? 'left-0' : isRightEdge ? 'right-0' : 'left-1/2 -translate-x-1/2'}
           ${isTopHalf ? 'top-full mt-3' : 'bottom-full mb-3'}
-          hidden group-hover:flex flex-col w-48 p-3 rounded-lg border z-[100]
+          hidden group-hover:flex flex-col w-52 p-3 rounded-xl border z-[100]
           transition-all duration-300 opacity-0 group-hover:opacity-100
           ${getTooltipTheme()}
         `}>
           <div className="text-[11px] font-black border-b border-current border-opacity-10 pb-2 mb-2 flex justify-between items-center">
             <span className="truncate">{ip}</span>
-            <div className={`w-2 h-2 rounded-full ${isConflict ? 'bg-rose-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${
+              diffStatus === 'new' ? 'bg-emerald-500 animate-pulse' :
+              diffStatus === 'offline' ? 'bg-rose-500' :
+              diffStatus === 'changed' ? 'bg-amber-500 animate-ping' :
+              isConflict ? 'bg-rose-500 animate-ping' : 'bg-emerald-500 animate-pulse'
+            }`} />
           </div>
           
           <div className="space-y-2">
+            {/* Diff Comparison Color Header Banner */}
+            {diffStatus && (
+              <div className={`px-2 py-1 rounded-lg text-[9px] font-black flex items-center justify-between border ${
+                diffStatus === 'new' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' :
+                diffStatus === 'offline' ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' :
+                diffStatus === 'changed' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                'bg-slate-500/20 text-slate-300 border-slate-500/40'
+              }`}>
+                <span>
+                  {diffStatus === 'new' && '🟢 스냅샷 비교: +신규 노드'}
+                  {diffStatus === 'offline' && '🔴 스냅샷 비교: -연결 끊김'}
+                  {diffStatus === 'changed' && '🟠 스냅샷 비교: !식별자 변동'}
+                  {diffStatus === 'same' && '⚪ 스냅샷 비교: =상태 일치'}
+                </span>
+                <span className="text-[8px] uppercase opacity-80">
+                  {diffStatus === 'offline' ? 'Offline' : diffStatus.toUpperCase()}
+                </span>
+              </div>
+            )}
+
             {customNickname && (
               <div className="flex flex-col bg-amber-500/15 p-1 rounded border border-amber-500/30">
                 <span className="text-[8px] uppercase font-black text-amber-500 tracking-wider">🏷️ 사용자 지정 별칭</span>
@@ -253,22 +402,31 @@ const IPCell: React.FC<IPCellProps> = ({
             )}
 
             <div className="flex flex-col">
-              <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">{s.networkIdentity}</span>
+              <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
+                {diffStatus === 'offline' ? '이전 기준 식별명' : s.networkIdentity}
+              </span>
               <div className="text-[10px] font-black flex items-center gap-2 mt-0.5">
-                <span className="truncate text-sky-500">{device.hostname || s.deviceTypes.generic}</span>
+                <span className={`truncate ${diffStatus === 'offline' ? 'text-rose-400 line-through opacity-80' : 'text-sky-500'}`}>
+                  {displayDevice.hostname || s.deviceTypes.generic}
+                </span>
               </div>
             </div>
             
             <div className="flex flex-col">
-              <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">{s.macInfo}</span>
-              <span className="text-[9px] font-bold truncate">{device.vendor || 'Unknown'}</span>
+              <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
+                {diffStatus === 'offline' ? '이전 제조사 및 MAC' : s.macInfo}
+              </span>
+              <span className="text-[9px] font-bold truncate">{displayDevice.vendor || 'Unknown'}</span>
+              {displayDevice.mac && (
+                <span className="text-[8px] font-mono opacity-60 truncate">{displayDevice.mac}</span>
+              )}
             </div>
 
-            {device.openPorts && device.openPorts.length > 0 && (
+            {displayDevice.openPorts && displayDevice.openPorts.length > 0 && (
               <div className="flex flex-col pt-1 border-t border-current border-opacity-5">
                 <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">{s.listeningPorts}</span>
                 <div className="flex flex-wrap gap-1 mt-1">
-                   {device.openPorts.map(p => (
+                   {displayDevice.openPorts.map(p => (
                      <span key={p} className="text-[8px] font-bold bg-current bg-opacity-10 px-1 rounded">{p}</span>
                    ))}
                 </div>

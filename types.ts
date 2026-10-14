@@ -101,6 +101,7 @@ export interface LicenseFeatures {
   autoMonitor: boolean;
   exportReport: boolean;
   multiSubnet: boolean;
+  remoteBoot: boolean;
 }
 
 export interface LicenseInfo {

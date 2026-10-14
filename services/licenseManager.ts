@@ -9,6 +9,7 @@ const DEFAULT_FREE_FEATURES: LicenseFeatures = {
   autoMonitor: false,
   exportReport: false,
   multiSubnet: false,
+  remoteBoot: false,
 };
 
 const PRO_FEATURES: LicenseFeatures = {
@@ -20,6 +21,7 @@ const PRO_FEATURES: LicenseFeatures = {
   autoMonitor: true,
   exportReport: true,
   multiSubnet: false,
+  remoteBoot: true,
 };
 
 const ENTERPRISE_FEATURES: LicenseFeatures = {
@@ -31,6 +33,7 @@ const ENTERPRISE_FEATURES: LicenseFeatures = {
   autoMonitor: true,
   exportReport: true,
   multiSubnet: true,
+  remoteBoot: true,
 };
 
 const STORAGE_KEY = 'grid_ip_scanner_license_v2';
@@ -53,7 +56,18 @@ export const getStoredLicense = (): LicenseInfo => {
             };
           }
         }
-        return parsed as LicenseInfo;
+        const tierDefaults = parsed.tier === 'enterprise' 
+          ? ENTERPRISE_FEATURES 
+          : (parsed.tier === 'pro' ? PRO_FEATURES : DEFAULT_FREE_FEATURES);
+        return {
+          ...parsed,
+          features: {
+            ...tierDefaults,
+            ...(parsed.features || {}),
+            // Ensure remoteBoot matches the validated tier
+            remoteBoot: parsed.tier === 'pro' || parsed.tier === 'enterprise',
+          },
+        } as LicenseInfo;
       }
     }
   } catch (e) {
@@ -120,24 +134,39 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     };
   }
 
-  // Pro Tier Activation Token (Supports demonstration token and standard format)
+  // Pro Tier Activation Token (Supports demonstration/trial token and standard format)
   if (
     trimmed === 'GRID-PRO-TRIAL-2026' ||
+    trimmed === 'GRID-PRO-DEMO' ||
+    trimmed === 'PRO-DEMO' ||
+    trimmed === 'DEMO-PRO' ||
+    trimmed === 'DEMO-PRO-2026' ||
+    trimmed === 'GRID-PRO-DEMO-2026' ||
     trimmed === 'PRO-CISNET-2026-UNLIMITED' ||
     trimmed.startsWith('PRO-') ||
-    trimmed.startsWith('GSCAN-PRO-')
+    trimmed.startsWith('GSCAN-PRO-') ||
+    trimmed.startsWith('DEMO-')
   ) {
-    const isTrial = trimmed === 'GRID-PRO-TRIAL-2026';
+    const isTrial =
+      trimmed === 'GRID-PRO-TRIAL-2026' ||
+      trimmed === 'GRID-PRO-DEMO' ||
+      trimmed === 'PRO-DEMO' ||
+      trimmed === 'DEMO-PRO' ||
+      trimmed === 'DEMO-PRO-2026' ||
+      trimmed === 'GRID-PRO-DEMO-2026' ||
+      trimmed.includes('TRIAL') ||
+      trimmed.includes('DEMO');
+
     let expiresAt: string | undefined = undefined;
     if (isTrial) {
       const exp = new Date();
-      exp.setDate(exp.getDate() + 90);
+      exp.setDate(exp.getDate() + 30); // 30-day trial license
       expiresAt = exp.toISOString();
     }
 
     const proLicense: LicenseInfo = {
       tier: 'pro',
-      licensedTo: isTrial ? 'Registered Pro Trial User' : 'Registered Pro User',
+      licensedTo: isTrial ? 'Registered Pro Trial User (30-Day Demo)' : 'Registered Pro User',
       licenseKey: trimmed,
       issuedAt: new Date().toISOString(),
       expiresAt,
@@ -148,8 +177,8 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     return {
       success: true,
       message: isTrial 
-        ? 'Grid IP Scanner2 Pro 에디션(90일 시험판)이 성공적으로 활성화되었습니다!'
-        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
+        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다! (원격 부팅 WoL, Diff 비교, 심층 포트 스캔, 감사 리포트 30일간 전 기능 이용 가능)'
+        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (원격 부팅 WoL, Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
       license: proLicense,
     };
   }
@@ -181,6 +210,6 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
 
   return {
     success: false,
-    message: '유효하지 않은 라이선스 키입니다. 공식 발급 키 또는 테스트 키(GRID-PRO-TRIAL-2026)를 입력하세요.',
+    message: '유효하지 않은 라이선스 키입니다. 공식 발급 키 또는 데모 키(GRID-PRO-TRIAL-2026 / DEMO-PRO)를 입력하세요.',
   };
 };
