@@ -80,6 +80,17 @@
      - `docs/V3_FALSE_POSITIVE_GUIDE.md` 가이드를 신설하여 V3 환경설정 내 검사 예외 등록, 격리소 복원, 안랩 공식 화이트리스트 신고 절차를 상문화했습니다.
      - 웹 UI 내 [보안 및 안전 공지] 모달을 보강하여 안랩 V3 오진 안내 및 해결 가이드를 명시했습니다.
 
+
+9. **모바일 버전(Android APK & PWA) GitHub 자동 배포 및 독립 리포지토리 생성 파이프라인 구축**
+   - **GitHub Actions 릴리스 통합 (PC + Mobile 동시 배포)**:
+     - `.github/workflows/build-and-release.yml`을 고도화하여, 메인 브랜치 푸시 또는 버전 태그 발행 시 Windows 인스톨러뿐만 아니라 **안드로이드 APK(`Grid_IP_Scanner2_v2.4.3.apk`)** 및 **모바일 PWA 패키지(`Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip`)**가 GitHub Releases에 함께 자동 업로드되도록 구성했습니다.
+   - **모바일 전용 워크플로우(`.github/workflows/mobile-release.yml`) 신설**:
+     - 모바일 태그(`mobile-v*`) 푸시 또는 Actions 탭에서의 수동 1-클릭 실행 시 모바일 패키지만 독립적으로 빌드 및 릴리스할 수 있는 전용 CI/CD를 탑재했습니다.
+   - **독립 모바일 리포지토리 생성기(`scripts/export-mobile-repo.js`) 구현**:
+     - 모바일 전용 독립 저장소(`AhBiYout-all/grid-ip-scanner2-mobile`)를 개설하고자 할 때, `dist_releases/mobile_repository/`로 모바일 전용 코드/에셋/설명서/푸시 스크립트를 원터치로 추출할 수 있도록 구현했습니다.
+   - **모바일 GitHub 배포 배치 스크립트(`scripts/github-mobile-sync.bat`) 제공**:
+     - 메인 리포지토리 모바일 릴리스 태그 발행 또는 독립 모바일 리포지토리 푸시를 대화형으로 선택하여 실행할 수 있는 유틸리티를 제공합니다.
+
 ---
 
 ## 🚀 [v2.4.2] - 2026-10-14

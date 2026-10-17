@@ -35,6 +35,23 @@
   - `App.tsx` & `installer/NOTICE_BEFORE_INSTALL.txt`:
     - V3 `Trojan/Win.Generic.C*` 가진단 설명과 검사 예외 등록 안내 추가.
 
+
+### 9. 모바일(Android APK & PWA) GitHub 자동 배포 및 전용 리포지토리 체계 구축
+- **사용자 요청**: "모바일용 깃허브에 생성"
+- **구현 내용**:
+  1. `.github/workflows/build-and-release.yml`:
+     - GitHub Releases 발행 파일 목록에 `Grid_IP_Scanner2_v2.4.3.apk` 및 `Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip` 추가.
+     - 메인 리포지토리 Releases 페이지에서 PC 인스톨러와 모바일 앱을 한 번에 다운로드 가능.
+  2. `.github/workflows/mobile-release.yml`:
+     - 모바일 전용 GitHub Actions 워크플로우 신설 (태그 `mobile-v*` 또는 Actions 수동 실행).
+  3. `scripts/export-mobile-repo.js`:
+     - 독립 모바일 저장소 패키지(`dist_releases/mobile_repository/`) 생성기.
+     - 전용 `package.json`, `README.md`, `.gitignore`, `push-to-github.bat` 자동 생성.
+  4. `scripts/github-mobile-sync.bat` & `github-mobile-sync.sh`:
+     - 모바일 패키징 및 GitHub 자동 동기화/릴리스 배치 스크립트.
+  5. `docs/MOBILE_GITHUB_GUIDE.md`:
+     - 모바일 GitHub 배포 및 스마트폰 설치 가이드 작성.
+
 ---
 
 ## 📅 [2026-10-14] - Grid IP Scanner2 v2.4.3: 낯선 기기 감시 Pro 기능화 및 침입 방어 전략 고도화
