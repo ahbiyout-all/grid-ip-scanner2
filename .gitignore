@@ -63,3 +63,20 @@ desktop.ini
 .idea/
 .vscode/
 *.suo
+
+# [이미 추가된 항목들...]
+github-push.bat
+
+# 빌드 및 배포 히스토리
+dist_releases/build_history/
+
+# 개발 도구 캐시 및 로그
+.eslintcache
+.cache/
+*.log
+*.tmp
+*.temp
+
+# OS 시스템 파일
+Thumbs.db
+desktop.ini
