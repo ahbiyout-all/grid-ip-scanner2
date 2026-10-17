@@ -4,10 +4,11 @@ node_modules/
 .pnp.js
 
 # Build Outputs & Bundles
-dist/*
-!dist/.gitkeep
-!dist/index.html
+dist/
+.vite/
+go-build-artifacts/
 dist_installer/
+dist_releases/
 dist_electron/
 build/
 bin/
@@ -15,50 +16,45 @@ out/
 release_assets/
 release_files/
 
-# Executables & Binaries
+# Development/Build Folders to Exclude
+scripts/
+installer/
+go/
+native_dll/
+.github/
+.idea/
+.vscode/
+
+# Compiled Binaries
 *.exe
-*.dll
+*.o
+*.syso
 *.so
 *.dylib
-*.syso
 *.bin
 *.out
-gridscan-portable
-test_bin
 
 # Mobile & Native Package Artifacts
 *.apk
 *.aab
 *.ipa
 *.app
-*.mobileconfig
 
-# Toolchains & Archives
+# Go Specific
 go/
 go.zip
-*.zip
-*.tar.gz
-
-# Extra Lockfiles (Project uses npm package-lock.json)
-bun.lock
-yarn.lock
-pnpm-lock.yaml
 
 # Environment & Secret files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
 # Logs & Temporary debug files
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 *.tmp
 *.temp
+*.bak
 
 # OS & Editor specific files
 .DS_Store
@@ -67,8 +63,3 @@ desktop.ini
 .idea/
 .vscode/
 *.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-

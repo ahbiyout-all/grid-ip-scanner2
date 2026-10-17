@@ -73,7 +73,7 @@ call node scripts\sync-version.js
 echo.
 
 :: Step 4: Build Windows Executable and trigger Multi-Folder Packaging
-echo [4/5] Building React Web UI, Standalone Executable, and Distribution Folders...
+echo [4/6] Building React Web UI, Standalone Executable, and Distribution Folders...
 echo Rebuilding frontend and backend with Port: %PORT_INPUT%...
 set VITE_PORT=%PORT_INPUT%
 
@@ -85,9 +85,15 @@ if %errorlevel% neq 0 (
     goto FAILED
 )
 
+:: Step 4.5: Automatically apply Self-Signed Digital Signature to built executables
+echo.
+echo [4.5/6] Applying Self-Signed Digital Signature to built binaries...
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sign-binary.ps1
+echo.
+
 :: Step 5: Multi-Folder Distribution Verification
 echo.
-echo [5/5] Verifying all generated distribution folder outputs...
+echo [5/6] Verifying all generated distribution folder outputs...
 set "DIST_BASE=dist_releases\v%APP_VER%"
 
 if exist "%DIST_BASE%\unpacked\" (

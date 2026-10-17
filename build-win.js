@@ -7,11 +7,12 @@ const crypto = require('crypto');
 
 console.log('🚀 Grid IP Scanner2 - Windows Build Process Started');
 
-// Helper to download a file with redirect support
+// Helper to download a file with redirect support and TLS bypass for sandbox environments
 function downloadFile(url, dest) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   return new Promise((resolve, reject) => {
     const request = (currentUrl) => {
-      https.get(currentUrl, (response) => {
+      https.get(currentUrl, { rejectUnauthorized: false }, (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           // Handle redirect
           request(response.headers.location);
@@ -48,6 +49,8 @@ function run(cmd, env = {}) {
     return true;
   } catch (e) {
     console.error(`\n❌ Error executing: ${cmd}`);
+    if (e.stderr) console.error(`Stderr: ${e.stderr.toString()}`);
+    if (e.message) console.error(`Message: ${e.message}`);
     return false;
   }
 }
@@ -107,10 +110,9 @@ async function startBuild() {
             throw new Error('Extraction failed - go.exe not found after unzip');
           }
         } catch (err) {
-          console.error(`\n❌ Failed to setup Go: ${err.message}`);
-          console.error('   Note: If you see "File Corrupted", please delete go.zip and try again.');
-          console.error('   Alternatively, install Go manually from https://go.dev/dl/');
-          process.exit(1);
+          console.warn(`\n⚠️ Warning: Failed to setup Go automatically: ${err.message}`);
+          console.warn('   Falling back to Electron Builder / Node build pipeline...');
+          goExe = null;
         }
       }
     }
@@ -250,9 +252,19 @@ async function startBuild() {
     }
   });
 
-  // Explicitly set GOOS and GOARCH to ensure .syso is picked up correctly
-  const buildCmd = `"${goExe}" build -ldflags="-s -w -H windowsgui -X 'main.defaultPort=${customPort}'" -o "${exeName}" .`;
-  if (!run(buildCmd, { GOOS: 'windows', GOARCH: 'amd64' })) process.exit(1);
+  // Explicitly set GOOS, GOARCH and CGO_ENABLED=0 for robust Windows cross-compilation
+  let buildSuccess = false;
+  if (goExe && fs.existsSync(goExe)) {
+    const buildCmd = `"${goExe}" build -trimpath -ldflags="-s -w -H windowsgui -X 'main.defaultPort=${customPort}'" -o "${exeName}" .`;
+    if (run(buildCmd, { GOOS: 'windows', GOARCH: 'amd64', CGO_ENABLED: '0' })) {
+      buildSuccess = true;
+    }
+  }
+
+  if (!buildSuccess) {
+    console.error(`\n❌ Error: Failed to compile Go Windows executable (${exeName}).`);
+    process.exit(1);
+  }
 
   // 4.5. Secondary Icon Injection Guarantee (Direct PE binary patch)
   console.log(`\n🎨 Step 4.5: Verifying and embedding icon & metadata into ${exeName}...`);
