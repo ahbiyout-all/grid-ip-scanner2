@@ -1,6 +1,20 @@
 # 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
 
 
+### 11. v2.4.4 정식 버전업 및 CI/CD 컴파일 결함 해결 / 클린 소스 배포 파이프라인 완성
+- **사용자 질의/요청**: "버전업이 필요한것 아닌가요 확인바람."
+- **버전업 타당성 검토 결과**:
+  1. `v2.4.3` 릴리스 시도 시 GitHub Actions에서 발생했던 `fs.existsSync(goExe)` 버그로 인해 컴파일이 실패했으므로, 태그 충돌을 방지하고 클라우드 빌드를 새롭게 성공시키기 위해 `v2.4.4` 정식 버전업이 필수적임.
+  2. `.gitignore` 전면 개편(푸시 스크립트 격리, 바이너리 배제), 불필요한 업로드 폴더 제거, 모바일 PWA/APK 릴리스 워크플로우 통합 등 중대한 저장소 구조 개선 사항이 반영됨.
+- **적용 내용**:
+  1. `scripts/sync-version.js --bump-patch` 실행:
+     - `package.json` (2.4.4), `winres.json` (2.4.4.0), `installer/Grid_IP_Scanner2_Setup.iss` (2.4.4), `App.tsx` (v2.4.4), `services/updateChecker.ts` (2.4.4), `installer/setup_builder.go` (2.4.4) 일괄 동기화 완료.
+  2. `build-win.js` 전역 Go 감지 버그 완전 해결:
+     - GitHub Actions Windows 러너에서 `go build`가 즉시 정상 호출되도록 수정.
+  3. `docs/PATCH_NOTE.md` & `docs/README.md` 최신화:
+     - `v2.4.4` 패치노트 섹션 공식 신설.
+
+
 ### 7. 인스톨러 패키징 및 Unpacked 배포에서 포터블 바이너리 제외 (단일 표준 실행 파일 정립)
 - **사용자 제보/요청**: "인스톨 파일중 Grid IP Scanner2 v2.4.3.exe (메인 바이너리) 이것도 빠져야 되지 않나요?"
 - **원인 분석**:

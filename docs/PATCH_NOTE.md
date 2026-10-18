@@ -1,4 +1,30 @@
-# Grid IP Scanner2 - Patch Note (v2.4.3)
+# Grid IP Scanner2 - Patch Note (v2.4.4)
+
+---
+
+## 🚀 [v2.4.4] - 2026-10-18
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **GitHub Actions 및 Windows 빌드 파이프라인 컴파일 오류 해결 (`build-win.js`)**
+   - **전역 Go 환경 검사 버그 수정**:
+     - GitHub Actions 러너(Windows runner) 등 Go가 시스템 PATH에 전역 설치된 환경에서 `fs.existsSync(goExe)` 검사 오류로 인해 `go build` 단계가 실행되지 않고 `Process completed with exit code 1`로 중단되던 결함을 완벽히 수정했습니다.
+     - `goExe` 변수의 유효성을 직접 검사하도록 개선하여 로컬 및 CI/CD 클라우드 환경 모두에서 Windows 실행 파일(`Grid IP Scanner2 v2.4.4.exe`)이 100% 정상 컴파일되도록 보장했습니다.
+
+2. **GitHub 저장소 전용 .gitignore 제외 규칙 전면 개편 (클린 소스코드 전용)**
+   - **푸시 스크립트 원격 업로드 완전 차단**:
+     - `github-push.bat`, `scripts/github-sync.bat`, `scripts/github-mobile-sync.bat` 등 로컬 푸시/동기화 유틸리티를 `.gitignore`에 등록하여 GitHub 원격 저장소에 업로드되지 않도록 완전 격리했습니다.
+   - **빌드 산출물 및 바이너리 격리 강화**:
+     - `dist/`, `dist_installer/`, `dist_releases/`, `*.exe`, `*.syso`, `*.apk`, `*.zip`, `engine_arm64`, `go/` 등 모든 컴파일 산출물을 철저히 배제하고 순수 소스코드, 공식 문서, 설정 파일, 빌드 스크립트만 선별 푸시되도록 정비했습니다.
+
+3. **로컬 커밋 및 푸시 스크립트 정비 (`scripts/github-sync.bat` & `github-push.bat`)**
+   - **자동 캐시 인덱스 정화 (`git rm -r --cached .`)**:
+     - 이전에 Git 캐시에 남아있을 수 있는 제외 대상 파일들을 인덱스에서 자동 제거 후 순수 소스만 스테이징하는 안전장치를 내장했습니다.
+   - **v2.4.4 릴리스 태그 발행 연동**:
+     - 푸시 시 `v2.4.4` 태그를 발행하여 GitHub Actions가 PC 인스톨러(`Grid_IP_Scanner2_v2.4.4_Setup.exe`)와 모바일 앱(`Grid_IP_Scanner2_v2.4.4.apk`, `Grid_IP_Scanner2_v2.4.4_Mobile_PWA.zip`)을 클라우드에서 자동 빌드/배포하도록 연동했습니다.
+
+4. **단일 리포지토리 기반 일원화 및 불필요한 전용 업로드 폴더 제거**
+   - 불필요하게 생성되었던 독립 업로드/저장소용 폴더(`dist_releases/mobile_repository/`) 및 생성 스크립트를 제거하고, 메인 저장소 하나로 PC 및 모바일 릴리스가 통합 관리되도록 단순화했습니다.
 
 ---
 
