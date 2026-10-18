@@ -1,46 +1,38 @@
-# 📱 Grid IP Scanner2 모바일용 GitHub 생성 및 배포 완벽 가이드
+# 📱 Grid IP Scanner2 모바일 버전 GitHub 배포 가이드
 
-본 문서는 **Grid IP Scanner2 모바일 버전(Android APK & iOS/Web PWA)**을 GitHub에 생성, 배포, 릴리스하는 2가지 최적화 방식을 설명합니다.
-
----
-
-## 🌟 모바일 GitHub 배포 2가지 방식
-
-### [방식 1] 메인 GitHub 리포지토리 Releases에 모바일 통합 배포 (가장 추천 ⭐)
-* **리포지토리**: `https://github.com/AhBiYout-all/grid-ip-scanner2`
-* **동작 원리**:
-  - `git push` 또는 `scripts/github-sync.bat` 실행 시, GitHub Actions 클라우드 러너가 자동으로 Windows PC용 인스톨러뿐만 아니라 **안드로이드 APK 및 모바일 PWA 패키지를 함께 컴파일하여 GitHub Releases에 자동 등록**합니다.
-* **배포 파일 목록**:
-  1. `Grid_IP_Scanner2_v2.4.3_Setup.exe` (Windows 인스톨러)
-  2. `Grid_IP_Scanner2_v2.4.3.apk` (안드로이드 스마트폰 설치 파일)
-  3. `Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
-* **모바일 전용 태그 릴리스**:
-  - `scripts/github-mobile-sync.bat` 실행 후 `[1]`을 선택하면 `mobile-v2.4.3` 태그가 생성되며, 모바일 전용 릴리스가 GitHub에 즉시 독립 발행됩니다.
+본 문서는 **Grid IP Scanner2 모바일 버전(Android APK & iOS/Web PWA)**을 GitHub 리포지토리 및 GitHub Actions를 통해 클라우드에서 일괄 빌드하고 릴리스하는 표준 파이프라인 가이드입니다.
 
 ---
 
-### [방식 2] 모바일 전용 독립 GitHub 리포지토리 생성 및 푸시
-모바일 버전만을 위한 별도의 독립 GitHub 저장소(`grid-ip-scanner2-mobile`)를 운영하고 싶으실 때 사용하는 방식입니다.
+## 🌟 단일 통합 저장소 기반 GitHub 자동 배포
 
-1. **독립 모바일 리포지토리 자동 생성 스크립트 실행**:
-   ```bash
-   node scripts/export-mobile-repo.js
-   ```
-   - 이 명령어는 `dist_releases/mobile_repository/` 폴더에 모바일 전용 `package.json`, `index.html`, PWA manifest, 서비스 워커, 안드로이드 APK 및 `README.md`를 자동으로 생성합니다.
-2. **독립 리포지토리 푸시 실행**:
-   - `scripts/github-mobile-sync.bat` 실행 후 `[2] Push to Standalone Mobile Repository` 선택
-   - 또는 `dist_releases/mobile_repository/push-to-github.bat`을 실행하여 GitHub 새 저장소(`AhBiYout-all/grid-ip-scanner2-mobile`)에 1-클릭으로 푸시합니다.
+별도의 복잡한 전용 업로드 폴더 없이, **메인 GitHub 리포지토리 하나로 PC와 모바일의 모든 릴리스가 자동 관리**됩니다.
+
+* **공식 저장소**: `https://github.com/AhBiYout-all/grid-ip-scanner2`
+* **배포 파일 목록 (Releases 탭)**:
+  1. **`Grid_IP_Scanner2_v2.4.3_Setup.exe`**: Windows 정식 인스톨러
+  2. **`Grid_IP_Scanner2_v2.4.3.apk`**: 안드로이드 스마트폰 설치 파일 (Native Go ARM64 엔진 내장)
+  3. **`Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지
 
 ---
 
-## ⚙️ 자동화 파이프라인 구성 내역
+## 🚀 배포 실행 방법
 
-| 파일 경로 | 역할 및 설명 |
-| :--- | :--- |
-| **`.github/workflows/build-and-release.yml`** | 메인 브랜치 푸시 시 PC + 모바일(APK & PWA) 전체를 빌드하여 GitHub Releases에 동시 발행 |
-| **`.github/workflows/mobile-release.yml`** | 모바일 태그(`mobile-v*`) 푸시 또는 Actions 탭에서 수동 실행(1-Click) 시 모바일 릴리스 독립 생성 |
-| **`scripts/github-mobile-sync.bat`** | Windows 환경에서 모바일 패키징 및 GitHub 자동 태그/푸시를 지원하는 배치 스크립트 |
-| **`scripts/export-mobile-repo.js`** | 독립 모바일 GitHub 저장소 패키지(`dist_releases/mobile_repository/`) 자동 생성기 |
+### 방법 1: 전체 통합 푸시 (PC + 모바일 동시 릴리스)
+로컬 PC에서 아래 명령어를 실행하면, 소스코드가 GitHub에 깔끔하게 커밋되고 `v2.4.3` 릴리스가 생성됩니다:
+```cmd
+github-push.bat
+:: 또는 npm run git:push
+```
+GitHub Actions가 클라우드 상에서 Windows 인스톨러, Android APK, Mobile PWA를 자동으로 빌드하여 GitHub Releases에 즉시 배포합니다.
+
+### 방법 2: 모바일 전용 릴리스 태그 발행
+모바일 버전만을 명시적으로 릴리스하고 싶으실 경우:
+```cmd
+npm run git:mobile
+:: 또는 scripts\github-mobile-sync.bat
+```
+`mobile-v2.4.3` 태그가 발행되며, GitHub Actions의 `mobile-release.yml` 워크플로우가 동작하여 모바일 패키지만 독립적으로 릴리스합니다.
 
 ---
 

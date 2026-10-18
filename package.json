@@ -15,7 +15,6 @@
     "build:installer": "node installer/build-installer.js",
     "build:mobile": "node scripts/package-mobile.js",
     "build:apk": "node scripts/package-android.js",
-    "export:mobile": "node scripts/export-mobile-repo.js",
     "build:dist": "node scripts/build-distribution.js",
     "build:all": "npm run build && node scripts/build-distribution.js",
     "auto:update": "scripts\\auto-update.bat",
