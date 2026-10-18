@@ -1,82 +1,116 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
+# ======================================================================
+# Grid IP Scanner2 - Production Git Exclusion Rules (.gitignore)
+# Configured to push ONLY core source code, docs, configs, and build tools.
+# Push scripts, compiled binaries, packages, and build outputs are strictly excluded.
+# ======================================================================
 
-# Build Outputs & Bundles
+# ----------------------------------------------------------------------
+# 1. Local Push & GitHub Sync Scripts (푸시 스크립트 업로드 완전 제외)
+# ----------------------------------------------------------------------
+github-push.bat
+github-push.sh
+*github-sync*.bat
+*github-sync*.sh
+*github-mobile-sync*.bat
+*github-mobile-sync*.sh
+*push-to-github*.bat
+*push-to-github*.sh
+scripts/github-sync.bat
+scripts/github-sync.sh
+scripts/github-mobile-sync.bat
+scripts/github-mobile-sync.sh
+
+# ----------------------------------------------------------------------
+# 2. Build Outputs, Distribution Folders & Bundles
+# ----------------------------------------------------------------------
 dist/
-.vite/
-go-build-artifacts/
 dist_installer/
 dist_releases/
 dist_electron/
+.vite/
 build/
 bin/
 out/
 release_assets/
 release_files/
+go-build-artifacts/
+build_android_temp/
 
-# Development/Build Folders to Exclude
-scripts/
-installer/
-go/
-native_dll/
-.github/
-.idea/
-.vscode/
-
-# Compiled Binaries
+# ----------------------------------------------------------------------
+# 3. Compiled Executables, Binaries & Libraries
+# ----------------------------------------------------------------------
 *.exe
-*.o
+*.exe.bak
 *.syso
+*.o
+*.a
 *.so
 *.dylib
+*.dll
 *.bin
 *.out
+engine_arm64
 
-# Mobile & Native Package Artifacts
+# ----------------------------------------------------------------------
+# 4. Mobile Application Packages & Compressed Archives
+# ----------------------------------------------------------------------
 *.apk
 *.aab
 *.ipa
 *.app
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
 
-# Go Specific
+# ----------------------------------------------------------------------
+# 5. Toolchains, Runtimes & Dependency Directories
+# ----------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
 go/
 go.zip
+.build_sequence.json
+bun.lock
 
-# Environment & Secret files
+# ----------------------------------------------------------------------
+# 6. Environment Configurations, Credentials & Secrets
+# ----------------------------------------------------------------------
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
+*.pfx
+*.keystore
 
-# Logs & Temporary debug files
+# ----------------------------------------------------------------------
+# 7. Logs, Caches & Temporary Debug Files
+# ----------------------------------------------------------------------
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 *.tmp
 *.temp
 *.bak
+.eslintcache
+.cache/
 
-# OS & Editor specific files
+# ----------------------------------------------------------------------
+# 8. Operating System & Editor Metadata
+# ----------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
 .idea/
 .vscode/
 *.suo
-
-# [이미 추가된 항목들...]
-github-push.bat
-
-# 빌드 및 배포 히스토리
-dist_releases/build_history/
-
-# 개발 도구 캐시 및 로그
-.eslintcache
-.cache/
-*.log
-*.tmp
-*.temp
-
-# OS 시스템 파일
-Thumbs.db
-desktop.ini
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo

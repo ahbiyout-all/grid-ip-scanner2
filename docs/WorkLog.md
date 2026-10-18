@@ -52,6 +52,20 @@
   5. `docs/MOBILE_GITHUB_GUIDE.md`:
      - 모바일 GitHub 배포 및 스마트폰 설치 가이드 작성.
 
+
+### 10. .gitignore 제외 규칙 전면 개편 및 로컬 푸시 스크립트 격리 정비
+- **사용자 요청**: "GitHub 저장소에 꼭 필요한 핵심 소스코드, 공식 문서, 설정 파일 및 빌드 스크립트만 선별하여 푸시되도록 .gitignore 제외 규칙을 전면 개편하고, 로컬 저장소 커밋 및 푸시 스크립트 정비(푸시 스크립트는 업로드에서 제외)"
+- **구현 내용**:
+  1. `.gitignore` 전면 개편:
+     - 푸시 스크립트(`github-push.bat`, `scripts/github-sync.*`, `scripts/github-mobile-sync.*`, `*push-to-github*`) 업로드 제외.
+     - 빌드 산출물(`dist/`, `dist_installer/`, `dist_releases/`, `dist_electron/`, `build/`, `bin/`, `out/`, `release_assets/`, `release_files/`, `build_android_temp/`) 제외.
+     - 컴파일된 바이너리(`*.exe`, `*.syso`, `*.o`, `*.so`, `*.apk`, `*.zip`, `engine_arm64`) 제외.
+     - 런타임/캐시(`node_modules/`, `go/`, `go.zip`, `.build_sequence.json`, `bun.lock`, `.cache/`, `.eslintcache`) 제외.
+  2. 로컬 푸시 스크립트(`scripts/github-sync.bat`, `scripts/github-sync.sh`, `github-push.bat`) 정비:
+     - 푸시 전 `git rm -r --cached .` 자동 수행으로 기존 캐시된 제외 파일 인덱스 완전 정화.
+     - 순수 소스코드, 문서, 빌드 스크립트만 깔끔하게 스테이징 및 커밋/푸시.
+     - 릴리스 태그 발행을 통해 GitHub Actions CI/CD가 PC 및 모바일 바이너리를 클라우드에서 안전하게 자동 빌드/배포하도록 연동.
+
 ---
 
 ## 📅 [2026-10-14] - Grid IP Scanner2 v2.4.3: 낯선 기기 감시 Pro 기능화 및 침입 방어 전략 고도화

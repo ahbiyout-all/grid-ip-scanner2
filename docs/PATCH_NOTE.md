@@ -91,6 +91,15 @@
    - **모바일 GitHub 배포 배치 스크립트(`scripts/github-mobile-sync.bat`) 제공**:
      - 메인 리포지토리 모바일 릴리스 태그 발행 또는 독립 모바일 리포지토리 푸시를 대화형으로 선택하여 실행할 수 있는 유틸리티를 제공합니다.
 
+
+10. **GitHub 클린 소스 전용 .gitignore 제외 규칙 전면 개편 및 로컬 푸시 스크립트 격리**
+   - **.gitignore 제외 규칙 전면 개편**:
+     - GitHub 원격 저장소에는 오직 **핵심 소스코드(`src/`, `App.tsx`, `main.go` 등), 공식 문서(`docs/`), 설정 파일(`package.json`, `tsconfig.json`), 빌드 스크립트(`build.bat`, `build-win.js`, `scripts/build-distribution.js`)**만 업로드되도록 제외 규칙을 체계적으로 정비했습니다.
+   - **로컬 푸시 스크립트 원격 업로드 완전 차단**:
+     - `github-push.bat`, `scripts/github-sync.bat`, `scripts/github-mobile-sync.bat` 등 로컬 푸시 유틸리티를 `.gitignore`에 명시하여 GitHub에 업로드되지 않도록 완벽히 격리했습니다.
+   - **자동 캐시 정화 및 스테이징 안전망 탑재**:
+     - `scripts/github-sync.bat` 실행 시 이전에 인덱스에 캐싱되었을 수 있는 빌드 산출물과 푸시 스크립트를 자동으로 인덱스에서 제거(`git rm -r --cached .`)한 후 순수 소스만 스테이징(`git add .`)하도록 개선했습니다.
+
 ---
 
 ## 🚀 [v2.4.2] - 2026-10-14

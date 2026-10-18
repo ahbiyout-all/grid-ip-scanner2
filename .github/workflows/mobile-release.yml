@@ -1,0 +1,109 @@
+name: Build and Release Mobile Version (Android APK & PWA)
+
+on:
+  push:
+    tags:
+      - 'mobile-v*'
+      - 'v*-mobile'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release Tag (e.g. mobile-v2.4.3 or v2.4.3)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-mobile:
+    name: Build & Publish Mobile Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Resolve Target Version
+        id: resolve_ver
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.3'}")
+            TAG="mobile-v${APP_VER}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Target Mobile Release Tag: ${TAG}"
+
+      - name: Build Web Front-End (Vite)
+        run: npm run build
+
+      - name: Build Mobile Web & iOS PWA Distribution
+        run: node scripts/package-mobile.js
+
+      - name: Cross-Compile Native Go ARM64 Engine for Android
+        run: |
+          echo "Cross-compiling native Go scanning engine for Android ARM64..."
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -ldflags="-s -w" -o engine_arm64 .
+          ls -lh engine_arm64 || true
+
+      - name: Build Android APK
+        run: node scripts/package-android.js
+
+      - name: Collect Mobile Output Artifacts
+        run: |
+          mkdir -p mobile_releases
+          find . -maxdepth 2 -type f -name "*.apk" -exec cp {} mobile_releases/ \; 2>/dev/null || true
+          find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp {} mobile_releases/ \; 2>/dev/null || true
+          echo "=== Collected Mobile Release Files ==="
+          ls -la mobile_releases/
+
+      - name: Upload Mobile Artifacts to Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-release-assets
+          path: mobile_releases/*
+
+      - name: Publish Dedicated Mobile GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.resolve_ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Grid IP Scanner2 Mobile ${{ steps.resolve_ver.outputs.tag }}
+          files: mobile_releases/*
+          body: |
+            # 📱 Grid IP Scanner2 Mobile & Android Official Release
+
+            안드로이드 스마트폰 및 모바일 디바이스(태블릿, iPad, iPhone PWA)를 위한 공식 배포 릴리스입니다.
+
+            ## 📥 다운로드 목록
+            * **`Grid_IP_Scanner2_v2.4.3.apk`**: 안드로이드(Android) 스마트폰/태블릿 직접 설치용 APK (고성능 Native Go ARM64 엔진 내장)
+            * **`Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지 (사내 모바일 웹 서버 배포 또는 압축 해제 후 모바일 브라우저 실행)
+
+            ## 💡 스마트폰 설치 및 사용 방법
+            1. **안드로이드 (APK)**:
+               - 다운로드 후 기기에서 열기 -> [출처를 알 수 없는 앱 설치 허용] 후 원터치 설치
+            2. **iPhone / iPad (PWA)**:
+               - Safari 브라우저에서 접속 -> 하단 [공유] 아이콘 터치 -> **[홈 화면에 추가]** 터치하여 네이티브 앱처럼 실행
+          generate_release_notes: true
+          make_latest: false
+          draft: false
+          prerelease: false
