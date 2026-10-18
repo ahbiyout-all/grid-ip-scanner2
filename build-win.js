@@ -252,9 +252,9 @@ async function startBuild() {
     }
   });
 
-  // Explicitly set GOOS, GOARCH and CGO_ENABLED=0 for robust Windows cross-compilation
+  // Explicitly set GOOS, GOARCH and CGO_ENABLED=0 for robust Windows compilation
   let buildSuccess = false;
-  if (goExe && fs.existsSync(goExe)) {
+  if (goExe) {
     const buildCmd = `"${goExe}" build -trimpath -ldflags="-s -w -H windowsgui -X 'main.defaultPort=${customPort}'" -o "${exeName}" .`;
     if (run(buildCmd, { GOOS: 'windows', GOARCH: 'amd64', CGO_ENABLED: '0' })) {
       buildSuccess = true;
