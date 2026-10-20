@@ -19,7 +19,9 @@
     "build:all": "npm run build && node scripts/build-distribution.js",
     "auto:update": "scripts\\auto-update.bat",
     "git:push": "scripts\\github-sync.bat",
+    "git:sync": "bash sync-github.sh",
     "git:mobile": "scripts\\github-mobile-sync.bat",
+    "deploy:git": "bash sync-github.sh",
     "dist": "npm run build && npx electron-builder --win"
   },
   "build": {

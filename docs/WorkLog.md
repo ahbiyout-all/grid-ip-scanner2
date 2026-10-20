@@ -1,6 +1,21 @@
 # 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
 
 
+### 15. 루트 자동 GitHub 동기화 스크립트(sync-github.sh) 신설 및 배포 단계 등록
+- **사용자 요청**: "Create a new bash or batch script file named sync-github.sh in the project root that automatically synchronizes the current code state with the remote GitHub repository, including local changes, and suggest adding this as a deployment build step."
+- **구현 내용**:
+  1. `sync-github.sh` 신설 (프로젝트 루트):
+     - Git 및 Node.js 환경 검증
+     - `scripts/sync-version.js` 자동 호출로 9대 타깃 버전 무결성 보장
+     - `git rm -r --cached .` 및 `git add .`를 통한 클린 소스 스테이징
+     - 변경 사항 감지 및 타임스탬프 기반 자동 커밋 생성 (사용자 지정 메시지 인자 지원)
+     - 원격 메인 브랜치(`main`) 푸시 및 충돌 시 안전한 rebase 처리
+     - 시맨틱 릴리스 태그(`vX.Y.Z`) 발행으로 GitHub Actions CI/CD(Windows 설치파일, Android APK, PWA) 자동 트리거
+     - 실행 권한(`chmod +x`) 부여
+  2. `package.json` 빌드 및 배포 단계 연동:
+     - `"git:sync": "bash sync-github.sh"` 및 `"deploy:git": "bash sync-github.sh"` 스크립트 추가
+
+
 ### 14. v2.4.5 정식 버전업 및 A4 PDF 스마트 페이지네이션 / 번역 팝업 차단 정식 반영
 - **버전업 배경**: A4 최적화 스마트 페이지네이션 PDF 엔진 도입, 브라우저 자동 번역 팝업 3중 차단, 그리고 신규 기술 명세서(`docs/A4_REPORT_ENGINE_SPEC.md`) 발행 등 주요 기능 고도화에 따라 `v2.4.5`로 정식 버전업을 수행함.
 - **적용 내용**:

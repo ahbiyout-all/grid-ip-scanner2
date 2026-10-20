@@ -1,15 +1,31 @@
 # Grid IP Scanner2 - Patch Note (v2.4.5)
 
-6. **브라우저/WebView 번역 팝업("페이지의 영어를 번역하시겠습니까?") 원천 제거**
-   - **원인 분석**:
-     - 기존 `index.html`의 언어 속성이 `<html lang="en">`으로 선언되어 있어, 한국어 Windows 환경의 Chromium/Edge 엔진이 페이지를 영문으로 오인하여 시작 시 번역 제안 팝업을 표시하던 문제였습니다.
-   - **조치 사항**:
-     - `index.html`에 `<html lang="ko" class="notranslate" translate="no">` 적용 및 `<meta name="google" content="notranslate">`, `<meta http-equiv="Content-Language" content="ko">` 메타 태그를 명시했습니다.
-     - `App.tsx` 마운트 시 `document.documentElement`의 `translate="no"` 및 `notranslate` 클래스를 강제 동기화했습니다.
-     - `utils_windows.go` 및 `main.js` 브라우저 실행 인자에 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 플래그를 주입하여 브라우저 자체의 번역 팝업을 완전히 비활성화했습니다.
+## 🚀 [v2.4.5] - 2026-10-20
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **A4 규격 최적화 스마트 페이지네이션 PDF 보고서 출력 엔진 고도화 (`services/reportGenerator.ts`)**
+   - **완벽한 페이지 분할 및 잘림 방지 (Zero Row-Chopping)**:
+     - 794px x 1123px (A4 1:1.4142 비율)의 독립 페이지 모델(`.a4-report-page`)을 도입하여, 인쇄 또는 PDF 저장 시 테이블 행이나 텍스트 줄이 페이지 경계면에서 반으로 잘리는 결함을 완벽히 해결했습니다.
+   - **프린터 안전 여백 (11mm Margin) 및 동적 페이지 번호**:
+     - 좌우 40px(약 11mm) 프린터 하드웨어 물리 마진 보호 구역을 적용하여 시중의 모든 프린터에서 글자 잘림 없는 출력을 보장합니다.
+     - 모든 A4 페이지 하단에 `페이지 X / Y` 형태의 동적 페이지 번호와 기밀(CONFIDENTIAL) 등급, 공식 배포처가 정돈되어 출력됩니다.
+
+2. **브라우저 자동 번역 팝업("페이지의 영어를 번역하시겠습니까?") 3중 원천 차단**
+   - **메타 태그 및 언어 속성 고정**:
+     - `index.html`에 `<html lang="ko" class="notranslate" translate="no">` 및 `<meta name="google" content="notranslate">`, `<meta http-equiv="Content-Language" content="ko">` 지시자를 추가했습니다.
+   - **Chromium/Edge 브라우저 엔진 플래그 주입**:
+     - `utils_windows.go` 및 `main.js` 브라우저 실행 인자에 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 플래그를 상시 주입하여 앱 실행 시 번역 팝업이 일체 나타나지 않도록 차단했습니다.
+
+3. **루트 원클릭 GitHub 동기화 배시 스크립트 신설 (`sync-github.sh`)**
+   - 프로젝트 루트 디렉터리에 로컬 변경 사항을 원격 GitHub 저장소(`AhBiYout-all/grid-ip-scanner2`)와 자동 동기화하고 릴리스 태그를 발행하는 크로스 플랫폼 배시 스크립트 `sync-github.sh`를 추가했습니다.
+   - `package.json`에 `"deploy:git"` 및 `"git:sync"` 배포 빌드 단계를 등록하여 CLI 환경에서도 원터치로 GitHub Actions 배포를 가동할 수 있도록 지원합니다.
+
+4. **공식 기술 문서 허브 대폭 확충 및 SSOT 버전 연동 완성 (v2.4.5)**
+   - 신규 기술 명세서 `docs/A4_REPORT_ENGINE_SPEC.md`를 신설하여 A4 스마트 페이지네이션 수학적 모델과 프린터 여백 설계 원리를 공식 문서화했습니다.
+   - 단일 진실 공급원(SSOT) 동기화 파이프라인(`scripts/sync-version.js`)을 통해 9대 핵심 타깃 파일의 버전 정보가 `v2.4.5`로 완벽히 동기화되었습니다.
 
 ---
-
 ## 🚀 [v2.4.4] - 2026-10-18
 
 ### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
