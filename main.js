@@ -9,6 +9,11 @@ let mainWindow;
 const tempUserData = path.join(app.getPath('temp'), `cisnet_grid_scan_electron_${Date.now()}`);
 app.setPath('userData', tempUserData);
 
+// Disable Chromium translation prompts and force Korean locale
+app.commandLine.appendSwitch('disable-features', 'Translate');
+app.commandLine.appendSwitch('disable-translate');
+app.commandLine.appendSwitch('lang', 'ko');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 950,

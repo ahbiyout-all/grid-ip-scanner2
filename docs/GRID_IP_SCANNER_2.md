@@ -1,7 +1,7 @@
 # Grid IP Scanner2
 ## 📋 기술 설명서 및 개발 백서 (Technical Documentation & Architecture Whitepaper)
 
-본 문서는 **Grid IP Scanner2 (v2.3.2)**의 시스템 아키텍처, 16x16 시각화 그리드 맵, 스냅샷 비교(Diff) 엔진, 심층 포트 보안 감사, 오프라인 라이선스 아키텍처, 네트워크 어댑터 전수 탐색 시스템, 5단계 적응형 런처, 네이티브 비상 스캔 모드, Inno Setup 6 윈도우 인스톨러 툴체인, 그리고 최신 초고화질 아이콘 엣지-투-엣지 최적화 내역을 체계적으로 기술한 공식 제품 가이드입니다.
+본 문서는 **Grid IP Scanner2 (v2.4.4)**의 시스템 아키텍처, 16x16 시각화 그리드 맵, 스냅샷 비교(Diff) 엔진, 심층 포트 보안 감사, A4 최적화 PDF 보고서 생성 엔진, 오프라인 라이선스 아키텍처, 네트워크 어댑터 전수 탐색 시스템, 5단계 적응형 런처, 브라우저 번역 팝업 원천 차단, 네이티브 비상 스캔 모드, Inno Setup 6 윈도우 인스톨러 툴체인, 그리고 모바일 배포 체계를 체계적으로 기술한 공식 제품 가이드입니다.
 
 ---
 
@@ -21,17 +21,16 @@
 │  - 16x16 Grid & Diff View       │◄────┤  - Multi-threaded Worker Pool   │
 │  - Real-time State Batching     │ SSE │  - Raw ARP / ICMP / NetBIOS     │
 │  - Adapter Multi-Filter Modal   │     │  - Deep Port Scan Engine        │
-│  - Deep Port Audit / A4 Reports │────►│  - Tiered 90k+ OUI Engine       │
+│  - A4 Smart Pagination PDF      │────►│  - Tiered 90k+ OUI Engine       │
 │  - Ed25519 Offline Licensing    │ API │  - 5-Tier Adaptive Launcher     │
-│  - GitHub Live Update Center    │     │  - Safe Relaunch Engine         │
+│  - Suppressed Browser Translate │     │  - Safe Relaunch Engine         │
 └─────────────────────────────────┘     └─────────────────────────────────┘
 ```
 
-* **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons를 사용하여 현대적인 사이버펑크 Slate 테마 기반의 반응형 UI를 제공합니다. UI 렌더링 블로킹을 차단하는 250ms 상태 배칭 버퍼 엔진과 수동 인터페이스 상태 보존 래퍼가 내장되어 있습니다.
+* **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons를 사용하여 현대적인 사이버펑크 Slate 테마 기반의 반응형 UI를 제공합니다. UI 렌더링 블로킹을 차단하는 250ms 상태 배칭 버퍼 엔진, 수동 인터페이스 상태 보존 래퍼, 및 브라우저 자동 번역 팝업 방지 가드가 내장되어 있습니다.
 * **Backend**: Go(Golang) 언어로 구현된 초고속 병렬 탐색 엔진입니다. 수백 개의 고루틴과 워커 풀(Worker Pool)을 가동해 ICMP Ping, ARP 탐색, NetBIOS(UDP 137), mDNS(UDP 5353), UPnP, SNMP 프로토콜을 병렬 탐색하며 결과를 Server-Sent Events (SSE)로 프론트엔드에 실시간 스트리밍합니다.
-* **Adaptive 5-Tier Launcher**: 최신 Windows 11/10의 Edge 앱 모드, 구형 Windows 7/8.1의 Chrome/Whale 앱 모드, 시스템 기본 브라우저 연동, 브라우저가 전면 차단된 폐쇄망을 위한 Windows 시스템 네이티브 비상 스캔 모드(`user32.dll` + `notepad.exe` 보고서)까지 5단계 자동 폴백 파이프라인을 지원합니다.
-* **Express & Go Sync Proxy (`server.ts`)**: 개발 및 가상 실행 모드에서 Node Express 서버가 Go 백엔드를 기동할 때 `/api/info` 헬스체크 응답을 대기(`waitForGoBackend`)한 후 프록시 통로를 개방함으로써 `ECONNREFUSED` 503 프록시 초기 구동 연결 에러를 완벽히 소멸시켰습니다.
-* **Dual Distribution (Standalone & Installer)**: 단일 무설치 포터블(`.exe`) 및 Inno Setup 6 기반의 정식 윈도우 인스톨러(`Setup.exe`)를 동시 제공하며, 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.3.2.apk`) 및 PWA 모바일 접속 모드를 지원합니다.
+* **Adaptive 5-Tier Launcher**: 최신 Windows 11/10의 Edge 앱 모드(`--disable-translate` 주입), 구형 Windows 7/8.1의 Chrome/Whale 앱 모드, 시스템 기본 브라우저 연동, 브라우저가 전면 차단된 폐쇄망을 위한 Windows 시스템 네이티브 비상 스캔 모드(`user32.dll` + `notepad.exe` 보고서)까지 5단계 자동 폴백 파이프라인을 지원합니다.
+* **Dual Distribution (Standalone & Installer & Mobile)**: 단일 무설치 포터블(`.exe`) 및 Inno Setup 6 기반의 정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.4.4_Setup.exe`)를 동시 제공하며, 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.4.apk`) 및 PWA 모바일 접속 모드를 지원합니다.
 
 ---
 
@@ -49,16 +48,18 @@
   - 우측 상세 프로필 패널 전용 **스냅샷 비교 진단 카드** 제공: 변동 노드의 전후 MAC/호스트명 대조 및 이탈 노드에 대한 **원격 부팅 (WoL / Wake-on-LAN, Pro 전용)** 패킷 발송 연계.
   - 상단 토글로 `[16x16 그리드 뷰]`와 `[스냅샷 비교 (Diff)]` 모드를 원클릭 전환.
 
-### 📌 2. 내보내기/리포트 드롭다운 메뉴 및 심층 포트 A4 보안 감사 보고서
+### 📌 2. 내보내기/리포트 드롭다운 메뉴 및 A4 최적화 스마트 페이지네이션 PDF 감사 보고서
 * **통합 드롭다운 팝오버 메뉴 (`App.tsx`)**:
   - 툴바 공간을 절약하고 가독성을 높이기 위해 CSV, JSON 내보내기 및 A4 보안 감사 보고서 버튼을 단일 드롭다운 팝오버로 통합.
   - 외부 클릭 자동 닫힘 및 다크/베이지 테마 블러 스타일 적용.
 * **25개 주요 서비스 포트 정밀 진단 (`services/portScanner.ts`)**:
   - FTP(21), SSH(22), Telnet(23), SMTP(25), DNS(53), HTTP(80), SMB(445), MSSQL(1433), MySQL(3306), RDP(3389), PostgreSQL(5432), Redis(6379) 등 주요 위험 포트 동시 검사.
   - 포트별 위험도(HIGH/MEDIUM/SAFE) 자동 분류 및 서비스 설명 자동 매핑.
-* **A4 규격 전문 감사 보고서 (`services/reportGenerator.ts`)**:
-  - 기업 전산 보고 및 보안 감사를 위한 A4 인쇄 및 PDF 저장을 지원하는 고품질 HTML 보고서 원클릭 생성.
-  - 서브넷 통계, 하드웨어 제조사 점유율 표, 보안 취약 포트 노출 노드 목록, 상세 인벤토리 테이블 자동 렌더링.
+* **A4 규격 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**:
+  - **Zero Row-Chopping**: 794px x 1123px (A4 1:1.4142)의 독립 페이지 단위 사전 분할로 페이지 경계면에서 테이블 행이나 글자가 반으로 잘리는 문제 완전 해소.
+  - **11mm 프린터 안전 여백**: 일반 사무용 레이저/잉크젯 프린터 출력 시에도 가장자리 글자 잘림 없는 안전 여백 보장.
+  - **동적 페이지 번호 및 공식 푸터**: 매 페이지 하단 `페이지 X / Y`, 기밀(CONFIDENTIAL) 등급, 배포처((주)씨아이에스넷), 개발사(AhBiYout) 메타데이터 정돈 표기.
+  - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 고해상도 스타일시트로 배경색과 뱃지 완벽 보존.
 
 ### 📌 3. 비대칭 암호키 오프라인 라이선스 매니저, 낯선 기기 감시 & WoL Pro 게이트 & 30일 체험권
 * **3단계 라이선스 티어**: Community(Free), Pro, Enterprise.

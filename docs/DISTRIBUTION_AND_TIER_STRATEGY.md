@@ -241,6 +241,6 @@ export interface LicenseInfo {
 ---
 
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.4.3
+* **소프트웨어 버전**: v2.4.4
 * **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 

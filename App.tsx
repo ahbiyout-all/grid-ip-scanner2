@@ -850,6 +850,13 @@ const App: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [isScanning, scanStartTime]);
+
+  // Permanently suppress browser / Chromium / Edge auto-translate popups
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.setAttribute('translate', 'no');
+    document.documentElement.classList.add('notranslate');
+  }, [lang]);
  
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {

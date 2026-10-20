@@ -75,12 +75,15 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 | **`docs/WorkLog.md`** | 개발 및 기능 구현 공식 작업 일지 (일자별 변경 상세) |
 | **`docs/GRID_IP_SCANNER_2.md`** | 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 |
 | **`docs/FILE_STRUCTURE_GUIDE.md`** | 프로젝트 전체 디렉터리, 컴포넌트 및 아키텍처 가이드 |
-| **`docs/GRID_NATIVE_DRIVER_SPEC.md`** | 순수 창작 네이티브 가속 드라이버(`grid_net_driver.dll` v2.3.2) 기술 명세서 |
-| **`docs/OUI_PARSER_DLL_SPEC.md`** | IEEE & Wireshark OUI 무결성 검증 및 C 파서 엔진 기술 명세서 |
-| **`docs/GITHUB_GUIDE.md`** | GitHub 공식 연동 및 GitHub Actions CI/CD 자동 배포 가이드 |
+| **`docs/GITHUB_GUIDE.md`** | GitHub 공식 연동, .gitignore 규칙 및 CI/CD 자동 배포 가이드 |
+| **`docs/MOBILE_GITHUB_GUIDE.md`** | 모바일 APK 및 PWA 단일 리포지토리 자동 배포 가이드 |
+| **`docs/V3_FALSE_POSITIVE_GUIDE.md`** | AhnLab V3 오진 분석 및 화이트리스트 신청 가이드 |
+| **`docs/DIGITAL_SIGNATURE_GUIDE.md`** | 테스트용 자가 서명(PowerShell) 가이드 |
 | **`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`** | 포터블 & 인스톨러 배포 전략 및 유료화 아키텍처 사양서 |
 | **`docs/PROPRIETARY_TECHNOLOGY.md`** | 15대 핵심 독점 기술 및 코어 엔진 기술 명세서 |
 | **`docs/OUI_DATABASE_SPEC.md`** | OUI 계층형 데이터베이스 및 이중 미러링 기술 명세서 |
+| **`docs/SECURITY_REPORT.md`** | 보안 점검 및 암호화 검증 보고서 |
+| **`docs/A4_REPORT_ENGINE_SPEC.md`** | A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서 |
 | **`docs/LICENSE.md`** | 오픈소스(GPL v3) 및 상용(Commercial) 이중 라이선스 계약서 |
 
 ### 💡 신규 문서 생성 지침
@@ -89,26 +92,27 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 
 ---
 
-## 🔄 5. 단일 진실 공급원(SSOT) 동적 버전 추출 및 8대 타깃 동기화 파이프라인
+## 🔄 5. 단일 진실 공급원(SSOT) 동적 버전 추출 및 9대 타깃 동기화 파이프라인
 
 배포/빌드 스크립트(`.bat`, `.sh`, `.js`) 내 버전 정보 수동 하드코딩을 원천 금지하며, 다단 동적 추출 및 자동 동기화 엔진(`scripts/sync-version.js`)을 통해 전체 시스템 버전을 단 1회 명령으로 동기화합니다.
 
 ### 5.1. 다단 동적 버전 추출 순서 (Tiered Dynamic Resolution)
 1. **1차 기준 (Primary)**: `package.json` 파일의 `"version"` 프로퍼티 값을 Node.js를 통해 읽어옵니다.
 2. **2차 기준 (Fallback)**: `package.json`이 누락되거나 Node 미설치 환경인 경우, `docs/PATCH_NOTE.md` 최상단 헤더(정규식 `\(v?([0-9.]+)\)`)에서 버전 번호를 자동 파싱하여 변수(`%APP_VER%`)에 할당합니다.
-3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.3.2`를 지정합니다.
+3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.4.4`를 지정합니다.
 
-### 5.2. 8대 핵심 타깃 일괄 동기화 (Single Source of Truth)
-`node scripts/sync-version.js` 실행 시 다음 8개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
+### 5.2. 9대 핵심 타깃 일괄 동기화 (Single Source of Truth)
+`node scripts/sync-version.js` 실행 시 다음 9개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
 1. `package.json` (`"version": "X.Y.Z"`)
 2. `winres.json` (PE 메타데이터 `RT_MANIFEST` & `RT_VERSION` quad-version `"X.Y.Z.0"`)
 3. `installer/Grid_IP_Scanner2_Setup.iss` (`#define MyAppVersion "X.Y.Z"`)
 4. `App.tsx` (사이드바, 모바일 상단 바, 모달 내부 UI 뱃지 및 파일명 레퍼런스)
 5. `services/updateChecker.ts` (`export const CURRENT_APP_VERSION = 'X.Y.Z'`)
-6. `docs/PATCH_NOTE.md` (최상단 헤더 타이틀 `# Grid IP Scanner2 - Patch Note (vX.Y.Z)`)
-7. `docs/README.md` (`최신 vX.Y.Z 버전`)
-8. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
+6. `installer/setup_builder.go` (`AppVersion = "X.Y.Z"`)
+7. `docs/PATCH_NOTE.md` (최상단 헤더 타이틀 `# Grid IP Scanner2 - Patch Note (vX.Y.Z)`)
+8. `docs/README.md` (`최신 vX.Y.Z 버전`)
+9. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
 
 ---
-* **문서 제정 및 최신 개정일**: 2026년 10월 4일 (v2.3.2 적용)
+* **문서 제정 및 최신 개정일**: 2026년 10월 20일 (v2.4.4 적용)
 * **책임 부서**: Grid IP Scanner2 코어 개발 연구팀 (AhBiYout / [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))

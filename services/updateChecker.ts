@@ -30,7 +30,7 @@ export interface UpdateInfo {
   pwaZipUrl?: string;
 }
 
-export const CURRENT_APP_VERSION = '2.4.4';
+export const CURRENT_APP_VERSION = '2.4.5';
 export const GITHUB_REPO_OWNER = 'AhBiYout-all';
 export const GITHUB_REPO_NAME = 'grid-ip-scanner2';
 export const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;

@@ -1,4 +1,12 @@
-# Grid IP Scanner2 - Patch Note (v2.4.4)
+# Grid IP Scanner2 - Patch Note (v2.4.5)
+
+6. **브라우저/WebView 번역 팝업("페이지의 영어를 번역하시겠습니까?") 원천 제거**
+   - **원인 분석**:
+     - 기존 `index.html`의 언어 속성이 `<html lang="en">`으로 선언되어 있어, 한국어 Windows 환경의 Chromium/Edge 엔진이 페이지를 영문으로 오인하여 시작 시 번역 제안 팝업을 표시하던 문제였습니다.
+   - **조치 사항**:
+     - `index.html`에 `<html lang="ko" class="notranslate" translate="no">` 적용 및 `<meta name="google" content="notranslate">`, `<meta http-equiv="Content-Language" content="ko">` 메타 태그를 명시했습니다.
+     - `App.tsx` 마운트 시 `document.documentElement`의 `translate="no"` 및 `notranslate` 클래스를 강제 동기화했습니다.
+     - `utils_windows.go` 및 `main.js` 브라우저 실행 인자에 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 플래그를 주입하여 브라우저 자체의 번역 팝업을 완전히 비활성화했습니다.
 
 ---
 

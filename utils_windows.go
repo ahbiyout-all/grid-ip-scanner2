@@ -407,7 +407,12 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 			}
 		}
 
-		appArgs := []string{"--app=" + url}
+		appArgs := []string{
+			"--app=" + url,
+			"--disable-features=Translate",
+			"--disable-translate",
+			"--lang=ko",
+		}
 		if profileDir != "" {
 			appArgs = append(appArgs, "--user-data-dir="+profileDir)
 		}
@@ -422,7 +427,7 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 		}
 
 		// 경로를 직접 못 찾았을 경우 Windows ShellExecuteW를 통해 App Paths 레지스트리로 실행 (콘솔 창 없음)
-		paramStr := fmt.Sprintf("--app=%s", url)
+		paramStr := fmt.Sprintf("--app=%s --disable-features=Translate --disable-translate --lang=ko", url)
 		if profileDir != "" {
 			paramStr += fmt.Sprintf(" --user-data-dir=\"%s\"", profileDir)
 		}

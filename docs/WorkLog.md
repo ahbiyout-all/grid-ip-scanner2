@@ -1,6 +1,28 @@
 # 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
 
 
+### 14. v2.4.5 정식 버전업 및 A4 PDF 스마트 페이지네이션 / 번역 팝업 차단 정식 반영
+- **버전업 배경**: A4 최적화 스마트 페이지네이션 PDF 엔진 도입, 브라우저 자동 번역 팝업 3중 차단, 그리고 신규 기술 명세서(`docs/A4_REPORT_ENGINE_SPEC.md`) 발행 등 주요 기능 고도화에 따라 `v2.4.5`로 정식 버전업을 수행함.
+- **적용 내용**:
+  1. `node scripts/sync-version.js --bump-patch` 실행:
+     - `package.json` (2.4.5), `winres.json` (2.4.5.0), `installer/Grid_IP_Scanner2_Setup.iss` (2.4.5), `App.tsx` (v2.4.5), `services/updateChecker.ts` (2.4.5), `installer/setup_builder.go` (2.4.5), 문서 패치노트 및 README 일괄 동기화 완료.
+  2. A4 PDF 스마트 페이지네이션 및 번역 차단 가드 안정화 테스트 완료.
+
+
+### 13. 앱 실행 시 브라우저 번역 팝업("페이지의 영어를 번역하시겠습니까?") 제거
+- **사용자 제보**: 앱 시작 시 좌측 상단에 "페이지의 영어을(를) 번역하시겠습니까?" 팝업 노출.
+- **원인 분석**:
+  - `index.html` 최상단 태그가 `<html lang="en">`으로 지정되어 있어, 한국어 Windows 시스템 환경의 Chromium/Edge 엔진이 페이지를 영문 웹페이지로 판단하고 자동 번역 툴바를 호출함.
+- **해결 내용**:
+  1. `index.html`:
+     - `<html lang="ko" class="notranslate" translate="no">`로 변경.
+     - `<meta name="google" content="notranslate">`, `<meta name="googlebot" content="notranslate">`, `<meta http-equiv="Content-Language" content="ko">` 태그 추가.
+  2. `App.tsx`:
+     - 런타임에 `document.documentElement.lang = lang` 및 `translate="no"`, `notranslate` 클래스 강제 적용.
+  3. `utils_windows.go` & `main.js`:
+     - 브라우저 실행 파라미터에 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 플래그를 추가하여 Chromium/Edge 레벨에서 번역 기능을 원천 차단.
+
+
 ### 12. A4 규격 최적화 PDF 및 인쇄 보고서 엔진 전면 개편
 - **사용자 요청**: "pdf 보고서 a4에 맞게 출력물 개선."
 - **문제점 진단**:
