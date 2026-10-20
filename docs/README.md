@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.4.4)
+# 🌐 Grid IP Scanner2 (v2.4.5)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -19,11 +19,11 @@
    - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별
    - 25개 주요 서비스 포트 정밀 스캐닝 및 위험도 분류
 
-2. **📄 A4 규격 최적화 PDF 보고서 출력 엔진 (`services/reportGenerator.ts`)**
-   - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142) 독립 페이지 모델로 테이블 행 및 텍스트 줄 잘림 원천 방지
-   - **프린터 안전 여백 (11mm Margin)**: 일반 사무용 및 가정용 프린터에서 출력해도 글자 잘림 없는 안전 여백 확보
+2. **📄 A4 규격 최적화 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**
+   - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델로 테이블 행 및 텍스트 줄 잘림 원천 방지
+   - **프린터 안전 여백 (11mm Margin)**: 일반 사무용 레이저/잉크젯 프린터에서 출력해도 글자 잘림 없는 안전 여백 확보
    - **동적 페이지 번호**: 모든 페이지에 `페이지 X / Y` 형태의 전체 대비 현재 페이지 번호 및 공식 헤더/푸터 동기화
-   - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 스타일시트를 통한 배경색 및 뱃지 완벽 보존
+   - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 고해상도 스타일시트를 통한 배경색 및 뱃지 완벽 보존
 
 3. **📸 스냅샷 비교(Diff) 4색 진단 & 대화형 필터**
    - 과거 기준점 대비 변경 사항을 4색 컬러 시스템으로 직관적 시각화:
@@ -49,12 +49,15 @@
    - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
 
 8. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
-   - 단일 무설치 포터블 실행 파일 및 Inno Setup 기반 정식 인스톨러(`Grid_IP_Scanner2_v2.4.4_Setup.exe`)
-   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.4.apk`) 및 PWA 모바일 패키지 동시 제공
+   - 단일 무설치 포터블 실행 파일 및 Inno Setup 기반 정식 인스톨러(`Grid_IP_Scanner2_v2.4.5_Setup.exe`)
+   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.5.apk`) 및 PWA 모바일 패키지 동시 제공
    - 로컬 푸시 스크립트 격리 및 클린 소스코드 전용 `.gitignore` 체계
 
 9. **🚫 브라우저 자동 번역 팝업 원천 차단**
-   - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate` 인자 주입으로 번역 제안 팝업 차단
+   - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 인자 주입으로 번역 제안 팝업 차단
+
+10. **🚀 원클릭 GitHub 동기화 파이프라인 (`sync-github.sh` & `github-push.bat`)**
+    - CLI/Bash 및 Windows 환경 모두에서 단 1회 명령으로 로컬 변경 사항을 커밋하고 GitHub Actions CI/CD를 호출하여 빌드 자동화
 
 ---
 
@@ -96,21 +99,32 @@ npm run build:apk
 
 ### GitHub 동기화 및 자동 릴리스 (Clean Source Push)
 ```bash
-# 윈도우 환경 원클릭 푸시 (푸시 스크립트 및 바이너리는 업로드 제외)
+# [방법 1] Linux / macOS / Git Bash 원터치 동기화
+./sync-github.sh
+# 또는 npm run deploy:git
+
+# [방법 2] Windows 환경 원클릭 푸시 (배치 파일 더블클릭)
 github-push.bat
 # 또는 npm run git:push
 ```
 
 ---
 
-## 📂 문서 구조 (Documentation)
+## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.4 최신화)
-- [`docs/WorkLog.md`](./WorkLog.md) : 작업 이력 및 모듈 개발 공식 일지
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.5 최신화)
+- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지
 - [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
-- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서
-- [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](./A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
+- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서
+- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서
+- [`docs/VERSIONING_POLICY.md`](./VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
+- [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서
+- [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드
+- [`docs/DIGITAL_SIGNATURE_GUIDE.md`](./DIGITAL_SIGNATURE_GUIDE.md) : 테스트용 자가 서명(PowerShell) 가이드
 - [`docs/SECURITY_REPORT.md`](./SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서
+- [`docs/PROPRIETARY_TECHNOLOGY.md`](./PROPRIETARY_TECHNOLOGY.md) : 15대 핵심 독점 기술 및 코어 엔진 기술 명세서
+- [`docs/OUI_DATABASE_SPEC.md`](./OUI_DATABASE_SPEC.md) : OUI 계층형 데이터베이스 및 이중 미러링 기술 명세서
 - [`docs/LICENSE_KR.md`](./LICENSE_KR.md) : 한국어 라이선스 전문
+- [`docs/LICENSE.md`](./LICENSE.md) : 프로그램 이중 라이선스 계약서

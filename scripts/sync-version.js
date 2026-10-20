@@ -147,14 +147,18 @@ if (fs.existsSync(patchNotePath)) {
   console.log(`✅ [6/8] docs/PATCH_NOTE.md -> Header (v${targetVer})`);
 }
 
-// 7. Synchronize docs/README.md
-const readmePath = path.join(rootDir, 'docs', 'README.md');
-if (fs.existsSync(readmePath)) {
-  let readme = fs.readFileSync(readmePath, 'utf8');
-  readme = readme.replace(/최신\s*v\d+\.\d+\.\d+\s*버전/, `최신 v${targetVer} 버전`);
-  fs.writeFileSync(readmePath, readme, 'utf8');
-  console.log(`✅ [7/8] docs/README.md -> 최신 v${targetVer} 버전`);
-}
+// 7. Synchronize docs/README.md & root README.md
+[path.join(rootDir, 'docs', 'README.md'), path.join(rootDir, 'README.md')].forEach((rmPath) => {
+  if (fs.existsSync(rmPath)) {
+    let readme = fs.readFileSync(rmPath, 'utf8');
+    readme = readme.replace(/^#\s*🌐\s*Grid IP Scanner2\s*\(v[^)]*\)/im, `# 🌐 Grid IP Scanner2 (v${targetVer})`);
+    readme = readme.replace(/최신\s*v\d+\.\d+\.\d+\s*버전/g, `최신 v${targetVer} 버전`);
+    readme = readme.replace(/Grid_IP_Scanner2_v\d+\.\d+\.\d+_Setup\.exe/g, `Grid_IP_Scanner2_v${targetVer}_Setup.exe`);
+    readme = readme.replace(/Grid_IP_Scanner2_v\d+\.\d+\.\d+\.apk/g, `Grid_IP_Scanner2_v${targetVer}.apk`);
+    fs.writeFileSync(rmPath, readme, 'utf8');
+    console.log(`✅ [7/9] ${path.relative(rootDir, rmPath)} -> v${targetVer}`);
+  }
+});
 
 // 8. Synchronize installer/setup_builder.go
 const setupGoPath = path.join(rootDir, 'installer', 'setup_builder.go');
