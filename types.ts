@@ -147,7 +147,30 @@ export type DiffStatus = 'new' | 'offline' | 'changed' | 'same';
 export interface DiffItem {
   ip: string;
   diffStatus: DiffStatus;
+  category?: 'security_alert' | 'hardware_change' | 'network_change' | 'connectivity' | 'identical';
   current?: ScanResult;
   previous?: ScanResult;
   changeDetails: string[];
+  macChanged?: boolean;
+  portsAdded?: number[];
+  portsRemoved?: number[];
+  latencyDiffMs?: number;
+  hostnameChanged?: boolean;
+  vendorChanged?: boolean;
+  hasSecurityRisk?: boolean;
+}
+
+export interface DiffAnalysisResult {
+  baselineName?: string;
+  targetName?: string;
+  diffMap: Record<string, DiffStatus>;
+  items: DiffItem[];
+  summary: {
+    newCount: number;
+    offlineCount: number;
+    changedCount: number;
+    sameCount: number;
+    securityAlertCount?: number;
+    totalEvaluated: number;
+  };
 }

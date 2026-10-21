@@ -8,6 +8,7 @@ import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } 
 import { runDeepPortAudit } from './services/portScanner';
 import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, exportDeviceListToPDF } from './services/reportGenerator';
 import { UpdateModal } from './components/UpdateModal';
+import { SnapshotDiffModal } from './components/SnapshotDiffModal';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
@@ -645,6 +646,7 @@ const App: React.FC = () => {
   const [snapshots, setSnapshots] = useState<ScanSnapshot[]>(getSavedSnapshots());
   const [baselineSnapshotId, setBaselineSnapshotId] = useState<string | null>(null);
   const [showDiffGuide, setShowDiffGuide] = useState(false);
+  const [showDiffStudioModal, setShowDiffStudioModal] = useState(false);
   const [diffFilter, setDiffFilter] = useState<'all' | 'new' | 'offline' | 'changed' | 'same'>('all');
   const [diffBaselineColor, setDiffBaselineColor] = useState<'sky' | 'indigo' | 'teal' | 'slate'>(() => {
     try {
@@ -919,13 +921,13 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveSnapshot = () => {
+  const handleSaveSnapshot = (customLabel?: string) => {
     const activeCount = Object.values(results).filter(r => r.status === 'active').length;
     if (activeCount === 0) {
       showToast(s.noData || "스캔된 활성 장치가 없습니다. 먼저 스캔을 실행하세요.");
       return;
     }
-    const snap = saveSnapshot(config.subnet, config.start, config.end, results);
+    const snap = saveSnapshot(config.subnet, config.start, config.end, results, customLabel);
     const updated = getSavedSnapshots();
     setSnapshots(updated);
     setBaselineSnapshotId(snap.id);
@@ -3540,92 +3542,49 @@ const App: React.FC = () => {
           )}
         </header>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
-          {/* Enhanced Snapshot Diff Diagnostic & Control Panel */}
-          {viewMode === 'diff' && (
-            <div className={`w-full max-w-[800px] mb-2 p-3 rounded-2xl border transition-all duration-300 backdrop-blur-md shadow-xl flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 ${
-              theme === 'beige'
-                ? 'bg-[#fcf7ee] border-[#dfcaa7] text-[#4a341e]'
-                : 'bg-gradient-to-r from-indigo-950/85 via-slate-900/90 to-purple-950/85 border-indigo-500/40 text-indigo-100'
-            }`}>
-              {/* Row 1: Header, Status Badge, Guide & Exit Buttons */}
-              <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2 ${
-                theme === 'beige' ? 'border-[#dfcaa7]/60' : 'border-white/10'
-              }`}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`p-1.5 rounded-lg shrink-0 ${
+        {/* ================= SNAPSHOT DIFF PERSISTENT SUB-HEADER TOOLBAR (ZERO CLIPPING & NO BOTTOM DESCRIPTION) ================= */}
+        {viewMode === 'diff' && (
+          <div className={`w-full border-b shrink-0 z-20 transition-all shadow-sm ${
+            theme === 'beige'
+              ? 'bg-[#f8f1e5] border-[#dfcaa7] text-[#4a341e]'
+              : 'bg-slate-900/95 backdrop-blur border-indigo-500/30 text-indigo-100'
+          }`}>
+            <div className="max-w-6xl mx-auto px-3 py-2 flex flex-col gap-2">
+              {/* Row 1: Diff Identity, Baseline Select, Quick Save, Diff Studio Button, Guide & Exit */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <div className={`p-1 rounded-lg shrink-0 ${
                     theme === 'beige' ? 'bg-amber-500/20 text-amber-800' : 'bg-indigo-500/20 text-indigo-400'
                   }`}>
                     <Camera className="w-4 h-4" />
                   </div>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className={`text-xs font-black uppercase tracking-tight truncate ${
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-xs font-black uppercase tracking-tight ${
                       theme === 'beige' ? 'text-[#382613]' : 'text-indigo-300'
                     }`}>{s.diffMode}</span>
-                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-bold truncate border ${
+                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-bold border truncate max-w-[150px] sm:max-w-xs ${
                       theme === 'beige'
                         ? 'bg-[#edd8b6] border-[#d8c09a] text-[#543818]'
                         : 'bg-indigo-500/30 border-indigo-500/40 text-indigo-200'
-                    }`}>
-                      {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요 (스냅샷 저장)'}
+                    }`} title={baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요 (스냅샷 저장)'}>
+                      {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요'}
                     </span>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => setShowDiffGuide(true)}
-                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
-                      theme === 'beige'
-                        ? 'bg-[#f0e2ca] hover:bg-[#e7d4b4] border-[#d4be94] text-[#4a341e]'
-                        : 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-500/40 text-indigo-300'
-                    }`}
-                    title={s.diffGuideBtn}
-                  >
-                    <HelpCircle className="w-3.5 h-3.5 opacity-80" />
-                    <span>{s.diffGuideBtn}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
-                      theme === 'beige'
-                        ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
-                        : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
-                    }`}
-                    title="스냅샷 비교 종료 및 기본 그리드로 복귀"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    <span>그리드 복귀</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 2: Snapshot Actions (Save / Baseline Selector / Delete) & Live Counters */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={handleSaveSnapshot}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[10.5px] font-black uppercase tracking-tight shadow-md flex items-center gap-1.5 transition-all shrink-0"
-                    title="현재 스캔된 네트워크 상태를 새 기준 스냅샷으로 캡처하여 저장합니다"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>{s.diffSaveNewBtn}</span>
-                  </button>
-
+                  {/* Baseline Selection Dropdown */}
                   {snapshots.length > 0 && (
-                    <div className={`flex items-center gap-1 border rounded-lg px-2 py-0.5 ${
+                    <div className={`flex items-center gap-1 border rounded-lg px-2 py-0.5 shrink-0 ${
                       theme === 'beige'
                         ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]'
                         : 'bg-black/40 border-white/10 text-zinc-100'
                     }`}>
-                      <span className={`text-[9.5px] font-bold uppercase tracking-wider ${
+                      <span className={`text-[9px] font-bold uppercase tracking-wider ${
                         theme === 'beige' ? 'text-[#7d5f39]' : 'text-zinc-400'
                       }`}>{s.baselineSelect}:</span>
                       <select
                         value={baselineSnapshot?.id || ''}
                         onChange={(e) => setBaselineSnapshotId(e.target.value)}
-                        className={`bg-transparent text-[10.5px] font-bold outline-none cursor-pointer py-1 pr-1 max-w-[180px] truncate ${
+                        className={`bg-transparent text-[10px] font-bold outline-none cursor-pointer py-0.5 pr-1 max-w-[130px] truncate ${
                           theme === 'beige' ? 'text-[#3d2711]' : 'text-zinc-100'
                         }`}
                       >
@@ -3642,21 +3601,71 @@ const App: React.FC = () => {
                       {baselineSnapshot && (
                         <button
                           onClick={() => handleDeleteSnapshot(baselineSnapshot.id)}
-                          className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                          className="p-0.5 text-zinc-400 hover:text-red-500 transition-colors"
                           title="선택한 기준 스냅샷 삭제"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       )}
                     </div>
                   )}
+
+                  {/* Capture Current Live Scan as Snapshot */}
+                  <button
+                    onClick={() => handleSaveSnapshot()}
+                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[9.5px] font-black uppercase tracking-tight shadow flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                    title="현재 스캔된 네트워크 상태를 새 기준 스냅샷으로 캡처하여 저장합니다"
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>{s.diffSaveNewBtn}</span>
+                  </button>
+
+                  {/* Launch Snapshot 1:1 Diff Studio Modal */}
+                  <button
+                    onClick={() => setShowDiffStudioModal(true)}
+                    className="px-2.5 py-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-600 hover:from-indigo-500 hover:to-sky-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ring-1 ring-sky-400/40"
+                    title="임의의 두 스냅샷 간 1:1 나란히 대조 테이블 및 심층 변동 분석 스튜디오를 엽니다"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>스냅샷 1:1 대조 스튜디오 (Studio)</span>
+                  </button>
                 </div>
 
-                {/* Diff Live Diagnostic Counters (Interactive Color-Coded Filter Buttons) */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-black">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => setShowDiffGuide(true)}
+                    className={`px-2 py-1 rounded-lg border text-[9.5px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                      theme === 'beige'
+                        ? 'bg-[#f0e2ca] hover:bg-[#e7d4b4] border-[#d4be94] text-[#4a341e]'
+                        : 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-500/40 text-indigo-300'
+                    }`}
+                    title={s.diffGuideBtn}
+                  >
+                    <HelpCircle className="w-3 h-3 opacity-80" />
+                    <span>{s.diffGuideBtn}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-2 py-1 rounded-lg border text-[9.5px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                      theme === 'beige'
+                        ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
+                        : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
+                    }`}
+                    title="스냅샷 비교 종료 및 기본 그리드로 복귀"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>그리드 복귀</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: Live Counters & Color Distinction Strip (Merged & Ultra-Compact) */}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[9.5px]">
+                <div className="flex flex-wrap items-center gap-1.5 font-black">
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'new' ? 'all' : 'new')}
-                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'new'
                         ? 'ring-2 ring-emerald-400 bg-emerald-500 text-white border-emerald-300'
                         : theme === 'beige'
@@ -3672,7 +3681,7 @@ const App: React.FC = () => {
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'offline' ? 'all' : 'offline')}
-                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'offline'
                         ? 'ring-2 ring-rose-400 bg-rose-600 text-white border-rose-300'
                         : theme === 'beige'
@@ -3688,7 +3697,7 @@ const App: React.FC = () => {
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'changed' ? 'all' : 'changed')}
-                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'changed'
                         ? 'ring-2 ring-amber-400 bg-amber-500 text-black border-amber-300'
                         : theme === 'beige'
@@ -3704,7 +3713,7 @@ const App: React.FC = () => {
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'same' ? 'all' : 'same')}
-                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
                       diffFilter === 'same'
                         ? diffBaselineColor === 'sky'
                           ? 'ring-2 ring-sky-400 bg-sky-500 text-black border-sky-300 font-black'
@@ -3739,147 +3748,89 @@ const App: React.FC = () => {
                     <span>= {s.diffSameBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.sameCount}</span>
                   </button>
-                </div>
-              </div>
 
-              {/* Color Distinction Legend & Active Filter Bar */}
-              <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl border text-[9.5px] ${
-                theme === 'beige'
-                  ? 'bg-[#f4ebe0] border-[#dfcaa7]/90 text-[#4d351c]'
-                  : 'bg-black/35 border-white/10 text-zinc-300'
-              }`}>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1 font-black opacity-80">
-                    <span>🎨 색상 차이 구분:</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2.5 font-bold">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] inline-block border border-white/30" />
-                      <span className={theme === 'beige' ? 'text-emerald-900 font-black' : 'text-emerald-300 font-black'}>초록색: 신규 접속 (+NEW)</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-rose-600 shadow-[0_0_6px_rgba(244,63,94,0.8)] inline-block border border-white/30" />
-                      <span className={theme === 'beige' ? 'text-rose-900 font-black' : 'text-rose-300 font-black'}>빨간색: 연결 끊김 (-OFF)</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)] inline-block border border-black/30" />
-                      <span className={theme === 'beige' ? 'text-amber-900 font-black' : 'text-amber-300 font-black'}>주황색: 식별자 변동 (!CHG)</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className={`w-2.5 h-2.5 rounded-sm inline-block border border-white/30 ${
-                        diffBaselineColor === 'sky' ? 'bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.8)]' :
-                        diffBaselineColor === 'indigo' ? 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.8)]' :
-                        diffBaselineColor === 'teal' ? 'bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.8)]' :
-                        'bg-slate-600'
-                      }`} />
-                      <span className={
-                        diffBaselineColor === 'sky' ? (theme === 'beige' ? 'text-sky-900 font-black' : 'text-sky-300 font-black') :
-                        diffBaselineColor === 'indigo' ? (theme === 'beige' ? 'text-indigo-900 font-black' : 'text-indigo-300 font-black') :
-                        diffBaselineColor === 'teal' ? (theme === 'beige' ? 'text-teal-900 font-black' : 'text-teal-300 font-black') :
-                        (theme === 'beige' ? 'text-stone-700' : 'text-zinc-400')
-                      }>
-                        {diffBaselineColor === 'sky' ? '하늘색: 기준 유지 (=SAME)' :
-                         diffBaselineColor === 'indigo' ? '보라색: 기준 유지 (=SAME)' :
-                         diffBaselineColor === 'teal' ? '청록색: 기준 유지 (=SAME)' :
-                         '회색: 상태 동일 (=SAME)'}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Quick Baseline Color Switcher */}
-                  <div className={`flex items-center gap-1 pl-2.5 border-l text-[9px] ${theme === 'beige' ? 'border-[#dfcaa7]' : 'border-white/10'}`}>
-                    <span className="opacity-70 text-[9px]">기준 색상:</span>
-                    <button
-                      onClick={() => setDiffBaselineColor('sky')}
-                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
-                        diffBaselineColor === 'sky'
-                          ? 'bg-sky-500 text-black font-black border-sky-300 shadow-sm ring-1 ring-sky-300'
-                          : 'bg-sky-950/40 text-sky-300 border-sky-500/30 hover:bg-sky-900/50'
-                      }`}
-                      title="기준점 색상을 선명한 하늘색(Sky Blue)으로 변경"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                      <span>하늘색</span>
-                    </button>
-                    <button
-                      onClick={() => setDiffBaselineColor('indigo')}
-                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
-                        diffBaselineColor === 'indigo'
-                          ? 'bg-indigo-600 text-white font-black border-indigo-300 shadow-sm ring-1 ring-indigo-300'
-                          : 'bg-indigo-950/40 text-indigo-300 border-indigo-500/30 hover:bg-indigo-900/50'
-                      }`}
-                      title="기준점 색상을 보라색(Indigo)으로 변경"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                      <span>보라</span>
-                    </button>
-                    <button
-                      onClick={() => setDiffBaselineColor('teal')}
-                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
-                        diffBaselineColor === 'teal'
-                          ? 'bg-teal-500 text-black font-black border-teal-300 shadow-sm ring-1 ring-teal-300'
-                          : 'bg-teal-950/40 text-teal-300 border-teal-500/30 hover:bg-teal-900/50'
-                      }`}
-                      title="기준점 색상을 청록색(Teal)으로 변경"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
-                      <span>청록</span>
-                    </button>
-                    <button
-                      onClick={() => setDiffBaselineColor('slate')}
-                      className={`px-1.5 py-0.5 rounded flex items-center gap-1 border transition-all cursor-pointer ${
-                        diffBaselineColor === 'slate'
-                          ? 'bg-slate-600 text-white font-black border-slate-300 shadow-sm ring-1 ring-slate-300'
-                          : 'bg-slate-900/40 text-slate-400 border-slate-600/30 hover:bg-slate-800/50'
-                      }`}
-                      title="기준점 색상을 클래식 회색(Slate)으로 변경"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                      <span>회색</span>
-                    </button>
-                  </div>
-                </div>
-
-                {diffFilter !== 'all' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-bold text-amber-400 animate-pulse">
-                      선택 필터 활성 중
-                    </span>
+                  {diffFilter !== 'all' && (
                     <button
                       onClick={() => setDiffFilter('all')}
-                      className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all"
+                      className="px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all cursor-pointer ml-1"
                     >
                       전체 보기
                     </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Friendly Callout if no snapshots exist */}
-              {snapshots.length === 0 && (
-                <div className={`p-2.5 rounded-xl border text-[11px] flex flex-wrap items-center justify-between gap-3 animate-in fade-in ${
-                  theme === 'beige'
-                    ? 'bg-amber-50/80 border-amber-200 text-amber-900'
-                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-200'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Info className={`w-4 h-4 shrink-0 ${theme === 'beige' ? 'text-amber-700' : 'text-indigo-400'}`} />
-                    <span>{s.diffEmptyDesc}</span>
-                  </div>
-                  <button
-                    onClick={handleSaveSnapshot}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[10px] shrink-0 uppercase shadow"
-                  >
-                    지금 캡처
-                  </button>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
 
+                {/* Color Distinction Legend & Inline Color Switcher */}
+                <div className="flex items-center gap-2 font-bold text-[8.5px]">
+                  <span className="flex items-center gap-1 opacity-70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    <span>신규(+NEW)</span>
+                  </span>
+                  <span className="flex items-center gap-1 opacity-70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                    <span>끊김(-OFF)</span>
+                  </span>
+                  <span className="flex items-center gap-1 opacity-70">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                    <span>변동(!CHG)</span>
+                  </span>
+
+                  <div className={`flex items-center gap-1 pl-2 border-l ${theme === 'beige' ? 'border-[#dfcaa7]' : 'border-white/10'}`}>
+                    <span className="opacity-60">기준색:</span>
+                    <button
+                      onClick={() => setDiffBaselineColor('sky')}
+                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                        diffBaselineColor === 'sky'
+                          ? 'bg-sky-500 text-black font-black'
+                          : 'opacity-50 hover:opacity-100 text-sky-400'
+                      }`}
+                      title="기준점 색상: 하늘색"
+                    >
+                      하늘
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('indigo')}
+                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                        diffBaselineColor === 'indigo'
+                          ? 'bg-indigo-600 text-white font-black'
+                          : 'opacity-50 hover:opacity-100 text-indigo-400'
+                      }`}
+                      title="기준점 색상: 보라"
+                    >
+                      보라
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('teal')}
+                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                        diffBaselineColor === 'teal'
+                          ? 'bg-teal-500 text-black font-black'
+                          : 'opacity-50 hover:opacity-100 text-teal-400'
+                      }`}
+                      title="기준점 색상: 청록"
+                    >
+                      청록
+                    </button>
+                    <button
+                      onClick={() => setDiffBaselineColor('slate')}
+                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                        diffBaselineColor === 'slate'
+                          ? 'bg-slate-600 text-white font-black'
+                          : 'opacity-50 hover:opacity-100 text-slate-400'
+                      }`}
+                      title="기준점 색상: 회색"
+                    >
+                      회색
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
           <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] w-full aspect-square relative z-10 my-auto transition-all ${
             viewMode === 'diff' 
-              ? 'max-w-[min(800px,calc(100vh-270px))] md:max-w-[min(800px,calc(100vh-220px))]' 
+              ? 'max-w-[min(800px,calc(100vh-190px))]' 
               : 'max-w-[min(800px,calc(100vh-120px))] md:max-w-[min(800px,calc(100vh-85px))]'
           }`}>
             {filteredIps.map((ip, index) => {
@@ -4062,6 +4013,15 @@ const App: React.FC = () => {
                           </p>
                         </div>
                       )}
+
+                      {/* Button to open Snapshot Diff Studio directly */}
+                      <button
+                        onClick={() => setShowDiffStudioModal(true)}
+                        className="w-full mt-1.5 py-1.5 px-2.5 rounded-lg bg-black/20 hover:bg-black/35 dark:bg-white/10 dark:hover:bg-white/20 border border-current border-opacity-15 text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                      >
+                        <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>스냅샷 1:1 대조 스튜디오 열기</span>
+                      </button>
                     </div>
                   )}
 
@@ -5296,6 +5256,29 @@ const App: React.FC = () => {
         isChecking={isCheckingUpdate}
         onRefreshCheck={handleManualCheckUpdate}
         theme={theme}
+      />
+
+      {/* Deep Snapshot Comparison Studio Modal */}
+      <SnapshotDiffModal
+        isOpen={showDiffStudioModal}
+        onClose={() => setShowDiffStudioModal(false)}
+        snapshots={snapshots}
+        onSnapshotsChange={(updated) => {
+          setSnapshots(updated);
+          if (baselineSnapshotId && !updated.some((s) => s.id === baselineSnapshotId)) {
+            setBaselineSnapshotId(updated.length > 0 ? updated[0].id : null);
+          }
+        }}
+        currentResults={results}
+        currentSubnet={config.subnet}
+        onSaveCurrentSnapshot={(label) => handleSaveSnapshot(label)}
+        onSelectIp={(ip) => {
+          setSelectedIp(ip);
+          setViewMode('diff');
+        }}
+        theme={theme}
+        s={s}
+        showToast={showToast}
       />
 
       {/* Snapshot Diff 3-Step Interactive Guide Modal */}

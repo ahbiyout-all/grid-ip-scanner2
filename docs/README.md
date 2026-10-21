@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.4.5)
+# 🌐 Grid IP Scanner2 (v2.4.6)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -49,8 +49,8 @@
    - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
 
 8. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
-   - 단일 무설치 포터블 실행 파일 및 Inno Setup 기반 정식 인스톨러(`Grid_IP_Scanner2_v2.4.5_Setup.exe`)
-   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.5.apk`) 및 PWA 모바일 패키지 동시 제공
+   - 단일 무설치 포터블 실행 파일 및 Inno Setup 기반 정식 인스톨러(`Grid_IP_Scanner2_v2.4.6_Setup.exe`)
+   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.6.apk`) 및 PWA 모바일 패키지 동시 제공
    - 로컬 푸시 스크립트 격리 및 클린 소스코드 전용 `.gitignore` 체계
 
 9. **🚫 브라우저 자동 번역 팝업 원천 차단**
