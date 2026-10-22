@@ -1,6 +1,46 @@
 # 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
 
 
+### 20. 스캔 중 창 닫기/새로고침 방지 경고 및 스캔 안전 중지 이벤트 탑재 (BeforeUnload & Safe Abort Guard)
+- **사용자 요청**: "스캔 중일 때 브라우저 창을 닫거나 새로고침을 시도하면 경고를 띄우고 스캔을 안전하게 중지하는 이벤트를 App.tsx에 추가하세요."
+- **구현 내용 (`App.tsx`)**:
+  1. **스캔 상태 실시간 추적 레퍼런스 (`isScanningRef`)**:
+     - 윈도우 이벤트 리스너의 클로저 갇힘(stale closure) 현상을 방지하기 위해 `isScanning` 상태를 `isScanningRef`와 항상 동기화.
+  2. **창 닫기 및 새로고침 감지 경고 (`beforeunload` 이벤트)**:
+     - 스캔이 진행 중(`isScanningRef.current === true`)일 때 브라우저 탭/창 닫기, 새로고침(F5, Ctrl+R, 뒤로 가기) 시도를 즉시 가로채어 브라우저 표준 경고 팝업 호출.
+     - 안내 문구: `"현재 네트워크 스캔이 진행 중입니다. 페이지를 벗어나거나 새로고침하면 스캔 작업이 강제 중단됩니다. 계속하시겠습니까?"`
+  3. **스캔 안전 중지 및 자원 해제 (`pagehide` & `unload` & `handleStopScan`)**:
+     - 사용자가 페이지 이탈을 확정하거나 창을 종료할 때 `stopScanRef.current = true`, `abortControllerRef.current?.abort()`, `updateTimerRef`를 즉각 취소 및 해제하여 백그라운드 SSE 스트림과 Go 엔진 TCP 소켓을 안전하게 정상 종료.
+     - 메인 UI의 중지 버튼 및 초기화 로직(`resetScanState`)과도 `handleStopScan()`으로 통합하여 일관된 스캔 라이프사이클 관리 완성.
+
+
+### 19. 스냅샷 비교 시 동일 장비의 불필요한 '변동(!CHG)' 오탐지(False Positive) 원천 해결 및 별칭(Alias) 독립성 보장
+- **사용자 문의**: "스냅샷 비교시에 현재와 정보가 같은 경우에도 정보가 바뀌었다고 하는데 , 별칭 추가 되어서 그런것 일까요?"
+- **정밀 원인 분석 (Root Cause Analysis)**:
+  1. **사용자 별칭(Alias) 영향 여부 확인 결과**:
+     - **결론: 별칭은 변동 판정에 영향을 주지 않음 (영향도 0%)**.
+     - 별칭 시스템(`services/deviceAliasManager.ts`)은 로컬 스토리지(`grid_ip_scanner_aliases_v1`)에 저장되는 순수 사용자 정의 표시 라벨(Nickname & Note)이며, 스냅샷 비교 엔진(`computeSnapshotDiff`)의 비교 입력값(`ScanResult`)에는 애초에 별칭 필드가 포함되지 않습니다.
+  2. **실제 변동(!CHG) 오탐지(False Positive)의 근본 원인 3가지 규명**:
+     - **원인 ① (핑 지연시간 편차의 오탐지 유발 - 핵심 원인)**:
+       기존 비교 엔진 코드에서 `Math.abs(curLatency - prevLatency) >= 50`일 경우 `changes` 배열에 추가하고 `changes.length > 0` 조건에 의해 노드 상태를 `changed(!CHG)`로 격상시키고 있었습니다. 네트워크 환경(Wi-Fi 신호, 백그라운드 트래픽)에 의해 2ms ➔ 55ms로 일시적으로 튄 동일 장비가 '장비 정보 변경'으로 잘못 표시되는 문제가 있었습니다.
+     - **원인 ② (MAC 주소 포맷 표기 불일치)**:
+       일부 환경에서 콜론(`:`) 표기와 하이픈(`-`), 또는 영문 대소문자가 혼재될 경우 단순 문자열 비교 시 동일 장비임에도 `macChanged = true`로 오판단되는 케이스 방지 필요.
+     - **원인 ③ (호스트명 플레이스홀더 및 mDNS `.local` 접미사)**:
+       NetBIOS/mDNS 응답 시점 차이로 `.local` 접미사가 붙거나, 'Unknown' / 'Hidden Node' 등 임시 플레이스홀더와 실제 호스트명이 대조될 때 호스트명 변경으로 판정되던 문제.
+- **해결 및 개선 구현 내용**:
+  1. **핑 지연시간 편차를 변동(!CHG) 판정 조건에서 완전 분리 (`services/diffEngine.ts`)**:
+     - 지연시간은 보조 성능 지표로만 취급하며, 물리적/논리적 변경(MAC 주소, 호스트명, 제조사, 개방 포트)이 발생하지 않은 상태에서는 핑 편차만으로 절대로 `changed(!CHG)` 상태가 되지 않도록 알고리즘 개편 (`isIdentityOrPortChanged = macChanged || hostnameChanged || vendorChanged || portChanged`).
+     - 장비의 실제 속성이 동일하면 무조건 초록색/기준색인 `=SAME (동일 유지)`로 정상 분류됩니다.
+  2. **MAC 주소 정규화 엔진 탑재 (`cleanMac`)**:
+     - 구분자(`:`, `-`) 및 공백을 모두 제거하고 대문자로 치환 후 비교하여 포맷 차이에 의한 오탐 원천 차단.
+  3. **호스트명/제조사 정규화 필터 탑재 (`cleanHost`, `cleanVendor`)**:
+     - `.local` 접미사 제거 및 'Unknown', 'Hidden Node', '-' 등의 무의미한 플레이스홀더 간 비교 시 불필요한 변경 트리거 방지.
+  4. **스냅샷 1:1 대조 스튜디오(`SnapshotDiffModal.tsx`) 내 별칭 연동 및 안내 강화**:
+     - 비교 테이블에 사용자가 등록한 별칭(`🏷️ [별칭]`)을 명확히 시각화하여 사용자가 자신의 메모를 한눈에 확인할 수 있도록 지원.
+     - 검색 필터에 별칭 닉네임과 메모를 검색 대상에 포함하여 빠른 장비 탐색 지원.
+     - 상단 안내 띠 및 가이드에 "사용자 별칭 및 단순 핑 지연 편차는 변동(!CHG) 판정에 영향을 주지 않습니다"라는 명확한 판정 기준 명시.
+
+
 ### 18. 스냅샷 비교 UI 상단 잘림 원천 차단 및 하단 불필요 설명 제거 (Zero-Clipping Sub-Header)
 - **사용자 요청**: "상단 내용이 짤림. 하단에 설명 제거."
 - **문제점 진단**:

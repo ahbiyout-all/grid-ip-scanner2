@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ScanSnapshot, ScanResult, DiffStatus, DiffItem } from '../types';
 import { computeSnapshotDiff, exportDiffToCSV, updateSnapshotLabel, deleteSnapshot } from '../services/diffEngine';
+import { getDeviceAlias } from '../services/deviceAliasManager';
 
 interface SnapshotDiffModalProps {
   isOpen: boolean;
@@ -134,8 +135,10 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         const matchCurVendor = curDev?.vendor?.toLowerCase().includes(query);
         const matchPrevVendor = prevDev?.vendor?.toLowerCase().includes(query);
         const matchDetail = item.changeDetails.some((d) => d.toLowerCase().includes(query));
+        const alias = getDeviceAlias(curDev?.mac || prevDev?.mac, item.ip);
+        const matchAlias = alias?.nickname?.toLowerCase().includes(query) || alias?.notes?.toLowerCase().includes(query);
 
-        if (!matchIp && !matchCurMac && !matchPrevMac && !matchCurHost && !matchPrevHost && !matchCurVendor && !matchPrevVendor && !matchDetail) {
+        if (!matchIp && !matchCurMac && !matchPrevMac && !matchCurHost && !matchPrevHost && !matchCurVendor && !matchPrevVendor && !matchDetail && !matchAlias) {
           return false;
         }
       }
@@ -579,6 +582,16 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
           </div>
         </div>
 
+        {/* Subtle Guidance Strip */}
+        <div className="px-4 py-1.5 bg-black/5 dark:bg-white/5 border-b border-current border-opacity-5 flex items-center justify-between text-[10.5px] opacity-75">
+          <div className="flex items-center gap-1.5">
+            <span className="text-amber-400">💡</span>
+            <span>
+              <strong>판정 기준:</strong> MAC 주소(ARP 충돌), 호스트명, 포트 개방/차단 변동 시에만 <span className="font-bold text-amber-500">!CHG(변동)</span> 판정되며, 사용자 별칭(별명/메모)이나 단순 핑 지연 편차는 변동 판정에 영향을 주지 않습니다.
+            </span>
+          </div>
+        </div>
+
         {/* Side-by-Side 1:1 Comparison Table */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {filteredItems.length === 0 ? (
@@ -659,6 +672,19 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                               </span>
                             )}
                           </div>
+                          {(() => {
+                            const devAlias = getDeviceAlias(curDev?.mac || prevDev?.mac, item.ip);
+                            if (!devAlias?.nickname) return null;
+                            return (
+                              <div
+                                className="mt-1 text-[10px] text-amber-500 font-bold flex items-center gap-1 truncate max-w-[130px]"
+                                title={`사용자 정의 별칭: ${devAlias.nickname}${devAlias.notes ? ` (${devAlias.notes})` : ''}`}
+                              >
+                                <span>🏷️</span>
+                                <span className="truncate">{devAlias.nickname}</span>
+                              </div>
+                            );
+                          })()}
                           <div className="mt-1">
                             <span className={`inline-block px-1.5 py-0.5 rounded text-[9.5px] font-black border ${badge.bg}`}>
                               {badge.text}

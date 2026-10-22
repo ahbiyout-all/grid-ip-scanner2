@@ -183,22 +183,43 @@ export const computeSnapshotDiff = (
       let vendorChanged = false;
       let hasSecurityRisk = false;
 
+      // Normalize MAC helper: strips colons, hyphens, and whitespace
+      const cleanMac = (m?: string) => (m && m !== 'Unknown' && m !== 'N/A' ? m.replace(/[:-]/g, '').toUpperCase().trim() : '');
+      const normCurMac = cleanMac(curMac);
+      const normPrevMac = cleanMac(prevMac);
+
+      // Normalize Hostname helper: strips .local, whitespace, and ignores generic placeholders
+      const cleanHost = (h?: string) => {
+        if (!h || h === 'Unknown' || h === 'Unknown Device' || h === 'Hidden Node' || h === '-') return '';
+        return h.replace(/\.local$/i, '').trim().toLowerCase();
+      };
+      const normCurHost = cleanHost(curHost);
+      const normPrevHost = cleanHost(prevHost);
+
+      // Normalize Vendor helper
+      const cleanVendor = (v?: string) => {
+        if (!v || v === 'Unknown' || v === 'Unknown Vendor' || v === '-') return '';
+        return v.trim().toLowerCase();
+      };
+      const normCurVendor = cleanVendor(curVendor);
+      const normPrevVendor = cleanVendor(prevVendor);
+
       // 3.1. MAC Address changed (Critical Security Event: IP Conflict or ARP Spoofing)
-      if (curMac && prevMac && curMac !== 'Unknown' && prevMac !== 'Unknown' && curMac.toUpperCase() !== prevMac.toUpperCase()) {
+      if (normCurMac && normPrevMac && normCurMac !== normPrevMac) {
         macChanged = true;
         hasSecurityRisk = true;
         securityAlertCount++;
         changes.push(`⚠️ MAC 주소 변동 감지! [${prevMac}] ➔ [${curMac}] (IP 충돌 또는 장비 교체/ARP 스푸핑 의심)`);
       }
 
-      // 3.2. Hostname changed
-      if (curHost && prevHost && curHost !== prevHost) {
+      // 3.2. Hostname changed (only if both are valid non-placeholder names)
+      if (normCurHost && normPrevHost && normCurHost !== normPrevHost) {
         hostnameChanged = true;
         changes.push(`호스트명 변경: [${prevHost}] ➔ [${curHost}]`);
       }
 
       // 3.3. Vendor changed
-      if (curVendor && prevVendor && curVendor !== 'Unknown' && prevVendor !== 'Unknown' && curVendor !== prevVendor) {
+      if (normCurVendor && normPrevVendor && normCurVendor !== normPrevVendor) {
         vendorChanged = true;
         changes.push(`제조사 식별 변동: [${prevVendor}] ➔ [${curVendor}]`);
       }
@@ -223,17 +244,20 @@ export const computeSnapshotDiff = (
         changes.push(`차단/종료된 포트: -[${portsRemoved.join(', ')}]`);
       }
 
-      // 3.5. Latency deviation (significant change > 50ms)
+      const portChanged = portsAdded.length > 0 || portsRemoved.length > 0;
+      const isIdentityOrPortChanged = macChanged || hostnameChanged || vendorChanged || portChanged;
+
+      // 3.5. Latency deviation (supplementary performance metric, NOT standalone changed trigger)
       const curLatency = curDev?.latency || 0;
       const prevLatency = prevDev?.latency || 0;
       const latencyDiffMs = curLatency - prevLatency;
-      if (curLatency > 0 && prevLatency > 0 && Math.abs(latencyDiffMs) >= 50) {
+      if (isIdentityOrPortChanged && curLatency > 0 && prevLatency > 0 && Math.abs(latencyDiffMs) >= 50) {
         changes.push(
           `응답 지연시간 변동: ${prevLatency}ms ➔ ${curLatency}ms (${latencyDiffMs > 0 ? `+${latencyDiffMs}ms 지연` : `${latencyDiffMs}ms 개선`})`
         );
       }
 
-      if (changes.length > 0) {
+      if (isIdentityOrPortChanged) {
         diffMap[ip] = 'changed';
         changedCount++;
 

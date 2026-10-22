@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
 import IPCell from './components/IPCell';
@@ -834,6 +834,64 @@ const App: React.FC = () => {
   const resultsRef = useRef<Record<string, ScanResult>>({});
   const updateTimerRef = useRef<NodeJS.Timeout | null>(null);
   const selectedInterfaceIpRef = useRef<string | null>(null);
+  const isScanningRef = useRef(false);
+
+  useEffect(() => {
+    isScanningRef.current = isScanning;
+  }, [isScanning]);
+
+  const handleStopScan = useCallback(() => {
+    stopScanRef.current = true;
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch (_) {}
+    }
+    if (updateTimerRef.current) {
+      clearInterval(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+    setIsScanning(false);
+  }, []);
+
+  // Window close / reload warning & safe scan termination
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isScanningRef.current) {
+        e.preventDefault();
+        const warningMsg = lang === 'ko'
+          ? '현재 네트워크 스캔이 진행 중입니다. 페이지를 벗어나거나 새로고침하면 스캔 작업이 강제 중단됩니다. 계속하시겠습니까?'
+          : 'A network scan is currently in progress. Leaving or reloading the page will stop the scan. Are you sure you want to leave?';
+        e.returnValue = warningMsg;
+        return warningMsg;
+      }
+    };
+
+    const handlePageHideOrUnload = () => {
+      if (isScanningRef.current) {
+        stopScanRef.current = true;
+        if (abortControllerRef.current) {
+          try {
+            abortControllerRef.current.abort();
+          } catch (_) {}
+        }
+        if (updateTimerRef.current) {
+          clearInterval(updateTimerRef.current);
+          updateTimerRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHideOrUnload);
+    window.addEventListener('unload', handlePageHideOrUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHideOrUnload);
+      window.removeEventListener('unload', handlePageHideOrUnload);
+    };
+  }, [lang]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -1478,11 +1536,7 @@ const App: React.FC = () => {
 
   const resetScanState = () => {
     if (isScanning) {
-      stopScanRef.current = true;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      setIsScanning(false);
+      handleStopScan();
     }
     
     const initial: Record<string, ScanResult> = {};
@@ -2570,8 +2624,7 @@ const App: React.FC = () => {
             <button
               onClick={() => {
                 if (isScanning) {
-                  stopScanRef.current = true;
-                  abortControllerRef.current?.abort();
+                  handleStopScan();
                 } else {
                   startScan();
                 }
@@ -5402,8 +5455,8 @@ const App: React.FC = () => {
 
             {/* Footer */}
             <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[11px] opacity-60">
-                {lang === 'ko' ? '💡 스냅샷은 브라우저/시스템에 안전하게 영구 저장됩니다.' : '💡 Snapshots are safely saved locally.'}
+              <span className="text-[11px] opacity-70">
+                {lang === 'ko' ? '💡 사용자 별칭(별명)이나 일시적 핑 속도 편차는 변동(!CHG)에 영향을 주지 않으며 스냅샷은 안전하게 로컬에 보관됩니다.' : '💡 Custom aliases and ping latency fluctuations do not affect change (!CHG) detection.'}
               </span>
               <button
                 onClick={() => setShowDiffGuide(false)}
