@@ -556,7 +556,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'all' ? 'bg-zinc-700 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
             >
-              전체 대조 ({diffResult.summary.totalEvaluated})
+              전체 대조 ({diffResult.items.length})
             </button>
           </div>
 

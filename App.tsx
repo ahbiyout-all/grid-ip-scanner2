@@ -70,6 +70,9 @@ const translations = {
     scanning: "스캔 중...",
     complete: "완료",
     deviceProfile: "장치 프로필",
+    profileFontScaleNormal: "글자 보통",
+    profileFontScaleLarge: "글자 확대",
+    profileFontScaleTooltip: "장치 프로필 글자 크기 전환 (보통 100% / 확대 115%)",
     networkIdentity: "네트워크 식별",
     technicalDetails: "기술 세부 정보",
     address: "주소",
@@ -175,7 +178,7 @@ const translations = {
     diffNewBadge: "신규 단말",
     diffGoneBadge: "오프라인 전환",
     diffChangedBadge: "장비 변경 (주의)",
-    diffSameBadge: "변화 없음",
+    diffSameBadge: "기준 유지 (동일)",
     diffGuideBtn: "스냅샷 비교 사용법",
     diffSaveNewBtn: "📸 현재 상태 스냅샷 저장 (기준점 캡처)",
     diffDeleteBtn: "삭제",
@@ -323,6 +326,9 @@ const translations = {
     scanning: "Scanning...",
     complete: "Complete",
     deviceProfile: "Device Profile",
+    profileFontScaleNormal: "Normal Text",
+    profileFontScaleLarge: "Large Text",
+    profileFontScaleTooltip: "Toggle device profile text size (Normal 100% / Large 115%)",
     networkIdentity: "Network Identity",
     technicalDetails: "Technical Details",
     address: "Address",
@@ -428,7 +434,7 @@ const translations = {
     diffNewBadge: "New Devices",
     diffGoneBadge: "Went Offline",
     diffChangedBadge: "Modified (Alert)",
-    diffSameBadge: "Unchanged",
+    diffSameBadge: "Baseline Preserved",
     diffGuideBtn: "How to use Snapshot Diff",
     diffSaveNewBtn: "📸 Capture Current State as Snapshot",
     diffDeleteBtn: "Delete",
@@ -631,6 +637,15 @@ const App: React.FC = () => {
   const [scanStartTime, setScanStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [sortMode, setSortMode] = useState<'ip' | 'status' | 'name'>('ip');
+
+  // Device Profile Typography Scale ('normal': 100% / 'large': 115%)
+  const [profileTextScale, setProfileTextScale] = useState<'normal' | 'large'>(() => {
+    try {
+      return (localStorage.getItem('grid_profile_text_scale') as 'normal' | 'large') || 'normal';
+    } catch {
+      return 'normal';
+    }
+  });
 
   // License Management State (Feature Flag & Entitlements)
   const [license, setLicense] = useState<LicenseInfo>(getStoredLicense());
@@ -3813,63 +3828,81 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Color Distinction Legend & Inline Color Switcher */}
-                <div className="flex items-center gap-2 font-bold text-[8.5px]">
-                  <span className="flex items-center gap-1 opacity-70">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                    <span>신규(+NEW)</span>
+                <div className="flex flex-wrap items-center gap-1.5 font-bold text-[8.5px]">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                    <span>추가 스캔 탐지: +신규(NEW)</span>
                   </span>
-                  <span className="flex items-center gap-1 opacity-70">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                    <span>끊김(-OFF)</span>
+                    <span>-이탈(OFF)</span>
                   </span>
-                  <span className="flex items-center gap-1 opacity-70">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                    <span>변동(!CHG)</span>
+                    <span>!변동(CHG)</span>
+                  </span>
+
+                  {/* Dynamic Baseline Pill */}
+                  <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all ${
+                    diffBaselineColor === 'sky'
+                      ? 'bg-sky-500/20 text-sky-300 border-sky-400/50'
+                      : diffBaselineColor === 'indigo'
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/50'
+                      : diffBaselineColor === 'teal'
+                      ? 'bg-teal-500/20 text-teal-300 border-teal-400/50'
+                      : 'bg-slate-500/20 text-slate-200 border-slate-400/50'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full inline-block ${
+                      diffBaselineColor === 'sky' ? 'bg-sky-400' :
+                      diffBaselineColor === 'indigo' ? 'bg-indigo-400' :
+                      diffBaselineColor === 'teal' ? 'bg-teal-400' : 'bg-slate-300'
+                    }`} />
+                    <span>기존 기준 장비: =기준(BASE)</span>
                   </span>
 
                   <div className={`flex items-center gap-1 pl-2 border-l ${theme === 'beige' ? 'border-[#dfcaa7]' : 'border-white/10'}`}>
                     <span className="opacity-60">기준색:</span>
                     <button
                       onClick={() => setDiffBaselineColor('sky')}
-                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
                         diffBaselineColor === 'sky'
-                          ? 'bg-sky-500 text-black font-black'
-                          : 'opacity-50 hover:opacity-100 text-sky-400'
+                          ? 'bg-sky-500 text-black font-black shadow-sm ring-1 ring-sky-300'
+                          : 'opacity-60 hover:opacity-100 text-sky-400'
                       }`}
-                      title="기준점 색상: 하늘색"
+                      title="기준점 색상: 하늘색 (Sky Blue)"
                     >
                       하늘
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('indigo')}
-                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
                         diffBaselineColor === 'indigo'
-                          ? 'bg-indigo-600 text-white font-black'
-                          : 'opacity-50 hover:opacity-100 text-indigo-400'
+                          ? 'bg-indigo-600 text-white font-black shadow-sm ring-1 ring-indigo-300'
+                          : 'opacity-60 hover:opacity-100 text-indigo-400'
                       }`}
-                      title="기준점 색상: 보라"
+                      title="기준점 색상: 보라색 (Indigo / Purple)"
                     >
                       보라
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('teal')}
-                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
                         diffBaselineColor === 'teal'
-                          ? 'bg-teal-500 text-black font-black'
-                          : 'opacity-50 hover:opacity-100 text-teal-400'
+                          ? 'bg-teal-500 text-black font-black shadow-sm ring-1 ring-teal-300'
+                          : 'opacity-60 hover:opacity-100 text-teal-400'
                       }`}
-                      title="기준점 색상: 청록"
+                      title="기준점 색상: 청록색 (Teal / Cyan)"
                     >
                       청록
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('slate')}
-                      className={`px-1 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
                         diffBaselineColor === 'slate'
-                          ? 'bg-slate-600 text-white font-black'
-                          : 'opacity-50 hover:opacity-100 text-slate-400'
+                          ? 'bg-slate-600 text-white font-black shadow-sm ring-1 ring-slate-300'
+                          : 'opacity-60 hover:opacity-100 text-slate-300'
                       }`}
-                      title="기준점 색상: 회색"
+                      title="기준점 색상: 스틸 회색 (Steel Slate)"
                     >
                       회색
                     </button>
@@ -3923,13 +3956,45 @@ const App: React.FC = () => {
       </main>
 
        {selectedIp && (
-        <aside className={`fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l ${t.panel} flex flex-col z-[200] md:z-0 shadow-2xl transition-all`}>
-           <div className="p-5 flex flex-col h-full space-y-6 overflow-y-auto no-scrollbar">
-            <div className="flex items-center justify-between">
-              <h2 className={`text-xs font-black ${theme === 'beige' ? 'text-[#5c4a37]' : 'text-white'} uppercase tracking-tighter`}>{s.deviceProfile}</h2>
-              <button onClick={() => setSelectedIp(null)} className={`p-1.5 hover:bg-current hover:bg-opacity-10 rounded-lg ${t.textMuted} transition-colors`}><X className="w-5 h-5" /></button>
+        <aside className={`fixed md:relative inset-y-0 right-0 w-full ${profileTextScale === 'large' ? 'md:w-96 xl:w-[420px]' : 'md:w-88 xl:w-96'} shrink-0 border-l ${t.panel} flex flex-col z-[200] md:z-0 shadow-2xl transition-all duration-200`}>
+           <div className="p-4 sm:p-5 flex flex-col h-full space-y-5 overflow-y-auto no-scrollbar">
+            {/* Header: Title + Font Size Zoom Toggle (100% / 115%) + Close Button */}
+            <div className="flex items-center justify-between pb-2 border-b border-current border-opacity-10 shrink-0">
+              <div className="flex items-center gap-2">
+                <h2 className={`${profileTextScale === 'large' ? 'text-sm' : 'text-xs'} font-black ${theme === 'beige' ? 'text-[#5c4a37]' : 'text-white'} uppercase tracking-tight`}>
+                  {s.deviceProfile}
+                </h2>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {/* Font Scale Switcher Button */}
+                <button
+                  onClick={() => {
+                    const next = profileTextScale === 'normal' ? 'large' : 'normal';
+                    setProfileTextScale(next);
+                    try { localStorage.setItem('grid_profile_text_scale', next); } catch {}
+                  }}
+                  className={`px-2 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm ${
+                    profileTextScale === 'large'
+                      ? 'bg-sky-500 text-white border-sky-400 font-black'
+                      : theme === 'beige'
+                      ? 'bg-black/5 hover:bg-black/10 border-[#dfcaa7] text-[#5c4a37]'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
+                  }`}
+                  title={s.profileFontScaleTooltip}
+                >
+                  <span className="font-mono">{profileTextScale === 'large' ? '가⁺ 115%' : '가 100%'}</span>
+                </button>
+                <button 
+                  onClick={() => setSelectedIp(null)} 
+                  className={`p-1.5 hover:bg-current hover:bg-opacity-10 rounded-lg ${t.textMuted} transition-colors cursor-pointer`}
+                  title="닫기"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             {selectedIp && (() => {
+              const isLgText = profileTextScale === 'large';
               const selectedResult = results[selectedIp];
               const selectedDevice = selectedResult?.device;
               const selectedConflict = detectedConflicts.get(selectedIp);
@@ -3966,11 +4031,11 @@ const App: React.FC = () => {
                     }`}>
                       <div className="flex items-center justify-between gap-2 border-b pb-2 border-current border-opacity-15">
                         <div className="flex items-center gap-2">
-                          {selectedDiffStatus === 'new' && <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white font-black text-xs shadow-sm">✚ NEW</span>}
-                          {selectedDiffStatus === 'offline' && <span className="px-1.5 py-0.5 rounded bg-rose-600 text-white font-black text-xs shadow-sm">━ OFF</span>}
-                          {selectedDiffStatus === 'changed' && <span className="px-1.5 py-0.5 rounded bg-amber-500 text-black font-black text-xs shadow-sm">▲ CHG</span>}
+                          {selectedDiffStatus === 'new' && <span className="px-2 py-0.5 rounded bg-emerald-500 text-white font-black text-xs shadow-sm">✚ NEW</span>}
+                          {selectedDiffStatus === 'offline' && <span className="px-2 py-0.5 rounded bg-rose-600 text-white font-black text-xs shadow-sm">━ OFF</span>}
+                          {selectedDiffStatus === 'changed' && <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-black text-xs shadow-sm">▲ CHG</span>}
                           {selectedDiffStatus === 'same' && (
-                            <span className={`px-1.5 py-0.5 rounded font-black text-xs shadow-sm ${
+                            <span className={`px-2 py-0.5 rounded font-black text-xs shadow-sm ${
                               diffBaselineColor === 'sky' ? 'bg-sky-500 text-black' :
                               diffBaselineColor === 'indigo' ? 'bg-indigo-600 text-white' :
                               diffBaselineColor === 'teal' ? 'bg-teal-500 text-black' :
@@ -3978,18 +4043,18 @@ const App: React.FC = () => {
                             }`}>= BASE</span>
                           )}
                           <div>
-                            <h4 className="font-black text-xs leading-none">
+                            <h4 className={`font-black ${isLgText ? 'text-[13px]' : 'text-xs'} leading-tight`}>
                               {selectedDiffStatus === 'new' && '신규 감지 노드 (+NEW)'}
                               {selectedDiffStatus === 'offline' && '기기 연결 끊김 (-OFFLINE)'}
                               {selectedDiffStatus === 'changed' && '기기 식별자 변동 (!CHANGED)'}
                               {selectedDiffStatus === 'same' && '기준점 상태 동일 유지 (=SAME)'}
                             </h4>
-                            <span className="text-[9px] opacity-75">
+                            <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-80 font-medium`}>
                               {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 대비 비교'}
                             </span>
                           </div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                        <span className={`px-2 py-0.5 rounded ${isLgText ? 'text-[10px]' : 'text-[9px]'} font-black uppercase tracking-wider ${
                           selectedDiffStatus === 'new' ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' :
                           selectedDiffStatus === 'offline' ? 'bg-rose-500/30 text-rose-400 border border-rose-500/40' :
                           selectedDiffStatus === 'changed' ? 'bg-amber-500/30 text-amber-400 border border-amber-500/40 animate-pulse' :
@@ -4004,11 +4069,11 @@ const App: React.FC = () => {
 
                       {/* Snapshot Diff Diagnostic Details */}
                       {selectedDiffStatus === 'new' && (
-                        <div className="text-[10px] space-y-1">
-                          <p className="leading-relaxed opacity-90">
+                        <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
+                          <p className="leading-relaxed opacity-95">
                             기준 스냅샷 캡처 당시에는 존재하지 않았던 새로운 기기입니다. 정상 접속 기기인지 확인 후 신뢰 등록을 진행하세요.
                           </p>
-                          <div className="bg-black/25 p-2 rounded-lg font-mono text-[9px] space-y-0.5 mt-1 border border-white/5">
+                          <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 mt-1 border border-white/5`}>
                             <div>• 현재 응답: <span className="text-emerald-400 font-bold">온라인 활성 ({selectedDevice?.latency || 1}ms)</span></div>
                             <div>• MAC: {selectedDevice?.mac || 'Unknown'}</div>
                             <div>• 제조사: {selectedDevice?.vendor || 'Unknown'}</div>
@@ -4017,11 +4082,11 @@ const App: React.FC = () => {
                       )}
 
                       {selectedDiffStatus === 'offline' && (
-                        <div className="text-[10px] space-y-1.5">
-                          <p className="leading-relaxed opacity-90">
+                        <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
+                          <p className="leading-relaxed opacity-95">
                             기준 스냅샷에서는 정상 작동 중이었으나, 현재 네트워크 스캔에서 응답하지 않습니다. (장비 전원 차단, LAN 케이블 분리 또는 IP 변경 의심)
                           </p>
-                          <div className="bg-black/25 p-2 rounded-lg font-mono text-[9px] space-y-0.5 border border-white/5">
+                          <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
                             <div className="text-rose-400 font-bold">• 이전 기준 상태: 정상 작동 중이었음</div>
                             <div>• 이전 MAC: {selectedBaselineDevice?.mac || 'N/A'}</div>
                             <div>• 이전 제조사: {selectedBaselineDevice?.vendor || 'Unknown'}</div>
@@ -4031,11 +4096,11 @@ const App: React.FC = () => {
                       )}
 
                       {selectedDiffStatus === 'changed' && (
-                        <div className="text-[10px] space-y-1.5">
+                        <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
                           <p className="leading-relaxed font-bold text-amber-300">
                             ⚠️ 동일한 IP에서 기준 스냅샷과 다른 하드웨어 식별자가 감지되었습니다!
                           </p>
-                          <div className="bg-black/30 p-2 rounded-lg font-mono text-[9px] space-y-1 border border-white/5">
+                          <div className={`bg-black/30 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
                             {selectedDiffItem?.changeDetails && selectedDiffItem.changeDetails.length > 0 ? (
                               selectedDiffItem.changeDetails.map((detail, idx) => (
                                 <div key={idx} className="text-amber-200 leading-tight">
@@ -4045,7 +4110,7 @@ const App: React.FC = () => {
                             ) : (
                               <div className="text-amber-200">MAC 주소 또는 호스트명 변동 감지됨</div>
                             )}
-                            <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-white/10 text-[8.5px]">
+                            <div className={`grid grid-cols-2 gap-2 pt-2 border-t border-white/10 ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'}`}>
                               <div>
                                 <span className="opacity-60 block">기준점 MAC:</span>
                                 <span className="font-bold">{selectedBaselineDevice?.mac || 'N/A'}</span>
@@ -4060,8 +4125,8 @@ const App: React.FC = () => {
                       )}
 
                       {selectedDiffStatus === 'same' && (
-                        <div className="text-[10px] space-y-1">
-                          <p className="leading-relaxed opacity-85">
+                        <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1`}>
+                          <p className="leading-relaxed opacity-90">
                             기준 스냅샷 시점과 현재 네트워크 상태가 완벽히 일치하며 안정적으로 운영되고 있습니다.
                           </p>
                         </div>
@@ -4070,9 +4135,9 @@ const App: React.FC = () => {
                       {/* Button to open Snapshot Diff Studio directly */}
                       <button
                         onClick={() => setShowDiffStudioModal(true)}
-                        className="w-full mt-1.5 py-1.5 px-2.5 rounded-lg bg-black/20 hover:bg-black/35 dark:bg-white/10 dark:hover:bg-white/20 border border-current border-opacity-15 text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                        className={`w-full mt-1.5 ${isLgText ? 'py-2 text-xs' : 'py-1.5 text-[11px]'} px-3 rounded-lg bg-black/20 hover:bg-black/35 dark:bg-white/10 dark:hover:bg-white/20 border border-current border-opacity-15 font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm`}
                       >
-                        <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                        <Layers className="w-4 h-4 text-indigo-400" />
                         <span>스냅샷 1:1 대조 스튜디오 열기</span>
                       </button>
                     </div>
@@ -4081,12 +4146,12 @@ const App: React.FC = () => {
                   {/* IP Conflict Warning Banner */}
                   {selectedConflict && (
                     <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
-                      <div className="flex items-center gap-1.5 text-rose-400 font-black text-xs">
-                        <AlertTriangle className="w-4 h-4 text-rose-500" />
+                      <div className={`flex items-center gap-1.5 text-rose-400 font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
+                        <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                         <span>⚠️ IP 충돌 경고 (IP Conflict)</span>
                       </div>
-                      <p className="text-[10px] leading-relaxed opacity-95">{selectedConflict.reason}</p>
-                      <div className="text-[9px] text-rose-300/90 bg-black/30 p-1.5 rounded mt-1">
+                      <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
+                      <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} text-rose-300/90 bg-black/30 p-2 rounded mt-1`}>
                         💡 해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.
                       </div>
                     </div>
@@ -4094,34 +4159,34 @@ const App: React.FC = () => {
 
                   {/* New Intruder Device Banner */}
                   {isSelectedIntruder && (
-                    <div className="p-3.5 rounded-xl border border-purple-500/50 bg-purple-500/20 text-purple-200 flex flex-col gap-2 shadow-lg">
+                    <div className="p-3.5 rounded-xl border border-purple-500/50 bg-purple-500/20 text-purple-200 flex flex-col gap-2.5 shadow-lg">
                       <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
                           <BellRing className="w-4 h-4 text-purple-400 animate-bounce shrink-0" />
                           <div className="truncate">
-                            <div className="text-[11px] font-black text-purple-300">신규 감지 낯선 기기</div>
-                            <div className="text-[9.5px] opacity-80 truncate">신뢰 목록에 없는 기기입니다.</div>
+                            <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-purple-300`}>신규 감지 낯선 기기</div>
+                            <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-85 truncate`}>신뢰 목록에 없는 기기입니다.</div>
                           </div>
                         </div>
                         <button
                           onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
-                          className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-black text-[9.5px] rounded-lg shrink-0 shadow"
+                          className={`px-3 ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[11px]'} bg-purple-600 hover:bg-purple-500 text-white font-black rounded-lg shrink-0 shadow cursor-pointer`}
                         >
                           이 기기 신뢰 등록
                         </button>
                       </div>
                       <button
                         onClick={handleTrustAllCurrentDevices}
-                        className="w-full py-1 bg-purple-900/50 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 font-bold text-[9px] rounded-lg transition-colors text-center"
+                        className={`w-full ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[10.5px]'} bg-purple-900/50 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 font-bold rounded-lg transition-colors text-center cursor-pointer`}
                       >
                         ⚡ 현재 탐색된 모든 기기를 정상 기기로 등록
                       </button>
                       {!license.features.intruderDetection && (
-                        <div className="pt-1 border-t border-purple-500/20 flex items-center justify-between text-[9px] text-purple-300">
-                          <span>🔔 백그라운드 주기 감시 및 데스크톱 알림은 PRO 전용</span>
+                        <div className={`pt-1 border-t border-purple-500/20 flex items-center justify-between ${isLgText ? 'text-[11px]' : 'text-[10px]'} text-purple-300`}>
+                          <span>🔔 백그라운드 감시/알림은 PRO 전용</span>
                           <button
                             onClick={() => setShowLicenseModal(true)}
-                            className="underline font-black text-purple-200 hover:text-white transition-colors"
+                            className="underline font-black text-purple-200 hover:text-white transition-colors cursor-pointer"
                           >
                             PRO 업그레이드
                           </button>
@@ -4132,27 +4197,27 @@ const App: React.FC = () => {
 
                   {/* Soft Trust Grace Period Banner */}
                   {selectedSoftTrust && !isSelectedIntruder && (
-                    <div className="p-3.5 rounded-xl border border-amber-500/50 bg-amber-500/20 text-amber-100 flex flex-col gap-2 shadow-lg">
+                    <div className="p-3.5 rounded-xl border border-amber-500/50 bg-amber-500/20 text-amber-100 flex flex-col gap-2.5 shadow-lg">
                       <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-2 min-w-0">
                           <Shield className="w-4 h-4 text-amber-400 shrink-0" />
                           <div className="truncate">
-                            <div className="text-[11px] font-black text-amber-300 flex items-center gap-1">
+                            <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-amber-300 flex items-center gap-1`}>
                               <span>소프트 신뢰 유예 중</span>
                               {selectedSoftTrust.softTrustInfo?.similarityScore && (
-                                <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 text-[8.5px] font-mono font-bold">
+                                <span className={`px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 ${isLgText ? 'text-[10px]' : 'text-[9px]'} font-mono font-bold`}>
                                   {Math.round(selectedSoftTrust.softTrustInfo.similarityScore * 100)}% 매칭
                                 </span>
                               )}
                             </div>
-                            <div className="text-[9.5px] opacity-90 leading-tight mt-0.5">
+                            <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-90 leading-tight mt-0.5`}>
                               {selectedSoftTrust.softTrustInfo?.reason || '식별자 변동 유예 중인 기존 신뢰 기기'}
                             </div>
                           </div>
                         </div>
                         <button
                           onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-black text-[9.5px] rounded-lg shrink-0 shadow"
+                          className={`px-3 ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[11px]'} bg-amber-500 hover:bg-amber-400 text-black font-black rounded-lg shrink-0 shadow cursor-pointer`}
                         >
                           정식 신뢰 등록
                         </button>
@@ -4162,30 +4227,30 @@ const App: React.FC = () => {
 
                   {/* Identity Card */}
                   <section className="space-y-2">
-                     <div className={`p-4 ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-sky-500/10 border-sky-500/30'} rounded-2xl border flex flex-col items-center text-center`}>
-                        <Monitor className="w-7 h-7 text-sky-500 mb-2" />
-                        <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest mb-0.5`}>{s.networkIdentity}</span>
-                        <span className="text-base font-black text-sky-500 break-all leading-tight">
+                     <div className={`p-4 ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-sky-500/10 border-sky-500/30'} rounded-2xl border flex flex-col items-center text-center shadow-sm`}>
+                        <Monitor className="w-8 h-8 text-sky-500 mb-2" />
+                        <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider mb-1`}>{s.networkIdentity}</span>
+                        <span className={`${isLgText ? 'text-lg md:text-xl' : 'text-base md:text-lg'} font-black text-sky-500 break-all leading-tight`}>
                           {selectedAlias?.nickname ? selectedAlias.nickname : (effectiveDevice?.hostname || selectedIp)}
                         </span>
                         {(selectedAlias?.nickname || selectedDevice?.hostname || selectedBaselineDevice?.hostname) && (
-                          <span className="text-[10px] opacity-60 font-mono mt-0.5">
+                          <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} opacity-75 font-mono mt-1`}>
                             {selectedAlias?.nickname ? (effectiveDevice?.hostname || selectedIp) : (selectedDiffStatus === 'offline' ? `(이전 기준: ${selectedBaselineDevice?.hostname || selectedBaselineDevice?.vendor || '장치'})` : selectedDevice?.hostname)}
                           </span>
                         )}
                         {effectiveDevice?.webTitle && (
-                          <div className={`mt-2 px-3 py-1 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-slate-800'} border rounded-lg italic text-[10px] ${t.textMuted}`}>
+                          <div className={`mt-2 px-3 py-1.5 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-slate-800'} border rounded-lg italic ${isLgText ? 'text-xs' : 'text-[11px]'} ${t.textMuted}`}>
                             "{effectiveDevice.webTitle}"
                           </div>
                         )}
-                        <div className="mt-2.5 flex items-center space-x-2">
+                        <div className="mt-3 flex items-center space-x-2">
                            <div className={`w-2.5 h-2.5 rounded-full ${
                              selectedDiffStatus === 'offline' ? 'bg-rose-500' :
                              selectedDiffStatus === 'new' ? 'bg-emerald-500 animate-pulse' :
                              selectedDiffStatus === 'changed' ? 'bg-amber-500 animate-pulse' :
                              selectedResult?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'
                            }`} />
-                           <span className="text-[10px] font-bold opacity-80">
+                           <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} font-bold opacity-90`}>
                              {selectedDiffStatus === 'offline'
                                ? '연결 끊김 (기준 스냅샷 대비 오프라인)'
                                : selectedDiffStatus === 'new'
@@ -4203,7 +4268,7 @@ const App: React.FC = () => {
                   {/* Feature 3: Custom Nickname & Memo Section */}
                   <section className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
+                      <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider flex items-center gap-1`}>
                         <Tag className="w-3.5 h-3.5 text-amber-500" />
                         <span>{s.customNickname}</span>
                       </span>
@@ -4214,7 +4279,7 @@ const App: React.FC = () => {
                             setAliasNotesInput(selectedAlias?.notes || '');
                             setIsEditingAlias(true);
                           }}
-                          className="px-2 py-0.5 rounded text-[9.5px] font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center gap-1"
+                          className={`px-2.5 py-1 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center gap-1 cursor-pointer`}
                         >
                           <Edit3 className="w-3 h-3" />
                           <span>{selectedAlias?.nickname ? "수정" : "+ 별칭 추가"}</span>
@@ -4222,7 +4287,7 @@ const App: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => setIsEditingAlias(false)}
-                          className="text-[9px] text-zinc-400 hover:text-white"
+                          className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-zinc-400 hover:text-white cursor-pointer`}
                         >
                           취소
                         </button>
@@ -4230,47 +4295,47 @@ const App: React.FC = () => {
                     </div>
 
                     {isEditingAlias ? (
-                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-amber-500/30'} space-y-2.5 animate-in fade-in`}>
+                      <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-amber-500/30'} space-y-3 animate-in fade-in`}>
                         <div>
-                          <label className="text-[9px] font-bold opacity-60 block mb-1">기기 별칭 (예: 거실 공기청정기, 메인 NAS)</label>
+                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>기기 별칭 (예: 거실 공기청정기, 메인 NAS)</label>
                           <input
                             type="text"
                             value={aliasNicknameInput}
                             onChange={e => setAliasNicknameInput(e.target.value)}
                             placeholder="별칭 입력..."
-                            className={`w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none ${t.input}`}
+                            className={`w-full px-3 ${isLgText ? 'py-2 text-sm' : 'py-1.5 text-xs'} rounded-lg border outline-none ${t.input}`}
                             autoFocus
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-bold opacity-60 block mb-1">관리자 메모</label>
+                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>관리자 메모</label>
                           <textarea
                             value={aliasNotesInput}
                             onChange={e => setAliasNotesInput(e.target.value)}
                             placeholder="설치 위치, 담당자 연락처, 특이사항 등..."
                             rows={2}
-                            className={`w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none resize-none ${t.input}`}
+                            className={`w-full px-3 ${isLgText ? 'py-2 text-sm' : 'py-1.5 text-xs'} rounded-lg border outline-none resize-none ${t.input}`}
                           />
                         </div>
                         <div className="flex items-center justify-between pt-1">
                           {selectedAlias && (
                             <button
                               onClick={() => handleDeleteNickname(selectedMac, selectedIp)}
-                              className="text-[10px] text-rose-400 hover:text-rose-300 font-bold"
+                              className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-rose-400 hover:text-rose-300 font-bold cursor-pointer`}
                             >
                               삭제
                             </button>
                           )}
-                          <div className="flex gap-1.5 ml-auto">
+                          <div className="flex gap-2 ml-auto">
                             <button
                               onClick={() => setIsEditingAlias(false)}
-                              className="px-2.5 py-1 rounded text-[10px] font-bold bg-white/5 hover:bg-white/10"
+                              className={`px-3 py-1.5 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-bold bg-white/5 hover:bg-white/10 cursor-pointer`}
                             >
                               취소
                             </button>
                             <button
                               onClick={() => handleSaveNickname(selectedMac, selectedIp)}
-                              className="px-3 py-1 rounded text-[10px] font-black bg-amber-500 hover:bg-amber-400 text-black shadow"
+                              className={`px-3.5 py-1.5 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-black bg-amber-500 hover:bg-amber-400 text-black shadow cursor-pointer`}
                             >
                               저장
                             </button>
@@ -4278,13 +4343,13 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     ) : selectedAlias ? (
-                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-amber-50/80 border-amber-200 text-[#4a341e]' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'} space-y-1`}>
+                      <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-amber-50/80 border-amber-200 text-[#4a341e]' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'} space-y-1.5`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-amber-400">🏷️ {selectedAlias.nickname}</span>
-                          <span className="text-[8px] opacity-50 mono">{selectedAlias.updatedAt.split('T')[0]}</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-amber-400`}>🏷️ {selectedAlias.nickname}</span>
+                          <span className={`${isLgText ? 'text-[10px]' : 'text-[9px]'} opacity-60 mono`}>{selectedAlias.updatedAt.split('T')[0]}</span>
                         </div>
                         {selectedAlias.notes && (
-                          <p className="text-[10px] opacity-80 leading-relaxed pt-1 border-t border-amber-500/20">
+                          <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} opacity-85 leading-relaxed pt-1.5 border-t border-amber-500/20`}>
                             📝 {selectedAlias.notes}
                           </p>
                         )}
@@ -4294,63 +4359,63 @@ const App: React.FC = () => {
 
                   {/* Feature 1: Quick Remote Actions */}
                   <section className="space-y-2">
-                    <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
-                      <Zap className="w-3.5 h-3.5 text-sky-400" />
+                    <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider flex items-center gap-1`}>
+                      <Zap className="w-4 h-4 text-sky-400" />
                       <span>{s.quickRemoteActions}</span>
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'web', 80)}
-                        className="p-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="기본 웹 브라우저로 접속 (http://IP)"
                       >
-                        <Globe className="w-3.5 h-3.5 text-sky-400" />
-                        <span>{s.remoteWeb}</span>
+                        <Globe className="w-4 h-4 text-sky-400 shrink-0" />
+                        <span className="truncate">{s.remoteWeb}</span>
                       </button>
 
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'web_ssl', 443)}
-                        className="p-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="보안 웹(HTTPS) 접속 (https://IP)"
                       >
-                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>{s.remoteWebSSL}</span>
+                        <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+                        <span className="truncate">{s.remoteWebSSL}</span>
                       </button>
 
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'rdp', 3389)}
-                        className="p-2 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="Windows 원격 데스크톱(mstsc.exe) 실행"
                       >
-                        <Monitor className="w-3.5 h-3.5 text-blue-400" />
-                        <span>{s.remoteRdp}</span>
+                        <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span className="truncate">{s.remoteRdp}</span>
                       </button>
 
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'ssh', 22)}
-                        className="p-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="SSH 콘솔/PuTTY 세션 호출"
                       >
-                        <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{s.remoteSsh}</span>
+                        <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="truncate">{s.remoteSsh}</span>
                       </button>
 
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'smb', 445)}
-                        className="p-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="Windows 탐색기로 SMB 공유 폴더 (\\IP) 열기"
                       >
-                        <Folder className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{s.remoteSmb}</span>
+                        <Folder className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span className="truncate">{s.remoteSmb}</span>
                       </button>
 
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'ping')}
-                        className="p-2 rounded-xl border border-zinc-500/30 bg-zinc-500/10 hover:bg-zinc-500/20 text-zinc-300 font-bold text-[9.5px] flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        className={`p-2.5 rounded-xl border border-zinc-500/30 bg-zinc-500/10 hover:bg-zinc-500/20 text-zinc-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
                         title="연속 콘솔 Ping 진단 (ping -t IP)"
                       >
-                        <Activity className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{s.remotePing}</span>
+                        <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
+                        <span className="truncate">{s.remotePing}</span>
                       </button>
                     </div>
                   </section>
@@ -4358,21 +4423,21 @@ const App: React.FC = () => {
                   {/* Feature 2: Wake-on-LAN (WoL) */}
                   <section className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1`}>
-                        <Power className="w-3.5 h-3.5 text-amber-400" />
+                      <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider flex items-center gap-1`}>
+                        <Power className="w-4 h-4 text-amber-400" />
                         <span>{s.wolTitle}</span>
                       </span>
                       {!license.features.remoteBoot ? (
                         <button
                           onClick={() => setShowLicenseModal(true)}
-                          className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                          className={`px-2 py-0.5 rounded ${isLgText ? 'text-[9.5px]' : 'text-[9px]'} font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer`}
                           title="Pro 라이선스 활성화 필요"
                         >
-                          <Key className="w-2.5 h-2.5" />
+                          <Key className="w-3 h-3" />
                           <span>PRO 전용</span>
                         </button>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <span className={`px-2 py-0.5 rounded ${isLgText ? 'text-[9.5px]' : 'text-[9px]'} font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30`}>
                           PRO 활성
                         </span>
                       )}
@@ -4380,9 +4445,9 @@ const App: React.FC = () => {
                     <button
                       onClick={() => handleSendWakeOnLan(effectiveMac, selectedIp)}
                       disabled={isSendingWol || (license.features.remoteBoot && (!effectiveMac || effectiveMac === 'Unknown'))}
-                      className={`w-full py-2.5 px-3 rounded-xl border font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-md ${
+                      className={`w-full ${isLgText ? 'py-3 text-sm' : 'py-2.5 text-xs'} px-3 rounded-xl border font-black uppercase flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer ${
                         !license.features.remoteBoot
-                          ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 hover:border-amber-400 text-amber-300 cursor-pointer hover:shadow-amber-500/10 active:scale-98'
+                          ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 hover:border-amber-400 text-amber-300 hover:shadow-amber-500/10 active:scale-98'
                           : !effectiveMac || effectiveMac === 'Unknown'
                             ? 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400'
                             : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300'
@@ -4397,7 +4462,7 @@ const App: React.FC = () => {
                     >
                       {!license.features.remoteBoot ? (
                         <>
-                          <Key className="w-3.5 h-3.5 text-amber-400" />
+                          <Key className="w-4 h-4 text-amber-400" />
                           <span>{s.wolSendBtn} (PRO 필요)</span>
                         </>
                       ) : (
@@ -4408,12 +4473,12 @@ const App: React.FC = () => {
                       )}
                     </button>
                     {!license.features.remoteBoot ? (
-                      <div className="text-[8.5px] text-amber-500/80 dark:text-amber-400/80 text-center">
+                      <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} text-amber-500/80 dark:text-amber-400/80 text-center`}>
                         💡 PC/서버 원격 부팅(WoL)은 PRO 에디션 이상에서 이용하실 수 있습니다.
                       </div>
                     ) : (
                       effectiveMac && effectiveMac !== 'Unknown' && (
-                        <div className="text-[8.5px] opacity-60 text-center mono">
+                        <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} opacity-60 text-center mono`}>
                           Target MAC: {effectiveMac} {selectedDiffStatus === 'offline' && '(이전 기록)'} (Broadcast UDP 9/7)
                         </div>
                       )
@@ -4422,44 +4487,53 @@ const App: React.FC = () => {
 
                   {/* Technical Details */}
                   <section className="space-y-2">
-                    <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.technicalDetails}</span>
-                    <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3`}>
+                    <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>{s.technicalDetails}</span>
+                    <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3.5 shadow-sm`}>
                       <div className="flex justify-between items-center">
-                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.address}</span>
+                        <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.address}</span>
                         <a 
                           href={`http://${selectedIp}`} 
                           target="_blank" 
                           rel="noreferrer" 
-                          className="text-xs font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link"
+                          className={`${isLgText ? 'text-sm' : 'text-xs'} font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link`}
                         >
                           {selectedIp}
-                          <ExternalLink className="w-3 h-3 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
+                          <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
                         </a>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.macInfo}</span>
-                        <span className="text-xs font-black mono text-emerald-500">
-                          {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className="text-[8px] text-rose-400 font-bold ml-1">(이전 기준)</span>}
+                        <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.macInfo}</span>
+                        <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black mono text-emerald-500`}>
+                          {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>(이전 기준)</span>}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.vendor}</span>
-                        <span className="text-xs font-black truncate ml-4 text-right">
+                        <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.vendor}</span>
+                        <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right`}>
                           {effectiveDevice?.vendor || 'Unknown'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
-                        <span className={`${t.textMuted} text-[9px] uppercase font-bold`}>{s.os}</span>
-                        <span className="text-xs font-black">{effectiveDevice?.os || 'Unknown'}</span>
+                        <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.os}</span>
+                        <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold`}>{effectiveDevice?.os || 'Unknown'}</span>
                       </div>
                       {effectiveDevice?.mdns && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>mDNS</span><span className="text-xs font-black truncate ml-4 text-right text-sky-500">{effectiveDevice.mdns}</span></div>
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>mDNS</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-sky-500`}>{effectiveDevice.mdns}</span>
+                        </div>
                       )}
                       {effectiveDevice?.upnp && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>UPnP</span><span className="text-xs font-black truncate ml-4 text-right text-purple-500">{effectiveDevice.upnp}</span></div>
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>UPnP</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-purple-500`}>{effectiveDevice.upnp}</span>
+                        </div>
                       )}
                       {effectiveDevice?.snmp && (
-                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3"><span className={`${t.textMuted} text-[9px] uppercase font-bold`}>SNMP</span><span className="text-xs font-black truncate ml-4 text-right text-amber-500">{effectiveDevice.snmp}</span></div>
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>SNMP</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-amber-500`}>{effectiveDevice.snmp}</span>
+                        </div>
                       )}
                     </div>
                   </section>
@@ -4467,12 +4541,12 @@ const App: React.FC = () => {
                   {/* Listening Ports & Port Security Audit */}
                   {effectiveDevice?.openPorts && effectiveDevice.openPorts.length > 0 && (
                     <section className="space-y-2">
-                      <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>
-                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className="text-[8px] text-rose-400 font-bold ml-1">(이전 기준)</span>}
+                      <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>
+                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>(이전 기준)</span>}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {effectiveDevice.openPorts.map(p => (
-                          <div key={p} className={`px-2 py-0.5 rounded text-[11px] font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
+                          <div key={p} className={`px-2.5 py-1 rounded-lg ${isLgText ? 'text-xs' : 'text-[11px]'} font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
                             {p}
                           </div>
                         ))}
@@ -4484,24 +4558,24 @@ const App: React.FC = () => {
                   <section className="space-y-3 pt-2 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1.5">
-                        <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
-                        <span className={`text-[9.5px] font-black ${t.textMuted} uppercase tracking-widest`}>
+                        <ShieldAlert className="w-4 h-4 text-amber-500" />
+                        <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>
                           {s.deepPortAuditBtn}
                         </span>
                       </div>
                       <button
                         onClick={() => handleRunDeepPortAudit(selectedIp)}
                         disabled={isAuditingPorts}
-                        className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 rounded text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-1"
+                        className={`px-3 ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[11px]'} bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400 rounded-lg font-black uppercase tracking-wider transition-all disabled:opacity-50 flex items-center gap-1 cursor-pointer`}
                       >
                         {isAuditingPorts ? (
                           <>
-                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                             <span>분석 중...</span>
                           </>
                         ) : (
                           <>
-                            <Zap className="w-3 h-3 text-amber-400" />
+                            <Zap className="w-3.5 h-3.5 text-amber-400" />
                             <span>정밀 진단</span>
                           </>
                         )}
@@ -4509,24 +4583,24 @@ const App: React.FC = () => {
                     </div>
 
                     {portAuditResult && portAuditResult.ip === selectedIp && (
-                      <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
-                        <div className="flex justify-between items-center text-[9px] opacity-70">
+                      <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
+                        <div className={`flex justify-between items-center ${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-75`}>
                           <span>점검 포트: {portAuditResult.totalChecked}개</span>
                           <span>탐지: {portAuditResult.openPorts.length}개</span>
                         </div>
                         {portAuditResult.openPorts.length > 0 ? (
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                          <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
                             {portAuditResult.openPorts.map((item) => (
                               <div
                                 key={item.port}
-                                className="p-2 rounded-lg bg-white/5 border border-white/5 flex flex-col space-y-1"
+                                className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex flex-col space-y-1"
                               >
                                 <div className="flex justify-between items-center">
-                                  <span className="text-[11px] font-black mono text-sky-400">
+                                  <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} font-black mono text-sky-400`}>
                                     {item.port} / {item.service}
                                   </span>
                                   <span
-                                    className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                                    className={`px-2 py-0.5 rounded ${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} font-black uppercase ${
                                       item.risk === 'high'
                                         ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                                         : item.risk === 'medium'
@@ -4537,12 +4611,12 @@ const App: React.FC = () => {
                                     {item.risk.toUpperCase()}
                                   </span>
                                 </div>
-                                <span className="text-[9px] opacity-70">{item.description}</span>
+                                <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-75`}>{item.description}</span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-[10px] text-emerald-400 py-1 text-center font-bold">
+                          <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-emerald-400 py-1.5 text-center font-bold`}>
                             ✓ 점검 결과 주의 대상 포트가 닫혀있습니다.
                           </div>
                         )}

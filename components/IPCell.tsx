@@ -98,38 +98,38 @@ const IPCell: React.FC<IPCellProps> = ({
         if (bColor === 'sky') {
           return isSelected
             ? (isDark 
-                ? 'bg-sky-500 border-sky-200 text-black shadow-[0_0_24px_rgba(14,165,233,0.95)] z-20 ring-2 ring-sky-300 font-black'
+                ? 'bg-sky-500 border-sky-100 text-black shadow-[0_0_24px_rgba(14,165,233,0.95)] z-20 ring-2 ring-sky-300 font-black'
                 : 'bg-sky-600 border-sky-800 text-white shadow-[0_0_20px_rgba(14,165,233,0.85)] z-20 ring-2 ring-sky-500')
             : (isDark 
-                ? 'bg-sky-500/20 border-sky-400/60 text-sky-200 shadow-[0_0_10px_rgba(14,165,233,0.35)] ring-1 ring-sky-400/40 hover:bg-sky-500/35 hover:shadow-[0_0_15px_rgba(14,165,233,0.6)]' 
-                : 'bg-sky-100 border-sky-500 text-sky-950 shadow-[0_0_8px_rgba(14,165,233,0.25)] ring-1 ring-sky-400/50 hover:bg-sky-200');
+                ? 'bg-sky-500/25 border-sky-400 text-sky-100 shadow-[0_0_12px_rgba(14,165,233,0.4)] ring-1 ring-sky-400/70 hover:bg-sky-500/40 hover:shadow-[0_0_18px_rgba(14,165,233,0.7)]' 
+                : 'bg-sky-100 border-sky-500 text-sky-950 shadow-[0_0_8px_rgba(14,165,233,0.3)] ring-1 ring-sky-400/60 hover:bg-sky-200');
         }
         if (bColor === 'indigo') {
           return isSelected
             ? (isDark 
-                ? 'bg-indigo-500 border-indigo-200 text-white shadow-[0_0_24px_rgba(99,102,241,0.95)] z-20 ring-2 ring-indigo-300 font-black'
+                ? 'bg-indigo-500 border-indigo-100 text-white shadow-[0_0_24px_rgba(99,102,241,0.95)] z-20 ring-2 ring-indigo-300 font-black'
                 : 'bg-indigo-600 border-indigo-800 text-white shadow-[0_0_20px_rgba(99,102,241,0.85)] z-20 ring-2 ring-indigo-500')
             : (isDark 
-                ? 'bg-indigo-500/25 border-indigo-400/60 text-indigo-200 shadow-[0_0_10px_rgba(99,102,241,0.35)] ring-1 ring-indigo-400/40 hover:bg-indigo-500/40' 
-                : 'bg-indigo-100 border-indigo-500 text-indigo-950 shadow-[0_0_8px_rgba(99,102,241,0.25)] ring-1 ring-indigo-400/50 hover:bg-indigo-200');
+                ? 'bg-indigo-500/30 border-indigo-400 text-indigo-100 shadow-[0_0_12px_rgba(99,102,241,0.4)] ring-1 ring-indigo-400/70 hover:bg-indigo-500/45 hover:shadow-[0_0_18px_rgba(99,102,241,0.7)]' 
+                : 'bg-indigo-100 border-indigo-500 text-indigo-950 shadow-[0_0_8px_rgba(99,102,241,0.3)] ring-1 ring-indigo-400/60 hover:bg-indigo-200');
         }
         if (bColor === 'teal') {
           return isSelected
             ? (isDark 
-                ? 'bg-teal-500 border-teal-200 text-black shadow-[0_0_24px_rgba(20,184,166,0.95)] z-20 ring-2 ring-teal-300 font-black'
+                ? 'bg-teal-500 border-teal-100 text-black shadow-[0_0_24px_rgba(20,184,166,0.95)] z-20 ring-2 ring-teal-300 font-black'
                 : 'bg-teal-600 border-teal-800 text-white shadow-[0_0_20px_rgba(20,184,166,0.85)] z-20 ring-2 ring-teal-500')
             : (isDark 
-                ? 'bg-teal-500/20 border-teal-400/60 text-teal-200 shadow-[0_0_10px_rgba(20,184,166,0.35)] ring-1 ring-teal-400/40 hover:bg-teal-500/35' 
-                : 'bg-teal-100 border-teal-500 text-teal-950 shadow-[0_0_8px_rgba(20,184,166,0.25)] ring-1 ring-teal-400/50 hover:bg-teal-200');
+                ? 'bg-teal-500/25 border-teal-400 text-teal-100 shadow-[0_0_12px_rgba(20,184,166,0.4)] ring-1 ring-teal-400/70 hover:bg-teal-500/40 hover:shadow-[0_0_18px_rgba(20,184,166,0.7)]' 
+                : 'bg-teal-100 border-teal-500 text-teal-950 shadow-[0_0_8px_rgba(20,184,166,0.3)] ring-1 ring-teal-400/60 hover:bg-teal-200');
         }
-        // slate (classic grey)
+        // slate (distinct metallic steel slate, sharp contrast from empty cells)
         return isSelected
           ? (isDark 
-              ? 'bg-slate-600 border-slate-300 shadow-md z-20 ring-1 ring-slate-400'
-              : 'bg-[#d8c5ab] border-[#8c6b48] shadow-md z-20 ring-1 ring-[#8c6b48]')
+              ? 'bg-slate-500 border-slate-200 text-white shadow-[0_0_20px_rgba(148,163,184,0.9)] z-20 ring-2 ring-slate-300 font-black'
+              : 'bg-slate-600 border-slate-800 text-white shadow-[0_0_15px_rgba(100,116,139,0.7)] z-20 ring-2 ring-slate-400 font-black')
           : (isDark 
-              ? 'bg-slate-800/40 border-slate-700/50 opacity-60 hover:opacity-100 hover:bg-slate-800/70' 
-              : 'bg-[#ece1cf]/70 border-[#d6c2a8] opacity-65 hover:opacity-100 hover:bg-[#e4d5be]');
+              ? 'bg-slate-700/60 border-slate-400 text-slate-100 shadow-[0_0_10px_rgba(148,163,184,0.35)] ring-1 ring-slate-400/70 hover:bg-slate-700/80' 
+              : 'bg-slate-200 border-slate-500 text-slate-900 shadow-[0_0_8px_rgba(100,116,139,0.25)] ring-1 ring-slate-400/60 hover:bg-slate-300');
       }
     }
 
@@ -181,7 +181,7 @@ const IPCell: React.FC<IPCellProps> = ({
         if (bColor === 'sky') return theme === 'beige' ? 'text-sky-950 font-black' : 'text-sky-300 font-black';
         if (bColor === 'indigo') return theme === 'beige' ? 'text-indigo-950 font-black' : 'text-indigo-300 font-black';
         if (bColor === 'teal') return theme === 'beige' ? 'text-teal-950 font-black' : 'text-teal-300 font-black';
-        return theme === 'beige' ? 'text-[#735c44] font-medium' : 'text-slate-400 font-medium';
+        return theme === 'beige' ? 'text-[#3d2711] font-black' : 'text-slate-100 font-black';
       }
     }
 
@@ -240,53 +240,49 @@ const IPCell: React.FC<IPCellProps> = ({
 
       {/* Diff Status Indicator Badges with Striking Distinct Colors */}
       {diffStatus === 'new' && (
-        <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-emerald-500 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(16,185,129,0.8)] z-20 animate-bounce flex items-center gap-0.5 border border-white/40">
-          <span className="text-[6px]">✚</span>NEW
-        </span>
+        <>
+          <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-emerald-500 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_12px_rgba(16,185,129,0.9)] z-20 animate-bounce flex items-center gap-0.5 border border-white/60 ring-2 ring-emerald-300/60">
+            <span className="text-[6px]">✚</span>{s.lang === 'ko' ? '신규' : 'NEW'}
+          </span>
+          <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping z-20" />
+        </>
       )}
       {diffStatus === 'offline' && (
         <>
-          <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-rose-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(244,63,94,0.8)] z-20 flex items-center gap-0.5 border border-white/40">
-            <span className="text-[6px]">━</span>OFF
+          <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-rose-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(244,63,94,0.8)] z-20 flex items-center gap-0.5 border border-white/60">
+            <span className="text-[6px]">━</span>{s.lang === 'ko' ? '이탈' : 'OFF'}
           </span>
           {/* Diagonal indicator slash for disconnected nodes */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
-            <div className="w-full h-[1px] bg-rose-500 rotate-45 transform" />
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
+            <div className="w-full h-[1.5px] bg-rose-500 rotate-45 transform" />
           </div>
         </>
       )}
       {diffStatus === 'changed' && (
-        <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(245,158,11,0.8)] z-20 flex items-center gap-0.5 border border-black/30">
-          <span className="text-[6px]">▲</span>CHG
+        <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_10px_rgba(245,158,11,0.9)] z-20 animate-pulse flex items-center gap-0.5 border border-black/40">
+          <span className="text-[6px]">▲</span>{s.lang === 'ko' ? '변동' : 'CHG'}
         </span>
       )}
       {diffStatus === 'same' && (() => {
         const bColor = baselineColor || 'sky';
-        if (bColor === 'sky') {
-          return (
-            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-sky-500 text-black font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(14,165,233,0.7)] z-20 flex items-center gap-0.5 border border-sky-200">
-              <span className="text-[6px]">=</span>BASE
-            </span>
-          );
-        }
-        if (bColor === 'indigo') {
-          return (
-            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-indigo-500 text-white font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(99,102,241,0.7)] z-20 flex items-center gap-0.5 border border-indigo-200">
-              <span className="text-[6px]">=</span>BASE
-            </span>
-          );
-        }
-        if (bColor === 'teal') {
-          return (
-            <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-teal-500 text-black font-black rounded text-[7px] tracking-tighter shadow-[0_0_8px_rgba(20,184,166,0.7)] z-20 flex items-center gap-0.5 border border-teal-200">
-              <span className="text-[6px]">=</span>BASE
-            </span>
-          );
-        }
+        const badgeClasses = {
+          sky: 'bg-sky-500 text-black border-sky-200 shadow-[0_0_8px_rgba(14,165,233,0.7)]',
+          indigo: 'bg-indigo-600 text-white border-indigo-200 shadow-[0_0_8px_rgba(99,102,241,0.7)]',
+          teal: 'bg-teal-500 text-black border-teal-200 shadow-[0_0_8px_rgba(20,184,166,0.7)]',
+          slate: 'bg-slate-600 text-white border-slate-300 shadow-[0_0_8px_rgba(148,163,184,0.6)]',
+        }[bColor];
+
         return (
-          <span className="absolute -top-1 -left-1 px-0.5 py-0.2 bg-slate-700/80 text-slate-300 rounded text-[6px] font-black tracking-tighter z-10 opacity-70">
-            =
-          </span>
+          <>
+            <span className={`absolute -top-1.5 -left-1.5 px-1 py-0.2 rounded text-[7px] font-black tracking-tighter z-20 flex items-center gap-0.5 border ${badgeClasses}`}>
+              <span className="text-[6px]">=</span>{s.lang === 'ko' ? '기준' : 'BASE'}
+            </span>
+            <span className={`absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full z-20 ${
+              bColor === 'sky' ? 'bg-sky-400' :
+              bColor === 'indigo' ? 'bg-indigo-400' :
+              bColor === 'teal' ? 'bg-teal-400' : 'bg-slate-400'
+            }`} />
+          </>
         );
       })()}
 

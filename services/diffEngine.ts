@@ -284,13 +284,21 @@ export const computeSnapshotDiff = (
           hasSecurityRisk,
         });
       } else {
+        // Both active and identical: Real baseline device maintained without change
         diffMap[ip] = 'same';
         sameCount++;
+        items.push({
+          ip,
+          diffStatus: 'same',
+          category: 'identical',
+          current: cur,
+          previous: prev,
+          changeDetails: ['기준 스냅샷과 동일하게 정상 온라인 운영 중인 장비입니다.'],
+        });
       }
     } else {
-      // Both inactive
-      diffMap[ip] = 'same';
-      sameCount++;
+      // Both inactive: unassigned/empty IP slot in both baseline and current scan
+      // Do NOT set diffMap[ip] or increment sameCount to keep the grid clean and distinguish active devices!
     }
   });
 
