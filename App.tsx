@@ -629,7 +629,23 @@ const App: React.FC = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [processedIPs, setProcessedIPs] = useState<Set<string>>(new Set());
   const [exportMode, setExportMode] = useState<'active' | 'all'>('active');
-  const [lang, setLang] = useState<'ko' | 'en'>('ko');
+  const [lang, setLang] = useState<'ko' | 'en'>(() => {
+    try {
+      const saved = localStorage.getItem('grid_app_lang');
+      if (saved === 'ko' || saved === 'en') return saved;
+    } catch (_) {
+      // fallback
+    }
+    return 'en'; // Default to English on first launch
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('grid_app_lang', lang);
+    } catch (_) {
+      // ignore
+    }
+  }, [lang]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isAdmin, setIsAdmin] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
