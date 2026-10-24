@@ -42,6 +42,16 @@ const ENTERPRISE_FEATURES: LicenseFeatures = {
 const STORAGE_KEY = 'grid_ip_scanner_license_v2';
 const TRIAL_HISTORY_KEY = 'grid_ip_scanner_trial_history_v1';
 
+// Blacklist of revoked / refunded license keys
+const REVOKED_LICENSE_KEYS = new Set<string>([
+  'REFUNDED-KEY-EXAMPLE-001',
+]);
+
+export const isKeyRevoked = (key?: string): boolean => {
+  if (!key) return false;
+  return REVOKED_LICENSE_KEYS.has(key.trim().toUpperCase());
+};
+
 export interface TrialHistoryInfo {
   used: boolean;
   activatedAt?: string;
@@ -82,6 +92,17 @@ export const getStoredLicense = (): LicenseInfo => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.tier) {
+        // Check if stored key is revoked due to refund
+        if (parsed.licenseKey && isKeyRevoked(parsed.licenseKey)) {
+          localStorage.removeItem(STORAGE_KEY);
+          return {
+            tier: 'free',
+            licensedTo: 'Community User',
+            maxSubnets: 1,
+            features: DEFAULT_FREE_FEATURES,
+          };
+        }
+
         if (parsed.expiresAt) {
           const exp = new Date(parsed.expiresAt);
           if (exp.getTime() < Date.now()) {
@@ -153,6 +174,10 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
 
   if (!trimmed) {
     return { success: false, message: '라이선스 키를 입력해 주세요.' };
+  }
+
+  if (isKeyRevoked(trimmed)) {
+    return { success: false, message: '환불 처리되었거나 무효화된 라이선스 키입니다. 정품 키를 재구입해 주세요.' };
   }
 
   // Enterprise Tier Activation Token
