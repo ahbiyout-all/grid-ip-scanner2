@@ -374,15 +374,17 @@ export async function exportSecurityAuditReportToPDF(
                 const hasHighRisk = dev?.openPorts?.some((p) => [21, 23, 445, 3389, 5900, 6379].includes(p));
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 4px 8px; font-family: monospace; font-weight: 800; color: #0284c7;">${d.ip}</td>
-                    <td style="padding: 4px 8px; font-family: monospace; font-weight: 700; color: #059669;">${dev?.mac || '-'}</td>
-                    <td style="padding: 4px 8px;">
-                      <div style="font-weight: 800; color: #0f172a;">${dev?.vendor || 'Unknown'}</div>
-                      <div style="font-size: 8px; color: #64748b;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>
+                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; line-height: 1.3;">${d.ip}</td>
+                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 4px 8px; vertical-align: middle;">
+                      <div style="display: flex; flex-direction: column; justify-content: center; min-height: 24px;">
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.vendor || 'Unknown'}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                      </div>
                     </td>
-                    <td style="padding: 4px 8px; text-align: center; font-family: monospace; color: #64748b;">${dev?.latency || 0}ms</td>
-                    <td style="padding: 4px 8px;">
-                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 1px 4px; border-radius: 2px; font-size: 7.5px; margin-right: 2px; display: inline-block;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 1px 4px; border-radius: 2px; font-size: 7.5px; margin-right: 2px; display: inline-block;">${p}</span>`).join('') : '<span style="color: #cbd5e1;">-</span>'}
+                    <td style="padding: 4px 8px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; line-height: 1.3;">${dev?.latency || 0}ms</td>
+                    <td style="padding: 4px 8px; vertical-align: middle;">
+                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 1px 4px; border-radius: 2px; font-size: 7.5px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 1px 4px; border-radius: 2px; font-size: 7.5px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>`).join('') : '<span style="color: #cbd5e1;">-</span>'}
                     </td>
                   </tr>
                 `;
@@ -423,11 +425,11 @@ export async function exportSecurityAuditReportToPDF(
           <table style="width: 100%; border-collapse: collapse; font-size: 8.5px;">
             <thead>
               <tr style="background: #f1f5f9; color: #475569; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
-                <th style="padding: 4px 7px; text-align: left; width: 95px; font-weight: 800;">IP 주소</th>
-                <th style="padding: 4px 7px; text-align: left; width: 110px; font-weight: 800;">MAC 주소</th>
-                <th style="padding: 4px 7px; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
-                <th style="padding: 4px 7px; text-align: center; width: 50px; font-weight: 800;">응답</th>
-                <th style="padding: 4px 7px; text-align: left; width: 125px; font-weight: 800;">개방 포트</th>
+                <th style="padding: 4px 7px; vertical-align: middle; text-align: left; width: 95px; font-weight: 800;">IP 주소</th>
+                <th style="padding: 4px 7px; vertical-align: middle; text-align: left; width: 110px; font-weight: 800;">MAC 주소</th>
+                <th style="padding: 4px 7px; vertical-align: middle; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
+                <th style="padding: 4px 7px; vertical-align: middle; text-align: center; width: 50px; font-weight: 800;">응답</th>
+                <th style="padding: 4px 7px; vertical-align: middle; text-align: left; width: 125px; font-weight: 800;">개방 포트</th>
               </tr>
             </thead>
             <tbody>
@@ -436,15 +438,17 @@ export async function exportSecurityAuditReportToPDF(
                 const hasHighRisk = dev?.openPorts?.some((p) => [21, 23, 445, 3389, 5900, 6379].includes(p));
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 2.6px 7px; font-family: monospace; font-weight: 800; color: #0284c7; font-size: 8px;">${d.ip}</td>
-                    <td style="padding: 2.6px 7px; font-family: monospace; font-weight: 700; color: #059669; font-size: 8px;">${dev?.mac || '-'}</td>
-                    <td style="padding: 2.6px 7px;">
-                      <div style="font-weight: 800; color: #0f172a; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; line-height: 1.15;">${dev?.vendor || 'Unknown'}</div>
-                      ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; line-height: 1.15;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; font-size: 8px; line-height: 1.3;">${d.ip}</td>
+                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 3.5px 7px; vertical-align: middle;">
+                      <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.vendor || 'Unknown'}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.2px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                      </div>
                     </td>
-                    <td style="padding: 2.6px 7px; text-align: center; font-family: monospace; color: #64748b; font-size: 8px;">${dev?.latency || 0}ms</td>
-                    <td style="padding: 2.6px 7px;">
-                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3.5px; border-radius: 2px; font-size: 7px; margin-right: 2px; display: inline-block;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3.5px; border-radius: 2px; font-size: 7px; margin-right: 2px; display: inline-block;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
+                    <td style="padding: 3.5px 7px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">${dev?.latency || 0}ms</td>
+                    <td style="padding: 3.5px 7px; vertical-align: middle;">
+                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3.5px; border-radius: 2px; font-size: 7px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3.5px; border-radius: 2px; font-size: 7px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
                     </td>
                   </tr>
                 `;
@@ -611,12 +615,12 @@ export async function exportDeviceListToPDF(
           <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
             <thead>
               <tr style="background: #f1f5f9; color: #475569; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
-                <th style="padding: 3.5px 6px; text-align: left; width: 92px; font-weight: 800;">IP 주소</th>
-                <th style="padding: 3.5px 6px; text-align: center; width: 52px; font-weight: 800;">상태</th>
-                <th style="padding: 3.5px 6px; text-align: left; width: 108px; font-weight: 800;">MAC 주소</th>
-                <th style="padding: 3.5px 6px; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
-                <th style="padding: 3.5px 6px; text-align: center; width: 48px; font-weight: 800;">RTT</th>
-                <th style="padding: 3.5px 6px; text-align: left; width: 118px; font-weight: 800;">개방 포트</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 92px; font-weight: 800;">IP 주소</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: center; width: 52px; font-weight: 800;">상태</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 108px; font-weight: 800;">MAC 주소</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: center; width: 48px; font-weight: 800;">RTT</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 118px; font-weight: 800;">개방 포트</th>
               </tr>
             </thead>
             <tbody>
@@ -628,22 +632,24 @@ export async function exportDeviceListToPDF(
 
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 2.2px 6px; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px;">${ip}</td>
-                    <td style="padding: 2.2px 6px; text-align: center;">
-                      <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
+                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${ip}</td>
+                    <td style="padding: 2.2px 6px; vertical-align: middle; text-align: center;">
+                      <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; display: inline-block; line-height: 1.2; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
                         ${(item?.status || 'idle').toUpperCase()}
                       </span>
                     </td>
-                    <td style="padding: 2.2px 6px; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px;">${dev?.mac || '-'}</td>
-                    <td style="padding: 2.2px 6px;">
-                      <div style="font-weight: 800; color: #0f172a; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; line-height: 1.1;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
-                      ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; line-height: 1.1;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 2.2px 6px; vertical-align: middle;">
+                      <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                      </div>
                     </td>
-                    <td style="padding: 2.2px 6px; text-align: center; font-family: monospace; color: #64748b; font-size: 8px;">
+                    <td style="padding: 2.2px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
                       ${isActive ? `${dev?.latency || 0}ms` : '-'}
                     </td>
-                    <td style="padding: 2.2px 6px;">
-                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
+                    <td style="padding: 2.2px 6px; vertical-align: middle;">
+                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
                     </td>
                   </tr>
                 `;
@@ -684,12 +690,12 @@ export async function exportDeviceListToPDF(
           <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
             <thead>
               <tr style="background: #f1f5f9; color: #475569; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
-                <th style="padding: 3.5px 6px; text-align: left; width: 92px; font-weight: 800;">IP 주소</th>
-                <th style="padding: 3.5px 6px; text-align: center; width: 52px; font-weight: 800;">상태</th>
-                <th style="padding: 3.5px 6px; text-align: left; width: 108px; font-weight: 800;">MAC 주소</th>
-                <th style="padding: 3.5px 6px; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
-                <th style="padding: 3.5px 6px; text-align: center; width: 48px; font-weight: 800;">RTT</th>
-                <th style="padding: 3.5px 6px; text-align: left; width: 118px; font-weight: 800;">개방 포트</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 92px; font-weight: 800;">IP 주소</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: center; width: 52px; font-weight: 800;">상태</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 108px; font-weight: 800;">MAC 주소</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; font-weight: 800;">제조사 / 호스트명</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: center; width: 48px; font-weight: 800;">RTT</th>
+                <th style="padding: 3.5px 6px; vertical-align: middle; text-align: left; width: 118px; font-weight: 800;">개방 포트</th>
               </tr>
             </thead>
             <tbody>
@@ -701,22 +707,24 @@ export async function exportDeviceListToPDF(
 
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 2.5px 6px; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px;">${ip}</td>
-                    <td style="padding: 2.5px 6px; text-align: center;">
-                      <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
+                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${ip}</td>
+                    <td style="padding: 2.5px 6px; vertical-align: middle; text-align: center;">
+                      <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; display: inline-block; line-height: 1.2; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
                         ${(item?.status || 'idle').toUpperCase()}
                       </span>
                     </td>
-                    <td style="padding: 2.5px 6px; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px;">${dev?.mac || '-'}</td>
-                    <td style="padding: 2.5px 6px;">
-                      <div style="font-weight: 800; color: #0f172a; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; line-height: 1.1;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
-                      ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; line-height: 1.1;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 2.5px 6px; vertical-align: middle;">
+                      <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                      </div>
                     </td>
-                    <td style="padding: 2.5px 6px; text-align: center; font-family: monospace; color: #64748b; font-size: 8px;">
+                    <td style="padding: 2.5px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
                       ${isActive ? `${dev?.latency || 0}ms` : '-'}
                     </td>
-                    <td style="padding: 2.5px 6px;">
-                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
+                    <td style="padding: 2.5px 6px; vertical-align: middle;">
+                      ${dev?.openPorts && dev.openPorts.length > 0 ? dev.openPorts.map((p) => [21, 23, 445, 3389, 5900, 6379].includes(p) ? `<span style="background: #ffe4e6; color: #be123c; font-weight: 800; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>` : `<span style="background: #dcfce7; color: #166534; font-weight: 700; padding: 0.5px 3px; border-radius: 2px; font-size: 6.8px; margin-right: 2px; display: inline-block; line-height: 1.2;">${p}</span>`).join('') : '<span style="color: #cbd5e1; font-size: 7.5px;">-</span>'}
                     </td>
                   </tr>
                 `;
@@ -1077,6 +1085,7 @@ export const generateProfessionalAuditReport = (
     td {
       padding: 6px 9px;
       border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
     }
     tr:nth-child(even) {
       background: #f8fafc;
@@ -1247,8 +1256,10 @@ export const generateProfessionalAuditReport = (
             <td class="mono" style="color: #0284c7;">${d.ip}</td>
             <td class="mono" style="color: #059669;">${dev?.mac || 'N/A'}</td>
             <td>
-              <div style="font-weight: 700;">${dev?.vendor || 'Unknown'}</div>
-              <div style="font-size: 9.5px; color: #64748b;">${dev?.hostname || '-'} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>
+              <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-weight: 700; line-height: 1.3;">${dev?.vendor || 'Unknown'}</div>
+                <div style="font-size: 9.5px; color: #64748b; line-height: 1.25; margin-top: 2px;">${dev?.hostname || '-'} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>
+              </div>
             </td>
             <td class="mono" style="text-align: center;">${dev?.latency || 0} ms</td>
             <td>
