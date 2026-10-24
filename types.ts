@@ -105,8 +105,11 @@ export interface LicenseFeatures {
   intruderDetection: boolean;
 }
 
+export type LicenseType = 'lifetime' | 'annual' | 'trial' | 'free';
+
 export interface LicenseInfo {
   tier: LicenseTier;
+  licenseType?: LicenseType;
   licensedTo?: string;
   licenseKey?: string;
   issuedAt?: string;

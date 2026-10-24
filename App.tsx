@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
 import IPCell from './components/IPCell';
-import { getStoredLicense, activateLicenseKey, clearLicense } from './services/licenseManager';
+import { getStoredLicense, activateLicenseKey, clearLicense, getTrialHistory } from './services/licenseManager';
 import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } from './services/diffEngine';
 import { runDeepPortAudit } from './services/portScanner';
 import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, exportDeviceListToPDF } from './services/reportGenerator';
@@ -5233,23 +5233,34 @@ const App: React.FC = () => {
               }`}>
                 <div>
                   <div className="text-[10px] uppercase font-bold opacity-60">{s.currentTier}</div>
-                  <div className="text-base font-black tracking-tight mt-0.5 flex items-center gap-2">
+                  <div className="text-base font-black tracking-tight mt-0.5 flex flex-wrap items-center gap-2">
                     <span>{license.tier.toUpperCase()} EDITION</span>
                     <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-current/20">
-                      {license.tier === 'free' ? '무료' : '정품 인증'}
+                      {license.tier === 'free' 
+                        ? '무료 커뮤니티' 
+                        : license.licenseType === 'annual'
+                        ? '📅 1년 정기 이용권'
+                        : license.licenseType === 'trial'
+                        ? '⏳ 30일 체험판'
+                        : '💎 영구 소장 정품'}
                     </span>
                   </div>
                   <div className="text-[10.5px] opacity-75 mt-1">
                     등록 대상: <span className="font-bold">{license.licensedTo || '커뮤니티 사용자'}</span>
                   </div>
-                  {license.expiresAt && (
+                  {license.expiresAt ? (
                     <div className="text-[10.5px] text-amber-500 dark:text-amber-400 font-bold mt-2 flex flex-wrap items-center gap-1.5 leading-none">
-                      <span>만료 예정: {new Date(license.expiresAt).toLocaleDateString()}</span>
+                      <span>만료 예정일: {new Date(license.expiresAt).toLocaleDateString()}</span>
                       <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[9px] uppercase font-black animate-pulse">
                         D-{Math.max(0, Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일 남음
                       </span>
                     </div>
-                  )}
+                  ) : license.tier !== 'free' ? (
+                    <div className="text-[10.5px] text-emerald-400 font-bold mt-2 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>평생 영구 소장 (만료일 없음 & 평생 업데이트)</span>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="p-2.5 rounded-full bg-current/10">
                   <Sparkles className="w-6 h-6" />
@@ -5345,14 +5356,20 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <button
-                    onClick={() => {
-                      setLicenseKeyInput('GRID-PRO-TRIAL-2026');
-                    }}
-                    className="text-[10px] text-sky-400 hover:underline font-semibold"
-                  >
-                    💡 데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)
-                  </button>
+                  {getTrialHistory().used ? (
+                    <span className="text-[10px] text-amber-500/80 font-semibold flex items-center gap-1">
+                      <span>🔒 30일 체험판 이용 완료 (추가 사용은 정품 키 필요)</span>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setLicenseKeyInput('GRID-PRO-TRIAL-2026');
+                      }}
+                      className="text-[10px] text-sky-400 hover:underline font-semibold"
+                    >
+                      💡 데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)
+                    </button>
+                  )}
                   {license.tier !== 'free' && (
                     <button
                       onClick={handleResetLicense}

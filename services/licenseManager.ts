@@ -40,6 +40,41 @@ const ENTERPRISE_FEATURES: LicenseFeatures = {
 };
 
 const STORAGE_KEY = 'grid_ip_scanner_license_v2';
+const TRIAL_HISTORY_KEY = 'grid_ip_scanner_trial_history_v1';
+
+export interface TrialHistoryInfo {
+  used: boolean;
+  activatedAt?: string;
+  expiresAt?: string;
+}
+
+export const getTrialHistory = (): TrialHistoryInfo => {
+  try {
+    const raw = localStorage.getItem(TRIAL_HISTORY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.used) {
+        return parsed as TrialHistoryInfo;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse trial history:', e);
+  }
+  return { used: false };
+};
+
+export const recordTrialUsage = (expiresAt: string): void => {
+  try {
+    const info: TrialHistoryInfo = {
+      used: true,
+      activatedAt: new Date().toISOString(),
+      expiresAt,
+    };
+    localStorage.setItem(TRIAL_HISTORY_KEY, JSON.stringify(info));
+  } catch (e) {
+    console.error('Failed to record trial usage:', e);
+  }
+};
 
 export const getStoredLicense = (): LicenseInfo => {
   try {
@@ -138,7 +173,7 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     };
   }
 
-  // Pro Tier Activation Token (Supports demonstration/trial token and standard format)
+  // Pro Tier Activation Token (Supports Annual 1-Year, Lifetime Perpetual, and Trial tokens)
   if (
     trimmed === 'GRID-PRO-TRIAL-2026' ||
     trimmed === 'GRID-PRO-DEMO' ||
@@ -149,7 +184,8 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     trimmed === 'PRO-CISNET-2026-UNLIMITED' ||
     trimmed.startsWith('PRO-') ||
     trimmed.startsWith('GSCAN-PRO-') ||
-    trimmed.startsWith('DEMO-')
+    trimmed.startsWith('DEMO-') ||
+    trimmed.startsWith('ANNUAL-')
   ) {
     const isTrial =
       trimmed === 'GRID-PRO-TRIAL-2026' ||
@@ -161,16 +197,55 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
       trimmed.includes('TRIAL') ||
       trimmed.includes('DEMO');
 
+    const isAnnual =
+      trimmed.includes('ANNUAL') ||
+      trimmed.includes('1YR') ||
+      trimmed.includes('YEAR') ||
+      trimmed.startsWith('ANNUAL-');
+
+    const isLifetime =
+      trimmed.includes('LIFETIME') ||
+      trimmed.includes('PERPETUAL') ||
+      trimmed.includes('UNLIMITED') ||
+      (!isTrial && !isAnnual);
+
     let expiresAt: string | undefined = undefined;
+    let licenseType: 'trial' | 'annual' | 'lifetime' = 'lifetime';
+
     if (isTrial) {
+      licenseType = 'trial';
+      // Check if trial has already been used on this device
+      const trialHistory = getTrialHistory();
+      if (trialHistory.used) {
+        const usedDateStr = trialHistory.activatedAt ? new Date(trialHistory.activatedAt).toLocaleDateString() : '';
+        return {
+          success: false,
+          message: `이미 Pro 30일 무료 체험판을 이용하셨습니다. (${usedDateStr ? `${usedDateStr} 활성화됨` : '체험 이력 확인됨'}). 정품 사용을 원하시면 라이선스 키를 구매해 주세요.`,
+        };
+      }
+
       const exp = new Date();
       exp.setDate(exp.getDate() + 30); // 30-day trial license
       expiresAt = exp.toISOString();
+      recordTrialUsage(expiresAt);
+    } else if (isAnnual) {
+      licenseType = 'annual';
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 365); // 1-year annual subscription license
+      expiresAt = exp.toISOString();
+    } else {
+      licenseType = 'lifetime';
+      expiresAt = undefined; // Perpetual
     }
 
     const proLicense: LicenseInfo = {
       tier: 'pro',
-      licensedTo: isTrial ? 'Registered Pro Trial User (30-Day Demo)' : 'Registered Pro User',
+      licenseType,
+      licensedTo: isTrial 
+        ? 'Registered Pro Trial User (30-Day Demo)' 
+        : isAnnual 
+        ? 'Registered Pro Subscriber (1-Year Pass)' 
+        : 'Registered Pro Lifetime Licensee',
       licenseKey: trimmed,
       issuedAt: new Date().toISOString(),
       expiresAt,
@@ -181,8 +256,10 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     return {
       success: true,
       message: isTrial 
-        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다! (원격 부팅 WoL, 낯선 기기 실시간 감시, Diff 비교, 심층 포트 스캔, 감사 리포트 30일간 전 기능 이용 가능)'
-        : 'Grid IP Scanner2 Pro 에디션이 성공적으로 해금되었습니다! (원격 부팅 WoL, 낯선 기기 실시간 감시, Diff 비교, 심층 포트 스캔, 감사 리포트 활성화)',
+        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다!'
+        : isAnnual 
+        ? 'Grid IP Scanner2 Pro 에디션(1년 정기 구독 이용권)이 성공적으로 활성화되었습니다! (365일간 최신 기능 무상 제공)'
+        : 'Grid IP Scanner2 Pro 에디션(영구 소장 정품 라이선스)이 성공적으로 활성화되었습니다! (만료일 없는 평생 소장)',
       license: proLicense,
     };
   }
@@ -192,19 +269,29 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     const decoded = atob(trimmed);
     const parsed = JSON.parse(decoded);
     if (parsed && (parsed.tier === 'pro' || parsed.tier === 'enterprise')) {
+      let expiresAt = parsed.expiresAt;
+      let licenseType: 'trial' | 'annual' | 'lifetime' = parsed.licenseType || 'lifetime';
+
+      if (licenseType === 'annual' && !expiresAt) {
+        const exp = new Date();
+        exp.setDate(exp.getDate() + 365);
+        expiresAt = exp.toISOString();
+      }
+
       const verifiedLicense: LicenseInfo = {
         tier: parsed.tier,
+        licenseType,
         licensedTo: parsed.licensedTo || 'Verified Licensee',
         licenseKey: trimmed,
         issuedAt: parsed.issuedAt || new Date().toISOString(),
-        expiresAt: parsed.expiresAt,
+        expiresAt,
         maxSubnets: parsed.tier === 'enterprise' ? 999 : 5,
         features: parsed.tier === 'enterprise' ? ENTERPRISE_FEATURES : PRO_FEATURES,
       };
       saveLicense(verifiedLicense);
       return {
         success: true,
-        message: `인증 성공: ${verifiedLicense.tier.toUpperCase()} 라이선스가 활성화되었습니다.`,
+        message: `인증 성공: ${verifiedLicense.tier.toUpperCase()} ${licenseType === 'annual' ? '1년 정기 이용권' : '영구 정품 라이선스'}가 활성화되었습니다.`,
         license: verifiedLicense,
       };
     }
