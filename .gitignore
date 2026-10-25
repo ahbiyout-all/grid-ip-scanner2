@@ -1,0 +1,129 @@
+# ======================================================================
+# Grid IP Scanner2 - Production Git Exclusion Rules (.gitignore)
+# Configured to push ONLY core source code, docs, configs, and build tools.
+# Push scripts, compiled binaries, packages, and build outputs are strictly excluded.
+# ======================================================================
+
+# ----------------------------------------------------------------------
+# 1. Local Push & GitHub Sync Scripts (푸시 스크립트 업로드 완전 제외)
+# ----------------------------------------------------------------------
+github-push.bat
+github-push.sh
+sync-github.sh
+*sync-github*
+*github-sync*.bat
+*github-sync*.sh
+*github-mobile-sync*.bat
+*github-mobile-sync*.sh
+*push-to-github*.bat
+*push-to-github*.sh
+scripts/github-sync.bat
+scripts/github-sync.sh
+scripts/github-mobile-sync.bat
+scripts/github-mobile-sync.sh
+
+# ----------------------------------------------------------------------
+# 2. Build Outputs, Distribution Folders & Bundles
+# ----------------------------------------------------------------------
+dist/
+dist_installer/
+dist_releases/
+dist_electron/
+.vite/
+build/
+bin/
+out/
+release_assets/
+release_files/
+go-build-artifacts/
+build_android_temp/
+
+# ----------------------------------------------------------------------
+# 3. Compiled Executables, Binaries & Libraries
+# ----------------------------------------------------------------------
+*.exe
+*.exe.bak
+*.syso
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.bin
+*.out
+engine_arm64
+
+# ----------------------------------------------------------------------
+# 4. Mobile Application Packages & Compressed Archives
+# ----------------------------------------------------------------------
+*.apk
+*.aab
+*.ipa
+*.app
+*.zip
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# ----------------------------------------------------------------------
+# 5. Toolchains, Runtimes & Dependency Directories
+# ----------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+go/
+go.zip
+.build_sequence.json
+bun.lock
+
+# ----------------------------------------------------------------------
+# 6. Environment Configurations, Credentials & Secrets (비밀키 및 발급 도구 격리)
+# ----------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.pfx
+*.keystore
+private_keys/
+license-keys/
+scripts/generate-license.js
+*generate-license*
+
+# ----------------------------------------------------------------------
+# 7. AI Studio Internal Metadata & Chat Uploads (플랫폼 내부 캐시 및 격리)
+# ----------------------------------------------------------------------
+.aistudio/
+public/assets/aistudio/
+assets/aistudio/
+
+# ----------------------------------------------------------------------
+# 8. Logs, Caches & Temporary Debug Files
+# ----------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+*.bak
+.eslintcache
+.cache/
+
+# ----------------------------------------------------------------------
+# 9. Operating System & Editor Metadata
+# ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo

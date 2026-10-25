@@ -1,0 +1,29 @@
+{
+  "short_name": "GridIPScan2",
+  "name": "Grid IP Scanner2 Mobile",
+  "icons": [
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#09090b",
+  "theme_color": "#0ea5e9",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}
