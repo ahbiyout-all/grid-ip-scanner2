@@ -79,6 +79,30 @@ function copyDir(src, dest) {
   }
 }
 
+// Helper: Create zip archive cross-platform
+function createZip(sourceDir, targetZip) {
+  if (fs.existsSync(targetZip)) {
+    try { fs.unlinkSync(targetZip); } catch(e) {}
+  }
+  if (process.platform === 'win32') {
+    try {
+      execSync(`powershell -Command "Compress-Archive -Path '${sourceDir}/*' -DestinationPath '${targetZip}' -Force"`, { stdio: 'ignore' });
+      if (fs.existsSync(targetZip)) return true;
+    } catch(e) {}
+  }
+  try {
+    const pyCmd = `python3 -c "import zipfile, os, sys; src, dst = sys.argv[1], sys.argv[2]; z = zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED); [z.write(os.path.join(r, f), os.path.relpath(os.path.join(r, f), src)) for r, d, files in os.walk(src) for f in files]; z.close()" "${sourceDir}" "${targetZip}"`;
+    execSync(pyCmd, { stdio: 'ignore' });
+    if (fs.existsSync(targetZip)) return true;
+  } catch(e) {}
+  try {
+    execSync(`cd "${sourceDir}" && zip -r "${targetZip}" ./*`, { stdio: 'ignore' });
+    if (fs.existsSync(targetZip)) return true;
+  } catch(e) {}
+  return fs.existsSync(targetZip);
+}
+
+
 // =====================================================================
 // STEP 1: Build Frontend Assets (Vite)
 // =====================================================================
@@ -112,10 +136,12 @@ targetFolders.forEach(folder => {
 });
 
 // =====================================================================
-// STEP 3: Assemble Unpacked Multi-File Application Directory
+// STEP 3: Assemble Unpacked Multi-File Application Directory & Portable Packages
 // =====================================================================
-console.log(`\n📂 [3/5] Assembling Unpacked Multi-File Directory...`);
+console.log(`\n📂 [3/5] Assembling Unpacked Multi-File Directory & Portable Packages...`);
 const exeName = `Grid IP Scanner2 v${version}.exe`;
+const portableExeName = `Grid_IP_Scanner2_v${version}_Portable.exe`;
+const portableZipName = `Grid_IP_Scanner2_v${version}_Portable.zip`;
 const rootExe = path.join(rootDir, exeName);
 
 // Also ensure rootDir has Grid_IP_Scanner2.exe available for Inno Setup compilation
@@ -123,16 +149,21 @@ if (fs.existsSync(rootExe)) {
   fs.copyFileSync(rootExe, path.join(rootDir, 'Grid_IP_Scanner2.exe'));
 }
 
+const distInstallerDir = path.join(rootDir, 'dist_installer');
+if (!fs.existsSync(distInstallerDir)) fs.mkdirSync(distInstallerDir, { recursive: true });
+
 targetFolders.forEach(folder => {
   const unpackedDir = path.join(folder, 'unpacked');
+  const portableDir = path.join(folder, 'portable');
   
   // 1. Unpacked folder gets ONLY the standard executable: Grid_IP_Scanner2.exe
-  //    (버전 명시 포터블 바이너리는 unpacked에 중복 복사하지 않고 제외)
   if (fs.existsSync(rootExe)) {
     fs.copyFileSync(rootExe, path.join(unpackedDir, 'Grid_IP_Scanner2.exe'));
     
-    // Version-tagged standalone executable is placed in portable/ folder ONLY
-    fs.copyFileSync(rootExe, path.join(folder, 'portable', exeName));
+    // Version-tagged standalone executables are placed in portable/ folder
+    fs.copyFileSync(rootExe, path.join(portableDir, exeName));
+    fs.copyFileSync(rootExe, path.join(portableDir, portableExeName));
+    fs.copyFileSync(rootExe, path.join(distInstallerDir, portableExeName));
   }
 
   // Clean up any legacy versioned executable in unpacked folder if present
@@ -153,11 +184,26 @@ targetFolders.forEach(folder => {
     fs.copyFileSync(path.join(rootDir, 'docs', 'LICENSE.md'), path.join(unpackedDir, 'LICENSE.md'));
   }
 
-  // 3. Copy essential sub-directories (Excluding unnecessary dev documentation and scripts)
+  // 3. Copy essential sub-directories
   copyDir(path.join(rootDir, 'dist'), path.join(unpackedDir, 'dist'));
   copyDir(path.join(rootDir, 'public'), path.join(unpackedDir, 'public'));
 });
-console.log(`   - [OK] Unpacked Multi-File folder assembled (Clean application runtime without dev docs/scripts).`);
+
+// Build Portable ZIP bundle from versionFolder/unpacked
+const versionUnpackedDir = path.join(versionFolder, 'unpacked');
+if (fs.existsSync(versionUnpackedDir)) {
+  const versionPortableZip = path.join(versionFolder, 'portable', portableZipName);
+  const buildHistoryPortableZip = path.join(buildFolder, 'portable', portableZipName);
+  const distInstallerPortableZip = path.join(distInstallerDir, portableZipName);
+
+  if (createZip(versionUnpackedDir, versionPortableZip)) {
+    fs.copyFileSync(versionPortableZip, buildHistoryPortableZip);
+    fs.copyFileSync(versionPortableZip, distInstallerPortableZip);
+    console.log(`   - [OK] Portable ZIP archive compiled: ${portableZipName}`);
+  }
+}
+
+console.log(`   - [OK] Unpacked Multi-File folder & Portable packages assembled.`);
 
 // =====================================================================
 // STEP 4: Build Official Inno Setup Multi-File Installer
@@ -220,9 +266,14 @@ const manifest = {
       sizeBytes: fs.existsSync(path.join(versionFolder, 'installer', installerName)) ? fs.statSync(path.join(versionFolder, 'installer', installerName)).size : 0
     },
     portableExe: {
-      filename: exeName,
-      sha256: getFileSha256(path.join(versionFolder, 'portable', exeName)),
-      sizeBytes: fs.existsSync(path.join(versionFolder, 'portable', exeName)) ? fs.statSync(path.join(versionFolder, 'portable', exeName)).size : 0
+      filename: portableExeName,
+      sha256: getFileSha256(path.join(versionFolder, 'portable', portableExeName)),
+      sizeBytes: fs.existsSync(path.join(versionFolder, 'portable', portableExeName)) ? fs.statSync(path.join(versionFolder, 'portable', portableExeName)).size : 0
+    },
+    portableZip: {
+      filename: portableZipName,
+      sha256: getFileSha256(path.join(versionFolder, 'portable', portableZipName)),
+      sizeBytes: fs.existsSync(path.join(versionFolder, 'portable', portableZipName)) ? fs.statSync(path.join(versionFolder, 'portable', portableZipName)).size : 0
     },
     mobilePwaZip: {
       filename: pwaZipName,

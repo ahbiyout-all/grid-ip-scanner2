@@ -13,6 +13,7 @@
     "version:bump": "node scripts/sync-version.js --bump-patch",
     "build:exe": "node generate-assets.js && node build-win.js",
     "build:installer": "node installer/build-installer.js",
+    "build:portable": "node scripts/package-portable.js",
     "build:mobile": "node scripts/package-mobile.js",
     "build:apk": "node scripts/package-android.js",
     "build:dist": "node scripts/build-distribution.js",
