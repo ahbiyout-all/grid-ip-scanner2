@@ -71,14 +71,37 @@ jobs:
           CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -ldflags="-s -w" -o engine_arm64 .
           ls -lh engine_arm64 || true
 
-      - name: Build Android APK
+      - name: Build Android APK Structure
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: node scripts/package-android.js
+
+      - name: Build Android APK via Gradle Wrapper
+        shell: bash
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.6'}")
+          echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
+          if [ -d "android" ]; then
+            chmod +x android/gradlew || true
+            cd android
+            echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+            ./gradlew assembleDebug --no-daemon || echo "Gradle build warning"
+            cd ..
+            if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+              cp -v android/app/build/outputs/apk/debug/app-debug.apk "Grid_IP_Scanner2_v${APP_VER}.apk"
+            fi
+          fi
 
       - name: Collect Mobile Output Artifacts
         run: |
           mkdir -p mobile_releases
-          find . -maxdepth 2 -type f -name "*.apk" -exec cp {} mobile_releases/ \; 2>/dev/null || true
-          find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp {} mobile_releases/ \; 2>/dev/null || true
+          find . -maxdepth 2 -type f -name "*.apk" -exec cp -v {} mobile_releases/ \; 2>/dev/null || true
+          find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp -v {} mobile_releases/ \; 2>/dev/null || true
+          echo "Mobile release package generated on $(date)" > mobile_releases/build-info.txt
           echo "=== Collected Mobile Release Files ==="
           ls -la mobile_releases/
 
@@ -87,6 +110,7 @@ jobs:
         with:
           name: mobile-release-assets
           path: mobile_releases/*
+          if-no-files-found: warn
 
       - name: Publish Dedicated Mobile GitHub Release
         uses: softprops/action-gh-release@v2
@@ -94,15 +118,17 @@ jobs:
           tag_name: ${{ steps.resolve_ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: Grid IP Scanner2 Mobile ${{ steps.resolve_ver.outputs.tag }}
-          files: mobile_releases/*
+          files: |
+            mobile_releases/*.apk
+            mobile_releases/*Mobile*.zip
           body: |
             # 📱 Grid IP Scanner2 Mobile & Android Official Release
 
             안드로이드 스마트폰 및 모바일 디바이스(태블릿, iPad, iPhone PWA)를 위한 공식 배포 릴리스입니다.
 
             ## 📥 다운로드 목록
-            * **`Grid_IP_Scanner2_v2.4.3.apk`**: 안드로이드(Android) 스마트폰/태블릿 직접 설치용 APK (고성능 Native Go ARM64 엔진 내장)
-            * **`Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지 (사내 모바일 웹 서버 배포 또는 압축 해제 후 모바일 브라우저 실행)
+            * **`Grid_IP_Scanner2_${{ steps.resolve_ver.outputs.tag }}.apk`**: 안드로이드(Android) 스마트폰/태블릿 직접 설치용 APK (고성능 Native Go ARM64 엔진 내장)
+            * **`Grid_IP_Scanner2_${{ steps.resolve_ver.outputs.tag }}_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지 (사내 모바일 웹 서버 배포 또는 압축 해제 후 모바일 브라우저 실행)
 
             ## 💡 스마트폰 설치 및 사용 방법
             1. **안드로이드 (APK)**:

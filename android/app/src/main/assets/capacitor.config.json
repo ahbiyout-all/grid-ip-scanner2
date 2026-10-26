@@ -1,0 +1,9 @@
+{
+	"appId": "com.gridipscanner2.app",
+	"appName": "Grid IP Scanner2",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"server": {
+		"androidScheme": "https"
+	}
+}

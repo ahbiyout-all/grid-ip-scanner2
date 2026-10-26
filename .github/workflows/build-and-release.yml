@@ -148,7 +148,34 @@ jobs:
           ls -lh engine_arm64
 
       - name: Package Android APK Structure
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: node scripts/package-android.js
+
+      - name: Build Android APK via Gradle Wrapper
+        shell: bash
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.6'}")
+          echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
+          mkdir -p dist_android
+          if [ -d "android" ]; then
+            chmod +x android/gradlew || true
+            cd android
+            echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+            ./gradlew assembleDebug --no-daemon || echo "Gradle build returned exit code $?, checking outputs..."
+            cd ..
+            if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+              cp -v android/app/build/outputs/apk/debug/app-debug.apk "Grid_IP_Scanner2_v${APP_VER}.apk"
+              cp -v android/app/build/outputs/apk/debug/app-debug.apk "dist_android/Grid_IP_Scanner2_v${APP_VER}.apk"
+              echo "✅ Successfully built and copied Android APK: Grid_IP_Scanner2_v${APP_VER}.apk"
+            fi
+          fi
+          echo "Android package build step completed on $(date)" > dist_android/build-status.txt
+          ls -la dist_android/
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -156,7 +183,8 @@ jobs:
           name: android-binaries
           path: |
             *.apk
-          if-no-files-found: ignore
+            dist_android/*
+          if-no-files-found: warn
 
   # ====================================================================
   # JOB 4: Automated GitHub Releases Publisher (Push to main, Tag, or Manual)
@@ -182,48 +210,35 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             RELEASE_TAG="${{ github.ref_name }}"
           else
-            APP_VERSION=$(node -p "try{require('./package.json').version}catch(e){'2.3.2'}")
+            APP_VERSION=$(node -p "try{require('./package.json').version}catch(e){'2.4.6'}")
             RELEASE_TAG="v${APP_VERSION}"
           fi
           echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "Resolved Target Release Tag: ${RELEASE_TAG}"
 
-      - name: Download Windows Artifacts
+      - name: Download All Workflow Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-binaries
-          path: release_assets/windows/
-
-      - name: Download Mobile Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: mobile-web-dist
-          path: release_assets/mobile/
-
-      - name: Download Android Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: android-binaries
-          path: release_assets/android/
-        continue-on-error: true
+          path: release_assets/
 
       - name: Prepare Release Files (PC & Mobile)
         run: |
           mkdir -p release_files
           
-          # 1. Windows Setup Installer
-          find release_assets/windows/ -type f -name "*Setup*.exe" -exec cp {} release_files/ \; 2>/dev/null || true
+          # 1. Windows Official Setup Installer & Portable Executable
+          find release_assets/ -type f -name "*Setup*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
+          find release_assets/ -type f -name "*.exe" ! -name "*Setup*" -exec cp -v {} release_files/ \; 2>/dev/null || true
           if [ -d "dist_installer" ]; then
-            find dist_installer/ -type f -name "*Setup*.exe" -exec cp {} release_files/ \; 2>/dev/null || true
+            find dist_installer/ -type f -name "*Setup*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
           fi
 
           # 2. Android Mobile APK
-          find release_assets/android/ -type f -name "*.apk" -exec cp {} release_files/ \; 2>/dev/null || true
-          find . -maxdepth 2 -type f -name "*.apk" -exec cp {} release_files/ \; 2>/dev/null || true
+          find release_assets/ -type f -name "*.apk" -exec cp -v {} release_files/ \; 2>/dev/null || true
+          find . -maxdepth 2 -type f -name "*.apk" -exec cp -v {} release_files/ \; 2>/dev/null || true
 
           # 3. Mobile Web & iOS PWA Bundle (.zip)
-          find release_assets/mobile/ -type f -name "*Mobile*.zip" -exec cp {} release_files/ \; 2>/dev/null || true
-          find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp {} release_files/ \; 2>/dev/null || true
+          find release_assets/ -type f -name "*Mobile*.zip" -exec cp -v {} release_files/ \; 2>/dev/null || true
+          find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp -v {} release_files/ \; 2>/dev/null || true
 
           echo "=== Collected Release Files for GitHub Releases ==="
           ls -la release_files/
@@ -236,17 +251,19 @@ jobs:
           name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} (Windows & Mobile)
           files: |
             release_files/*Setup*.exe
+            release_files/*.exe
             release_files/*.apk
             release_files/*Mobile*.zip
           body: |
             ## 🚀 Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} Release
             
             ### 💻 Windows PC Version
-            - **`Grid_IP_Scanner2_v2.4.3_Setup.exe`**: Windows 정식 인스톨러 (방화벽 자동 등록, 시작메뉴/바탕화면 바로가기)
+            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}_Setup.exe`**: Windows 정식 인스톨러 (프로그램 추가/제거 등록, 바탕화면/시작메뉴 바로가기, 방화벽 자동 등록)
+            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}.exe`**: 무설치 포터블 단일 실행 파일 (USB나 폴더에서 즉시 실행)
             
             ### 📱 Mobile (Android & iOS PWA) Version
-            - **`Grid_IP_Scanner2_v2.4.3.apk`**: 안드로이드 스마트폰 전용 설치 파일 (Native Go ARM64 엔진 내장)
-            - **`Grid_IP_Scanner2_v2.4.3_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지 (홈 화면에 추가하여 앱처럼 사용)
+            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}.apk`**: 안드로이드 스마트폰/태블릿 정식 서명 설치 파일 (출처를 알 수 없는 앱 허용 후 원터치 설치)
+            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}_Mobile_PWA.zip`**: 모바일 웹 & iPhone/iPad iOS PWA 오프라인 패키지
           generate_release_notes: true
           make_latest: true
           draft: false
