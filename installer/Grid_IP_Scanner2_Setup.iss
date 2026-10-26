@@ -6,7 +6,7 @@
 #define MyAppName "Grid IP Scanner2"
 #define MyAppVersion "2.4.6"
 #define MyAppPublisher "AhBiYout"
-#define MyAppURL "http://www.cisnet.co.kr"
+#define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
 #define MyAppExeName "Grid_IP_Scanner2.exe"
 #define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"
@@ -15,7 +15,7 @@
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
 
 [Setup]
-; App Identity
+; App Identity & Windows Add/Remove Programs (제어판 프로그램 추가/제거 공식 등록)
 AppId={{9C2116BA-10DD-4E5F-8DC5-4279D64B8DF3}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
@@ -24,6 +24,10 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppBlogURL}
 AppUpdatesURL={#MyAppBlogURL}
+UninstallDisplayName={#MyAppName} v{#MyAppVersion}
+UninstallDisplayIcon={app}\icon.ico
+CreateUninstallRegKey=yes
+UpdateUninstallRegKey=yes
 
 ; Installation Paths (64-bit Native Program Files)
 DefaultDirName={autopf}\{#MyAppName}
@@ -34,7 +38,6 @@ InfoBeforeFile=NOTICE_BEFORE_INSTALL.txt
 OutputDir=..\dist_installer
 OutputBaseFilename=Grid_IP_Scanner2_v{#MyAppVersion}_Setup
 SetupIconFile=..\icon.ico
-UninstallDisplayIcon={app}\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

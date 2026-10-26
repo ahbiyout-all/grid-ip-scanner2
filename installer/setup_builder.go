@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -94,6 +95,118 @@ func createDesktopShortcut(exePath, targetName string) {
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", psCmd)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	_ = cmd.Run()
+}
+
+func createStartMenuShortcut(exePath, targetName string) {
+	psCmd := fmt.Sprintf(`$ws = New-Object -ComObject WScript.Shell; $programs = [Environment]::GetFolderPath('CommonPrograms'); if (-not (Test-Path $programs)) { $programs = [Environment]::GetFolderPath('Programs') }; $s = $ws.CreateShortcut([System.IO.Path]::Combine($programs, '%s.lnk')); $s.TargetPath = '%s'; $s.WorkingDirectory = [System.IO.Path]::GetDirectoryName('%s'); $s.Save()`, targetName, exePath, exePath)
+	cmd := exec.Command("powershell", "-NoProfile", "-Command", psCmd)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_ = cmd.Run()
+}
+
+func createUninstaller(targetDir string) {
+	uninstallerScript := `@echo off
+setlocal
+chcp 65001 >nul
+title Grid IP Scanner2 - 프로그램 제거 (Uninstall)
+
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    powershell -NoProfile -Command "Start-Process cmd.exe -ArgumentList '/c \"\"%~f0\" %*\"' -Verb RunAs"
+    exit /b
+)
+
+set "SILENT_MODE=0"
+if /i "%1"=="/SILENT" set "SILENT_MODE=1"
+if /i "%1"=="/VERYSILENT" set "SILENT_MODE=1"
+if /i "%1"=="/quiet" set "SILENT_MODE=1"
+if /i "%1"=="/s" set "SILENT_MODE=1"
+
+if "%SILENT_MODE%"=="0" (
+    powershell -NoProfile -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $res = [System.Windows.Forms.MessageBox]::Show('Grid IP Scanner2를 시스템에서 완전히 제거하시겠습니까?', 'Grid IP Scanner2 제거 확인', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question); if ($res -ne [System.Windows.Forms.DialogResult]::Yes) { exit 1 }"
+    if errorlevel 1 exit /b 0
+)
+
+taskkill /F /IM "Grid_IP_Scanner2.exe" >nul 2>&1
+taskkill /F /IM "Grid IP Scanner2*.exe" >nul 2>&1
+
+netsh advfirewall firewall delete rule name="Grid IP Scanner2" >nul 2>&1
+netsh advfirewall firewall delete rule name="Grid IP Scanner2 (Inbound)" >nul 2>&1
+netsh advfirewall firewall delete rule name="Grid IP Scanner2 (Outbound)" >nul 2>&1
+netsh advfirewall firewall delete rule name="Grid_IP_Scanner2.exe" >nul 2>&1
+netsh advfirewall firewall delete rule name="Grid_IP_Scanner2.exe (Inbound)" >nul 2>&1
+netsh advfirewall firewall delete rule name="Grid_IP_Scanner2.exe (Outbound)" >nul 2>&1
+
+del /f /q "%PUBLIC%\Desktop\Grid IP Scanner2*.lnk" >nul 2>&1
+del /f /q "%USERPROFILE%\Desktop\Grid IP Scanner2*.lnk" >nul 2>&1
+del /f /q "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Grid IP Scanner2*.lnk" >nul 2>&1
+del /f /q "%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Grid IP Scanner2*.lnk" >nul 2>&1
+
+reg delete "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\Grid_IP_Scanner2" /f >nul 2>&1
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Grid_IP_Scanner2" /f >nul 2>&1
+reg delete "HKLM\Software\Grid IP Scanner2" /f >nul 2>&1
+reg delete "HKCU\Software\Grid IP Scanner2" /f >nul 2>&1
+
+set "APP_DIR=%~dp0"
+if "%APP_DIR:~-1%"=="\" set "APP_DIR=%APP_DIR:~0,-1%"
+
+if "%SILENT_MODE%"=="0" (
+    powershell -NoProfile -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; [System.Windows.Forms.MessageBox]::Show('Grid IP Scanner2가 성공적으로 제거되었습니다.', '제거 완료', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)" >nul 2>&1
+)
+
+start /b "" cmd.exe /c "timeout /t 1 /nobreak >nul & rd /s /q \"%APP_DIR%\""
+exit /b 0
+`
+	uninstallerPath := filepath.Join(targetDir, "uninstall.bat")
+	_ = os.WriteFile(uninstallerPath, []byte(uninstallerScript), 0755)
+}
+
+func registerAddRemovePrograms(targetDir, exePath, version string) {
+	uninstallBat := filepath.Join(targetDir, "uninstall.bat")
+	iconPath := filepath.Join(targetDir, "icon.ico")
+	if !fileExists(iconPath) {
+		iconPath = exePath
+	}
+
+	today := time.Now().Format("20060102")
+	displayName := fmt.Sprintf("%s v%s", AppName, version)
+
+	regRoots := []string{
+		`HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\Grid_IP_Scanner2`,
+		`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Grid_IP_Scanner2`,
+	}
+
+	for _, regKey := range regRoots {
+		cmdName := exec.Command("reg", "add", regKey, "/v", "DisplayName", "/t", "REG_SZ", "/d", displayName, "/f")
+		cmdName.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if err := cmdName.Run(); err != nil && strings.HasPrefix(regKey, "HKLM") {
+			continue
+		}
+
+		_ = exec.Command("reg", "add", regKey, "/v", "DisplayVersion", "/t", "REG_SZ", "/d", version, "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "Publisher", "/t", "REG_SZ", "/d", "AhBiYout", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "DisplayIcon", "/t", "REG_SZ", "/d", iconPath, "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "InstallLocation", "/t", "REG_SZ", "/d", targetDir, "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "UninstallString", "/t", "REG_SZ", "/d", fmt.Sprintf(`"%s"`, uninstallBat), "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "QuietUninstallString", "/t", "REG_SZ", "/d", fmt.Sprintf(`"%s" /SILENT`, uninstallBat), "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "InstallDate", "/t", "REG_SZ", "/d", today, "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "URLInfoAbout", "/t", "REG_SZ", "/d", "https://github.com/AhBiYout-all/grid-ip-scanner2", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "HelpLink", "/t", "REG_SZ", "/d", "https://ahbiyoutvibe.blogspot.com/", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "URLUpdateInfo", "/t", "REG_SZ", "/d", "https://github.com/AhBiYout-all/grid-ip-scanner2/releases", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "EstimatedSize", "/t", "REG_DWORD", "/d", "125000", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "NoModify", "/t", "REG_DWORD", "/d", "1", "/f").Run()
+		_ = exec.Command("reg", "add", regKey, "/v", "NoRepair", "/t", "REG_DWORD", "/d", "1", "/f").Run()
+
+		// Also register Software\Grid IP Scanner2 for quick reference
+		appKey := strings.Replace(regKey, `CurrentVersion\Uninstall\Grid_IP_Scanner2`, `Grid IP Scanner2`, 1)
+		_ = exec.Command("reg", "add", appKey, "/v", "InstallPath", "/t", "REG_SZ", "/d", targetDir, "/f").Run()
+		_ = exec.Command("reg", "add", appKey, "/v", "Version", "/t", "REG_SZ", "/d", version, "/f").Run()
+		_ = exec.Command("reg", "add", appKey, "/v", "Executable", "/t", "REG_SZ", "/d", exePath, "/f").Run()
+
+		if strings.HasPrefix(regKey, "HKLM") {
+			break
+		}
+	}
 }
 
 func main() {
@@ -260,13 +373,19 @@ func main() {
 		// 1. 기본 이름 등록: "Grid IP Scanner2"
 		registerFirewallRule("Grid IP Scanner2", launchExe)
 
-		// 2. 버전 정보가 붙은 상태의 앱 이름 등록: "Grid IP Scanner2 v2.4.3"
+		// 2. 버전 정보가 붙은 상태의 앱 이름 등록: "Grid IP Scanner2 v2.4.6"
 		registerFirewallRule(fmt.Sprintf("%s v%s", AppName, AppVersion), launchExe)
 
 		// 3. 실행 파일명 자체 (Grid_IP_Scanner2.exe) 등록
 		registerFirewallRule(filepath.Base(launchExe), launchExe)
 
+		// 4. 바로가기 등록 (바탕화면 및 시작 메뉴)
 		createDesktopShortcut(launchExe, fmt.Sprintf("%s v%s", AppName, AppVersion))
+		createStartMenuShortcut(launchExe, fmt.Sprintf("%s v%s", AppName, AppVersion))
+
+		// 5. 공식 언인스톨러 생성 및 Windows 프로그램 추가/제거(제어판) 공식 등록
+		createUninstaller(targetDir)
+		registerAddRemovePrograms(targetDir, launchExe, AppVersion)
 	}
 
 	// 6. Installation Finish Dialog (무인 설치 시에는 팝업 없이 종료)
@@ -274,8 +393,9 @@ func main() {
 		res := showMsgBox("Grid IP Scanner2 설치 완료",
 			fmt.Sprintf("Grid IP Scanner2 설치가 성공적으로 완료되었습니다!\n\n"+
 				"• 설치 경로: %s\n"+
-				"• 방화벽 규칙 사전 조용 등록 완료 (기본 이름 및 버전 포함 규칙)\n"+
-				"• 바탕화면 바로가기 생성 완료\n\n"+
+				"• Windows 프로그램 추가/제거(제어판) 정식 등록 완료\n"+
+				"• 바탕화면 및 시작 메뉴 바로가기 생성 완료\n"+
+				"• 방화벽 통신 규칙 사전 조용 등록 완료\n\n"+
 				"지금 Grid IP Scanner2를 실행하시겠습니까?", targetDir),
 			MB_YESNOCANCEL|MB_ICONINFORMATION)
 
