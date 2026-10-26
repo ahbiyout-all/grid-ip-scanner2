@@ -89,8 +89,11 @@ if (fs.existsSync(gradlewPath)) {
     const buildCmd = `${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} assembleDebug --no-daemon`;
     execSync(buildCmd, { cwd: androidProjectDir, stdio: 'inherit' });
 
-    const generatedApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-    if (fs.existsSync(generatedApk)) {
+    const debugApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+    const releaseApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+    const generatedApk = fs.existsSync(debugApk) ? debugApk : (fs.existsSync(releaseApk) ? releaseApk : null);
+
+    if (generatedApk && fs.existsSync(generatedApk)) {
       fs.copyFileSync(generatedApk, outApkPath);
       fs.copyFileSync(generatedApk, path.join(distAndroidDir, apkName));
       apkBuilt = true;

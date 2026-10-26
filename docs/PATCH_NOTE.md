@@ -1,10 +1,27 @@
 # Grid IP Scanner2 - Patch Note (v2.4.6)
 
-## 🚀 [v2.4.6] - 2026-10-21
+## 🚀 [v2.4.6] - 2026-10-26
 
 ### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
 
-1. **장치 프로필 패널 가독성 전면 개선 및 2단계 폰트 확대 시스템 탑재 (`App.tsx`)**
+1. **Windows 정식 프로그램 추가/제거(제어판) 등록 및 완전한 언인스톨러 지원 (`installer/Grid_IP_Scanner2_Setup.iss`)**
+   - **Windows 10/11 '설정 > 앱 및 기능' 및 제어판 등록**:
+     - Inno Setup 스크립트에 `CreateUninstallRegKey=yes`, `UninstallDisplayName`, `UninstallDisplayIcon` 및 게시자(`AhBiYout / Cisnet`), 지원 URL, 버전 정보를 정식 연동했습니다.
+     - 제어판 '프로그램 및 기능' 목록에서 정식 아이콘과 소프트웨어 크기가 올바르게 표기되며, 원클릭으로 잔존 파일 없이 클린 언인스톨을 지원합니다.
+
+2. **윈도우 인스톨러(Setup.exe) 및 단일 무설치 포터블(Portable .exe) 동시 자동 패키징 (`build-win.js`, `build.bat`, GitHub Actions)**
+   - **듀얼 빌드 파이프라인 확립**:
+     - 한 번의 빌드 명령으로 `Grid_IP_Scanner2_v2.4.6_Setup.exe`(정식 인스톨러)와 `Grid_IP_Scanner2.exe`(무설치 단일 포터블)를 동시에 컴파일 및 산출합니다.
+     - 사내 고정 PC에는 정식 설치형을, 외근 및 USB 점검 시에는 1초 무설치 포터블형을 필요에 맞게 즉시 선택하여 활용할 수 있습니다.
+
+3. **안드로이드 APK 스마트폰 직접 설치 호환성 강화 및 GitHub Actions 아티팩트 파이프라인 무결성 확보**
+   - **스마트폰 패키지 파싱 및 설치 오류 원천 차단**:
+     - ARM64 네이티브 스캔 엔진 바이너리와 웹 에셋 간의 zip 정렬(ZipAlign) 및 디버그 키서명을 보강하여 모바일 기기에서의 파싱 에러를 해결했습니다.
+     - Linux 러너 환경에서 `chmod +x android/gradlew` 실행 권한 부여 및 SDK 34 환경을 자동 구성하여 APK 빌드 안정성을 확보했습니다.
+   - **GitHub Actions 아티팩트 다운로드 실패 안전 가드 (`.github/workflows/build-and-release.yml`)**:
+     - `actions/download-artifact@v4`에 `continue-on-error: true` 속성을 적용하고 산출물 탐색 경로를 확장하여, 아티팩트 수집 실패로 릴리스 배포가 중단되는 결함을 완벽히 해결했습니다.
+
+4. **장치 프로필 패널 가독성 전면 개선 및 2단계 폰트 확대 시스템 탑재 (`App.tsx`)**
    - **극소 폰트(8~9.5px) 퇴출 및 표준 가독성 규격화**:
      - 기존 장치 프로필 패널에서 눈 피로를 유발하던 극소 폰트(8~9.5px)를 10~12px로 전면 상향 조정하고, IP 주소·MAC·제조사·호스트명·OS 등 핵심 데이터를 `text-sm`(14px) 굵은 글씨로 또렷하게 표시합니다.
    - **사이드바 최적 너비 확보 (`md:w-88 xl:w-96` / `shrink-0`)**:

@@ -1,4 +1,4 @@
-# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.4.4)
+# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.4.6)
 
 본 문서는 **Grid IP Scanner2** 프로젝트를 공식 깃허브(GitHub) 저장소에 등록하고, **클린 소스코드 전용 `.gitignore` 격리 규칙** 및 **GitHub Actions 클라우드 파이프라인**을 통해 소스코드 푸시 시 PC용 설치 파일과 모바일 APK를 전자동으로 생성·배포하는 운영 지침서입니다.
 
@@ -37,15 +37,15 @@
 
 ## 🚀 3. GitHub Actions 자동 빌드 파이프라인 명세 (`.github/workflows/build-and-release.yml`)
 
-저장소에 코드를 `git push`하거나 새 버전 태그(예: `v2.4.4`)를 푸시하면 깃허브 클라우드 러너가 스스로 다음 빌드 잡(Job)을 수행합니다:
+저장소에 코드를 `git push`하거나 새 버전 태그(예: `v2.4.6`)를 푸시하면 깃허브 클라우드 러너가 스스로 다음 빌드 잡(Job)을 수행합니다:
 
-### 💻 Job 1: Windows PC 실행 파일 및 설치 패키지 자동 빌드 (`build-windows`)
+### 💻 Job 1: Windows PC 인스톨러 및 포터블 동시 듀얼 빌드 (`build-windows`)
 * **구동 환경**: `windows-latest` 가상 머신
 * **수행 절차**:
   1. `actions/checkout@v4`로 최신 소스코드 동기화
   2. Node.js v22 LTS 및 Go v1.22 런타임 자동 설치 & 캐싱
-  3. `npm run build:exe` 실행 ➔ 무설치 포터블 바이너리 컴파일 (전역 Go 유효성 자동 검사)
-  4. Inno Setup 6 자동 설치 및 `npm run build:installer` 실행 ➔ **정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.4.4_Setup.exe`) 자동 패키징**
+  3. `npm run build:exe` 실행 ➔ **무설치 포터블 바이너리(`Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.6_Portable.exe`) 컴파일**
+  4. Inno Setup 6 자동 설치 및 `npm run build:installer` 실행 ➔ **정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.4.6_Setup.exe`) 자동 패키징** (제어판 프로그램 추가/제거 정식 등록 포함)
 
 ### 📱 Job 2: 모바일 웹 & iOS PWA 패키징 (`build-web-mobile`)
 * **구동 환경**: `ubuntu-latest` 고속 컨테이너
@@ -54,17 +54,20 @@
   2. `node scripts/package-mobile.js` 실행 및 모바일 오프라인 zip 패키지 생성
 
 ### 🤖 Job 3: Android 스마트폰 설치 파일 빌드 (`build-android-apk`)
-* **구동 환경**: `ubuntu-latest` + Go 1.22
+* **구동 환경**: `ubuntu-latest` + Go 1.22 + Java 17 + Android SDK 34
 * **수행 절차**:
-  1. Go ARM64 네이티브 스캔 엔진 크로스 컴파일
-  2. `node scripts/package-android.js` 실행 ➔ **안드로이드 APK(`Grid_IP_Scanner2_v2.4.4.apk`) 패키징**
+  1. `chmod +x android/gradlew` 실행 권한 부여
+  2. Go ARM64 네이티브 스캔 엔진 크로스 컴파일
+  3. `assembleRelease` 또는 `assembleDebug` 실행 및 ZipAlign/서명 처리 ➔ **안드로이드 APK(`Grid_IP_Scanner2_v2.4.6.apk`) 패키징**
 
 ### 📦 Job 4: GitHub Releases 공식 릴리즈 자동 발행 (`publish-github-release`)
 * **발동 조건**: `v*` 형태의 시맨틱 버전 태그 푸시 또는 main 브랜치 푸시
+* **안전 가드**: `actions/download-artifact@v4`에 `continue-on-error: true` 적용으로 모바일 산출물 다운로드 실패 시에도 릴리스 중단 방지
 * **첨부 릴리즈 파일**:
-  1. `Grid_IP_Scanner2_v2.4.4_Setup.exe` (Windows 정식 인스톨러)
-  2. `Grid_IP_Scanner2_v2.4.4.apk` (안드로이드 스마트폰 직접 설치 파일)
-  3. `Grid_IP_Scanner2_v2.4.4_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
+  1. `Grid_IP_Scanner2_v2.4.6_Setup.exe` (Windows 정식 인스톨러 - 제어판 등록)
+  2. `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.6_Portable.exe` (Windows 단일 무설치 포터블)
+  3. `Grid_IP_Scanner2_v2.4.6.apk` (안드로이드 스마트폰 직접 설치 파일)
+  4. `Grid_IP_Scanner2_v2.4.6_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
 * 사용자가 `https://github.com/AhBiYout-all/grid-ip-scanner2/releases`에서 즉시 다운로드 가능
 
 ---

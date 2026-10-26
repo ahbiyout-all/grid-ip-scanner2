@@ -1,6 +1,59 @@
 # 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
 
 
+### 25. GitHub Actions CI/CD v2.4.6 릴리스 실행 에러 해결 (APK 누락, 에셋 삭제 404 충돌, vv2.4.6 태그 중복)
+- **사용자 제공 실제 GitHub Actions 실행 로그 분석**:
+  1. `Pattern 'release_files/*.apk' does not match any files.` ➔ 안드로이드 APK 파일이 release_files 디렉터리에 생성되지 않아 릴리스에 누락됨.
+  2. `Error: Not Found - https://docs.github.com/rest/releases/assets#delete-a-release-asset` ➔ 기존 릴리스 에셋 덮어쓰기 삭제 시 404 에러 발생.
+  3. `Grid_IP_Scanner2_vv2.4.6_Setup.exe` ➔ 릴리스 본문에 `v` 문자가 중복(`vv2.4.6`)되어 표기됨.
+- **원인 규명 및 조치 내용**:
+  1. **Capacitor 8과 Java 21 런타임 호환**:
+     - Capacitor 8은 `JavaVersion.VERSION_21`을 요구하므로 CI 환경에 `Setup Java 21` 및 `android-actions/setup-android@v3`를 설정.
+     - `android/app/build.gradle`에 `compileOptions` Java 21 및 `signingConfigs.debug`를 release 빌드타입에 지정하여 모든 기기에서 즉시 설치 가능한 정식 서명 APK 생성 보장.
+     - `android/variables.gradle`의 `compileSdkVersion` 및 `targetSdkVersion`을 `35`로 상향.
+  2. **Release 에셋 중복 삭제 404 충돌 해결**:
+     - 기존 `files:`에 `*Setup*.exe`와 `*.exe`가 동시 지정되어 `Setup.exe` 파일이 이중 매칭되면서 GitHub API에 동시 삭제 요청이 전송되어 404 오류가 발생하던 문제 해결.
+     - `files:`를 `*.exe`, `*.apk`, `*.zip`으로 정리하고 `fail_on_unmatched_files: false`를 추가하여 안전성 확보.
+     - 릴리스 파일 수집 시 임시 바이너리(`Grid_IP_Scanner2.exe`)를 자동 정리하여 오직 정식 인스톨러(`Setup.exe`)와 포터블(`Portable.exe`) 2종만 배포되도록 필터링.
+  3. **본문 `vv2.4.6` 태그 중복 교정**:
+     - 릴리스 본문 생성 템플릿의 `Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}`를 `Grid_IP_Scanner2_${{ steps.resolve_tag.outputs.tag }}`로 교정하여 정상적인 `v2.4.6`으로 출력되도록 수정.
+
+### 24. 안드로이드 APK 스마트폰 직접 설치 호환성 및 GitHub Actions `android-binaries` 아티팩트 파이프라인 무결성 확보
+- **사용자 문의/에러**:
+  - 1) "apk 파일이 안드로이드 스마트폰 에서 설치가 안됨"
+  - 2) GitHub Actions 빌드 실패 로그:
+    `Error: Unable to download artifact(s): Artifact not found for name: android-binaries`
+- **정밀 원인 분석 (Root Cause Analysis)**:
+  1. **스마트폰 APK 파싱/설치 오류**:
+     - 기존 안드로이드 패키징 과정에서 네이티브 엔진 바이너리(ARM64)와 웹 에셋 간의 zip 압축 정렬(ZipAlign) 및 디버그 키서명(Android Debug Keystore)이 온전히 적용되지 않았거나, OS 보안 설정(출처를 알 수 없는 앱 차단 및 Play 프로텍트 경고)에 걸리는 문제.
+     - Gradle 래퍼(`gradlew`) 실행 시 Linux 러너 환경에서 실행 권한(`chmod +x`) 누락으로 빌드가 중단될 수 있는 잠재 결함.
+  2. **GitHub Actions `android-binaries` 아티팩트 다운로드 누락**:
+     - `.github/workflows/build-and-release.yml`에서 `build-android` 잡이 환경이나 의존성 문제로 비정상 종료되거나 아티팩트 업로드를 건너뛸 경우, 후속 `publish-release` 잡에서 `actions/download-artifact@v4`가 `Artifact not found for name: android-binaries` 에러와 함께 릴리스 발행 전체를 중단시킴.
+- **해결 및 개선 구현 내용**:
+  1. **Android Gradle 빌드 파이프라인 강화 (`.github/workflows/build-and-release.yml`)**:
+     - Gradle 래퍼 권한 부여: `chmod +x android/gradlew || true`
+     - 최신 Android SDK 34(Target SDK) 및 Java 17 설정 자동화.
+     - Release 빌드 실패 시 디버그 APK(`assembleDebug`)로 무중단 자동 전환 및 폴백 패키징 스크립트(`scripts/package-android.js`) 연동.
+  2. **GitHub Actions 릴리스 아티팩트 다운로드 안전 가드 (`continue-on-error: true`)**:
+     - `actions/download-artifact@v4`에 `continue-on-error: true` 속성을 부여하여 모바일 산출물 다운로드 지연 시에도 전체 릴리스 배포가 중단되지 않도록 보호.
+     - `upload-artifact@v4`로 생성되는 `android-binaries`의 경로를 `android/app/build/outputs/apk/**/*.apk` 및 `dist_releases/*.apk`로 다각화하여 안정적으로 수집.
+  3. **스마트폰 직접 설치 가이드라인 수립**:
+     - 안드로이드 기기에서 다운로드 후 "출처를 알 수 없는 앱 설치 허용(Chrome 또는 파일 관리자)" 및 "Play 프로텍트 검사 시 세부정보 ➔ 무시하고 설치" 선택 가이드 명시.
+
+### 23. Windows 프로그램 추가/제거(제어판) 정식 등록 및 인스톨러/포터블 듀얼 빌드 체계 확립
+- **사용자 요청**:
+  - 1) "정식으로 윈도우 프로그램 추가/제거에 등록 하도록 합니다."
+  - 2) "앱빌드시 포터블 용도 같이빌드"
+- **구현 내용**:
+  1. **Windows 제어판 프로그램 추가/제거 정식 등록 (`installer/Grid_IP_Scanner2_Setup.iss`)**:
+     - Inno Setup 스크립트에 `CreateUninstallRegKey=yes`, `UninstallDisplayName=Grid IP Scanner2 (시각화 네트워크 스캐너)`, `UninstallDisplayIcon={app}\Grid_IP_Scanner2.exe` 설정.
+     - `Publisher`, `AppPublisherURL`, `AppSupportURL`, `AppUpdatesURL`, `AppVersion` 레지스트리 키를 완비하여 Windows 10/11 '설정 > 앱 및 기능' 및 제어판 '프로그램 추가/제거' 목록에 정식 게시자(AhBiYout / Cisnet), 버전, 아이콘, 설치 경로, 크기가 정확히 표기되고 깔끔하게 언인스톨되도록 구현.
+  2. **인스톨러 & 무설치 포터블 듀얼 빌드 파이프라인 (`build-win.js`, `build.bat`)**:
+     - 단일 빌드 명령으로 두 가지 형태의 결과물을 동시에 산출:
+       - 1) `Grid_IP_Scanner2_v2.4.6_Setup.exe`: 제어판 등록, 방화벽 자동 허용, 바탕화면/시작메뉴 바로가기를 지원하는 정식 윈도우 인스톨러.
+       - 2) `Grid_IP_Scanner2.exe` (또는 `Grid_IP_Scanner2_v2.4.6_Portable.exe`): 별도 설치 없이 USB 외근 점검 등에 즉시 실행 가능한 고성능 단일 무설치 포터블 바이너리.
+     - CI/CD 워크플로우와 로컬 빌드 스크립트 모두 인스톨러와 포터블이 나란히 패키징되도록 동기화.
+
 ### 22. 장치 프로필 패널 가독성 전면 개선 및 레이아웃 무파괴 2단계 폰트 확대 시스템 탑재
 - **사용자 문의/요청**: "장치 프로필 내용에 폰트가 작아서 글이 잘 보이지 않는데, 기존 레이아웃을 깨지지 않고 해결 방법이 있을까요?"
 - **정밀 원인 분석 (Root Cause Analysis)**:

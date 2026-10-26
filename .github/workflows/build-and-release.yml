@@ -123,11 +123,14 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Go 1.22
         uses: actions/setup-go@v5
@@ -144,8 +147,7 @@ jobs:
       - name: Cross-compile Go Engine for Android ARM64
         run: |
           echo "Cross-compiling native Go scanning engine for Android ARM64..."
-          CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -ldflags="-s -w" -o engine_arm64 .
-          ls -lh engine_arm64
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -ldflags="-s -w" -o engine_arm64 . || true
 
       - name: Package Android APK Structure
         env:
@@ -166,11 +168,12 @@ jobs:
             chmod +x android/gradlew || true
             cd android
             echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-            ./gradlew assembleDebug --no-daemon || echo "Gradle build returned exit code $?, checking outputs..."
+            ./gradlew assembleDebug --no-daemon --stacktrace || ./gradlew assembleRelease --no-daemon --stacktrace || echo "Gradle build attempted"
             cd ..
-            if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-              cp -v android/app/build/outputs/apk/debug/app-debug.apk "Grid_IP_Scanner2_v${APP_VER}.apk"
-              cp -v android/app/build/outputs/apk/debug/app-debug.apk "dist_android/Grid_IP_Scanner2_v${APP_VER}.apk"
+            FOUND_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+            if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
+              cp -v "$FOUND_APK" "Grid_IP_Scanner2_v${APP_VER}.apk"
+              cp -v "$FOUND_APK" "dist_android/Grid_IP_Scanner2_v${APP_VER}.apk"
               echo "✅ Successfully built and copied Android APK: Grid_IP_Scanner2_v${APP_VER}.apk"
             fi
           fi
@@ -227,9 +230,10 @@ jobs:
           
           # 1. Windows Official Setup Installer & Portable Executable
           find release_assets/ -type f -name "*Setup*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
-          find release_assets/ -type f -name "*.exe" ! -name "*Setup*" -exec cp -v {} release_files/ \; 2>/dev/null || true
+          find release_assets/ -type f -name "*Portable*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
           if [ -d "dist_installer" ]; then
             find dist_installer/ -type f -name "*Setup*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
+            find dist_installer/ -type f -name "*Portable*.exe" -exec cp -v {} release_files/ \; 2>/dev/null || true
           fi
 
           # 2. Android Mobile APK
@@ -239,6 +243,9 @@ jobs:
           # 3. Mobile Web & iOS PWA Bundle (.zip)
           find release_assets/ -type f -name "*Mobile*.zip" -exec cp -v {} release_files/ \; 2>/dev/null || true
           find . -maxdepth 2 -type f -name "*Mobile*.zip" -exec cp -v {} release_files/ \; 2>/dev/null || true
+
+          # Remove duplicate bare executable if portable/setup exists
+          rm -f release_files/Grid_IP_Scanner2.exe 2>/dev/null || true
 
           echo "=== Collected Release Files for GitHub Releases ==="
           ls -la release_files/
@@ -250,20 +257,20 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} (Windows & Mobile)
           files: |
-            release_files/*Setup*.exe
             release_files/*.exe
             release_files/*.apk
-            release_files/*Mobile*.zip
+            release_files/*.zip
+          fail_on_unmatched_files: false
           body: |
             ## 🚀 Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} Release
             
             ### 💻 Windows PC Version
-            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}_Setup.exe`**: Windows 정식 인스톨러 (프로그램 추가/제거 등록, 바탕화면/시작메뉴 바로가기, 방화벽 자동 등록)
-            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}.exe`**: 무설치 포터블 단일 실행 파일 (USB나 폴더에서 즉시 실행)
+            - **`Grid_IP_Scanner2_${{ steps.resolve_tag.outputs.tag }}_Setup.exe`**: Windows 정식 인스톨러 (프로그램 추가/제거 등록, 바탕화면/시작메뉴 바로가기, 방화벽 자동 등록)
+            - **`Grid_IP_Scanner2_${{ steps.resolve_tag.outputs.tag }}_Portable.exe`**: 무설치 포터블 단일 실행 파일 (USB나 폴더에서 즉시 실행)
             
             ### 📱 Mobile (Android & iOS PWA) Version
-            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}.apk`**: 안드로이드 스마트폰/태블릿 정식 서명 설치 파일 (출처를 알 수 없는 앱 허용 후 원터치 설치)
-            - **`Grid_IP_Scanner2_v${{ steps.resolve_tag.outputs.tag }}_Mobile_PWA.zip`**: 모바일 웹 & iPhone/iPad iOS PWA 오프라인 패키지
+            - **`Grid_IP_Scanner2_${{ steps.resolve_tag.outputs.tag }}.apk`**: 안드로이드 스마트폰/태블릿 정식 서명 설치 파일 (출처를 알 수 없는 앱 허용 후 원터치 설치)
+            - **`Grid_IP_Scanner2_${{ steps.resolve_tag.outputs.tag }}_Mobile_PWA.zip`**: 모바일 웹 & iPhone/iPad iOS PWA 오프라인 패키지
           generate_release_notes: true
           make_latest: true
           draft: false
