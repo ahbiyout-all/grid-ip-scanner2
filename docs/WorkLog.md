@@ -1,3 +1,15 @@
+### 32. Android APK 빌드 `androidx.core:core:1.17.0` AGP 8.9.1 요구 결함 및 GitHub Actions 도구 마이그레이션 완료
+- **문제 발생 원인**:
+  1. `CheckAarMetadataTask` 오류: `Dependency 'androidx.core:core:1.17.0' requires Android Gradle plugin 8.9.1 or higher. This build currently uses Android Gradle plugin 8.7.3.`
+     - `android/variables.gradle`에 지정된 `androidxCoreVersion = '1.17.0'`이 AGP 8.7.3 환경과 비호환(AGP 8.9.1 이상 요구).
+  2. `setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.`
+  3. `Restore cache failed: Dependencies file is not found... Supported file pattern: go.sum` in `actions/setup-go@v5`.
+- **해결 및 최적화 조치**:
+  1. `android/variables.gradle`의 `androidxCoreVersion`을 AGP 8.7.3과 완벽하게 호환되는 최신 안정 버전인 `'1.15.0'`으로 변경 및 `androidxActivityVersion = '1.9.3'`, `androidxAppCompatVersion = '1.7.0'` 표준화.
+  2. `android/app/build.gradle`에 `configurations.all { resolutionStrategy { force 'androidx.core:core:1.15.0'; force 'androidx.core:core-ktx:1.15.0' } }` 강제 규칙을 적용하여 전이 종속성(Transitive dependencies)으로 인한 1.17+ 유입 차단.
+  3. `.github/workflows/build-and-release.yml` 및 `mobile-release.yml`에서 `actions/setup-java@v4`를 공식 권장 `actions/setup-java@v5`로 전면 업그레이드.
+  4. `go.sum` 파일이 없는 구조에서 불필요한 캐시 탐색 실패 에러를 방지하기 위해 `actions/setup-go@v5`의 `cache: false` 옵션 설정.
+
 ### 31. GitHub Actions Android APK 빌드 `sdkmanager exit code 1` (tools 패키지 결함) 긴급 해결
 - **문제 발생 원인**:
   - GitHub Actions `ubuntu-latest` 러너 환경에서 `android-actions/setup-android@v3` 액션이 구글 공식 SDK 저장소에서 영구 제거(Deprecated)된 레거시 패키지 `'tools'`를 설치하려고 시도 (`sdkmanager tools`).

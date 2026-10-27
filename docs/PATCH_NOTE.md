@@ -23,7 +23,15 @@
    - **해결 조치**: GitHub Actions `ubuntu-latest` 가상 머신에 이미 사전 탑재(Pre-installed)되어 있는 정식 Android SDK(`/usr/local/lib/android/sdk`) 환경을 직접 활용하도록 전환하고, 비호환 서드파티 액션 종속성을 제거한 뒤 비대화형 라이선스 자동 수락(`yes | sdkmanager --licenses || true`) 단계를 구성하여 오류 없이 즉시 APK 패키징 및 서명 빌드로 진행되도록 표준화했습니다.
    - **빌드 메타데이터 동기화**: `android/app/build.gradle`의 `versionCode 247`, `versionName "2.4.7"` 일치 완료.
 
-4. **공식 기술 문서 및 가이드 최신화 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.md`)**
+4. **Android APK 빌드 AGP 호환성 긴급 픽스 (`androidx.core:core:1.17.0` 요구조건 해소)**
+   - **원인 분석**: `CheckAarMetadataTask` 검증에서 `androidx.core:core:1.17.0` 라이브러리가 Android Gradle Plugin 8.9.1 이상을 요구하여 현재 AGP 8.7.3 환경에서 빌드 실패(Exit code 1) 발생.
+   - **해결 조치**: `android/variables.gradle`의 `androidxCoreVersion`을 AGP 8.7.3과 완벽하게 호환되는 최신 안정 버전인 `'1.15.0'`으로 변경하고, `android/app/build.gradle`의 `configurations.all`에 `force 'androidx.core:core:1.15.0'` 및 `force 'androidx.core:core-ktx:1.15.0'` 강제 적용 규칙을 추가하여 서드파티 라이브러리의 불필요한 상위 버전 의존성 유입을 원천 차단했습니다.
+
+5. **GitHub Actions 도구 최신화 및 Go 캐시 최적화 (`setup-java@v5`, `cache: false`)**
+   - `actions/setup-java@v4`의 공식 지원 중단(Deprecated)에 따라 전 워크플로우를 최신 `actions/setup-java@v5`로 마이그레이션했습니다.
+   - `go.sum`이 존재하지 않는 리포지토리 환경에서 `actions/setup-go@v5`가 캐시 복원을 시도하며 발생하던 경고(`Restore cache failed`)를 방지하기 위해 `cache: false`로 설정하여 CI 빌드 안정성을 극대화했습니다.
+
+6. **공식 기술 문서 및 가이드 최신화 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.md`)**
    - CI/CD 빌드 가이드에 Node.js 22 LTS, Java 21, Android SDK 35 환경 표준을 명시하고, 구글 블로거 포스팅 가이드의 10대 규정 순서에 v2.4.7 변경점과 다운로드 파일명을 일괄 갱신했습니다.
 
 ---
