@@ -38,7 +38,7 @@ const (
 )
 
 const (
-	AppVersion = "2.4.6"
+	AppVersion = "2.4.7"
 	AppName    = "Grid IP Scanner2"
 )
 

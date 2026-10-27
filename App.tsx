@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown } from 'lucide-react';
-import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType } from './types';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar } from 'lucide-react';
+import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType, ScanSchedule, ScheduledScanRunRecord } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense, getTrialHistory } from './services/licenseManager';
 import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } from './services/diffEngine';
@@ -9,11 +9,13 @@ import { runDeepPortAudit } from './services/portScanner';
 import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, exportDeviceListToPDF } from './services/reportGenerator';
 import { UpdateModal } from './components/UpdateModal';
 import { SnapshotDiffModal } from './components/SnapshotDiffModal';
+import { ScheduleModal } from './components/ScheduleModal';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
 import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
 import { analyzeNetworkConflicts, findNewIntruderDevices, ConflictInfo } from './services/conflictDetector';
+import { getSchedules, recordScheduleRunCompletion, addHistoryRecord } from './services/schedulerService';
 
 const classifyDevice = (vendor: string, openPorts: number[], s: any) => {
   const v = (vendor || "").toLowerCase();
@@ -264,7 +266,10 @@ const translations = {
     trustDevice: "신뢰 기기로 등록",
     filterConflict: "⚠️ 충돌 의심",
     filterIntruder: "🚨 낯선 기기",
-    filterCustomAlias: "🏷️ 별칭 지정"
+    filterCustomAlias: "🏷️ 별칭 지정",
+    scheduler: "정기 자동 스케줄러",
+    schedulerBtn: "스케줄",
+    schedulerDesc: "주기적인 자동 네트워크 스캔 및 스냅샷 보관"
   },
   en: {
     quickRemoteActions: "Quick Remote Actions",
@@ -498,7 +503,10 @@ const translations = {
     flagsLabel: "System Flags",
     mtuLabel: "MTU",
     openAdapterManager: "Explore Adapters / Filter",
-    adapterSubnetNotice: "Adapter IPv4 subnet set as scan target."
+    adapterSubnetNotice: "Adapter IPv4 subnet set as scan target.",
+    scheduler: "Automated Scheduler",
+    schedulerBtn: "Schedule",
+    schedulerDesc: "Automated recurring network scans & snapshots"
   }
 };
 
@@ -732,6 +740,16 @@ const App: React.FC = () => {
   // Feature 1 & 2: Quick Remote Actions & Wake-on-LAN Action Status
   const [isExecutingRemote, setIsExecutingRemote] = useState(false);
   const [isSendingWol, setIsSendingWol] = useState(false);
+
+  // Automated Recurring Scan Scheduler State
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [activeScheduleCount, setActiveScheduleCount] = useState<number>(() => {
+    try {
+      return getSchedules().filter(s => s.enabled).length;
+    } catch {
+      return 0;
+    }
+  });
 
   // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
   const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
@@ -1585,8 +1603,25 @@ const App: React.FC = () => {
     showToast(s.stateResetComplete);
   };
 
-  const startScan = async () => {
+  const startScan = async (scheduledTask?: ScanSchedule) => {
     if (!goEngineAlive) return;
+
+    const targetSubnet = scheduledTask ? scheduledTask.subnet : (config.subnet || '192.168.0');
+    const targetStart = scheduledTask ? scheduledTask.start : config.start;
+    const targetEnd = scheduledTask ? scheduledTask.end : config.end;
+    const targetDeep = scheduledTask ? scheduledTask.deepScan : deepScan;
+    const targetMode = scheduledTask ? scheduledTask.scanMode : scanMode;
+    const targetTotalCount = targetEnd - targetStart + 1;
+
+    if (scheduledTask && (config.subnet !== targetSubnet || config.start !== targetStart || config.end !== targetEnd)) {
+      setConfig({
+        subnet: targetSubnet,
+        start: targetStart,
+        end: targetEnd,
+        timeout: config.timeout
+      });
+    }
+
     setIsScanning(true);
     setHasStartedScan(true);
     setShowSummary(false);
@@ -1604,8 +1639,8 @@ const App: React.FC = () => {
     if (!mergeResults) {
       resultsRef.current = {};
     }
-    const subnet = config.subnet || '192.168.0';
-    for (let i = config.start; i <= config.end; i++) {
+    const subnet = targetSubnet;
+    for (let i = targetStart; i <= targetEnd; i++) {
       const ip = `${subnet}.${i}`;
       if (previousResults[ip] && previousResults[ip].status === 'active') {
         resultsRef.current[ip] = { ...previousResults[ip] };
@@ -1632,16 +1667,16 @@ const App: React.FC = () => {
       let delay = 10;
       let timeout = 1000;
       
-      if (scanMode === 'fast') {
+      if (targetMode === 'fast') {
         delay = 0;
         timeout = 500;
-      } else if (scanMode === 'precision') {
+      } else if (targetMode === 'precision') {
         delay = 50;
         timeout = 2000;
       }
 
       const response = await fetch(
-        getApiUrl(`/api/scan?subnet=${config.subnet}&start=${config.start}&end=${config.end}&deep=${deepScan}&delay=${delay}&timeout=${timeout}`),
+        getApiUrl(`/api/scan?subnet=${targetSubnet}&start=${targetStart}&end=${targetEnd}&deep=${targetDeep}&delay=${delay}&timeout=${timeout}`),
         { signal: abortControllerRef.current.signal }
       );
       
@@ -1740,7 +1775,7 @@ const App: React.FC = () => {
               setScanHistory(prev => [{
                 date: new Date().toLocaleString(),
                 active: activeCount,
-                total: totalCount
+                total: targetTotalCount
               }, ...prev].slice(0, 5));
             }
           } catch (e) {
@@ -1782,10 +1817,86 @@ const App: React.FC = () => {
         console.warn("Failed to persist scan results into known list:", e);
       }
 
+      // Feature: Automated Recurring Schedule Auto-Save & History Logging
+      if (scheduledTask) {
+        const scanDuration = Date.now() - (scanStartTime || Date.now());
+        const finalActive = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
+        let autoSnapshotId: string | undefined = undefined;
+
+        if (scheduledTask.autoSaveSnapshot) {
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const snapLabel = `${scheduledTask.snapshotPrefix || '[Auto-Sched]'} ${scheduledTask.name} (${timeStr})`;
+          const newSnap = saveSnapshot(targetSubnet, targetStart, targetEnd, resultsRef.current, snapLabel);
+          setSnapshots(getSavedSnapshots());
+          autoSnapshotId = newSnap.id;
+        }
+
+        let newDevCount = 0;
+        let offlineDevCount = 0;
+        if (baselineSnapshot?.results) {
+          const diff = computeSnapshotDiff(resultsRef.current, baselineSnapshot.results);
+          newDevCount = diff.summary.newCount;
+          offlineDevCount = diff.summary.offlineCount;
+        }
+
+        recordScheduleRunCompletion(scheduledTask.id);
+        addHistoryRecord({
+          scheduleId: scheduledTask.id,
+          scheduleName: scheduledTask.name,
+          subnet: targetSubnet,
+          activeCount: finalActive,
+          totalCount: targetTotalCount,
+          durationMs: scanDuration,
+          snapshotId: autoSnapshotId,
+          newDevicesCount: newDevCount,
+          offlineDevicesCount: offlineDevCount,
+          changedDevicesCount: 0,
+          status: 'success'
+        });
+
+        if (scheduledTask.notifyOnCompletion) {
+          const hasChanges = newDevCount > 0 || offlineDevCount > 0;
+          if (!scheduledTask.notifyOnChangesOnly || hasChanges) {
+            const body = lang === 'ko'
+              ? `⏰ [자동 스케줄] '${scheduledTask.name}' 완료: 활성 ${finalActive}대 발견${hasChanges ? ` (+신규:${newDevCount}, -오프라인:${offlineDevCount})` : ''}`
+              : `⏰ [Scheduled Scan] '${scheduledTask.name}' completed: ${finalActive} active devices${hasChanges ? ` (+new:${newDevCount}, -offline:${offlineDevCount})` : ''}`;
+            showToast(body);
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(lang === 'ko' ? 'Grid IP Scanner2 - 정기 스케줄 완료' : 'Grid IP Scanner2 - Scheduled Scan Finished', {
+                  body,
+                  icon: './icon.png'
+                });
+              } catch (_) {}
+            }
+          }
+        }
+      }
+
       setIsScanning(false);
       abortControllerRef.current = null;
     }
   };
+
+  // Feature: Background Recurring Scan Scheduler Engine
+  useEffect(() => {
+    const scheduleTicker = setInterval(() => {
+      const allSchedules = getSchedules();
+      const enabledList = allSchedules.filter(s => s.enabled);
+      setActiveScheduleCount(enabledList.length);
+
+      if (isScanningRef.current || !goEngineAlive) return;
+
+      const currentTime = Date.now();
+      const dueSchedule = enabledList.find(s => s.nextRun && s.nextRun <= currentTime);
+      if (dueSchedule) {
+        console.log(`[Scheduler] Executing scheduled scan: ${dueSchedule.name}`);
+        startScan(dueSchedule);
+      }
+    }, 5000);
+
+    return () => clearInterval(scheduleTicker);
+  }, [goEngineAlive, config, deepScan, scanMode, baselineSnapshot]);
 
   // Feature 5: Background Periodic Scanning for Intruder Watch Mode (Portable & Installed)
   const prevIntrudersCountRef = useRef<number>(0);
@@ -2668,6 +2779,28 @@ const App: React.FC = () => {
               {isScanning ? s.stopScan : (hasStartedScan ? s.restartScan : s.startScan)}
             </button>
 
+            {/* Quick Scheduler Access in Sidebar */}
+            <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              className={`w-full py-2 px-2.5 rounded-lg border text-[11px] font-black uppercase tracking-tight transition-all flex items-center justify-between ${
+                activeScheduleCount > 0
+                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
+                  : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#faf5eb]' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10')
+              }`}
+              title={lang === 'ko' ? '정기 자동 스케줄러 열기' : 'Open Recurring Scan Scheduler'}
+            >
+              <div className="flex items-center gap-1.5">
+                <Clock className={`w-3.5 h-3.5 ${activeScheduleCount > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
+                <span>{s.scheduler || '정기 자동 스케줄러'}</span>
+              </div>
+              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                activeScheduleCount > 0 ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {activeScheduleCount > 0 ? `${activeScheduleCount}${lang === 'ko' ? '개 가동' : ' ON'}` : (lang === 'ko' ? '설정' : 'OFF')}
+              </span>
+            </button>
+
             <div className="space-y-4 pt-3 border-t border-white/5">
               <div className="flex flex-col space-y-2 px-1">
                 <div className="flex justify-between items-center">
@@ -3309,6 +3442,25 @@ const App: React.FC = () => {
                   <span className="px-1.5 py-0.2 rounded text-[8.5px] font-black bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs">PRO</span>
                 ) : (
                   <span className={`w-1.5 h-1.5 rounded-full ${intruderWatchMode ? 'bg-purple-400 animate-ping' : 'bg-zinc-600'}`} />
+                )}
+              </button>
+
+              {/* Recurring Automated Scan Scheduler Button */}
+              <button
+                onClick={() => setShowScheduleModal(true)}
+                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all shrink-0 ${
+                  activeScheduleCount > 0
+                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25 ring-1 ring-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                    : 'bg-black/10 border-white/5 opacity-70 hover:opacity-100 text-zinc-300'
+                }`}
+                title={lang === 'ko' ? `정기 자동 스케줄러 (${activeScheduleCount}개 활성)` : `Automated Scan Scheduler (${activeScheduleCount} active)`}
+              >
+                <Clock className={`w-3.5 h-3.5 ${activeScheduleCount > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
+                <span>{s.schedulerBtn || '스케줄'}</span>
+                {activeScheduleCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-cyan-500 text-slate-950">
+                    {activeScheduleCount}
+                  </span>
                 )}
               </button>
 
@@ -5439,6 +5591,27 @@ const App: React.FC = () => {
         theme={theme}
         s={s}
         showToast={showToast}
+      />
+
+      {/* Automated Recurring Scan Scheduler Modal */}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        currentConfig={config}
+        currentDeepScan={deepScan}
+        currentScanMode={scanMode}
+        isScanning={isScanning}
+        lang={lang}
+        onTriggerScanNow={(sched) => {
+          setShowScheduleModal(false);
+          startScan(sched);
+        }}
+        onViewSnapshot={(snapshotId) => {
+          setShowScheduleModal(false);
+          setBaselineSnapshotId(snapshotId);
+          setViewMode('diff');
+          setShowDiffStudioModal(true);
+        }}
       />
 
       {/* Snapshot Diff 3-Step Interactive Guide Modal */}

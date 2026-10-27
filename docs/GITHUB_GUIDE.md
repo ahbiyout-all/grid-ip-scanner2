@@ -54,7 +54,7 @@
   2. `node scripts/package-mobile.js` 실행 및 모바일 오프라인 zip 패키지 생성
 
 ### 🤖 Job 3: Android 스마트폰 설치 파일 빌드 (`build-android-apk`)
-* **구동 환경**: `ubuntu-latest` + Go 1.22 + Java 17 + Android SDK 34
+* **구동 환경**: `ubuntu-latest` + Node.js 22 LTS + Go 1.22 + Java 21 + Android SDK 35
 * **수행 절차**:
   1. `chmod +x android/gradlew` 실행 권한 부여
   2. Go ARM64 네이티브 스캔 엔진 크로스 컴파일
@@ -76,8 +76,8 @@
 
 버전 불일치가 발생하지 않도록 **중앙 집중형 버전 동기화 엔진(`scripts/sync-version.js`)**이 탑재되어 있습니다:
 * **단일 원천(SSOT)**: `package.json`의 `"version"`을 기준으로 삼거나, `node scripts/sync-version.js --bump-patch` 실행 시 1회 명령으로 다음 9개 대상이 동시 수정됩니다:
-  1. `package.json`: `"version": "2.4.4"`
-  2. `winres.json`: Windows 바이너리 메타데이터 및 PE 리소스 버전 정보 (`2.4.4.0`)
+  1. `package.json`: `"version": "2.4.6"`
+  2. `winres.json`: Windows 바이너리 메타데이터 및 PE 리소스 버전 정보 (`2.4.6.0`)
   3. `installer/Grid_IP_Scanner2_Setup.iss`: Inno Setup 인스톨러 스크립트 정의
   4. `App.tsx`: 사이드바, 모바일 상단 바, 모달 내부의 버전 뱃지 및 인스톨러 파일명
   5. `services/updateChecker.ts`: 실시간 릴리즈 비교 기준 버전

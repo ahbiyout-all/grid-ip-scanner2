@@ -177,3 +177,54 @@ export interface DiffAnalysisResult {
     totalEvaluated: number;
   };
 }
+
+export type ScheduleInterval = 
+  | '15m' 
+  | '30m' 
+  | 'hourly' 
+  | 'every_2h' 
+  | 'every_6h' 
+  | 'every_12h' 
+  | 'daily' 
+  | 'weekly' 
+  | 'custom';
+
+export interface ScheduledScanRunRecord {
+  id: string;
+  scheduleId: string;
+  scheduleName: string;
+  timestamp: number;
+  subnet: string;
+  activeCount: number;
+  totalCount: number;
+  durationMs: number;
+  snapshotId?: string;
+  newDevicesCount?: number;
+  offlineDevicesCount?: number;
+  changedDevicesCount?: number;
+  status: 'success' | 'failed' | 'aborted';
+  errorMessage?: string;
+}
+
+export interface ScanSchedule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  subnet: string;
+  start: number;
+  end: number;
+  scanMode: 'fast' | 'standard' | 'precision';
+  deepScan: boolean;
+  intervalType: ScheduleInterval;
+  intervalMinutes: number;
+  autoSaveSnapshot: boolean;
+  snapshotPrefix?: string;
+  notifyOnCompletion: boolean;
+  notifyOnChangesOnly: boolean;
+  lastRun?: number;
+  nextRun?: number;
+  createdAt: number;
+  updatedAt: number;
+  totalRuns: number;
+}
+

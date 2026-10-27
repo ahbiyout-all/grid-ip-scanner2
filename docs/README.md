@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.4.6)
+# 🌐 Grid IP Scanner2 (v2.4.7)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -25,38 +25,48 @@
    - **동적 페이지 번호**: 모든 페이지에 `페이지 X / Y` 형태의 전체 대비 현재 페이지 번호 및 공식 헤더/푸터 동기화
    - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 고해상도 스타일시트를 통한 배경색 및 뱃지 완벽 보존
 
-3. **📸 스냅샷 비교(Diff) 4색 진단 & 대화형 필터**
-   - 과거 기준점 대비 변경 사항을 4색 컬러 시스템으로 직관적 시각화:
-     - 🟢 **신규 접속 (`+NEW`)**: 네온 에메랄드 그린 배경 + 펄스 링
+3. **📸 딥 스냅샷 비교(Deep Diff v2) 4색 진단 & 1:1 대조 스튜디오 (`components/SnapshotDiffModal.tsx`)**
+   - **4색 컬러 진단 및 메탈릭 베이스라인**:
+     - 🟢 **신규 접속 (`+NEW`)**: 네온 에메랄드 그린 발광 + 펄스 애니메이션 링
      - 🔴 **이탈 / 오프라인 (`-OFF`)**: 고대비 로즈 레드 배경 + 대각선 빗금 패턴
-     - 🟠 **식별자 변동 (`!CHG`)**: 선명한 앰버 오렌지 테두리 + 경고 뱃지
-     - 🔵 **기준점 유지 (`=SAME` / `=BASE`)**: 선명한 하늘색(Sky Blue 🔵) 기본 적용 (팔레트 변경 지원)
-   - 오프라인 노드 대상 기준점 MAC 보존 기반 **원격 부팅(Wake-on-LAN, Pro 전용)** 원클릭 지원
+     - 🟠 **식별자 변동 (`!CHG`)**: 선명한 앰버 오렌지 테두리 + 경고 뱃지 (MAC 변조/포트 노출 감지)
+     - 🔵 **기준점 유지 (`=SAME` / `=BASE`)**: 4색 메탈릭 베이스라인(하늘, 보라, 청록, 회색) 지원
+   - **미할당 빈 IP 슬롯(245개) 완전 분리**: 장비 없는 빈 슬롯을 `=SAME`에서 제외하여 실제 온라인 장비만 정확히 계측
+   - **1:1 Side-by-Side 대조 스튜디오**: 임의 2개 시점(A ↔ B) 교차 비교, CSV 보고서 및 IT 요약 복사
+   - **Zero-Clipping 고정 서브헤더**: 스크롤 및 해상도에 무관하게 툴바 상단 잘림 0% 보장
+   - **2단계 폰트 확대 (`[가 100%] ↔ [가⁺ 115%]`)**: 장치 상세 패널 표준 가독성 확보
 
-4. **🛡️ 낯선 기기 감시 및 Soft Trust 유예 시스템 (Intruder Watch Mode - PRO)**
+4. **⏰ 정기 자동 네트워크 스캔 스케줄러 (`services/schedulerService.ts`, `components/ScheduleModal.tsx`)**
+   - **무인 백그라운드 주기적 스캔**: 10분, 15분, 30분, 1시간, 2시간, 6시간, 12시간, 24시간 야간점검 등 주기별 자동 실행
+   - **5초 Ticker & Busy Lock**: 수동 스캔 시 중복 실행 방지 및 안전 실행 가드
+   - **스냅샷 자동 캡처 (`[Auto-Sched]`)**: 스캔 완료 시 시점별 스냅샷을 자동 아카이빙하여 Diff 모드에서 즉각 비교 가능
+   - **실행 이력 로깅 & 실시간 카운트다운**: 최근 50회 실행 이력 보관, CSV 내보내기, 헤더 원터치 카운트다운 배지 연동
+
+5. **🛡️ 낯선 기기 감시 및 Soft Trust 유예 시스템 (Intruder Watch Mode - PRO)**
    - **Pro 라이선스 연동**: 60초 주기 무인 백그라운드 자동 스캔, 침입 즉각 오디오 비프음 및 OS 네이티브 데스크톱 알림
    - 새롭게 연결된 미등록 기기 실시간 감지 및 정상 기기 화이트리스트 영구 보존
    - **Soft Trust Grace Period**: 사설 MAC 또는 DHCP 재할당 단말에 대한 과도한 오경보 방지 유예 평가
 
-5. **⚠️ IP / MAC 충돌 감지 (Conflict Detection)**
+6. **⚠️ IP / MAC 충돌 감지 (Conflict Detection)**
    - 동일 IP에 복수 MAC이 응답하거나, IP가 변경된 기기 즉각 포착 및 시각적 충돌 경고 패널 표시
 
-6. **🔒 Secure Vault 네이티브 암호화 (AES-256-GCM)**
+7. **🔒 Secure Vault 네이티브 암호화 (AES-256-GCM)**
    - C++/Go 네이티브 DLL 기반 초고속 AES-256-GCM 암호화로 기기 별칭(Alias) 및 스냅샷 저장소 보호
 
-7. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권**
+8. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권**
    - Ed25519 비대칭 암호키 기반 100% 오프라인 라이선스 검증 (폐쇄망 완벽 대응)
    - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
 
-8. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
-   - 단일 무설치 포터블 실행 파일 및 Inno Setup 기반 정식 인스톨러(`Grid_IP_Scanner2_v2.4.6_Setup.exe`)
-   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.4.6.apk`) 및 PWA 모바일 패키지 동시 제공
+9. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
+   - Windows 제어판 프로그램 추가/제거 및 클린 언인스톨러 등록 (`installer/Grid_IP_Scanner2_Setup.iss`)
+   - 단일 무설치 포터블 실행 파일(`Grid_IP_Scanner2.exe`)과 정식 인스톨러 동시 듀얼 빌드
+   - 안드로이드 Core Splashscreen 최적화, 패키지 렌더링 딜레이 해소, ZipAlign 및 키서명 안정화 APK
    - 로컬 푸시 스크립트 격리 및 클린 소스코드 전용 `.gitignore` 체계
 
-9. **🚫 브라우저 자동 번역 팝업 원천 차단**
-   - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 인자 주입으로 번역 제안 팝업 차단
+10. **🚫 브라우저 자동 번역 팝업 원천 차단**
+    - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 인자 주입으로 번역 제안 팝업 차단
 
-10. **🚀 원클릭 GitHub 동기화 파이프라인 (`sync-github.sh` & `github-push.bat`)**
+11. **🚀 원클릭 GitHub 동기화 파이프라인 (`sync-github.sh` & `github-push.bat`)**
     - CLI/Bash 및 Windows 환경 모두에서 단 1회 명령으로 로컬 변경 사항을 커밋하고 GitHub Actions CI/CD를 호출하여 빌드 자동화
 
 ---
@@ -112,13 +122,16 @@ github-push.bat
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.5 최신화)
-- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.6 최신화)
+- [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러 아키텍처 및 데이터 명세서 (신규)
+- [`docs/SNAPSHOT_DIFF_SPEC.md`](./SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2, 1:1 대조 스튜디오 및 잘림 방지 서브헤더 기술 명세서
+- [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 완벽 가이드 ([작성 모드] & [HTML 편집 모드])
+- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.4.6 최신화)
 - [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](./A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서
-- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서
+- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.4.6)
+- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.4.6)
 - [`docs/VERSIONING_POLICY.md`](./VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
 - [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드

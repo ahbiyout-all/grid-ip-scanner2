@@ -2,14 +2,14 @@
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://www.cisnet.co.kr](https://www.cisnet.co.kr)  
-> **최신 버전**: v2.4.6 | **작성일자**: 2026-10-26
+> **최신 버전**: v2.4.7 | **작성일자**: 2026-10-27
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.6)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.7)를 소개합니다.
 
 ---
 
@@ -20,7 +20,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 9만 건 OUI를 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.6)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 9만 건 OUI를 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.7)**
 
 ---
 
@@ -33,6 +33,7 @@
 
 #### 🚀 Grid IP Scanner2 핵심 기능
 * **16x16 시각화 그리드 맵**: 전체 254개 노드의 활성/비활성/경고 상태를 신호등처럼 1초 만에 직관적으로 조망.
+* **⏰ 정기 자동 네트워크 스캔 스케줄러**: 10분, 30분, 1시간, 매일 24시간 등 원하는 주기에 맞춘 무인 백그라운드 자동 스캔 및 `[Auto-Sched]` 스냅샷 자동 아카이빙.
 * **90,168건 내장 오프라인 OUI 식별**: 인터넷이 차단된 폐쇄망에서도 1ms 미만의 속도로 삼성, 애플, 시스코, 시놀로지 등 하드웨어 제조사 식별.
 * **과거 vs 현재 4색 스냅샷 Diff**: 기준점 대비 신규 접속(+NEW), 오프라인 전환(-OFF), 장비 식별 변경(!CHG), 정상 유지(=SAME)를 4색으로 정밀 진단.
 * **24시간 무인 백그라운드 침입 감시**: 미등록 낯선 기기 탐지 시 즉각적인 데스크톱 팝업 및 오디오 비프 경보 송출 (스마트폰 비공개 MAC 오경보 방지 Soft Trust 탑재).
@@ -41,7 +42,11 @@
 
 ---
 
-### 3. 업데이트 (v2.4.6 최신 릴리즈 하이라이트)
+### 3. 업데이트 (v2.4.7 최신 릴리즈 하이라이트)
+* **GitHub Actions CI/CD 러너 Node.js 22 LTS 표준 전면 업그레이드**: Node.js 20 공식 지원 종료(EOL)에 대응하여 최신 공식 LTS인 Node.js 22로 클라우드 빌드 및 배포 파이프라인 전면 전환, 빌드 시 노란색 경고 완전 해소.
+* **v2.4.7 정식 릴리스 산출물 패키징 무결성 확보**: Windows 인스톨러(`Grid_IP_Scanner2_v2.4.7_Setup.exe`), 무설치 포터블(`Grid_IP_Scanner2_v2.4.7_Portable.exe`), 안드로이드 정식 서명 APK(`Grid_IP_Scanner2_v2.4.7.apk`), 모바일 PWA 패키지 신규 빌드 공급.
+* **정기 자동 네트워크 스캔 스케줄러 탑재**: 10분~24시간 주기 무인 자동 스캔, 5초 Ticker 백그라운드 검사, 스냅샷 자동 아카이빙(`[Auto-Sched]`), 최근 50회 실행 이력 및 실시간 카운트다운 타이머 배지 제공.
+* **안드로이드 Core Splashscreen 최적화**: AndroidX 공식 스플래시 화면 연동으로 콜드 스타트 시 패키지 로딩 딜레이 및 흰색 깜빡임 원천 해결.
 * **Windows 정식 '프로그램 추가/제거(제어판)' 등록**: Windows 10/11 '설정 > 앱 및 기능' 및 제어판에 정식 등록되어 잔존 파일 없이 클린 언인스톨 지원.
 * **윈도우 인스톨러(Setup.exe) 및 단일 포터블(Portable .exe) 동시 듀얼 빌드**: 업무용 PC 정식 설치형과 USB 외근 점검용 1초 무설치 포터블을 동시에 제공.
 * **안드로이드 APK 스마트폰 직접 설치 호환성 강화**: 패키지 ZipAlign 정렬 및 키서명 안정화로 모바일 기기에서의 파싱/설치 오류 원천 해결.
@@ -56,14 +61,14 @@
 
 ```
 +---------------------------------------------------------------------------------------+
-|  [Grid IP Scanner2 v2.4.6]   [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
+|  [Grid IP Scanner2 v2.4.7]   [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
 +------------------------------------------------------+--------------------------------+
 |  [ 16x16 실시간 시각화 매트릭스 그리드 맵 ]            |  [ 장치 상세 프로필 패널 ]       |
 |                                                      |  [가 100%] [가⁺ 115%]          |
 |  [001] [002] [003] [004] [005] [006] ... [016]        |  ----------------------------- |
 |  [017] [018] [019] [020] [021] [022] ... [032]        |  IP: 192.168.0.10              |
 |  ...                                                 |  MAC: 00:11:32:8A:BC:DE        |
-|  [🟢 +신규] [🔴 -오프ライン] [🟡 !변동] [🔵 =기준]        |  제조사: Synology Incorporated |
+|  [🟢 +신규] [🔴 -오프라인] [🟡 !변동] [🔵 =기준]        |  제조사: Synology Incorporated |
 |                                                      |  개방 포트: 80, 443, 5000       |
 |  * 254개 전체 C클래스 IP를 한눈에 밀도 조망            |  [⚡ WoL 매직 패킷 원격 부팅]    |
 +------------------------------------------------------+--------------------------------+
@@ -81,13 +86,13 @@
 ### 5. 다운로드
 필요하신 운영체제 환경에 맞춰 최신 빌드를 다운로드하세요:
 
-* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.6_Setup.exe`  
+* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.7_Setup.exe`  
   *(Windows 제어판 프로그램 추가/제거 정식 등록, 방화벽 규칙 자동 등록, 바탕화면 바로가기 생성)*
-* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.6_Portable.exe`  
+* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.7_Portable.exe`  
   *(설치 과정 없이 USB나 외장 드라이브에서 즉시 실행 가능한 단일 실행 바이너리)*
-* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.6.apk`  
+* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.7.apk`  
   *(안드로이드 스마트폰/태블릿 직접 설치용 고성능 모바일 패키지)*
-* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.6_Mobile_PWA.zip`  
+* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.7_Mobile_PWA.zip`  
 * 🔗 **GitHub 공식 릴리즈 다운로드**: [https://github.com/AhBiYout-all/grid-ip-scanner2/releases](https://github.com/AhBiYout-all/grid-ip-scanner2/releases)
 
 > 💡 **안드로이드 설치 안내**: 다운로드 후 스마트폰에서 "출처를 알 수 없는 앱 설치 허용(Chrome 또는 파일 관리자)"을 설정하시고, Play 프로텍트 경고가 나타날 경우 "세부정보 보기 ➔ 무시하고 설치"를 누르시면 정상 설치됩니다.  
@@ -97,8 +102,8 @@
 
 ### 6. 버전정보
 * **프로그램 명칭**: Grid IP Scanner2
-* **소프트웨어 버전**: v2.4.6
-* **출시 일자**: 2026-10-26
+* **소프트웨어 버전**: v2.4.7
+* **출시 일자**: 2026-10-27
 * **라이선스 정책**: Dual License (무료 커뮤니티 GPL v3 + Pro 상용 에디션)
 * **30일 무료 체험(Trial) 키**: `GRID-PRO-TRIAL-2026`  
   *(앱 상단 [라이선스 관리] 메뉴에 입력 시 30일간 Pro 전 기능을 아무런 제약 없이 무료 체험 가능)*
@@ -131,7 +136,14 @@
 
 ### 9. 전체 업데이트 (이전 기록 모두, 기능 개선 내용만 기록)
 
+* **[v2.4.7] (2026-10-27)**
+  - GitHub Actions CI/CD 클라우드 러너 Node.js 22 LTS 표준 런타임 전면 업그레이드 및 Node.js 20 EOL 완벽 대응.
+  - v2.4.7 릴리스 태그 기반 Windows 인스톨러, 무설치 포터블, 안드로이드 APK, PWA 산출물 무결점 신규 패키징.
+  - 릴리스 에셋 중복 삭제 충돌 방지 및 공식 기술 문서/블로거 가이드 최신화.
+
 * **[v2.4.6] (2026-10-26)**
+  - 정기 자동 네트워크 스캔 스케줄러(10분~24시간 주기, 스냅샷 자동 저장, 실행 이력 관리) 탑재.
+  - 안드로이드 AndroidX Core SplashScreen 최적화 및 콜드 스타트 패키지 렌더링 딜레이 해소.
   - Windows 정식 프로그램 추가/제거(제어판) 등록 및 클린 언인스톨러 지원.
   - 윈도우 인스톨러(Setup.exe) 및 단일 무설치 포터블(Portable .exe) 동시 자동 패키징 파이프라인 탑재.
   - 안드로이드 APK 스마트폰 직접 설치 호환성 강화 및 CI/CD 아티팩트 빌드 파이프라인 무결성 확보.
@@ -219,10 +231,10 @@
   <!-- 1. 제목 -->
   <div style="background: linear-gradient(135deg, #0f172a 0%, #0369a1 100%); color: #ffffff; padding: 32px 24px; border-radius: 14px; margin-bottom: 28px; box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.25);">
     <div style="display: inline-block; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-      v2.4.6 Official Release
+      v2.4.7 Official Release
     </div>
     <h1 style="font-size: 25px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.35; color: #ffffff;">
-      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.6)
+      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.7)
     </h1>
     <p style="font-size: 14px; color: #cbd5e1; margin: 0; line-height: 1.6;">
       9만 건 내장 OUI 하드웨어 식별 &bull; 4색 스냅샷 Diff 비교 &bull; 24/7 침입 감시 &bull; A4 보안감사 PDF 리포트 &bull; WoL 원격 부팅 &bull; 정식 인스톨러 &amp; 무설치 포터블
@@ -250,6 +262,10 @@
         <div style="font-size: 13px; color: #475569; line-height: 1.5;">254개 전체 C클래스 노드를 16x16 매트릭스로 실시간 렌더링하여 활성/비활성/경고 상태를 1초 만에 직관적으로 조망합니다.</div>
       </div>
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 15px;">
+        <div style="font-size: 14px; font-weight: 800; color: #0284c7; margin-bottom: 5px;">⏰ 정기 자동 스캔 스케줄러</div>
+        <div style="font-size: 13px; color: #475569; line-height: 1.5;">10분~24시간 지정 주기 무인 자동 스캔과 스냅샷 자동 아카이빙([Auto-Sched]), 최근 50회 실행 이력 및 실시간 카운트다운을 지원합니다.</div>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 15px;">
         <div style="font-size: 14px; font-weight: 800; color: #0284c7; margin-bottom: 5px;">🔍 90,168건 내장 오프라인 OUI 식별</div>
         <div style="font-size: 13px; color: #475569; line-height: 1.5;">인터넷이 없는 폐쇄망에서도 IEEE 레지스트리 기반 9만 건 DB로 1ms 미만의 속도로 하드웨어 제조사를 판별합니다.</div>
       </div>
@@ -275,9 +291,13 @@
   <!-- 3. 업데이트 -->
   <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 20px; margin-bottom: 30px;">
     <h2 style="font-size: 18px; font-weight: 800; color: #1e40af; margin: 0 0 12px 0;">
-      🚀 v2.4.6 최신 업데이트 하이라이트
+      🚀 v2.4.7 최신 업데이트 하이라이트
     </h2>
     <ul style="margin: 0; padding-left: 20px; font-size: 13.5px; color: #1e3a8a; line-height: 1.8;">
+      <li><b>GitHub Actions CI/CD 러너 Node.js 22 LTS 표준 전면 업그레이드</b>: Node.js 20 공식 지원 종료(EOL) 대응으로 공식 권장 LTS인 Node.js 22로 클라우드 빌드 및 배포 파이프라인 전면 전환, 빌드 경고 완전 해소.</li>
+      <li><b>v2.4.7 정식 릴리스 산출물 패키징 무결성 확보</b>: Windows 인스톨러(<code>Grid_IP_Scanner2_v2.4.7_Setup.exe</code>), 무설치 포터블(<code>Grid_IP_Scanner2_v2.4.7_Portable.exe</code>), 안드로이드 정식 서명 APK(<code>Grid_IP_Scanner2_v2.4.7.apk</code>), 모바일 PWA 패키지 신규 빌드 공급.</li>
+      <li><b>정기 자동 네트워크 스캔 스케줄러 탑재</b>: 10분~24시간 주기 무인 자동 스캔, 5초 Ticker 백그라운드 검사, 스냅샷 자동 아카이빙(<code>[Auto-Sched]</code>), 최근 50회 실행 이력 및 실시간 카운트다운 타이머 배지 제공.</li>
+      <li><b>안드로이드 Core Splashscreen 최적화</b>: AndroidX 공식 스플래시 화면 연동으로 콜드 스타트 시 패키지 로딩 딜레이 및 흰색 깜빡임 원천 해결.</li>
       <li><b>Windows 제어판 프로그램 추가/제거 정식 등록</b>: 제어판 및 설정 앱에 정식 등록되어 잔존 파일 없이 완벽한 클린 언인스톨 지원.</li>
       <li><b>인스톨러(Setup.exe) &amp; 무설치 포터블(Portable .exe) 동시 듀얼 빌드</b>: 고정 업무 PC용 정식 설치형과 USB 외근용 1초 무설치 포터블을 나란히 제공.</li>
       <li><b>안드로이드 APK 스마트폰 직접 설치 호환성 강화</b>: 패키지 정렬 및 키서명 개선으로 모바일 폰에서의 파싱/설치 오류 원천 차단.</li>
@@ -296,7 +316,7 @@
     <div style="background: #0f172a; border-radius: 10px; padding: 20px; color: #f8fafc; font-family: monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; margin-bottom: 12px;">
       <pre style="margin: 0;">
 +---------------------------------------------------------------------------------------+
-|  [Grid IP Scanner2 v2.4.6]   [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
+|  [Grid IP Scanner2 v2.4.7]   [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
 +------------------------------------------------------+--------------------------------+
 |  [ 16x16 실시간 시각화 매트릭스 그리드 맵 ]            |  [ 장치 상세 프로필 패널 ]       |
 |                                                      |  [가 100%] [가⁺ 115%]          |
@@ -349,7 +369,7 @@
       ℹ️ 버전정보
     </h2>
     <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
-      <tr><td style="padding: 6px 0; color: #64748b; width: 140px;"><b>소프트웨어 버전</b></td><td style="padding: 6px 0; color: #0f172a; font-weight: 700;">v2.4.6 (Release Date: 2026-10-26)</td></tr>
+      <tr><td style="padding: 6px 0; color: #64748b; width: 140px;"><b>소프트웨어 버전</b></td><td style="padding: 6px 0; color: #0f172a; font-weight: 700;">v2.4.7 (Release Date: 2026-10-27)</td></tr>
       <tr><td style="padding: 6px 0; color: #64748b;"><b>라이선스 정책</b></td><td style="padding: 6px 0; color: #0f172a;">Dual License (무료 커뮤니티 GPL v3 + Pro 상용 에디션)</td></tr>
       <tr><td style="padding: 6px 0; color: #64748b;"><b>30일 무료 체험 키</b></td><td style="padding: 6px 0; color: #0284c7; font-weight: 800;"><code>GRID-PRO-TRIAL-2026</code> (Pro 전 기능 30일간 무료 해금)</td></tr>
     </table>
@@ -388,7 +408,8 @@
       📜 전체 업데이트 (기능 개선 전체 기록)
     </h2>
     <div style="font-size: 13px; color: #334155; line-height: 1.7;">
-      <p style="margin: 0 0 8px 0;"><b>[v2.4.6]</b> Windows 제어판 프로그램 추가/제거 정식 등록, 윈도우 인스톨러/포터블 동시 듀얼 빌드, 안드로이드 APK 스마트폰 직접 설치 호환성 강화, 장치 프로필 패널 가독성 전면 개선 및 2단계 폰트 확대(100%↔115%) 탑재, 스냅샷 기준색과 신규 노드 시각적 대비 극대화 및 미할당 빈 셀 판별 로직 분리, 스냅샷 비교 툴바 상단 잘림 원천 차단(Zero-Clipping Sub-Header), 딥 다각도 스냅샷 비교 엔진(Deep Diff v2) 및 1:1 대조 스튜디오 모달 완성, 스캔 중 브라우저 창 닫기/새로고침 방지 경고 및 소켓 안전 해제 이벤트 탑재.</p>
+      <p style="margin: 0 0 8px 0;"><b>[v2.4.7]</b> GitHub Actions CI/CD 러너 Node.js 22 LTS 표준 런타임 전면 업그레이드 및 Node.js 20 EOL 완벽 대응, v2.4.7 릴리스 태그 기반 Windows 인스톨러/무설치 포터블/안드로이드 APK/PWA 패키지 신규 빌드 공급, 릴리스 에셋 중복 삭제 충돌 방지 및 공식 기술 문서/블로거 가이드 최신화.</p>
+      <p style="margin: 0 0 8px 0;"><b>[v2.4.6]</b> 정기 자동 네트워크 스캔 스케줄러(10분~24시간 주기, 스냅샷 자동 저장, 실행 이력 관리) 탑재, 안드로이드 AndroidX Core SplashScreen 최적화 및 콜드 스타트 패키지 렌더링 딜레이 해소, Windows 제어판 프로그램 추가/제거 정식 등록, 윈도우 인스톨러/포터블 동시 듀얼 빌드, 안드로이드 APK 스마트폰 직접 설치 호환성 강화, 장치 프로필 패널 가독성 전면 개선 및 2단계 폰트 확대(100%↔115%) 탑재, 스냅샷 기준색과 신규 노드 시각적 대비 극대화 및 미할당 빈 셀 판별 로직 분리, 스냅샷 비교 툴바 상단 잘림 원천 차단(Zero-Clipping Sub-Header), 딥 다각도 스냅샷 비교 엔진(Deep Diff v2) 및 1:1 대조 스튜디오 모달 완성, 스캔 중 브라우저 창 닫기/새로고침 방지 경고 및 소켓 안전 해제 이벤트 탑재.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.5]</b> A4 규격 최적화 스마트 페이지네이션 PDF 보고서 출력 엔진 고도화 (페이지당 30개 노드 수납 및 11mm 프린터 안전 여백), Chromium/Edge 자동 번역 팝업 3중 차단, 루트 원클릭 GitHub 동기화 배시 스크립트(sync-github.sh) 제공.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.4]</b> GitHub Actions 러너 Windows 환경 Go 컴파일러 경로 감지 로직 안정화, 클린 소스코드 전용 .gitignore 필터링 정비, A4 PDF 스마트 페이지네이션 분할 엔진 탑재.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.3]</b> 24/7 낯선 기기 무인 백그라운드 침입 감시(Intruder Watch) 및 데스크톱 알림/경보음 기능 탑재, 자가 서명 유틸리티 제공, 내보내기/리포트 드롭다운 메뉴 개선, 무인 설치(Silent) 및 방화벽 규칙 사전 조용 등록 지원, 안랩 V3 오탐지 대응 가이드 체계 구축, 모바일 패키지 자동 빌드 파이프라인 연동.</p>

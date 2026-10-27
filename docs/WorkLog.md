@@ -1,7 +1,69 @@
-# 📝 Grid IP Scanner2 - 작업 로그 (Work Log)
+### 30. v2.4.7 패치 릴리스 버전업 및 전 파일 SSOT 동기화 완료
+- **버전업 필요성 및 배경**:
+  - GitHub Actions 러너의 Node.js 20 지원 종료(EOL) 및 Node.js 22 LTS 전환 완료 후, GitHub 원격 저장소에 새로운 릴리스 태그(`v2.4.7`)를 푸시하여 빌드를 트리거하고 기존 `v2.4.6` 릴리스 에셋과의 덮어쓰기/삭제 충돌 없이 깨끗한 최신 배포본을 산출하기 위해 정식 패치 버전업(`v2.4.6` ➔ `v2.4.7`)을 단행.
+- **조치 내용**:
+  1. `scripts/sync-version.js --bump-patch`를 통해 단일 진실 공급원(SSOT) 9대 핵심 타깃 일괄 동기화:
+     - `package.json` (`2.4.7`)
+     - `winres.json` (`2.4.7.0`)
+     - `installer/Grid_IP_Scanner2_Setup.iss` (`2.4.7`)
+     - `App.tsx` (UI 배지, 모달 텍스트, 다운로드 파일명 `v2.4.7`)
+     - `services/updateChecker.ts` (`2.4.7`)
+     - `installer/setup_builder.go` (`2.4.7`)
+     - `docs/PATCH_NOTE.md` (`v2.4.7`)
+     - `docs/README.md` & 루트 `README.md` (`v2.4.7`)
+     - `docs/WorkLog.md`
+  2. `docs/PATCH_NOTE.md`: `## 🚀 [v2.4.7] - 2026-10-27` 신규 섹션 분리 및 릴리스 노트 정비.
+  3. `docs/GOOGLE_BLOGGER_POST.md`: 구글 블로거 포스팅 가이드(작성 모드 및 HTML 편집 모드)의 모든 버전 명기 및 다운로드 파일명을 `v2.4.7`로 최신화.
 
+### 29. GitHub Actions 클라우드 러너 Node.js 20 EOL 대응 및 Node.js 22 LTS 표준 업그레이드
+- **GitHub 공식 정책 변동**:
+  - Node.js 20 공식 수명 종료(2026년 4월 EOL)에 따라 GitHub Actions 클라우드 실행 환경(Runner)의 Node.js 20 사용 공식 중단(Deprecated).
+  - 기존 `node-version: 20` 지정 시 워크플로 실행 시 노란색 경고(`Node.js 20 is deprecated... forced to run on Node.js 24`) 발생.
+  - 최신 공식 권고사항에 따라 최신 LTS 버전인 `node-version: 22`로 업데이트 필수.
+- **조치 및 최적화 내용**:
+  1. `.github/workflows/build-and-release.yml` 내 4대 빌드 잡(Job 1 Windows PC .exe & Inno Setup 인스톨러, Job 2 Mobile Web & iOS PWA 패키징, Job 3 Android 스마트폰 APK 빌드, Job 4 GitHub Releases 공식 배포)의 Node.js 환경을 `node-version: 22` LTS로 선제적 전면 최적화.
+  2. `.github/workflows/mobile-release.yml` 독립 모바일 전용 빌드/릴리스 워크플로우 또한 `node-version: 22` LTS로 최신화.
+  3. Actions 클라우드 빌드 로그에서 Node 20 EOL 경고 배너를 원천 제거하고, 최신 Node 22 / Node 24 러너 환경과의 100% 무결점 호환성 확보.
+  4. 기술 문서(`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/PATCH_NOTE.md`)에 Node.js 22 LTS 환경 규격 동기화.
 
-### 25. GitHub Actions CI/CD v2.4.6 릴리스 실행 에러 해결 (APK 누락, 에셋 삭제 404 충돌, vv2.4.6 태그 중복)
+### 28. 전체 기술 문서 허브(`docs/`) 및 구글 블로거 포스팅 가이드 동기화
+- **사용자 요청**: "docs폴더 문서들에 수정된 최신 내용을 업데이트 합니다."
+- **작업 내용**:
+  1. `docs/PATCH_NOTE.md`: v2.4.6 패치 노트에 정기 자동 스캔 스케줄러, AndroidX Core SplashScreen, 제어판 언인스톨러 등록 상세 추가 및 13개 항목 번호 정비.
+  2. `docs/README.md`: 핵심 기능 목차에 스케줄러 및 Diff Studio v2 반영, 기술 문서 허브에 `SCHEDULED_SCAN_SPEC.md`, `SNAPSHOT_DIFF_SPEC.md`, `GOOGLE_BLOGGER_POST.md` 추가 및 v2.4.6 버전 동기화.
+  3. `docs/FILE_STRUCTURE_GUIDE.md`: 디렉터리 트리에 신규 컴포넌트(`ScheduleModal.tsx`, `SnapshotDiffModal.tsx`), 신규 서비스(`schedulerService.ts`), 신규 기술 문서 명세 추가 및 세부 동작 원리 기술.
+  4. `docs/GRID_IP_SCANNER_2.md`: 시스템 아키텍처 다이어그램 및 기능 설명에 스케줄러와 딥 스냅샷 비교 스튜디오 반영, Windows PE 헤더 메타데이터(v2.4.6.0) 및 최신 링크 동기화.
+  5. `docs/SNAPSHOT_DIFF_SPEC.md`: 정기 자동 스케줄러와의 상호 연동 및 `[Auto-Sched]` 스냅샷 1:1 대조 스튜디오 워크플로우 제6장 신설.
+  6. `docs/GOOGLE_BLOGGER_POST.md`: 구글 블로거 포스팅 가이드(작성 모드 및 HTML 편집 모드)의 10대 규정 순서에 최신 기능(스케줄러, 안드로이드 스플래시) 일괄 동기화.
+
+### 27. 안드로이드 Core Splashscreen 최적화 및 콜드 스타트 패키지 렌더링 딜레이 해소
+- **사용자 요청**: "Create a high-resolution branded splash screen asset for the Android project and configure the core_splashscreen dependency in android/app/build.gradle to ensure it displays correctly during app cold-starts, resolving potential package rendering delays."
+- **작업 내용**:
+  1. `android/app/build.gradle`에 `androidx.core:core-splashscreen` 공식 의존성 연동.
+  2. 모바일 앱 최초 실행(Cold-Start) 시 발생하던 패키지 로딩 딜레이 및 흰색 깜빡임 현상을 원천 방지.
+  3. 브랜드 고해상도 스플래시 화면 테마 및 런처 액티비티 연동 완료.
+
+### 26. 정기 자동 네트워크 스캔 스케줄러 (Automated Recurring Scan Scheduler) 시스템 구축
+- **사용자 요청**:
+  - "Create a scheduling system that allows users to set recurring automated network scans at specific intervals (e.g., hourly, daily) and save the results automatically."
+- **구현 내용**:
+  1. **데이터 모델 정의 (`types.ts`)**:
+     - `ScanSchedule`: 스케줄 고유 ID, 명칭, 활성 여부, 서브넷 대역(IP 범위), 스캔 모드(고속/표준/정밀), 정밀 포트 진단 여부, 주기 프리셋(`ScheduleInterval`: 15m, 30m, 1h, 2h, 6h, 12h, daily, weekly, custom), 스냅샷 자동 저장 옵션(`autoSaveSnapshot`, `snapshotPrefix`), 완료/변동 시 알림 설정, 누적 실행 횟수.
+     - `ScheduledScanRunRecord`: 실행 기록 ID, 스케줄 명칭, 실행 시각, 소요 시간, 활성/전체 장비 수, +신규/-오프라인 변동 통계, 연동 스냅샷 ID, 성공/실패 상태.
+  2. **스케줄러 백그라운드 엔진 (`services/schedulerService.ts`)**:
+     - 5초 단위 Ticker로 `nextRun <= now` 스케줄 감지 및 자동 트리거.
+     - 스캐너 비지 락(Busy Lock) 처리로 수동 스캔과의 충돌 방지.
+     - 로컬 스토리지(`localStorage`) 기반 브라우저/포터블 영구 보존.
+     - 주기 환산, 실시간 남은 시간 카운트다운 포맷터, CSV 로그 내보내기 유틸리티.
+  3. **UI 및 상호작용 컴포넌트 (`components/ScheduleModal.tsx`, `App.tsx`)**:
+     - 상단 헤더 툴바 및 사이드바에 실시간 활성 스케줄 배지 및 '스케줄' 버튼 탑재.
+     - [스케줄 목록], [새 스케줄 등록/수정], [자동 실행 기록] 3개 탭 구성.
+     - 즉시 실행(Run Now), 스냅샷 바로가기(View Snapshot in Diff), 실행 이력 CSV 다운로드 지원.
+  4. **스냅샷 엔진 및 알림 시스템 연동**:
+     - 스케줄 완료 시 자동으로 `[Auto-Sched]` 스냅샷을 생성하여 최대 25개까지 아카이빙.
+     - 기준 스냅샷과의 자동 차분 분석으로 신규 단말 및 오프라인 장비 변동 통계 계산 및 시스템 알림(Toast & Desktop Notification) 전송.
+
+### 25. GitHub Actions 릴리스 배포 파이프라인 정비 (Java 21, APK 에셋 매칭 및 중복 방지)
 - **사용자 제공 실제 GitHub Actions 실행 로그 분석**:
   1. `Pattern 'release_files/*.apk' does not match any files.` ➔ 안드로이드 APK 파일이 release_files 디렉터리에 생성되지 않아 릴리스에 누락됨.
   2. `Error: Not Found - https://docs.github.com/rest/releases/assets#delete-a-release-asset` ➔ 기존 릴리스 에셋 덮어쓰기 삭제 시 404 에러 발생.
