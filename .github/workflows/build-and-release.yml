@@ -129,8 +129,11 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK Environment & Accept Licenses
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || yes | sdkmanager --licenses 2>/dev/null || true
 
       - name: Setup Go 1.22
         uses: actions/setup-go@v5
@@ -161,7 +164,7 @@ jobs:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.6'}")
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.7'}")
           echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
           mkdir -p dist_android
           if [ -d "android" ]; then

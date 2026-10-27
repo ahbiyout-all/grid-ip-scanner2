@@ -18,7 +18,12 @@
        - `Grid_IP_Scanner2_v2.4.7_Mobile_PWA.zip` (모바일 웹/PWA 오프라인 패키지)
    - 9대 핵심 타깃 파일(`package.json`, `winres.json`, Inno Setup, `App.tsx`, `updateChecker.ts`, Go 빌더, 기술 문서군)의 버전 정보를 단일 파이프라인으로 일괄 동기화했습니다.
 
-3. **공식 기술 문서 및 가이드 최신화 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.md`)**
+3. **GitHub Actions Android APK 빌드 파이프라인 긴급 픽스 (`Warning: Failed to find package tools`, `sdkmanager exit code 1`)**
+   - **원인 분석**: `android-actions/setup-android@v3`가 구글 공식 SDK 저장소에서 영구 제거(Deprecated)된 레거시 패키지 `'tools'`를 설치하려고 시도하면서 최신 Node 24/cmdline-tools 16.0 러너 환경에서 비정상 종료(Exit code 1)되는 결함 발생.
+   - **해결 조치**: GitHub Actions `ubuntu-latest` 가상 머신에 이미 사전 탑재(Pre-installed)되어 있는 정식 Android SDK(`/usr/local/lib/android/sdk`) 환경을 직접 활용하도록 전환하고, 비호환 서드파티 액션 종속성을 제거한 뒤 비대화형 라이선스 자동 수락(`yes | sdkmanager --licenses || true`) 단계를 구성하여 오류 없이 즉시 APK 패키징 및 서명 빌드로 진행되도록 표준화했습니다.
+   - **빌드 메타데이터 동기화**: `android/app/build.gradle`의 `versionCode 247`, `versionName "2.4.7"` 일치 완료.
+
+4. **공식 기술 문서 및 가이드 최신화 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.md`)**
    - CI/CD 빌드 가이드에 Node.js 22 LTS, Java 21, Android SDK 35 환경 표준을 명시하고, 구글 블로거 포스팅 가이드의 10대 규정 순서에 v2.4.7 변경점과 다운로드 파일명을 일괄 갱신했습니다.
 
 ---

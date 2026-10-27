@@ -1,3 +1,14 @@
+### 31. GitHub Actions Android APK 빌드 `sdkmanager exit code 1` (tools 패키지 결함) 긴급 해결
+- **문제 발생 원인**:
+  - GitHub Actions `ubuntu-latest` 러너 환경에서 `android-actions/setup-android@v3` 액션이 구글 공식 SDK 저장소에서 영구 제거(Deprecated)된 레거시 패키지 `'tools'`를 설치하려고 시도 (`sdkmanager tools`).
+  - 러너의 최신 `cmdline-tools/16.0` 환경(Node.js 24 기반 러너)에서 `Warning: Failed to find package 'tools'`, `Error: The process '/usr/local/lib/android/sdk/cmdline-tools/16.0/bin/sdkmanager' failed with exit code 1` 오류를 발생시키며 APK 빌드 잡이 중단됨.
+- **해결 및 최적화 조치**:
+  1. GitHub Actions `ubuntu-latest` 가상 머신에는 이미 `/usr/local/lib/android/sdk`에 최신 Android SDK, `platform-tools`, `platforms;android-34/35`, `cmdline-tools`가 완벽하게 사전 설치(Pre-installed)되어 있음.
+  2. 불필요하고 비호환되는 서드파티 `android-actions/setup-android@v3` 종속성을 워크플로우에서 제거.
+  3. 대신 러너 자체의 네이티브 Android SDK 환경변수(`ANDROID_HOME`, `ANDROID_SDK_ROOT`)를 명시하고, 비대화형 라이선스 자동 수락(`yes | sdkmanager --licenses || true`) 단계를 구성하여 오류 없이 즉시 패키징 및 빌드로 진행되도록 표준화.
+  4. `.github/workflows/build-and-release.yml` 및 `.github/workflows/mobile-release.yml` 두 워크플로우 모두 동일하게 핫픽스 적용.
+  5. `android/app/build.gradle`의 `versionCode 247` 및 `versionName "2.4.7"` SSOT 동기화 완료.
+
 ### 30. v2.4.7 패치 릴리스 버전업 및 전 파일 SSOT 동기화 완료
 - **버전업 필요성 및 배경**:
   - GitHub Actions 러너의 Node.js 20 지원 종료(EOL) 및 Node.js 22 LTS 전환 완료 후, GitHub 원격 저장소에 새로운 릴리스 태그(`v2.4.7`)를 푸시하여 빌드를 트리거하고 기존 `v2.4.6` 릴리스 에셋과의 덮어쓰기/삭제 충돌 없이 깨끗한 최신 배포본을 산출하기 위해 정식 패치 버전업(`v2.4.6` ➔ `v2.4.7`)을 단행.

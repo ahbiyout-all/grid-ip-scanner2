@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
 const rootDir = path.resolve(__dirname, '..');
 const pkgPath = path.join(rootDir, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-const version = pkg.version || '2.4.6';
+const version = pkg.version || '2.4.7';
 
 console.log(`📦 Packaging Grid IP Scanner2 Portable Edition v${version}...`);
 

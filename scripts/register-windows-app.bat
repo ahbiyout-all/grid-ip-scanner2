@@ -108,8 +108,8 @@ for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value 2^>nul') do
 set "TODAY=%DATETIME:~0,8%"
 if "%TODAY%"=="" set "TODAY=20261025"
 
-reg add "%REG_KEY%" /v "DisplayName" /t REG_SZ /d "Grid IP Scanner2 v2.4.6" /f >nul
-reg add "%REG_KEY%" /v "DisplayVersion" /t REG_SZ /d "2.4.6" /f >nul
+reg add "%REG_KEY%" /v "DisplayName" /t REG_SZ /d "Grid IP Scanner2 v2.4.7" /f >nul
+reg add "%REG_KEY%" /v "DisplayVersion" /t REG_SZ /d "2.4.7" /f >nul
 reg add "%REG_KEY%" /v "Publisher" /t REG_SZ /d "AhBiYout" /f >nul
 reg add "%REG_KEY%" /v "DisplayIcon" /t REG_SZ /d "!ICON_PATH!" /f >nul
 reg add "%REG_KEY%" /v "InstallLocation" /t REG_SZ /d "!APP_DIR!" /f >nul
@@ -125,7 +125,7 @@ reg add "%REG_KEY%" /v "NoRepair" /t REG_DWORD /d 1 /f >nul
 
 :: 보조 레지스트리 등록
 reg add "HKLM\Software\Grid IP Scanner2" /v "InstallPath" /t REG_SZ /d "!APP_DIR!" /f >nul
-reg add "HKLM\Software\Grid IP Scanner2" /v "Version" /t REG_SZ /d "2.4.6" /f >nul
+reg add "HKLM\Software\Grid IP Scanner2" /v "Version" /t REG_SZ /d "2.4.7" /f >nul
 reg add "HKLM\Software\Grid IP Scanner2" /v "Publisher" /t REG_SZ /d "AhBiYout" /f >nul
 
 echo.

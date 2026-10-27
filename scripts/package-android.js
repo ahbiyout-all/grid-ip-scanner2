@@ -11,7 +11,7 @@ const { execSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
-const version = pkg.version || '2.4.6';
+const version = pkg.version || '2.4.7';
 const apkName = `Grid_IP_Scanner2_v${version}.apk`;
 const outApkPath = path.join(rootDir, apkName);
 

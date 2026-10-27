@@ -373,7 +373,7 @@ func main() {
 		// 1. 기본 이름 등록: "Grid IP Scanner2"
 		registerFirewallRule("Grid IP Scanner2", launchExe)
 
-		// 2. 버전 정보가 붙은 상태의 앱 이름 등록: "Grid IP Scanner2 v2.4.6"
+		// 2. 버전 정보가 붙은 상태의 앱 이름 등록: "Grid IP Scanner2 v2.4.7"
 		registerFirewallRule(fmt.Sprintf("%s v%s", AppName, AppVersion), launchExe)
 
 		// 3. 실행 파일명 자체 (Grid_IP_Scanner2.exe) 등록
