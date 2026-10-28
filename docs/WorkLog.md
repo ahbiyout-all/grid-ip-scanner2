@@ -1,3 +1,14 @@
+### 33. Android Gradle 플러그인(AGP) 8.9.1 업그레이드 및 모듈별 Java 21 호환성 전면 표준화 (`CheckAarMetadata` 완벽 해결)
+- **요청 사항**:
+  - `android/build.gradle`의 `com.android.tools.build:gradle` 클래스패스를 `8.9.1` 이상으로 업그레이드.
+  - 모든 모듈 수준 빌드 파일(`app`, `capacitor-cordova-android-plugins`)에서 요구되는 Java 호환성(Java 21) 설정을 일관되게 정렬하여 `CheckAarMetadata` 빌드 오류 원천 해결.
+- **적용 및 정합성 조치**:
+  1. `android/build.gradle`: `classpath 'com.android.tools.build:gradle:8.9.1'`로 업그레이드 완료.
+  2. `android/gradle/wrapper/gradle-wrapper.properties`: AGP 8.9.x 공식 요구사양인 Gradle 8.11.1(`gradle-8.11.1-all.zip`) 정합성 확인.
+  3. `android/capacitor-cordova-android-plugins/build.gradle`: 플러그인 모듈 빌드스크립트 AGP 버전을 `8.9.1`로 일치시키고 `compileOptions`를 `JavaVersion.VERSION_21`로 일관되게 표준화.
+  4. `android/app/build.gradle` & `android/app/capacitor.build.gradle`: `compileOptions`에 `JavaVersion.VERSION_21` 일관 적용 확인.
+  5. `android/variables.gradle` & `android/app/build.gradle`: 최신 AGP 8.9.1에 정식 호환되는 `androidxCoreVersion = '1.17.0'` 복원 및 `resolutionStrategy`를 `$androidxCoreVersion` 동적 참조로 연결하여 AAR 메타데이터 오류 원천 차단.
+
 ### 32. Android APK 빌드 `androidx.core:core:1.17.0` AGP 8.9.1 요구 결함 및 GitHub Actions 도구 마이그레이션 완료
 - **문제 발생 원인**:
   1. `CheckAarMetadataTask` 오류: `Dependency 'androidx.core:core:1.17.0' requires Android Gradle plugin 8.9.1 or higher. This build currently uses Android Gradle plugin 8.7.3.`
