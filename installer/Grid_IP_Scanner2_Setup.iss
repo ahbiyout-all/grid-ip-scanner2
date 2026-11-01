@@ -4,7 +4,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.17"
+#define MyAppVersion "2.4.20"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"

@@ -1979,7 +1979,19 @@ const App: React.FC = () => {
   };
 
   const startScan = async (scheduledTask?: ScanSchedule) => {
-    if (!goEngineAlive) return;
+    let engineReady = goEngineAlive;
+
+    if (!engineReady) {
+      try {
+        const pingRes = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout(3000) });
+        if (pingRes.ok) {
+          engineReady = true;
+          setGoEngineAlive(true);
+        }
+      } catch (_) {
+        // Retry probe
+      }
+    }
 
     const targetSubnet = scheduledTask ? scheduledTask.subnet : (config.subnet || '192.168.0');
     const targetStart = scheduledTask ? scheduledTask.start : config.start;
@@ -2834,15 +2846,16 @@ const App: React.FC = () => {
       style={{
         paddingTop: mobileNotchOffset > 0 
           ? `calc(env(safe-area-inset-top, 0px) + ${mobileNotchOffset}px)` 
-          : 'env(safe-area-inset-top, 0px)'
+          : 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
-      className={`h-screen flex flex-col md:flex-row ${t.bg} ${t.text} overflow-hidden font-sans transition-all duration-300`}
+      className={`h-screen h-[100dvh] w-full max-w-full flex flex-col md:flex-row ${t.bg} ${t.text} overflow-hidden font-sans transition-all duration-300`}
     >
       {/* Toast Message */}
       {toastMessage && (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-[200] animate-in fade-in slide-in-from-bottom-4 flex items-center gap-3">
+        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 md:left-auto md:right-4 bg-gray-800 text-white px-4 py-2.5 rounded-xl shadow-2xl z-[250] animate-in fade-in slide-in-from-bottom-4 flex items-center justify-between gap-3 border border-white/10">
           <span>{toastMessage}</span>
-          <button onClick={() => setToastMessage(null)} className="text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => setToastMessage(null)} className="text-gray-400 hover:text-white transition-colors shrink-0">
             <X size={16} />
           </button>
         </div>
@@ -2863,7 +2876,7 @@ const App: React.FC = () => {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         ${!isSidebarOpen && 'md:w-64'}
       `}>
-        <div className="p-3.5 flex flex-col h-full overflow-y-auto min-h-0">
+        <div className="p-3.5 pb-16 md:pb-3.5 flex flex-col h-full overflow-y-auto min-h-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3 w-full min-w-0">
               <div className="relative shrink-0 group">
@@ -3224,8 +3237,7 @@ const App: React.FC = () => {
                   startScan();
                 }
               }}
-              disabled={!goEngineAlive && !isScanning}
-              className={`w-full py-3 rounded-lg font-black text-[12px] transition-all uppercase tracking-tight shadow-xl disabled:opacity-30 ${
+              className={`w-full py-3 rounded-lg font-black text-[12px] transition-all uppercase tracking-tight shadow-xl ${
                 isScanning ? 'bg-rose-600 text-white' : 'bg-sky-600 hover:bg-sky-500 text-white'
               }`}
             >
@@ -4026,14 +4038,44 @@ const App: React.FC = () => {
             {/* Mobile Top Row: Menu Button, App Title & Primary Tools */}
             <div className="flex items-center justify-between px-2.5 py-2 gap-2 overflow-x-auto no-scrollbar">
               {/* Left Branding & Menu */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button 
                   onClick={() => setIsSidebarOpen(true)}
-                  className="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg shrink-0 text-sky-400 active:scale-95 transition-all flex items-center gap-1.5"
+                  className="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg shrink-0 text-sky-400 active:scale-95 transition-all flex items-center gap-1"
                   title="설정 및 스캔 제어 메뉴"
                 >
                   <Activity className="w-3.5 h-3.5 animate-pulse" />
                   <span className="text-[10px] font-black uppercase tracking-tight">설정</span>
+                </button>
+
+                {/* Mobile Quick Scan Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isScanning) {
+                      handleStopScan();
+                    } else {
+                      startScan();
+                    }
+                  }}
+                  className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 shrink-0 active:scale-95 transition-all shadow-sm ${
+                    isScanning 
+                      ? 'bg-rose-600 border-rose-500 text-white animate-pulse' 
+                      : 'bg-sky-600 hover:bg-sky-500 border-sky-400 text-white'
+                  }`}
+                  title={isScanning ? s.stopScan : s.startScan}
+                >
+                  {isScanning ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>중지</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
+                      <span>스캔</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -4513,11 +4555,11 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
+        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 pb-16 md:pb-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
           <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] w-full aspect-square relative z-10 my-auto transition-all ${
             viewMode === 'diff' 
-              ? 'max-w-[min(800px,calc(100vh-190px))]' 
-              : 'max-w-[min(800px,calc(100vh-120px))] md:max-w-[min(800px,calc(100vh-85px))]'
+              ? 'max-w-[min(800px,calc(100dvh-180px))]' 
+              : 'max-w-[min(800px,calc(100dvh-140px))] md:max-w-[min(800px,calc(100vh-85px))]'
           }`}>
             {filteredIps.map((ip, index) => {
               const res = results[ip];
@@ -4557,7 +4599,7 @@ const App: React.FC = () => {
 
        {selectedIp && (
         <aside className={`fixed md:relative inset-y-0 right-0 w-full ${profileTextScale === 'large' ? 'md:w-96 xl:w-[420px]' : 'md:w-88 xl:w-96'} shrink-0 border-l ${t.panel} flex flex-col z-[200] md:z-0 shadow-2xl transition-all duration-200`}>
-           <div className="p-4 sm:p-5 flex flex-col h-full space-y-5 overflow-y-auto no-scrollbar">
+           <div className="p-4 sm:p-5 pb-24 md:pb-5 flex flex-col h-full space-y-5 overflow-y-auto no-scrollbar">
             {/* Header: Title + Font Size Zoom Toggle (100% / 115%) + Close Button */}
             <div className="flex items-center justify-between pb-2 border-b border-current border-opacity-10 shrink-0">
               <div className="flex items-center gap-2">

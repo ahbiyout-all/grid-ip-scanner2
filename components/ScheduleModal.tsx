@@ -190,9 +190,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const activeCount = schedules.filter(s => s.enabled).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-sm animate-fade-in">
       <div 
-        className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-slate-900 border border-cyan-500/30 shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans"
+        className="w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl bg-slate-900 border border-cyan-500/30 shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -85,8 +85,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   }[theme];
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
+    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className={`w-full max-w-xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-4 sm:p-6 pb-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col`}>
         
         {/* Modal Header */}
         <div className="flex justify-between items-start pb-3 border-b border-white/10 shrink-0">
@@ -189,89 +189,102 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         {/* Action Cards for Mobile & Windows */}
         {hasUpdate && (
           <div className="space-y-2.5 shrink-0">
-            {/* 1. Mobile Android APK Action Card */}
-            <div className={`p-3.5 rounded-xl border transition-all ${
-              isAndroid || isMobile 
-                ? 'bg-emerald-500/15 border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-md shadow-emerald-500/10' 
-                : 'bg-emerald-500/10 border-emerald-500/20'
-            }`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 flex-wrap">
-                    <Smartphone className="w-4 h-4 text-emerald-400 animate-pulse" />
-                    <span>📱 Android 모바일 APK 전자동 설치 패키지</span>
-                    {(isAndroid || isMobile) && (
+            {/* 1. Mobile Android APK Action Card (Android/Mobile Priority) */}
+            {(isAndroid || isMobile) && (
+              <div className="p-3.5 rounded-xl border bg-emerald-500/15 border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-md shadow-emerald-500/10 transition-all">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 flex-wrap">
+                      <Smartphone className="w-4 h-4 text-emerald-400 animate-pulse" />
+                      <span>📱 Android 모바일 APK 전자동 설치 패키지</span>
                       <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 text-[8.5px] font-black uppercase">
-                        모바일 맞춤 추천
+                        모바일 권장
                       </span>
-                    )}
+                    </div>
+                    <div className="text-[10.5px] opacity-80 mt-0.5">
+                      공식 서명된 APK(`Grid_IP_Scanner2_v{latestVer}.apk`)를 터치하여 전자동 다운로드 및 즉시 업데이트를 진행합니다.
+                    </div>
                   </div>
-                  <div className="text-[10.5px] opacity-80 mt-0.5">
-                    공식 서명된 APK(`Grid_IP_Scanner2_v{latestVer}.apk`)를 터치하여 전자동 다운로드 및 원터치 패키지 업데이트를 진행합니다.
-                  </div>
-                </div>
 
-                <a
-                  href={fallbackApkUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Android APK 다운로드</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <a
+                    href={fallbackApkUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Android APK 다운로드</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Mobile Web / PWA Instant Sync Card (PWA Priority) */}
+            {isMobile && (
+              <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                      <Globe className="w-4 h-4 text-purple-400" />
+                      <span>⚡ 모바일 웹 / PWA 최신 버전 전자동 즉시 동기화</span>
+                    </div>
+                    <div className="text-[10.5px] opacity-80 mt-0.5">
+                      브라우저 및 PWA 스토리지 캐시를 원클릭 초기화하여 최신 웹 앱 번들을 즉시 동기화 적용합니다.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSyncPwaNow}
+                    className="px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-300" />
+                    <span>PWA 최신 버전 즉시 동기화</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Official Windows Installer Download Action Card (Desktop Only) */}
+            {!isMobile && (
+              <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                      <Package className="w-4 h-4 text-sky-400" />
+                      <span>💻 Windows 공식 인스톨러 (Setup.exe)</span>
+                    </div>
+                    <div className="text-[10.5px] opacity-80 mt-0.5">
+                      Windows PC용 설치 프로그램(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`) 내려받기.
+                    </div>
+                  </div>
+
+                  <a
+                    href={fallbackInstallerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
+                  >
+                    <span>Windows Setup.exe 다운로드</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Android APK for Desktop (Optional fallback) */}
+            {!isMobile && fallbackApkUrl && (
+              <div className="p-2.5 px-3.5 rounded-xl border border-white/5 bg-black/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Smartphone className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="text-[10px] font-bold text-zinc-300">Android APK 패키지도 제공됨</span>
+                </div>
+                <a href={fallbackApkUrl} target="_blank" rel="noreferrer" className="text-[10px] font-black text-sky-400 hover:underline">
+                  APK 다운로드
                 </a>
               </div>
-            </div>
-
-            {/* 2. Mobile Web / PWA Instant Sync Card */}
-            <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-purple-400" />
-                    <span>⚡ 모바일 웹 / PWA 최신 버전 전자동 즉시 동기화</span>
-                  </div>
-                  <div className="text-[10.5px] opacity-80 mt-0.5">
-                    브라우저 및 PWA 스토리지 캐시를 원클릭 초기화하여 최신 웹 앱 번들을 즉시 동기화 적용합니다.
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSyncPwaNow}
-                  className="px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
-                >
-                  <Zap className="w-3.5 h-3.5 text-amber-300" />
-                  <span>PWA 최신 버전 즉시 동기화</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. Official Windows Installer Download Action Card */}
-            <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-                    <Package className="w-4 h-4 text-sky-400" />
-                    <span>💻 Windows 공식 인스톨러 (Setup.exe)</span>
-                  </div>
-                  <div className="text-[10.5px] opacity-80 mt-0.5">
-                    Windows PC 인스톨러(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`) 내려받기.
-                  </div>
-                </div>
-
-                <a
-                  href={fallbackInstallerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3.5 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
-                >
-                  <span>Windows Setup.exe 다운로드</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
+            )}
           </div>
         )}
 

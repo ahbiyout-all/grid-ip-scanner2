@@ -230,9 +230,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const totalChanges = diffResult.summary.newCount + diffResult.summary.offlineCount + diffResult.summary.changedCount;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in duration-200">
       <div
-        className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border ${modalBg} ${borderCol} overflow-hidden`}
+        className={`w-full max-w-6xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${modalBg} ${borderCol} overflow-hidden`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}

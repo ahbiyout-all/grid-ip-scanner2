@@ -166,8 +166,8 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border ${
+    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className={`w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${
         theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37] border-[#d4be9c]' : 'bg-zinc-900 text-zinc-100 border-zinc-800'
       } overflow-hidden`}>
         {/* Header */}
