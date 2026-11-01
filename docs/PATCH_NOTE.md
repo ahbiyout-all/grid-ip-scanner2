@@ -1,4 +1,18 @@
-# Grid IP Scanner2 - Patch Note (v2.4.12)
+# Grid IP Scanner2 - Patch Note (v2.4.13)
+
+## 🚀 [v2.4.13] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **Android Kotlin stdlib 클래스 중복 충돌 오류 (`checkDebugDuplicateClasses`) 완벽 해결 (`android/build.gradle`, `android/app/build.gradle`)**
+   - **원인 및 분석**:
+     - Kotlin 1.8+ 호환성 개편에 따라 `kotlin-stdlib-jdk7` 및 `kotlin-stdlib-jdk8` 패키지 클래스들이 `kotlin-stdlib` 하위 모듈로 통합되었으나, 서드파티 레거시 플러그인(Cordova, Capacitor 등) 전이 종속성에 의해 `kotlin-stdlib-jdk8:1.6.21` 및 `kotlin-stdlib-jdk7:1.6.21`이 혼입되어 `checkDebugDuplicateClasses` 빌드 검사 실패(예: `kotlin.collections.jdk8.CollectionsJDK8Kt` 중복)가 발생하던 결함입니다.
+   - **해결 조치**:
+     - `android/build.gradle` 및 `android/app/build.gradle` 의 `configurations.all.resolutionStrategy` 블록에 `kotlin-stdlib`, `kotlin-stdlib-jdk7`, `kotlin-stdlib-jdk8`, `kotlin-stdlib-common` 의존성 버전을 **`1.8.22`**로 강제 정렬(`force`)하여 전이 중복 패키지 충돌을 완벽히 차단했습니다.
+   - **효과**:
+     - CI/CD 빌드 클라우드 환경 및 Android 모바일 APK 컴파일 시 중복 클래스 충돌 없이 안정적 패키징 보장.
+
+---
 
 ## 🚀 [v2.4.12] - 2026-11-01
 

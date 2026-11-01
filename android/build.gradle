@@ -30,6 +30,10 @@ allprojects {
         resolutionStrategy {
             force "androidx.core:core:$androidxCoreVersion"
             force "androidx.core:core-ktx:$androidxCoreVersion"
+            force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-common:1.8.22"
         }
     }
     tasks.whenTaskAdded { task ->

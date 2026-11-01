@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.12)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.13)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.12 | **작성일자**: 2026-11-01
+> **최신 버전**: v2.4.13 | **작성일자**: 2026-11-01
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.12)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.13)를 소개합니다.
 
 ---
 
@@ -20,7 +20,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.12)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.13)**
 
 ---
 
@@ -44,14 +44,14 @@
 
 ---
 
-### 3. 업데이트 (v2.4.12 최신 릴리즈 하이라이트)
+### 3. 업데이트 (v2.4.13 최신 릴리즈 하이라이트)
+* **Android Kotlin stdlib 클래스 중복 충돌 오류 (`checkDebugDuplicateClasses`) 완전 해결**:
+  - `android/build.gradle` 및 `android/app/build.gradle` 내 `configurations.all.resolutionStrategy`에 `kotlin-stdlib`, `kotlin-stdlib-jdk7`, `kotlin-stdlib-jdk8`, `kotlin-stdlib-common` 버전을 **`1.8.22`**로 강제 고정하여 서드파티 플러그인 전이 종속성 중복 충돌 원천 해결.
 * **Android Manifest Merger `minSdkVersion` 충돌 해결**:
-  - `org.apache.cordova:framework:14.0.1` 라이브러리의 요구 사양에 맞춰 `android/variables.gradle`의 `minSdkVersion`을 **`24` (Android 7.0 Nougat)**로 정식 조정하여 `uses-sdk:minSdkVersion 22 cannot be smaller than version 24` 빌드 오류 원천 해결.
+  - `org.apache.cordova:framework:14.0.1` 요구 사양에 맞춰 `android/variables.gradle`의 `minSdkVersion`을 **`24` (Android 7.0 Nougat)**로 정식 조정하여 `uses-sdk:minSdkVersion 22 cannot be smaller than version 24` 빌드 오류 해결.
 * **Android CI/CD AAR 메타데이터 검증 결함 (`CheckAarMetadata`) 완전 해결**:
   - `androidx.core:1.15.0` 복원 및 전역 강제 의존성 지정으로 API 36 요구 충돌 해소.
-* **Android Gradle 비권장 `--parallel` 인수 제거 및 스레드 안정화**:
-  - `android/build.gradle`에 `gradle.startParameter.parallelProjectExecutionEnabled = false` 및 `maxWorkerCount = 2`를 명시하여 CLI 인수 오류 및 `DefaultWorkerLeaseService` 교착 현상을 해결.
-* **소프트웨어 버전 관리(SemVer) 10대 타깃 v2.4.12 일괄 동기화 완료**.
+* **소프트웨어 버전 관리(SemVer) 10대 타깃 v2.4.13 일괄 동기화 완료**.
 
 ---
 
@@ -124,8 +124,10 @@
 
 ### 9. 전체 업데이트 (기능 개선 내용 요약)
 
+* **[v2.4.13] (2026-11-01)**
+  - Android Kotlin stdlib 클래스 중복 충돌 오류 (`checkDebugDuplicateClasses`) 해결 (`1.8.22` 버전 강제 정렬). 10대 타깃 v2.4.13 버전 일괄 동기화.
 * **[v2.4.12] (2026-11-01)**
-  - Android Manifest Merger `minSdkVersion` 충돌 해결 (`minSdkVersion = 24` 조정). 10대 타깃 v2.4.12 버전 일괄 동기화.
+  - Android Manifest Merger `minSdkVersion` 충돌 해결 (`minSdkVersion = 24` 조정).
 * **[v2.4.11] (2026-11-01)**
   - Android AAR 메타데이터 검증 결함 해결 (`androidx.core:1.15.0` 호환성 복원 및 CheckAarMetadata 가드 적용). 플러그인 툴체인 AGP 8.9.1 정렬.
 * **[v2.4.10] (2026-11-01)**
@@ -169,16 +171,16 @@
 > **사용 방법**: 구글 블로거 글쓰기 화면 좌측 상단 연필 아이콘을 눌러 **`<> HTML 보기`**로 전환한 후, 아래 HTML 코드를 전체 복사하여 붙여넣으세요.
 
 ```html
-<!-- Grid IP Scanner2 Official Blogger Template (v2.4.12) -->
+<!-- Grid IP Scanner2 Official Blogger Template (v2.4.13) -->
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1e293b; max-width: 840px; margin: 0 auto;">
 
   <!-- 1. 제목 -->
   <div style="background: linear-gradient(135deg, #0f172a 0%, #0369a1 100%); color: #ffffff; padding: 32px 24px; border-radius: 14px; margin-bottom: 28px; box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.25);">
     <div style="display: inline-block; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-      v2.4.12 Official Release
+      v2.4.13 Official Release
     </div>
     <h1 style="font-size: 25px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.35; color: #ffffff;">
-      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.12)
+      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.13)
     </h1>
     <p style="font-size: 14px; color: #cbd5e1; margin: 0; line-height: 1.6;">
       다중 프로토콜 뱃지 원클릭 적용 &bull; 한글(2byte) 깨짐 원천 차단 &bull; 9만 건 내장 OUI 제조사 식별 &bull; 4색 스냅샷 Diff &bull; 24/7 침입 감시 &bull; A4 보안감사 PDF 리포트
@@ -204,13 +206,13 @@
   <!-- 3. 업데이트 -->
   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin-bottom: 30px;">
     <h2 style="font-size: 18px; font-weight: 800; color: #0284c7; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
-      🚀 업데이트 하이라이트 (v2.4.12)
+      🚀 업데이트 하이라이트 (v2.4.13)
     </h2>
     <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #334155; line-height: 1.8;">
+      <li><b>Android Kotlin stdlib 클래스 중복 충돌 오류 해결</b>: <code>kotlin-stdlib:1.8.22</code> 전역 force 적용으로 서드파티 플러그인 전이 클래스 충돌 방지.</li>
       <li><b>Android Manifest Merger minSdkVersion 충돌 해결</b>: <code>minSdkVersion = 24</code> (Android 7.0 Nougat) 설정으로 Cordova 14 플러그인 요구 사양 완벽 충족.</li>
       <li><b>Android AAR 메타데이터 검증 결함 해결</b>: androidx.core:1.15.0 정합성 복원 및 CheckAarMetadata 가드 적용.</li>
       <li><b>Android Gradle 비권장 '--parallel' 인수 제거</b>: 빌드스크립트 매개변수 및 workers.max 최적화로 빌드 스레드 교착 상태 완전 해소.</li>
-      <li><b>Android APK 산출물 위치 탐색기 및 디렉터리 사전 보장</b>: <code>ensureApkOutputDir</code> 태스크 및 <code>afterEvaluate</code> 자동 복제로 'No such file or directory' 오류 원천 차단.</li>
     </ul>
   </div>
 

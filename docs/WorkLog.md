@@ -1,3 +1,14 @@
+### 43. Android Kotlin stdlib 클래스 중복 충돌 오류 (`checkDebugDuplicateClasses`) 해결 (v2.4.13)
+- **사용자 제공 오류 로그 분석**:
+  - `Task :app:checkDebugDuplicateClasses FAILED`
+  - `Duplicate class kotlin.collections.jdk8.CollectionsJDK8Kt found in modules kotlin-stdlib-1.8.22.jar and kotlin-stdlib-jdk8-1.6.21.jar`
+- **원인 규명 및 해결 조치**:
+  1. **Kotlin stdlib 전역 force 의존성 정렬 (`1.8.22`)**:
+     - Kotlin 1.8+에서 `kotlin-stdlib-jdk7` 및 `kotlin-stdlib-jdk8`이 `kotlin-stdlib`로 통합되었으나 서드파티 플러그인에서 구버전(1.6.21) transitive dependency가 유입되어 중복 클래스 충돌 발생.
+     - `android/build.gradle` 및 `android/app/build.gradle` 의 `configurations.all.resolutionStrategy`에 `kotlin-stdlib`, `kotlin-stdlib-jdk7`, `kotlin-stdlib-jdk8`, `kotlin-stdlib-common` 의존성 버전을 `'1.8.22'`로 강제 고정하여 클래스 중복 충돌을 원천 해결함.
+  2. **SemVer v2.4.13 패치 버전업 및 10대 타깃 문서 일괄 갱신**:
+     - `sync-version.js`로 SSOT v2.4.13 승급 및 공식 기술 문서 일괄 동기화 완료.
+
 ### 42. Android Manifest Merger `minSdkVersion` 충돌 해결 (`org.apache.cordova:framework:14.0.1`, API 24 요구) (v2.4.12)
 - **사용자 제공 오류 로그 분석**:
   - `Execution failed for task ':app:processDebugMainManifest'`

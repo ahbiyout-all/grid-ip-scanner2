@@ -1,4 +1,4 @@
-# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.4.12)
+# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.4.13)
 
 본 문서는 **Grid IP Scanner2** 프로젝트를 공식 깃허브(GitHub) 저장소에 등록하고, **클린 소스코드 전용 `.gitignore` 격리 규칙** 및 **GitHub Actions 클라우드 파이프라인**을 통해 소스코드 푸시 시 PC용 설치 파일과 모바일 APK를 전자동으로 생성·배포하는 운영 지침서입니다.
 

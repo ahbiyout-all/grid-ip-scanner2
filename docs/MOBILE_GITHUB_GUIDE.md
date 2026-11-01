@@ -11,17 +11,17 @@
 * **공식 저장소**: `https://github.com/AhBiYout-all/grid-ip-scanner2`
 * **빌드 런타임**: GitHub Actions 최신 권장 **Node.js 24**, Java 21 (Temurin), Android SDK 35
 * **배포 파일 목록 (Releases 탭)**:
-  1. **`Grid_IP_Scanner2_v2.4.12_Setup.exe`**: Windows 정식 인스톨러 (제어판 등록 지원)
-  2. **`Grid_IP_Scanner2_v2.4.12_Portable.exe`**: Windows 단일 무설치 포터블
-  3. **`Grid_IP_Scanner2_v2.4.12.apk`**: 안드로이드 스마트폰 설치 파일 (Native Go ARM64 엔진 내장)
-  4. **`Grid_IP_Scanner2_v2.4.12_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지
+  1. **`Grid_IP_Scanner2_v2.4.13_Setup.exe`**: Windows 정식 인스톨러 (제어판 등록 지원)
+  2. **`Grid_IP_Scanner2_v2.4.13_Portable.exe`**: Windows 단일 무설치 포터블
+  3. **`Grid_IP_Scanner2_v2.4.13.apk`**: 안드로이드 스마트폰 설치 파일 (Native Go ARM64 엔진 내장)
+  4. **`Grid_IP_Scanner2_v2.4.13_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지
 
 ---
 
 ## 🚀 배포 실행 방법
 
 ### 방법 1: 전체 통합 푸시 (PC + 모바일 동시 릴리스)
-로컬 PC에서 아래 명령어를 실행하면, 소스코드가 GitHub에 깔끔하게 커밋되고 `v2.4.12` 릴리스가 생성됩니다:
+로컬 PC에서 아래 명령어를 실행하면, 소스코드가 GitHub에 깔끔하게 커밋되고 `v2.4.13` 릴리스가 생성됩니다:
 ```cmd
 github-push.bat
 :: 또는 npm run git:push
