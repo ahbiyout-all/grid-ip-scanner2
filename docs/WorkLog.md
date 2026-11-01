@@ -1,3 +1,13 @@
+### 42. Android Manifest Merger `minSdkVersion` 충돌 해결 (`org.apache.cordova:framework:14.0.1`, API 24 요구) (v2.4.12)
+- **사용자 제공 오류 로그 분석**:
+  - `Execution failed for task ':app:processDebugMainManifest'`
+  - `Manifest merger failed : uses-sdk:minSdkVersion 22 cannot be smaller than version 24 declared in library [org.apache.cordova:framework:14.0.1]`
+- **원인 규명 및 해결 조치**:
+  1. **`minSdkVersion = 24` 정식 설정**:
+     - `org.apache.cordova:framework:14.0.1` 종속성이 요구하는 최소 SDK 레벨인 API 24(Android 7.0 Nougat)에 맞춰 `android/variables.gradle`의 `minSdkVersion`을 기존 22에서 **`24`**로 정식 조정.
+  2. **SemVer v2.4.12 패치 버전업 및 10대 타깃 문서 일괄 갱신**:
+     - `sync-version.js`로 SSOT v2.4.12 승급 및 공식 기술 문서 일괄 업데이트.
+
 ### 41. Android AAR 메타데이터 검증 실패(`CheckAarMetadataWorkAction`, API 36 요구) 해결 및 툴체인 안정화 (v2.4.11)
 - **사용자 제공 오류 로그 분석**:
   - `Execution failed for task ':app:checkDebugAarMetadata'` 및 `:app:checkReleaseAarMetadata`.

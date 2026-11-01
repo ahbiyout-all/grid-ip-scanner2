@@ -1,4 +1,16 @@
-# Grid IP Scanner2 - Patch Note (v2.4.11)
+# Grid IP Scanner2 - Patch Note (v2.4.12)
+
+## 🚀 [v2.4.12] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **Android Manifest Merger `minSdkVersion` 충돌 오류 해결 (`android/variables.gradle`)**
+   - **원인 및 해결**:
+     - `org.apache.cordova:framework:14.0.1` 라이브러리가 최소 API 레벨 24(Android 7.0 Nougat)를 요구하는 반면, 기존 `minSdkVersion`이 22(Android 5.1)로 설정되어 있어 발생하던 `uses-sdk:minSdkVersion 22 cannot be smaller than version 24 declared in library [org.apache.cordova:framework:14.0.1]` 빌드 실패를 해결하기 위해 `android/variables.gradle`의 `minSdkVersion`을 **`24`**로 정식 갱신했습니다.
+   - **효과**:
+     - Android 7.0 (Nougat, API 24) 이상 디바이스에 대한 최적화 및 Cordova 14 플러그인 100% 호환성 확보.
+
+---
 
 ## 🚀 [v2.4.11] - 2026-11-01
 

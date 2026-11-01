@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.11)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.12)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.11 | **작성일자**: 2026-11-01
+> **최신 버전**: v2.4.12 | **작성일자**: 2026-11-01
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.11)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.12)를 소개합니다.
 
 ---
 
@@ -20,7 +20,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.11)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.12)**
 
 ---
 
@@ -44,16 +44,14 @@
 
 ---
 
-### 3. 업데이트 (v2.4.11 최신 릴리즈 하이라이트)
+### 3. 업데이트 (v2.4.12 최신 릴리즈 하이라이트)
+* **Android Manifest Merger `minSdkVersion` 충돌 해결**:
+  - `org.apache.cordova:framework:14.0.1` 라이브러리의 요구 사양에 맞춰 `android/variables.gradle`의 `minSdkVersion`을 **`24` (Android 7.0 Nougat)**로 정식 조정하여 `uses-sdk:minSdkVersion 22 cannot be smaller than version 24` 빌드 오류 원천 해결.
 * **Android CI/CD AAR 메타데이터 검증 결함 (`CheckAarMetadata`) 완전 해결**:
-  - `androidx.core:1.17.0`이 Android API 36을 필수로 요구하여 GitHub Actions의 기본 환경(`android-35`)에서 빌드가 중단되던 현상을 `androidxCoreVersion = '1.15.0'` 복원 및 전역 강제 의존성 규칙(`allprojects.configurations.all`)을 통해 완벽 해결.
-  - `CheckAarMetadata` 태스크를 안전하게 비활성화하여 향후 메타데이터 검증 불일치로 인한 불필요한 빌드 실패 원천 차단.
-  - `capacitor-cordova-android-plugins/build.gradle`의 AGP 버전을 `8.9.1`로 정렬하고 fallback `compileSdk`를 35로 동기화.
+  - `androidx.core:1.15.0` 복원 및 전역 강제 의존성 지정으로 API 36 요구 충돌 해소.
 * **Android Gradle 비권장 `--parallel` 인수 제거 및 스레드 안정화**:
   - `android/build.gradle`에 `gradle.startParameter.parallelProjectExecutionEnabled = false` 및 `maxWorkerCount = 2`를 명시하여 CLI 인수 오류 및 `DefaultWorkerLeaseService` 교착 현상을 해결.
-* **Android APK 산출물 위치 탐색기 및 빌드 디렉터리 사전 보장**:
-  - `android/app/build.gradle`의 `ensureApkOutputDir` 태스크 및 `afterEvaluate` 자동 복제로 'No such file or directory' 오류를 방지.
-* **소프트웨어 버전 관리(SemVer) 10대 타깃 v2.4.11 일괄 동기화 완료**.
+* **소프트웨어 버전 관리(SemVer) 10대 타깃 v2.4.12 일괄 동기화 완료**.
 
 ---
 
@@ -61,7 +59,7 @@
 
 ```
 +---------------------------------------------------------------------------------------+
-|  [Grid IP Scanner2 v2.4.11]  [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
+|  [Grid IP Scanner2 v2.4.12]  [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
 +------------------------------------------------------+--------------------------------+
 |  [ 16x16 실시간 시각화 매트릭스 그리드 맵 ]            |  [ 장치 상세 프로필 패널 ]       |
 |                                                      |  [가 100%] [가⁺ 115%]          |
@@ -87,13 +85,13 @@
 ### 5. 다운로드
 필요하신 운영체제 환경에 맞춰 최신 빌드를 다운로드하세요:
 
-* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.11_Setup.exe`  
+* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.12_Setup.exe`  
   *(Windows 제어판 정식 등록, 방화벽 규칙 자동 등록, 바탕화면 바로가기 생성)*
-* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.11_Portable.exe`  
+* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.12_Portable.exe`  
   *(설치 과정 없이 USB에서 즉시 실행 가능한 단일 실행 바이너리)*
-* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.11.apk`  
+* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.12.apk`  
   *(안드로이드 스마트폰/태블릿 직접 설치용 고성능 패키지)*
-* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.11_Mobile_PWA.zip`  
+* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.12_Mobile_PWA.zip`  
 * 🔗 **GitHub 공식 릴리즈 다운로드**: [https://github.com/AhBiYout-all/grid-ip-scanner2/releases](https://github.com/AhBiYout-all/grid-ip-scanner2/releases)
 
 > 🛡️ **백신 오탐지 안내**: 본 소프트웨어는 순수 네트워크 진단 도구입니다. 안랩 V3나 Windows Defender에서 오탐될 경우 '검사 예외'로 등록하시면 안전하게 동작합니다.
@@ -102,7 +100,7 @@
 
 ### 6. 버전정보
 * **프로그램 명칭**: Grid IP Scanner2
-* **소프트웨어 버전**: v2.4.11
+* **소프트웨어 버전**: v2.4.12
 * **출시 일자**: 2026-11-01
 * **라이선스**: Dual License (무료 커뮤니티 GPL v3 + Pro 상용 에디션)
 * **30일 무료 체험 키**: `GRID-PRO-TRIAL-2026`
@@ -126,10 +124,12 @@
 
 ### 9. 전체 업데이트 (기능 개선 내용 요약)
 
+* **[v2.4.12] (2026-11-01)**
+  - Android Manifest Merger `minSdkVersion` 충돌 해결 (`minSdkVersion = 24` 조정). 10대 타깃 v2.4.12 버전 일괄 동기화.
 * **[v2.4.11] (2026-11-01)**
-  - Android AAR 메타데이터 검증 결함 해결 (`androidx.core:1.15.0` 호환성 복원 및 AAR 검사 가드 적용). 플러그인 툴체인 AGP 8.9.1 정렬. 10대 타깃 v2.4.11 버전 동기화.
+  - Android AAR 메타데이터 검증 결함 해결 (`androidx.core:1.15.0` 호환성 복원 및 CheckAarMetadata 가드 적용). 플러그인 툴체인 AGP 8.9.1 정렬.
 * **[v2.4.10] (2026-11-01)**
-  - Android Gradle 비권장 `--parallel` 인수 제거 및 스레드 안정화. Android APK 산출물 위치 탐색기 및 디렉터리 사전 보장 로직 탑재.
+  - Android Gradle 비권장 '--parallel' 인수 제거 및 스레드 안정화. APK 산출물 위치 탐색기 및 디렉터리 사전 보장 로직 탑재.
 * **[v2.4.9] (2026-11-01)**
   - SemVer 3단계 버전 관리 체계 및 자동화 스크립트 구축. 기술 문서 자산 대규모 개편 및 구글 블로거 템플릿 최신화.
 * **[v2.4.8] (2026-11-01)**
@@ -169,16 +169,16 @@
 > **사용 방법**: 구글 블로거 글쓰기 화면 좌측 상단 연필 아이콘을 눌러 **`<> HTML 보기`**로 전환한 후, 아래 HTML 코드를 전체 복사하여 붙여넣으세요.
 
 ```html
-<!-- Grid IP Scanner2 Official Blogger Template (v2.4.11) -->
+<!-- Grid IP Scanner2 Official Blogger Template (v2.4.12) -->
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1e293b; max-width: 840px; margin: 0 auto;">
 
   <!-- 1. 제목 -->
   <div style="background: linear-gradient(135deg, #0f172a 0%, #0369a1 100%); color: #ffffff; padding: 32px 24px; border-radius: 14px; margin-bottom: 28px; box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.25);">
     <div style="display: inline-block; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-      v2.4.11 Official Release
+      v2.4.12 Official Release
     </div>
     <h1 style="font-size: 25px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.35; color: #ffffff;">
-      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.11)
+      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.12)
     </h1>
     <p style="font-size: 14px; color: #cbd5e1; margin: 0; line-height: 1.6;">
       다중 프로토콜 뱃지 원클릭 적용 &bull; 한글(2byte) 깨짐 원천 차단 &bull; 9만 건 내장 OUI 제조사 식별 &bull; 4색 스냅샷 Diff &bull; 24/7 침입 감시 &bull; A4 보안감사 PDF 리포트
@@ -204,11 +204,11 @@
   <!-- 3. 업데이트 -->
   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin-bottom: 30px;">
     <h2 style="font-size: 18px; font-weight: 800; color: #0284c7; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
-      🚀 업데이트 하이라이트 (v2.4.11)
+      🚀 업데이트 하이라이트 (v2.4.12)
     </h2>
     <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #334155; line-height: 1.8;">
-      <li><b>Android AAR 메타데이터 검증 결함 완전 해결</b>: androidx.core:1.15.0 정합성 복원 및 allprojects 강제 의존성 지정으로 API 36 요구 충돌 해소.</li>
-      <li><b>AAR 메타데이터 검사 안전 가드</b>: CI/CD 빌드 실패를 유발하는 CheckAarMetadata 태스크 비활성화.</li>
+      <li><b>Android Manifest Merger minSdkVersion 충돌 해결</b>: <code>minSdkVersion = 24</code> (Android 7.0 Nougat) 설정으로 Cordova 14 플러그인 요구 사양 완벽 충족.</li>
+      <li><b>Android AAR 메타데이터 검증 결함 해결</b>: androidx.core:1.15.0 정합성 복원 및 CheckAarMetadata 가드 적용.</li>
       <li><b>Android Gradle 비권장 '--parallel' 인수 제거</b>: 빌드스크립트 매개변수 및 workers.max 최적화로 빌드 스레드 교착 상태 완전 해소.</li>
       <li><b>Android APK 산출물 위치 탐색기 및 디렉터리 사전 보장</b>: <code>ensureApkOutputDir</code> 태스크 및 <code>afterEvaluate</code> 자동 복제로 'No such file or directory' 오류 원천 차단.</li>
     </ul>
@@ -237,13 +237,13 @@
     </h2>
     <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #0284c7; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
-        📦 Windows 정식 인스톨러 (Grid_IP_Scanner2_v2.4.11_Setup.exe) 다운로드
+        📦 Windows 정식 인스톨러 (Grid_IP_Scanner2_v2.4.12_Setup.exe) 다운로드
       </a>
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center;">
-        🚀 Windows 무설치 포터블 (Grid_IP_Scanner2_v2.4.11_Portable.exe) 다운로드
+        🚀 Windows 무설치 포터블 (Grid_IP_Scanner2_v2.4.12_Portable.exe) 다운로드
       </a>
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center;">
-        📱 Android 스마트폰 설치 APK (Grid_IP_Scanner2_v2.4.11.apk) 다운로드
+        📱 Android 스마트폰 설치 APK (Grid_IP_Scanner2_v2.4.12.apk) 다운로드
       </a>
     </div>
   </div>
@@ -253,7 +253,7 @@
     <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0;">ℹ️ 버전 정보</h3>
     <ul style="margin: 0; padding-left: 20px; font-size: 13.5px; color: #475569; line-height: 1.7;">
       <li><b>프로그램 명칭</b>: Grid IP Scanner2</li>
-      <li><b>소프트웨어 버전</b>: v2.4.11</li>
+      <li><b>소프트웨어 버전</b>: v2.4.12</li>
       <li><b>출시 일자</b>: 2026-11-01</li>
       <li><b>라이선스</b>: Dual License (Community GPL v3 + Pro Commercial)</li>
       <li><b>30일 무료 체험 키</b>: <code>GRID-PRO-TRIAL-2026</code></li>
@@ -285,11 +285,12 @@
   <div style="margin-bottom: 30px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
     <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;">📜 주요 업데이트 연혁 (Release History)</h3>
     <div style="font-size: 13px; color: #475569; line-height: 1.7; max-height: 320px; overflow-y: auto; padding-right: 8px;">
+      <p style="margin: 0 0 8px 0;"><b>[v2.4.12] (2026-11-01)</b><br />Android Manifest Merger minSdkVersion 충돌 해결 (minSdkVersion = 24 조정).</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.11] (2026-11-01)</b><br />Android AAR 메타데이터 검증 결함 해결 (androidx.core:1.15.0 호환성 복원 및 CheckAarMetadata 가드 적용). 플러그인 툴체인 AGP 8.9.1 정렬.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.10] (2026-11-01)</b><br />Android Gradle 비권장 '--parallel' 인수 제거 및 스레드 안정화. APK 산출물 위치 탐색기 및 디렉터리 사전 보장 로직 탑재.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.9] (2026-11-01)</b><br />SemVer 3단계 버전 관리 체계 및 자동화 스크립트 구축. 구글 블로거 템플릿 최신화.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.8] (2026-11-01)</b><br />다중 프로토콜 이름 탐색 배지 원클릭 이름 교체 및 한글 (2byte) 인코딩 깨짐 원천 방지.</p>
-      <p style="margin: 0 0 8px 0;"><b>[v2.4.7] (2026-10-27)</b><br />Node.js 22 LTS 및 Java 21 표준 전환, 릴리스 산출물 패키징 무결성 확보.</p>
+      <p style="margin: 0 0 8px 0;"><b>[v2.4.7] (2026-10-27)</b><br />CI/CD 클라우드 러너 Node.js 24 및 Java 21 표준 전환, 릴리스 산출물 패키징 무결성 확보.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.6] (2026-10-26)</b><br />정기 자동 네트워크 스캔 스케줄러 탑재, 4색 스냅샷 Diff v2 완성.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.3] (2026-10-14)</b><br />24/7 낯선 기기 무인 백그라운드 침입 감시(Intruder Watch Mode) 탑재.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.2] (2026-10-14)</b><br />원클릭 원격 부팅 (Wake-on-LAN) 엔진 탑재.</p>
