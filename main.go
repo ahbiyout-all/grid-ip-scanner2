@@ -730,6 +730,36 @@ func getAllInterfaces() []InterfaceInfo {
 			})
 		}
 	}
+
+	if defaultIP != "" && defaultIP != "127.0.0.1" {
+		foundDefault := false
+		for i, res := range results {
+			if res.IP == defaultIP {
+				results[i].IsDefault = true
+				foundDefault = true
+				break
+			}
+		}
+		if !foundDefault {
+			parts := strings.Split(defaultIP, ".")
+			subnet := ""
+			if len(parts) == 4 {
+				subnet = strings.Join(parts[:3], ".")
+			}
+			results = append([]InterfaceInfo{{
+				Name:      "Wi-Fi 무선 어댑터 (wlan0)",
+				IP:        defaultIP,
+				Subnet:    subnet,
+				CIDR:      defaultIP + "/24",
+				Status:    "up",
+				Type:      "physical",
+				MTU:       1500,
+				Flags:     []string{"UP", "BROADCAST", "MULTICAST"},
+				IsDefault: true,
+			}}, results...)
+		}
+	}
+
 	return results
 }
 

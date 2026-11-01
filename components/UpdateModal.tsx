@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  X, RefreshCw, ExternalLink, CheckCircle2, Sparkles, ArrowRight
+  X, RefreshCw, ExternalLink, CheckCircle2, Sparkles, ArrowRight, Smartphone, Download, Globe, Zap, Package
 } from 'lucide-react';
 import { UpdateInfo, CURRENT_APP_VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME } from '../services/updateChecker';
 
@@ -25,6 +25,34 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
   const hasUpdate = updateInfo?.hasUpdate ?? false;
   const latestVer = updateInfo?.latestVersion || CURRENT_APP_VERSION;
+
+  const isAndroid = typeof navigator !== 'undefined' && (/android/i.test(navigator.userAgent) || (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform() === 'android'));
+  const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isMobile = isAndroid || isIOS || (typeof window !== 'undefined' && window.innerWidth < 768);
+
+  const fallbackApkUrl = updateInfo?.androidApkUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/download/v${latestVer}/Grid_IP_Scanner2_v${latestVer}.apk`;
+  const fallbackInstallerUrl = updateInfo?.installerExeUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/download/v${latestVer}/Grid_IP_Scanner2_v${latestVer}_Setup.exe`;
+
+  const handleSyncPwaNow = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      window.location.reload();
+    }
+  };
 
   const t = {
     dark: {
@@ -79,14 +107,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-base uppercase tracking-tight truncate">
-                  실시간 자동 업데이트 센터
+                  실시간 전자동 업데이트 센터
                 </h3>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
                   hasUpdate 
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                     : 'bg-white/10 text-zinc-300'
                 }`}>
-                  {hasUpdate ? `v${latestVer} 업데이트 발견` : '최신 버전 유지 중'}
+                  {hasUpdate ? `v${latestVer} 업데이트 감지` : '최신 버전 유지 중'}
                 </span>
               </div>
               <p className="text-[11px] opacity-70 truncate font-mono">
@@ -111,7 +139,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg text-zinc-300 transition-all"
+              className="p-2 hover:bg-white/10 rounded-lg text-zinc-300 transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -130,7 +158,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </div>
             <div>
               <div className="text-xs font-black uppercase tracking-wide">
-                {hasUpdate ? '새로운 정식 인스톨러 업데이트가 출시되었습니다!' : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.'}
+                {hasUpdate 
+                  ? (isMobile ? '📱 모바일 맞춤형 신규 업데이트 패키지가 출시되었습니다!' : '새로운 정식 인스톨러 업데이트가 출시되었습니다!')
+                  : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.'}
               </div>
               <div className="text-[11px] opacity-75 mt-0.5 flex items-center gap-2 font-mono">
                 <span>현재 버전: <b>v{CURRENT_APP_VERSION}</b></span>
@@ -151,33 +181,96 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             rel="noreferrer"
             className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all text-sky-400 hover:text-sky-300"
           >
-            <span>GitHub 릴리즈 페이지</span>
+            <span>GitHub 릴리즈</span>
             <ExternalLink className="w-3 h-3 opacity-70" />
           </a>
         </div>
 
-        {/* Official Installer Download Action Card */}
+        {/* Action Cards for Mobile & Windows */}
         {hasUpdate && (
-          <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-3 shrink-0">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-                  <span>📦 공식 Windows 설치 파일 (Official Setup Installer)</span>
+          <div className="space-y-2.5 shrink-0">
+            {/* 1. Mobile Android APK Action Card */}
+            <div className={`p-3.5 rounded-xl border transition-all ${
+              isAndroid || isMobile 
+                ? 'bg-emerald-500/15 border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-md shadow-emerald-500/10' 
+                : 'bg-emerald-500/10 border-emerald-500/20'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 flex-wrap">
+                    <Smartphone className="w-4 h-4 text-emerald-400 animate-pulse" />
+                    <span>📱 Android 모바일 APK 전자동 설치 패키지</span>
+                    {(isAndroid || isMobile) && (
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 text-[8.5px] font-black uppercase">
+                        모바일 맞춤 추천
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10.5px] opacity-80 mt-0.5">
+                    공식 서명된 APK(`Grid_IP_Scanner2_v{latestVer}.apk`)를 터치하여 전자동 다운로드 및 원터치 패키지 업데이트를 진행합니다.
+                  </div>
                 </div>
-                <div className="text-[11px] opacity-80 mt-0.5">
-                  릴리즈에 등록된 최신 인스톨러(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`)를 즉시 내려받아 설치할 수 있습니다.
-                </div>
-              </div>
 
-              <a
-                href={updateInfo?.installerExeUrl || updateInfo?.htmlUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
-              >
-                <span>인스톨러 바로 다운로드 (Setup.exe)</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+                <a
+                  href={fallbackApkUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Android APK 다운로드</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 2. Mobile Web / PWA Instant Sync Card */}
+            <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-purple-400" />
+                    <span>⚡ 모바일 웹 / PWA 최신 버전 전자동 즉시 동기화</span>
+                  </div>
+                  <div className="text-[10.5px] opacity-80 mt-0.5">
+                    브라우저 및 PWA 스토리지 캐시를 원클릭 초기화하여 최신 웹 앱 번들을 즉시 동기화 적용합니다.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncPwaNow}
+                  className="px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                  <span>PWA 최신 버전 즉시 동기화</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Official Windows Installer Download Action Card */}
+            <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-sky-400" />
+                    <span>💻 Windows 공식 인스톨러 (Setup.exe)</span>
+                  </div>
+                  <div className="text-[10.5px] opacity-80 mt-0.5">
+                    Windows PC 인스톨러(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`) 내려받기.
+                  </div>
+                </div>
+
+                <a
+                  href={fallbackInstallerUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
+                >
+                  <span>Windows Setup.exe 다운로드</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
             </div>
           </div>
         )}
@@ -217,3 +310,4 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     </div>
   );
 };
+

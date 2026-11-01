@@ -1854,6 +1854,61 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Dynamically synchronize Wi-Fi network interface IP in the interface filter list with localIpInfo
+  useEffect(() => {
+    if (!localIpInfo?.ip || localIpInfo.ip === '127.0.0.1') return;
+
+    setInterfaces(prevList => {
+      let hasMatchingIp = false;
+      let wifiIndex = -1;
+
+      const nextList: InterfaceInfo[] = prevList.map((iface, index) => {
+        const lowerName = (iface.name || '').toLowerCase();
+        const isWifi = lowerName.includes('wifi') || lowerName.includes('wi-fi') || lowerName.includes('wlan') || lowerName.includes('무선');
+
+        if (iface.ip === localIpInfo.ip) {
+          hasMatchingIp = true;
+          return { ...iface, isDefault: true, status: 'up' as const };
+        }
+        if (isWifi) {
+          wifiIndex = index;
+        }
+        return iface;
+      });
+
+      if (!hasMatchingIp) {
+        if (wifiIndex !== -1) {
+          // Update existing Wi-Fi interface item's IP to match real localIpInfo
+          nextList[wifiIndex] = {
+            ...nextList[wifiIndex],
+            ip: localIpInfo.ip,
+            subnet: localIpInfo.subnet,
+            cidr: `${localIpInfo.ip}/24`,
+            status: 'up' as const,
+            isDefault: true
+          };
+          return nextList;
+        } else {
+          // Prepend a Wi-Fi interface matching localIpInfo
+          const newWifiIface: InterfaceInfo = {
+            name: 'Wi-Fi 6 / 무선 어댑터 (wlan0)',
+            ip: localIpInfo.ip,
+            subnet: localIpInfo.subnet,
+            cidr: `${localIpInfo.ip}/24`,
+            status: 'up' as const,
+            type: 'physical' as const,
+            mtu: 1500,
+            flags: ['UP', 'BROADCAST', 'MULTICAST'],
+            isDefault: true
+          };
+          return [newWifiIface, ...nextList];
+        }
+      }
+
+      return nextList;
+    });
+  }, [localIpInfo]);
+
   // Background GitHub Releases Auto-Update Checker
   useEffect(() => {
     // Load Native DLL Modules status
@@ -1866,6 +1921,7 @@ const App: React.FC = () => {
           // If a new update is available on GitHub Releases, automatically open the update popup modal
           if (res.hasUpdate) {
             setShowUpdateModal(true);
+            showToast(lang === 'ko' ? `📱 신규 업데이트(v${res.updateInfo.latestVersion})가 발견되었습니다.` : `📱 New update (v${res.updateInfo.latestVersion}) detected.`);
           }
         }
       }).catch(() => {});
