@@ -13,7 +13,7 @@
      - `versionCode` (예: 249)와 `versionName` ("2.4.9")을 자동으로 계산하고 업데이트하도록 구현하여 안드로이드 빌드 버전 수동 관리 누락 원천 차단.
      - `docs/VERSIONING_POLICY.md`의 동기화 대상 목록을 10개로 갱신.
   3. **최종 정합성 검증**:
-     - 로컬 환경에서 `npm run version:sync` 및 `npm run build`를 통한 전체 산출물 정합성 확인 완료.
+     - Node.js 24 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
      - `GOOGLE_BLOGGER_POST.md` 템플릿의 전체 업데이트 이력 동기화 및 10단계 규정 준수 확인.
 
 ### 38. 소프트웨어 버전 관리(SemVer) 3단계 확립 및 공식 문서 자산(Blogger/GitHub) 대규모 개편 (v2.4.9)

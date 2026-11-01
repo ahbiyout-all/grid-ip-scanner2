@@ -11,7 +11,7 @@
 
 2. **GitHub Actions Android APK 빌드 파이프라인 정밀 핫픽스 및 안정화**
    - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 및 `--no-parallel` 옵션을 적용하여 메모리 잠금 및 스레딩 충돌을 방지했습니다.
-   - **워크플로우 현대화**: Node.js 22 LTS 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
+   - **워크플로우 현대화**: GitHub Actions의 Node.js 20 지원 종료(EOL)에 따라, 최신 런타임인 **Node.js 24** 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
 
 3. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**
    - **구글 블로거(Google Blogger) 전용 포스팅 가이드 신설**: `docs/GOOGLE_BLOGGER_POST.md`에 [서식 있는 텍스트] 및 [HTML 편집] 모드 대응 템플릿을 제작했습니다. 사용자 요청에 따른 10대 규정 순서(제목-본문-업데이트-앱 그림-다운로드-버전정보-시스템 요구 사항-제작자 안내-전체 업데이트-태그)를 엄격히 준수합니다.
