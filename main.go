@@ -734,9 +734,69 @@ func getAllInterfaces() []InterfaceInfo {
 }
 
 func getLocalIP() (string, string) {
+	// Pass 0: Try UDP route socket resolution (Works reliably on Android / Linux / Windows / macOS)
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err == nil {
+		defer conn.Close()
+		if localAddr, ok := conn.LocalAddr().(*net.UDPAddr); ok && localAddr.IP != nil {
+			if ip4 := localAddr.IP.To4(); ip4 != nil && !ip4.IsLoopback() && !ip4.IsLinkLocalUnicast() {
+				fullIP := ip4.String()
+				parts := strings.Split(fullIP, ".")
+				if len(parts) == 4 {
+					return fullIP, strings.Join(parts[:3], ".")
+				}
+			}
+		}
+	}
+
+	// Fallback UDP dial to local broadcast
+	conn2, err2 := net.Dial("udp", "255.255.255.255:80")
+	if err2 == nil {
+		defer conn2.Close()
+		if localAddr, ok := conn2.LocalAddr().(*net.UDPAddr); ok && localAddr.IP != nil {
+			if ip4 := localAddr.IP.To4(); ip4 != nil && !ip4.IsLoopback() && !ip4.IsLinkLocalUnicast() {
+				fullIP := ip4.String()
+				parts := strings.Split(fullIP, ".")
+				if len(parts) == 4 {
+					return fullIP, strings.Join(parts[:3], ".")
+				}
+			}
+		}
+	}
+
 	ifaces, err := net.Interfaces()
 	if err == nil {
-		// 1st pass: Look for an UP physical interface with an IPv4 address
+		// Pass 1: Specifically check active Wi-Fi interfaces (wlan, wifi, wl) and Ethernet (eth, en, lan)
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			lowerName := strings.ToLower(iface.Name)
+			isWifiOrEth := strings.Contains(lowerName, "wlan") || strings.Contains(lowerName, "wifi") ||
+				strings.Contains(lowerName, "wl") || strings.Contains(lowerName, "eth") ||
+				strings.Contains(lowerName, "en") || strings.Contains(lowerName, "lan") ||
+				strings.Contains(lowerName, "무선") || strings.Contains(lowerName, "이더넷")
+			
+			if isWifiOrEth {
+				addrs, err := iface.Addrs()
+				if err != nil {
+					continue
+				}
+				for _, addr := range addrs {
+					if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
+						if ip4 := ipnet.IP.To4(); ip4 != nil {
+							fullIP := ip4.String()
+							parts := strings.Split(fullIP, ".")
+							if len(parts) == 4 {
+								return fullIP, strings.Join(parts[:3], ".")
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Pass 2: Any physical non-virtual, non-cellular interface
 		for _, iface := range ifaces {
 			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 				continue
@@ -748,7 +808,8 @@ func getLocalIP() (string, string) {
 				strings.Contains(lowerName, "veth") || strings.Contains(lowerName, "vmnet") ||
 				strings.Contains(lowerName, "virtual") || strings.Contains(lowerName, "hyper-v") ||
 				strings.Contains(lowerName, "wsl") || strings.Contains(lowerName, "vbox") ||
-				strings.Contains(lowerName, "bridge") || strings.Contains(lowerName, "loopback")
+				strings.Contains(lowerName, "bridge") || strings.Contains(lowerName, "loopback") ||
+				strings.Contains(lowerName, "dummy") || strings.Contains(lowerName, "rmnet")
 			if isVirtualOrVpn {
 				continue
 			}
@@ -757,9 +818,9 @@ func getLocalIP() (string, string) {
 				continue
 			}
 			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-					if ipnet.IP.To4() != nil {
-						fullIP := ipnet.IP.String()
+				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
+					if ip4 := ipnet.IP.To4(); ip4 != nil {
+						fullIP := ip4.String()
 						parts := strings.Split(fullIP, ".")
 						if len(parts) == 4 {
 							return fullIP, strings.Join(parts[:3], ".")
@@ -770,12 +831,12 @@ func getLocalIP() (string, string) {
 		}
 	}
 
-	// 2nd pass: Any non-loopback interface with IPv4
+	// Pass 3: Fallback interface addrs
 	addrs, _ := net.InterfaceAddrs()
 	for _, address := range addrs {
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				fullIP := ipnet.IP.String()
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
+			if ip4 := ipnet.IP.To4(); ip4 != nil {
+				fullIP := ip4.String()
 				parts := strings.Split(fullIP, ".")
 				if len(parts) == 4 {
 					return fullIP, strings.Join(parts[:3], ".")

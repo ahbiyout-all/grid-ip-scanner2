@@ -1,3 +1,20 @@
+### 44. 모바일 Wi-Fi IP 주소 감지 오류 보정 및 전면 카메라 홀 / 노치 화면 여백 조절 기능 구현 (v2.4.14)
+- **사용자 요청 사항**:
+  1. "모바일장치에서 현재 wifi ip주소가 틀림."
+  2. "모바일장치 상단 전면 카메라 홀을 피해서 화면크기 조절 기능."
+- **원인 규명 및 해결 조치**:
+  1. **Go 커널 UDP 소켓 라우팅 기반 local IP 감지 보정 (`main.go`)**:
+     - Android / 모바일 Linux 환경에서 `net.Interfaces()` 조회 시 셀룰러 인터페이스(`rmnet_data0`)나 가상 어댑터(`dummy0`)가 우선 탐색되어 와이파이 IP 대신 모바일 데이터 IP가 잡히던 현상을 해결.
+     - `net.Dial("udp", "8.8.8.8:80")` 커널 소켓 라우팅 조회를 도입하여 OS 라우팅 테이블이 기본 게이트웨이와 통신 시 지정하는 와이파이 local IPv4 주소를 최우선 추출.
+     - `wlan`, `wifi`, `wl` 등 무선 인터페이스 이름을 우선 평가하는 multi-pass 보정 알고리즘 탑재.
+  2. **WebRTC 브라우저 단독 IP 감지 기능 탑재 (`services/nativeModulesService.ts`, `App.tsx`)**:
+     - 웹 / PWA / 모바일 웹 브라우저 가동 시에도 WebRTC ICE 패킷 조회를 통해 브라우저 단독으로 와이파이 IP 주소를 2초 내 식별 가능하도록 구현.
+  3. **모바일 전면 카메라 홀 / 노치 화면 상단 여백 조절 기능 구현 (`App.tsx`)**:
+     - 스마트폰 카메라 펀치홀 및 노치 컷아웃으로 인한 UI 가림 방지를 위해 `0px (기본)`, `16px (소형 홀)`, `28px (중형 노치)`, `40px (대형 노치)` 가변 여백 조절 기능 구현 (`localStorage` 연동).
+     - 모바일 상단 헤더 퀵 버튼 (`[Camera 0px]`) 및 좌측 설정 사이드바 제어 패널 추가.
+  4. **SemVer v2.4.14 패치 버전업 및 10대 타깃 문서 일괄 갱신**:
+     - `sync-version.js`로 SSOT v2.4.14 승급 및 공식 기술 문서 일괄 업데이트.
+
 ### 43. Android Kotlin stdlib 클래스 중복 충돌 오류 (`checkDebugDuplicateClasses`) 해결 (v2.4.13)
 - **사용자 제공 오류 로그 분석**:
   - `Task :app:checkDebugDuplicateClasses FAILED`

@@ -162,3 +162,48 @@ export async function fetchDeviceFingerprint(params: {
   }
   return null;
 }
+
+/**
+ * Resolves local Wi-Fi IP address in mobile/web browser using WebRTC candidate sniffing.
+ */
+export async function getClientLocalIP(): Promise<{ ip: string; subnet: string } | null> {
+  return new Promise((resolve) => {
+    try {
+      const rtc = new RTCPeerConnection({ iceServers: [] });
+      rtc.createDataChannel('wifi-detect');
+      rtc.createOffer()
+        .then((offer) => rtc.setLocalDescription(offer))
+        .catch(() => resolve(null));
+
+      let done = false;
+      const timer = setTimeout(() => {
+        if (!done) {
+          done = true;
+          try { rtc.close(); } catch (_) {}
+          resolve(null);
+        }
+      }, 2000);
+
+      rtc.onicecandidate = (event) => {
+        if (!event || !event.candidate || done) return;
+        const candidate = event.candidate.candidate;
+        // Match private IPv4 address formats: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
+        const ipv4Match = candidate.match(/\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/);
+        if (ipv4Match) {
+          const fullIP = ipv4Match[1];
+          const parts = fullIP.split('.');
+          if (parts.length === 4 && fullIP !== '127.0.0.1') {
+            done = true;
+            clearTimeout(timer);
+            try { rtc.close(); } catch (_) {}
+            const subnet = parts.slice(0, 3).join('.');
+            resolve({ ip: fullIP, subnet });
+          }
+        }
+      };
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
