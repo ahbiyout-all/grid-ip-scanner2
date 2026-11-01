@@ -204,6 +204,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     <div className="text-[10.5px] opacity-80 mt-0.5">
                       공식 서명된 APK(`Grid_IP_Scanner2_v{latestVer}.apk`)를 터치하여 전자동 다운로드 및 즉시 업데이트를 진행합니다.
                     </div>
+                    <div className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[9px] text-rose-300 leading-tight">
+                      ⚠️ <b>업데이트 실패(충돌) 시:</b> 기존 버전과 보안 서명이 일치하지 않아 발생할 수 있습니다. <b>기존 앱을 삭제하신 후</b> 다시 설치해 주세요.
+                    </div>
                   </div>
 
                   <a

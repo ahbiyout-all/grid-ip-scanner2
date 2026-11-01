@@ -23,7 +23,7 @@ var embeddedPayload []byte
 var embeddedIcon []byte
 
 const (
-	AppVersion = "2.4.20"
+	AppVersion = "2.4.21"
 	AppName    = "Grid IP Scanner2"
 )
 

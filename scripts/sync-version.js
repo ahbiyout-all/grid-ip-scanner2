@@ -180,9 +180,9 @@ const androidGradlePath = path.join(rootDir, 'android', 'app', 'build.gradle');
 if (fs.existsSync(androidGradlePath)) {
   let gradle = fs.readFileSync(androidGradlePath, 'utf8');
   const parts = targetVer.split('.').map(Number);
-  // Using a simple numeric version code: 2.4.9 -> 249
-  // This matches the existing pattern in the file (247 for 2.4.7)
-  const verCode = parts[0] * 100 + parts[1] * 10 + parts[2];
+  // Using a robust numeric version code: 2.4.20 -> 20420
+  // Formula: Major * 10000 + Minor * 100 + Patch
+  const verCode = parts[0] * 10000 + parts[1] * 100 + (parts[2] || 0);
   
   gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${verCode}`);
   gradle = gradle.replace(/versionName\s+"[^"]*"/, `versionName "${targetVer}"`);
