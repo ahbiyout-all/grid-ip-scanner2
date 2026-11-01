@@ -4023,28 +4023,30 @@ const App: React.FC = () => {
 
           {/* ================= MOBILE HEADER (< md) ================= */}
           <div className="flex md:hidden flex-col divide-y divide-white/5">
-            {/* Mobile Top Row: Menu Button, App Title & Quick Tools */}
-            <div className="flex items-center justify-between px-3 py-2 gap-2">
-              <div className="flex items-center gap-2 min-w-0">
+            {/* Mobile Top Row: Menu Button, App Title & Primary Tools */}
+            <div className="flex items-center justify-between px-2.5 py-2 gap-2 overflow-x-auto no-scrollbar">
+              {/* Left Branding & Menu */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button 
                   onClick={() => setIsSidebarOpen(true)}
-                  className="p-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg shrink-0 text-sky-400 active:scale-95 transition-all flex items-center gap-1.5"
+                  className="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg shrink-0 text-sky-400 active:scale-95 transition-all flex items-center gap-1.5"
                   title="설정 및 스캔 제어 메뉴"
                 >
-                  <Activity className="w-4 h-4 animate-pulse" />
+                  <Activity className="w-3.5 h-3.5 animate-pulse" />
                   <span className="text-[10px] font-black uppercase tracking-tight">설정</span>
                 </button>
-                <div className="flex items-center gap-1.5 truncate">
+
+                <div className="flex items-center gap-1.5 shrink-0">
                   <img 
                     src="./logo.png" 
                     alt="Grid IP" 
-                    className="w-7 h-7 rounded-lg object-cover shrink-0 shadow-sm border border-sky-500/40" 
+                    className="w-6 h-6 rounded-lg object-cover shrink-0 shadow-xs border border-sky-500/40" 
                   />
-                  <span className="font-black text-xs uppercase tracking-tight truncate">Grid IP</span>
+                  <span className="font-black text-xs uppercase tracking-tight">Grid IP</span>
                   {updateInfo?.hasUpdate && (
                     <button
                       onClick={() => setShowUpdateModal(true)}
-                      className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[8.5px] font-black uppercase flex items-center gap-1 animate-pulse"
+                      className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[8.5px] font-black uppercase flex items-center gap-1 animate-pulse"
                       title="새 버전 다운로드 가능"
                     >
                       <Sparkles className="w-2.5 h-2.5" />
@@ -4054,8 +4056,9 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Right Primary Tools (Camera Notch, Grid/Diff, Help) */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {/* Mobile Camera Hole / Notch Adjustment Quick Button */}
+                {/* Camera Notch Button */}
                 <button
                   type="button"
                   onClick={() => handleToggleNotchOffset()}
@@ -4066,12 +4069,12 @@ const App: React.FC = () => {
                   }`}
                   title={lang === 'ko' ? `상단 전면 카메라 홀 여백 조절 (현재: ${mobileNotchOffset}px)` : `Top Camera Notch Offset: ${mobileNotchOffset}px`}
                 >
-                  <Camera className="w-3 h-3 text-amber-400" />
+                  <Camera className="w-3 h-3 text-amber-400 shrink-0" />
                   <span className="font-mono font-bold">{mobileNotchOffset}px</span>
                 </button>
 
                 {/* View Mode (Grid vs Diff) */}
-                <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5">
+                <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5 shrink-0">
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`px-2 py-1 rounded text-[9.5px] font-black uppercase transition-all flex items-center gap-1 ${
@@ -4102,16 +4105,75 @@ const App: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Help Button */}
+                <button 
+                  onClick={() => setShowHelp(true)} 
+                  title={s.help} 
+                  className="p-1 rounded-lg bg-black/20 hover:bg-white/10 border border-white/5 text-zinc-300 shrink-0"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Bottom Row: Search Box, Sort, License, Theme, Language */}
+            <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 bg-black/10 overflow-x-auto no-scrollbar">
+              {/* Search Box */}
+              <div className={`flex-1 min-w-[120px] max-w-[160px] flex items-center ${theme === 'beige' ? 'bg-white border-[#dfceb0]' : 'bg-black/30 border-white/10'} rounded-lg border px-2 py-1 shrink-0`}>
+                <Search className={`w-3 h-3 ${t.textMuted} mr-1 shrink-0`} />
+                <input 
+                  type="text" 
+                  placeholder={s.searchPlaceholder} 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full bg-transparent border-none outline-none text-[10px] ${t.text} placeholder:opacity-40 truncate`}
+                />
+                {searchTerm && (
+                  <div className="flex items-center space-x-1 ml-1 shrink-0">
+                    <button 
+                      onClick={() => handleExportPdf('search')}
+                      disabled={isExportingPdf}
+                      className="flex items-center space-x-1 px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[8.5px] font-bold"
+                      title={`"${searchTerm}" 검색 결과 PDF 다운로드`}
+                    >
+                      <FileDown className="w-2.5 h-2.5 text-sky-400" />
+                      <span>PDF</span>
+                    </button>
+                    <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Secondary Controls Group */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Sort Select */}
+                <div className="relative group shrink-0">
+                  <select
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value as 'ip' | 'status' | 'name')}
+                    className={`appearance-none bg-black/20 border border-white/10 px-2 py-1 pr-4 rounded-lg text-[9.5px] font-black uppercase tracking-wider cursor-pointer outline-none ${t.text}`}
+                  >
+                    <option value="ip" className={t.bg}>{s.sortByIp}</option>
+                    <option value="status" className={t.bg}>{s.sortByStatus}</option>
+                    <option value="name" className={t.bg}>{s.sortByName}</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none opacity-50">
+                    <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+
                 {/* License Badge */}
                 <button
                   onClick={() => setShowLicenseModal(true)}
-                  className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[9.5px] font-black uppercase flex items-center gap-1"
+                  className="px-1.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase flex items-center gap-1 shrink-0"
                 >
-                  <Key className="w-3 h-3" />
+                  <Key className="w-2.5 h-2.5" />
                   <span>{license.tier.toUpperCase()}</span>
                 </button>
 
-                {/* Theme Selector Dropdown */}
+                {/* Theme Selector */}
                 <div className="relative group shrink-0">
                   <div className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all ${
                     theme === 'beige' 
@@ -4121,16 +4183,16 @@ const App: React.FC = () => {
                       : 'bg-slate-900 border-white/10 text-zinc-300'
                   }`}>
                     {theme === 'beige' ? (
-                      <Sun className="w-3 h-3 text-amber-600 shrink-0" />
+                      <Sun className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                     ) : theme === 'gray' ? (
-                      <Square className="w-3 h-3 text-zinc-300 shrink-0" />
+                      <Square className="w-2.5 h-2.5 text-zinc-300 shrink-0" />
                     ) : (
-                      <Moon className="w-3 h-3 text-sky-400 shrink-0" />
+                      <Moon className="w-2.5 h-2.5 text-sky-400 shrink-0" />
                     )}
                     <select
                       value={theme}
                       onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
-                      className="bg-transparent border-none outline-none text-[9px] font-black cursor-pointer appearance-none pr-2"
+                      className="bg-transparent border-none outline-none text-[9px] font-black cursor-pointer appearance-none pr-1"
                       title={lang === 'ko' ? '테마 선택' : 'Theme'}
                     >
                       <option value="dark" className={t.bg}>다크</option>
@@ -4140,77 +4202,21 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Help Button */}
-                <button 
-                  onClick={() => setShowHelp(true)} 
-                  title={s.help} 
-                  className="p-1.5 rounded-lg bg-black/20 hover:bg-white/10 border border-white/5 text-zinc-300"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Bottom Row: Search Bar (30% reduced), Sort Dropdown & Language */}
-            <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-black/10">
-              {/* Search Box (30% reduced width) */}
-              <div className={`w-36 flex items-center ${theme === 'beige' ? 'bg-white border-[#dfceb0]' : 'bg-black/30 border-white/10'} rounded-lg border px-2 py-1 shrink-0`}>
-                <Search className={`w-3.5 h-3.5 ${t.textMuted} mr-1.5 shrink-0`} />
-                <input 
-                  type="text" 
-                  placeholder={s.searchPlaceholder} 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full bg-transparent border-none outline-none text-xs ${t.text} placeholder:opacity-40 truncate`}
-                />
-                {searchTerm && (
-                  <div className="flex items-center space-x-1 ml-1 shrink-0">
-                    <button 
-                      onClick={() => handleExportPdf('search')}
-                      disabled={isExportingPdf}
-                      className="flex items-center space-x-1 px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[9px] font-bold"
-                      title={`"${searchTerm}" 검색 결과 PDF 다운로드`}
-                    >
-                      <FileDown className="w-2.5 h-2.5 text-sky-400" />
-                      <span>PDF</span>
-                    </button>
-                    <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Sort Select Dropdown */}
-              <div className="relative group shrink-0">
-                <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value as 'ip' | 'status' | 'name')}
-                  className={`appearance-none bg-black/20 border border-white/10 px-2.5 py-1 pr-5 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer outline-none ${t.text}`}
-                >
-                  <option value="ip" className={t.bg}>{s.sortByIp}</option>
-                  <option value="status" className={t.bg}>{s.sortByStatus}</option>
-                  <option value="name" className={t.bg}>{s.sortByName}</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none opacity-50">
-                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                {/* KO / EN Toggle */}
+                <div className="flex bg-black/20 rounded-lg p-0.5 border border-white/10 shrink-0">
+                  <button 
+                    onClick={() => setLang('ko')} 
+                    className={`px-1.5 py-0.5 text-[8.5px] font-black rounded ${lang === 'ko' ? 'bg-sky-500 text-white' : 'opacity-60'}`}
+                  >
+                    KO
+                  </button>
+                  <button 
+                    onClick={() => setLang('en')} 
+                    className={`px-1.5 py-0.5 text-[8.5px] font-black rounded ${lang === 'en' ? 'bg-sky-500 text-white' : 'opacity-60'}`}
+                  >
+                    EN
+                  </button>
                 </div>
-              </div>
-
-              {/* KO / EN Toggle */}
-              <div className="flex bg-black/20 rounded-lg p-0.5 border border-white/10 shrink-0">
-                <button 
-                  onClick={() => setLang('ko')} 
-                  className={`px-1.5 py-0.5 text-[9px] font-black rounded ${lang === 'ko' ? 'bg-sky-500 text-white' : 'opacity-60'}`}
-                >
-                  KO
-                </button>
-                <button 
-                  onClick={() => setLang('en')} 
-                  className={`px-1.5 py-0.5 text-[9px] font-black rounded ${lang === 'en' ? 'bg-sky-500 text-white' : 'opacity-60'}`}
-                >
-                  EN
-                </button>
               </div>
             </div>
           </div>
