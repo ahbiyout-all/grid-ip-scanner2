@@ -12,7 +12,7 @@
 **`grid_vault_driver.dll`**은 **Grid IP Scanner2**에서 관리자가 지정한 **장치별 고유 별칭(Aliases), 관리자 메모(Notes), 서브넷 스냅샷 데이터(Network Snapshots), 취약점 진단 이력**을 안전하고 신속하게 보호하기 위해 독자 설계된 **순수 창작 C/C++ 네이티브 암호화 동적 링크 라이브러리(Dynamic Link Library)**입니다.
 
 ### 🎯 핵심 해결 과제
-1. **평문 노출 방지 (Anti-Plaintext Exposure)**: 브라우저 `localStorage` 및 로컬 백엔드 JSON 파일(`%USERPROFILE%\.cisnet_grid\`)에 저장되는 자산 정보와 네트워크 토폴로지가 평문으로 저장되어 악성코드나 인가되지 않은 로컬 사용자에 의해 열람되는 위험을 원천 차단.
+1. **평문 노출 방지 (Anti-Plaintext Exposure)**: 브라우저 `localStorage` 및 로컬 백엔드 JSON 파일(`%USERPROFILE%\.grid_ip_scanner\`)에 저장되는 자산 정보와 네트워크 토폴로지가 평문으로 저장되어 악성코드나 인가되지 않은 로컬 사용자에 의해 열람되는 위험을 원천 차단.
 2. **서브 밀리초 초고속 처리 (Sub-Millisecond Zero-Overhead)**: 254개 이상의 장치 메타데이터와 대용량 스냅샷 JSON 직렬화 데이터를 0.5ms 이내로 암/복호화하여 UI 렌더링 딜레이(Stutter) 0% 달성.
 3. **무입력 머신 결합 보호 (Zero-Friction Machine Binding)**: 사용자가 매번 번거롭게 비밀번호를 입력하지 않아도 Windows 운영체제의 **DPAPI (Data Protection API)** 커널 계층과 결합하여 현재 로그인된 관리자 계정 및 하드웨어 TPM에 데이터를 바인딩.
 4. **메모리 덤프 방지 (Anti-Forensics Memory Sanitization)**: 복호화된 민감 데이터와 세션 키가 메모리에 잔류하지 않도록 `RtlSecureZeroMemory`를 통한 즉각 소멸 처리.

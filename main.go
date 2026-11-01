@@ -32,17 +32,19 @@ var defaultPort = "3031"
 var ouiData string
 
 type ScanResult struct {
-	IP        string `json:"ip"`
-	Alive     bool   `json:"alive"`
-	Latency   int    `json:"latency"`
-	MAC       string `json:"mac"`
-	Vendor    string `json:"vendor"`
-	Hostname  string `json:"hostname"`
-	WebTitle  string `json:"webTitle"`
-	OpenPorts []int  `json:"openPorts"`
-	MDNS      string `json:"mdns"`
-	UPnP      string `json:"upnp"`
-	SNMP      string `json:"snmp"`
+	IP              string            `json:"ip"`
+	Alive           bool              `json:"alive"`
+	Latency         int               `json:"latency"`
+	MAC             string            `json:"mac"`
+	Vendor          string            `json:"vendor"`
+	Hostname        string            `json:"hostname"`
+	WebTitle        string            `json:"webTitle"`
+	OpenPorts       []int             `json:"openPorts"`
+	MDNS            string            `json:"mdns"`
+	UPnP            string            `json:"upnp"`
+	SNMP            string            `json:"snmp"`
+	NameSource      string            `json:"nameSource,omitempty"`
+	HostnameSources map[string]string `json:"hostnameSources,omitempty"`
 }
 
 type InterfaceInfo struct {
@@ -86,6 +88,11 @@ func (p *MapOUIProvider) Lookup(mac string) string {
 	if mac == "" || mac == "Unknown" {
 		return "Unknown"
 	}
+	// 0. Try Native Radix-Trie In-Memory Engine (<1µs)
+	if nativeVendor, ok := tryNativeOuiTrieLookup(mac); ok && nativeVendor != "" {
+		return nativeVendor
+	}
+
 	cleanMac := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(mac, ":", ""), "-", ""))
 	
 	// Support IEEE standard assignment lengths:
@@ -126,7 +133,7 @@ func getOUICachePath() string {
 	if err != nil {
 		return "master_oui.txt"
 	}
-	configDir := filepath.Join(homeDir, ".cisnet_grid")
+	configDir := filepath.Join(homeDir, ".grid_ip_scanner")
 	os.MkdirAll(configDir, 0755)
 	return filepath.Join(configDir, "master_oui.txt")
 }
@@ -270,14 +277,14 @@ func openAppWindow(url string) {
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
 		if localAppData != "" {
-			profileDir = filepath.Join(localAppData, "CisnetGridScan", "EdgeProfile")
+			profileDir = filepath.Join(localAppData, "GridScanner2App", "EdgeProfile")
 			_ = os.MkdirAll(profileDir, 0755)
 		}
 	}
 
 	if profileDir == "" {
 		var err error
-		tempDir, err = os.MkdirTemp("", "cisnet_grid_scan_*")
+		tempDir, err = os.MkdirTemp("", "grid_scanner_*")
 		if err != nil {
 			fmt.Printf("Failed to create temp dir: %v\n", err)
 			tempDir = ""
@@ -478,7 +485,7 @@ func runEmergencyScanAndReport(port string) {
 	}
 
 	report.WriteString("\n" + strings.Repeat("=", 95) + "\n")
-	report.WriteString(" * Grid IP Scanner2 (v2.2) Powered by Cisnet & AhBiYout (www.cisnet.co.kr)\n")
+	report.WriteString(" * Grid IP Scanner2 Powered by AhBiYout\n")
 	report.WriteString("================================================================================\n")
 
 	// 바탕화면 또는 작업 디렉토리에 파일 저장
@@ -516,7 +523,7 @@ func cleanupAndExit() {
 		fmt.Printf("Cleaning up temp directory: %s\n", tempDir)
 		os.RemoveAll(tempDir)
 	}
-	fmt.Println("Cisnet Grid Engine Exiting...")
+	fmt.Println("Grid IP Scanner2 Engine Exiting...")
 	os.Exit(0)
 }
 
@@ -780,6 +787,14 @@ func getLocalIP() (string, string) {
 }
 
 func isAlivePingWithTimeout(ctx context.Context, ip string, timeoutMs int) bool {
+	// 0. Try Native Probe Engine Fast Ping (0.1ms kernel IcmpSendEcho)
+	if _, ok := tryNativeProbeFastPing(ip, timeoutMs); ok {
+		return true
+	}
+	if lat, ok := tryNativeFastPing(ip, timeoutMs); ok && lat >= 0 {
+		return true
+	}
+
 	var cmd *exec.Cmd
 	timeoutStr := fmt.Sprintf("%d", timeoutMs)
 	
@@ -838,9 +853,14 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 
 	if alive {
 		mac := getMacFromArp(ctx, ip)
-		hostname := getHostname(ctx, ip)
 		localIP, _ := getLocalIP()
 		
+		// Run Multi-protocol parallel device name resolution
+		nameRes := ResolveDeviceNamesParallel(ctx, ip, []int{445, 137, 80}, timeoutMs)
+		hostname := nameRes.BestName
+		nameSource := nameRes.PrimarySource
+		hostnameSources := nameRes.HostnameSources
+
 		// SUSPICIOUS NODE FILTER:
 		// If it has NO MAC AND NO Hostname, and it's not the scanning machine, 
 		// it's almost certainly a ghost response or a non-LAN node responding via gateway proxy.
@@ -852,37 +872,25 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 		vendor := currentOUIProvider.Lookup(mac)
 		ouiMutex.RUnlock()
 		
-		mdnsName := ""
-		upnpName := ""
-		snmpName := ""
-		
-		var extraWg sync.WaitGroup
-		extraWg.Add(3)
-		go func() {
-			defer extraWg.Done()
-			mdnsName = checkMDNSWithTimeout(ctx, ip, timeoutMs)
-		}()
-		go func() {
-			defer extraWg.Done()
-			upnpName = checkUPnPWithTimeout(ctx, ip, timeoutMs)
-		}()
-		go func() {
-			defer extraWg.Done()
-			snmpName = checkSNMPWithTimeout(ctx, ip, timeoutMs)
-		}()
-		extraWg.Wait()
+		mdnsName := hostnameSources[NameSourceMDNS]
+		upnpName := hostnameSources[NameSourceUPnP]
+		snmpName := hostnameSources[NameSourceSNMP]
+		webTitle := hostnameSources[NameSourceWeb]
 		
 		return ScanResult{
-			IP:        ip,
-			Alive:     true,
-			Latency:   int(time.Since(start).Milliseconds()),
-			MAC:       mac,
-			Vendor:    vendor,
-			Hostname:  hostname,
-			OpenPorts: []int{},
-			MDNS:      mdnsName,
-			UPnP:      upnpName,
-			SNMP:      snmpName,
+			IP:              ip,
+			Alive:           true,
+			Latency:         int(time.Since(start).Milliseconds()),
+			MAC:             mac,
+			Vendor:          vendor,
+			Hostname:        hostname,
+			WebTitle:        webTitle,
+			OpenPorts:       []int{},
+			MDNS:            mdnsName,
+			UPnP:            upnpName,
+			SNMP:            snmpName,
+			NameSource:      nameSource,
+			HostnameSources: hostnameSources,
 		}
 	}
 	return ScanResult{IP: ip, Alive: false}
@@ -909,12 +917,15 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 		}
 	}
 
-	// 3. TCP Port Scan - Using concurrent FastTCPVerify engine
+	// 3. TCP Port Scan - Using Native IOCP Engine with concurrent FastTCPVerify fallback
 	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 5000, 8080, 1900, 5353, 5355, 8000, 8443}
-	aliveViaPort, openPorts = GlobalEngine.FastTCPVerify(ctx, ip, timeoutMs, targetPorts)
+	if iocpPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, timeoutMs, 16); ok {
+		openPorts = iocpPorts
+		aliveViaPort = len(openPorts) > 0
+	} else {
+		aliveViaPort, openPorts = GlobalEngine.FastTCPVerify(ctx, ip, timeoutMs, targetPorts)
+	}
 	
-	// Wait logic is handled by the engine
-
 	// Check if context was cancelled
 	select {
 	case <-ctx.Done():
@@ -926,79 +937,79 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 	
 	if alive {
 		mac := getMacFromArp(ctx, ip)
-		hostname := getHostname(ctx, ip)
 		localIP, _ := getLocalIP()
 		
 		ouiMutex.RLock()
 		vendor := currentOUIProvider.Lookup(mac)
 		ouiMutex.RUnlock()
 		
-		webTitle := ""
-		mdnsName := ""
-		upnpName := ""
-		snmpName := ""
-		
-		var extraWg sync.WaitGroup
-		
-		hasWebPort := false
-		for _, p := range openPorts {
-			if p == 80 || p == 443 || p == 8080 || p == 5000 {
-				hasWebPort = true
-				break
+		// Run Multi-protocol parallel device name resolution (SMB, NetBIOS, mDNS, WSD, UPnP, SNMP, DNS, Web)
+		nameRes := ResolveDeviceNamesParallel(ctx, ip, openPorts, timeoutMs)
+		hostname := nameRes.BestName
+		nameSource := nameRes.PrimarySource
+		hostnameSources := nameRes.HostnameSources
+
+		// Native Discovery (mDNS, SSDP, LLMNR, NetBIOS) from proprietary DLL if loaded
+		if disc, ok := tryNativeDiscoveryProbe(ip, timeoutMs); ok && disc != nil {
+			if disc.Hostname != "" {
+				if hostname == "" {
+					hostname = disc.Hostname
+					nameSource = NameSourceNetBIOS
+				}
+				if _, ok := hostnameSources[NameSourceNetBIOS]; !ok {
+					hostnameSources[NameSourceNetBIOS] = disc.Hostname
+				}
+			}
+			if disc.ModelName != "" {
+				if _, ok := hostnameSources[NameSourceMDNS]; !ok {
+					hostnameSources[NameSourceMDNS] = disc.ModelName
+				}
+			}
+			if disc.ServiceType != "" {
+				if _, ok := hostnameSources[NameSourceUPnP]; !ok {
+					hostnameSources[NameSourceUPnP] = disc.ServiceType
+				}
 			}
 		}
 
-		if hasWebPort {
-			extraWg.Add(1)
-			go func() {
-				defer extraWg.Done()
-				webTitle = getWebTitleWithTimeout(ctx, ip, timeoutMs)
-			}()
+		// Try deep banner grabber if available
+		webTitle := hostnameSources[NameSourceWeb]
+		if banner, ok := tryNativeDeepBannerGrab(ip, 80, timeoutMs); ok && banner != nil && banner.HtmlTitle != "" {
+			webTitle = banner.HtmlTitle
+			hostnameSources[NameSourceWeb] = banner.HtmlTitle
+			if hostname == "" {
+				hostname = webTitle
+				nameSource = NameSourceWeb
+			}
 		}
 
-		extraWg.Add(3)
-		go func() {
-			defer extraWg.Done()
-			mdnsName = checkMDNSWithTimeout(ctx, ip, timeoutMs)
-		}()
-		go func() {
-			defer extraWg.Done()
-			upnpName = checkUPnPWithTimeout(ctx, ip, timeoutMs)
-		}()
-		go func() {
-			defer extraWg.Done()
-			snmpName = checkSNMPWithTimeout(ctx, ip, timeoutMs)
-		}()
-
-		extraWg.Wait()
+		mdnsName := hostnameSources[NameSourceMDNS]
+		upnpName := hostnameSources[NameSourceUPnP]
+		snmpName := hostnameSources[NameSourceSNMP]
 
 		// SUSPICIOUS NODE FILTER:
 		// If it's not the local machine, and we have NO MAC address, NO Hostname, NO Web Title, 
 		// NO mDNS, NO UPnP, and NO SNMP... it's a "Zero Data Node". 
-		// Most "Hidden Nodes" are these zero-data nodes caused by lying firewalls or network probes.
 		if ip != localIP && mac == "" && hostname == "" && webTitle == "" && mdnsName == "" && upnpName == "" && snmpName == "" {
-			// Extra check: if it has many ports open but No MAC, it's definitely a Honeypot or Firewall artifact.
-			if len(openPorts) > 5 {
-				return ScanResult{IP: ip, Alive: false}
-			}
-			// Otherwise, if it has 0 ports and 0 data, it's definitely a ghost.
-			if len(openPorts) == 0 {
+			if len(openPorts) > 5 || len(openPorts) == 0 {
 				return ScanResult{IP: ip, Alive: false}
 			}
 		}
 
 		return ScanResult{
-			IP:        ip,
-			Alive:     true,
-			Latency:   int(time.Since(start).Milliseconds()),
-			MAC:       mac,
-			Vendor:    vendor,
-			Hostname:  hostname,
-			WebTitle:  webTitle,
-			OpenPorts: openPorts,
-			MDNS:      mdnsName,
-			UPnP:      upnpName,
-			SNMP:      snmpName,
+			IP:              ip,
+			Alive:           true,
+			Latency:         int(time.Since(start).Milliseconds()),
+			MAC:             mac,
+			Vendor:          vendor,
+			Hostname:        hostname,
+			WebTitle:        webTitle,
+			OpenPorts:       openPorts,
+			MDNS:            mdnsName,
+			UPnP:            upnpName,
+			SNMP:            snmpName,
+			NameSource:      nameSource,
+			HostnameSources: hostnameSources,
 		}
 	}
 	return ScanResult{IP: ip, Alive: false}
@@ -1667,7 +1678,7 @@ func main() {
 		homeDir, _ := os.UserHomeDir()
 		fallbackKeyPath := ""
 		if homeDir != "" {
-			fallbackKeyPath = filepath.Join(homeDir, ".cisnet_grid", "license.key")
+			fallbackKeyPath = filepath.Join(homeDir, ".grid_ip_scanner", "license.key")
 		}
 
 		if r.Method == http.MethodGet {
@@ -2212,40 +2223,89 @@ func main() {
 		}
 
 		var openList []PortAuditResult
-		var mu sync.Mutex
-		var wg sync.WaitGroup
 		start := time.Now()
 
-		for _, p := range targetPorts {
-			wg.Add(1)
-			go func(port int) {
-				defer wg.Done()
-				conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), 600*time.Millisecond)
-				if err == nil {
-					conn.Close()
-					sInfo, found := serviceMap[port]
-					serviceName := fmt.Sprintf("Port %d", port)
-					risk := "low"
-					desc := "개방된 네트워크 포트"
-					if found {
-						serviceName = sInfo.name
-						risk = sInfo.risk
-						desc = sInfo.desc
-					}
-
-					mu.Lock()
-					openList = append(openList, PortAuditResult{
-						Port:        port,
-						Service:     serviceName,
-						Protocol:    "TCP",
-						Risk:        risk,
-						Description: desc,
-					})
-					mu.Unlock()
+		// 1. Try Native IOCP High-Concurrency Port Scanner
+		if nativeOpenPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, 500, 32); ok {
+			for _, port := range nativeOpenPorts {
+				sInfo, found := serviceMap[port]
+				serviceName := fmt.Sprintf("Port %d", port)
+				risk := "low"
+				desc := "개방된 네트워크 포트"
+				if found {
+					serviceName = sInfo.name
+					risk = sInfo.risk
+					desc = sInfo.desc
 				}
-			}(p)
+
+				bannerStr := ""
+				if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk && bInfo != nil {
+					if bInfo.ServerHeader != "" {
+						bannerStr = bInfo.ServerHeader
+					} else if bInfo.SshBanner != "" {
+						bannerStr = bInfo.SshBanner
+					} else if bInfo.RtspServer != "" {
+						bannerStr = bInfo.RtspServer
+					} else if bInfo.HtmlTitle != "" {
+						bannerStr = bInfo.HtmlTitle
+					}
+				}
+
+				openList = append(openList, PortAuditResult{
+					Port:        port,
+					Service:     serviceName,
+					Protocol:    "TCP",
+					Risk:        risk,
+					Description: desc,
+					Banner:      bannerStr,
+				})
+			}
+		} else {
+			// Fallback: Concurrent Go dialer
+			var mu sync.Mutex
+			var wg sync.WaitGroup
+
+			for _, p := range targetPorts {
+				wg.Add(1)
+				go func(port int) {
+					defer wg.Done()
+					conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), 600*time.Millisecond)
+					if err == nil {
+						conn.Close()
+						sInfo, found := serviceMap[port]
+						serviceName := fmt.Sprintf("Port %d", port)
+						risk := "low"
+						desc := "개방된 네트워크 포트"
+						if found {
+							serviceName = sInfo.name
+							risk = sInfo.risk
+							desc = sInfo.desc
+						}
+
+						bannerStr := ""
+						if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk && bInfo != nil {
+							if bInfo.ServerHeader != "" {
+								bannerStr = bInfo.ServerHeader
+							} else if bInfo.SshBanner != "" {
+								bannerStr = bInfo.SshBanner
+							}
+						}
+
+						mu.Lock()
+						openList = append(openList, PortAuditResult{
+							Port:        port,
+							Service:     serviceName,
+							Protocol:    "TCP",
+							Risk:        risk,
+							Description: desc,
+							Banner:      bannerStr,
+						})
+						mu.Unlock()
+					}
+				}(p)
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 
 		sort.Slice(openList, func(i, j int) bool {
 			return openList[i].Port < openList[j].Port
@@ -2258,6 +2318,173 @@ func main() {
 			"scanDurationMs": time.Since(start).Milliseconds(),
 		}
 		json.NewEncoder(w).Encode(resp)
+	})
+
+	// Native Modules Status Endpoint
+	http.HandleFunc("/api/native-modules", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(getNativeModulesStatus())
+	})
+
+	// Native Deep Multicast Discovery Endpoint (mDNS, SSDP, LLMNR, NetBIOS)
+	http.HandleFunc("/api/discovery", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		ip := r.URL.Query().Get("ip")
+		if ip == "" {
+			http.Error(w, `{"error":"Missing IP"}`, http.StatusBadRequest)
+			return
+		}
+		timeoutMs := 600
+		if t := r.URL.Query().Get("timeout"); t != "" {
+			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if res, ok := tryNativeDiscoveryProbe(ip, timeoutMs); ok && res != nil {
+			json.NewEncoder(w).Encode(res)
+			return
+		}
+		// Fallback discovery
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"hostname":            getHostname(r.Context(), ip),
+			"modelName":           "",
+			"manufacturer":        "",
+			"workgroup":           "",
+			"serviceType":         "",
+			"protocolsDiscovered": 0,
+		})
+	})
+
+	// Native Deep Protocol Banner Grabber Endpoint (HTTP, SSH, RTSP, TLS)
+	http.HandleFunc("/api/banner-grab", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		ip := r.URL.Query().Get("ip")
+		port := 80
+		if p := r.URL.Query().Get("port"); p != "" {
+			fmt.Sscanf(p, "%d", &port)
+		}
+		timeoutMs := 800
+		if t := r.URL.Query().Get("timeout"); t != "" {
+			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if res, ok := tryNativeDeepBannerGrab(ip, port, timeoutMs); ok && res != nil {
+			json.NewEncoder(w).Encode(res)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"serverHeader":     "",
+			"htmlTitle":        "",
+			"sshBanner":        "",
+			"rtspServer":       "",
+			"tlsSubject":       "",
+			"detectedProtocol": 0,
+		})
+	})
+
+	// Native OS Detection Endpoint (SYN-ACK / ICMP TTL Fingerprinting)
+	http.HandleFunc("/api/os-detect", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		ip := r.URL.Query().Get("ip")
+		if ip == "" {
+			http.Error(w, `{"error":"Missing IP"}`, http.StatusBadRequest)
+			return
+		}
+		timeoutMs := 600
+		if t := r.URL.Query().Get("timeout"); t != "" {
+			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if osName, ttl, ok := tryNativePcapDetectOS(ip, 80, timeoutMs); ok && osName != "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ip":        ip,
+				"osName":    osName,
+				"ttl":       ttl,
+				"supported": true,
+			})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"ip":        ip,
+			"osName":    "Standard Network Node",
+			"ttl":       0,
+			"supported": false,
+		})
+	})
+
+	// Native ARP Spoofing Detection Endpoint
+	http.HandleFunc("/api/arp-spoof-check", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		ip := r.URL.Query().Get("ip")
+		expectedMac := r.URL.Query().Get("mac")
+		if ip == "" || expectedMac == "" {
+			http.Error(w, `{"error":"Missing IP or MAC"}`, http.StatusBadRequest)
+			return
+		}
+		if alert, ok := tryNativePcapDetectArpSpoof(ip, expectedMac); ok && alert != "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"spoofingDetected": true,
+				"alert":            alert,
+			})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"spoofingDetected": false,
+			"alert":            "Normal (No ARP anomaly detected)",
+		})
+	})
+
+	// Native Device Fingerprinting & Security Audit Endpoint (Module 7: grid_fingerprint_engine.dll)
+	http.HandleFunc("/api/fingerprint", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		var inJson string
+		if r.Method == http.MethodPost {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil && len(bodyBytes) > 0 {
+				inJson = string(bodyBytes)
+			}
+		}
+
+		if inJson == "" {
+			// Construct JSON from GET query parameters
+			ip := r.URL.Query().Get("ip")
+			mac := r.URL.Query().Get("mac")
+			vendor := r.URL.Query().Get("vendor")
+			hostname := r.URL.Query().Get("hostname")
+			workgroup := r.URL.Query().Get("workgroup")
+			serverHeader := r.URL.Query().Get("server")
+			ttl := 0
+			if t := r.URL.Query().Get("ttl"); t != "" {
+				fmt.Sscanf(t, "%d", &ttl)
+			}
+			portsStr := r.URL.Query().Get("ports")
+			portsJson := "[]"
+			if portsStr != "" {
+				parts := strings.Split(portsStr, ",")
+				portsJson = "[" + strings.Join(parts, ",") + "]"
+			}
+
+			inJson = fmt.Sprintf(`{"ip":"%s","mac":"%s","vendor":"%s","hostname":"%s","workgroup":"%s","serverHeader":"%s","ttl":%d,"openPorts":%s}`,
+				ip, mac, vendor, hostname, workgroup, serverHeader, ttl, portsJson)
+		}
+
+		res, ok := tryNativeFingerprintAnalyzeJson(inJson)
+		if ok && res != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"native":  true,
+				"result":  res,
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to analyze fingerprint",
+		})
 	})
 
 	http.HandleFunc("/api/exit", func(w http.ResponseWriter, r *http.Request) {
@@ -2301,7 +2528,7 @@ func main() {
 			// 3. Kill all other running instances of this scanner to free up the socket port.
 			// 4. Explicitly kill the current process to release the port socket.
 			// 5. Relaunch the application with Administrator privileges (RunAs verb).
-			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%CisnetGridScan%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", procName, os.Getpid(), exePath)
+			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", procName, os.Getpid(), exePath)
 			cmd := exec.Command("powershell", "-Command", cmdStr)
 			hideWindow(cmd)
 			
@@ -2377,7 +2604,7 @@ func main() {
 		}()
 	}
 
-	fmt.Printf("Cisnet Grid 2 Engine starting on %s (Preview: %v)\n", listenAddr, isPreview)
+	fmt.Printf("Grid IP Scanner2 Engine starting on %s (Preview: %v)\n", listenAddr, isPreview)
 	if err := http.ListenAndServe(listenAddr, nil); err != nil {
 		fmt.Printf("Server failed: %v\n", err)
 	}

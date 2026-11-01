@@ -216,7 +216,7 @@ export const activateLicenseKey = (inputKey: string): ActivationResult => {
     trimmed === 'DEMO-PRO' ||
     trimmed === 'DEMO-PRO-2026' ||
     trimmed === 'GRID-PRO-DEMO-2026' ||
-    trimmed === 'PRO-CISNET-2026-UNLIMITED' ||
+    trimmed === 'PRO-GRID-2026-UNLIMITED' ||
     trimmed.startsWith('PRO-') ||
     trimmed.startsWith('GSCAN-PRO-') ||
     trimmed.startsWith('DEMO-') ||

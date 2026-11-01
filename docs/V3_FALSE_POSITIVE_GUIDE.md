@@ -72,7 +72,7 @@
 3. **입력 정보 작성 예시**:
    - **프로그램 명**: Grid IP Scanner2 (v2.4.3)
    - **진단명**: `Trojan/Win.Generic.C5651299`
-   - **개발사/작성자**: AhBiYout (www.cisnet.co.kr)
+   - **개발사/작성자**: AhBiYout (ahbiyoutvibe.blogspot.com)
    - **프로그램 용도**: "사내 네트워크 관리자 및 엔지니어를 위한 정상 C클래스 IP/포트 스캔 및 OUI 하드웨어 분석 진단 도구"
    - **상세 내용**:
      ```text

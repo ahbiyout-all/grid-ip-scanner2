@@ -245,7 +245,6 @@ export async function exportSecurityAuditReportToPDF(
     <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #cbd5e1; font-size: 8.5px; color: #64748b; display: flex; justify-content: space-between; align-items: center; line-height: 1.4;">
       <div>
         <span style="font-weight: 800; color: #0f172a;">Grid IP Scanner2</span> &bull;
-        배포: <b>(주)씨아이에스넷</b> (<a href="http://www.cisnet.co.kr" style="color: #0284c7; text-decoration: none;">www.cisnet.co.kr</a>) &bull;
         개발: <b>AhBiYout</b>
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
@@ -379,7 +378,7 @@ export async function exportSecurityAuditReportToPDF(
                     <td style="padding: 4px 8px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 24px;">
                         <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.vendor || 'Unknown'}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 4px 8px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; line-height: 1.3;">${dev?.latency || 0}ms</td>
@@ -560,7 +559,6 @@ export async function exportDeviceListToPDF(
     <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #cbd5e1; font-size: 8.5px; color: #64748b; display: flex; justify-content: space-between; align-items: center; line-height: 1.4;">
       <div>
         <span style="font-weight: 800; color: #0f172a;">Grid IP Scanner2</span> &bull;
-        배포: <b>(주)씨아이에스넷</b> (<a href="http://www.cisnet.co.kr" style="color: #0284c7; text-decoration: none;">www.cisnet.co.kr</a>) &bull;
         개발: <b>AhBiYout</b>
       </div>
       <div style="display: flex; align-items: center; gap: 12px;">
@@ -642,7 +640,7 @@ export async function exportDeviceListToPDF(
                     <td style="padding: 2.2px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
                         <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 2.2px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
@@ -717,7 +715,7 @@ export async function exportDeviceListToPDF(
                     <td style="padding: 2.5px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
                         <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 2.5px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
@@ -776,7 +774,7 @@ function generateVectorPdfFallback(
   );
 
   doc.setTextColor(56, 189, 248);
-  doc.text('Developer: AhBiYout | Org: AhBiYout-all | Cisnet (www.cisnet.co.kr)', 14, 23);
+  doc.text('Developer: AhBiYout | Org: AhBiYout-all', 14, 23);
 
   // KPI Metric Cards
   let cardX = 14;
@@ -897,7 +895,7 @@ function generateVectorPdfFallback(
       doc.setFontSize(6.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184);
-      doc.text('Grid IP Scanner2 Official Security Report | Developer: AhBiYout | Cisnet (www.cisnet.co.kr)', 14, 290);
+      doc.text('Grid IP Scanner2 Official Security Report | Developer: AhBiYout', 14, 290);
 
       doc.addPage();
       currentY = 20;
@@ -946,7 +944,7 @@ function generateVectorPdfFallback(
   doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(148, 163, 184);
-  doc.text('Grid IP Scanner2 Official Security Report | Developer: AhBiYout | Cisnet (www.cisnet.co.kr)', 14, 290);
+  doc.text('Grid IP Scanner2 Official Security Report | Developer: AhBiYout', 14, 290);
 }
 
 /**
@@ -1283,7 +1281,7 @@ export const generateProfessionalAuditReport = (
 
   <div class="footer">
     <div>
-      <div><b>Grid IP Scanner2</b> | 공식 배포: (주)씨아이에스넷 (<a href="http://www.cisnet.co.kr" class="info-link" target="_blank">www.cisnet.co.kr</a>)</div>
+      <div><b>Grid IP Scanner2</b> | 네트워크 진단 보고서</div>
       <div>개발자: AhBiYout | GitHub: <a href="https://github.com/AhBiYout-all" class="info-link" target="_blank">https://github.com/AhBiYout-all</a> | 기술 블로그: <a href="https://ahbiyoutvibe.blogspot.com/" class="info-link" target="_blank">ahbiyoutvibe.blogspot.com</a></div>
     </div>
     <div style="text-align: right;">

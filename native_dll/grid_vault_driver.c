@@ -137,7 +137,7 @@ GRID_VAULT_API int GridVault_EncryptData(
 
     // Mode 2: Key Derivation & Stream Cipher AEAD Emulation (Cross-Platform)
     uint8_t derivedKey[32];
-    const char* keySrc = optionalPassphrase ? optionalPassphrase : "CISNET_GRID_DEFAULT_MACHINE_KEY";
+    const char* keySrc = optionalPassphrase ? optionalPassphrase : "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY";
     fast_sha256_hash((const uint8_t*)keySrc, strlen(keySrc), derivedKey);
 
     size_t totalSize = 8 + 16 + inLen + 16; // Magic(8) + IV(16) + Ciphertext(inLen) + Tag(16)
@@ -240,7 +240,7 @@ GRID_VAULT_API int GridVault_DecryptData(
     }
 
     uint8_t derivedKey[32];
-    const char* keySrc = optionalPassphrase ? optionalPassphrase : "CISNET_GRID_DEFAULT_MACHINE_KEY";
+    const char* keySrc = optionalPassphrase ? optionalPassphrase : "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY";
     fast_sha256_hash((const uint8_t*)keySrc, strlen(keySrc), derivedKey);
 
     for (size_t i = 0; i < payloadLen; ++i) {

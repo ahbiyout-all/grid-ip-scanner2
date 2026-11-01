@@ -68,9 +68,18 @@ if not exist "node_modules\" (
 echo.
 
 :: Step 3: Synchronize versions across all project targets
-echo [3/5] Synchronizing Semantic Versions across SSOT targets...
+echo [3/6] Synchronizing Semantic Versions across SSOT targets...
 call node scripts\sync-version.js
 echo.
+
+:: Step 3.5: Compile Native Acceleration DLL Modules
+if not exist "native_dll\build_all_dlls.bat" goto SKIP_NATIVE_DLL
+echo [3.5/6] Building Native Acceleration DLL Modules...
+pushd native_dll
+call build_all_dlls.bat
+popd
+echo.
+:SKIP_NATIVE_DLL
 
 :: Step 4: Build Windows Executable and trigger Multi-Folder Packaging
 echo [4/6] Building React Web UI, Standalone Executable, and Distribution Folders...

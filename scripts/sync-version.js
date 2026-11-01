@@ -34,14 +34,20 @@ let currentVer = pkg.version || '2.3.2';
 const args = process.argv.slice(2);
 let targetVer = currentVer;
 
-if (args.includes('--bump-patch')) {
+if (args.includes('--bump-major')) {
   const parts = currentVer.split('.').map(Number);
-  parts[2] = (parts[2] || 0) + 1;
+  parts[0] = (parts[0] || 0) + 1;
+  parts[1] = 0;
+  parts[2] = 0;
   targetVer = parts.join('.');
 } else if (args.includes('--bump-minor')) {
   const parts = currentVer.split('.').map(Number);
   parts[1] = (parts[1] || 0) + 1;
   parts[2] = 0;
+  targetVer = parts.join('.');
+} else if (args.includes('--bump-patch')) {
+  const parts = currentVer.split('.').map(Number);
+  parts[2] = (parts[2] || 0) + 1;
   targetVer = parts.join('.');
 } else if (args.includes('--set')) {
   const idx = args.indexOf('--set');

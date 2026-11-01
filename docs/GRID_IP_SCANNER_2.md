@@ -67,7 +67,7 @@
 * **A4 규격 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**:
   - **Zero Row-Chopping**: 794px x 1123px (A4 1:1.4142)의 독립 페이지 단위 사전 분할로 페이지 경계면에서 테이블 행이나 글자가 반으로 잘리는 문제 완전 해소.
   - **11mm 프린터 안전 여백**: 일반 사무용 레이저/잉크젯 프린터 출력 시에도 가장자리 글자 잘림 없는 안전 여백 보장.
-  - **동적 페이지 번호 및 공식 푸터**: 매 페이지 하단 `페이지 X / Y`, 기밀(CONFIDENTIAL) 등급, 배포처((주)씨아이에스넷), 개발사(AhBiYout) 메타데이터 정돈 표기.
+  - **동적 페이지 번호 및 공식 푸터**: 매 페이지 하단 `페이지 X / Y`, 기밀(CONFIDENTIAL) 등급, 개발사(AhBiYout) 메타데이터 정돈 표기.
   - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 고해상도 스타일시트로 배경색과 뱃지 완벽 보존.
 
 ### 📌 3. 비대칭 암호키 오프라인 라이선스 매니저, 낯선 기기 감시 & WoL Pro 게이트 & 30일 체험권
@@ -176,7 +176,6 @@ Windows 탐색기에서 `Grid IP Scanner2.exe` / `Grid_IP_Scanner2_v2.4.6_Setup.
 * **소프트웨어 버전**: v2.4.6 (2026-10-26)
 * **저작권**: Copyright (c) 2025-2026 AhBiYout. All rights reserved.
 * **제작자 (Author)**: AhBiYout
-* **공식 배포사**: 씨아이에스넷 (Cisnet, [www.cisnet.co.kr](http://www.cisnet.co.kr))
 * **공식 GitHub**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)
 * **공식 기술 블로그**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
 

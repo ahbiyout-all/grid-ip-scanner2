@@ -1,0 +1,251 @@
+; =====================================================================
+; Grid IP Scanner2 v2.4.7 - Dedicated Isolated Inno Setup 6 Script
+; Detailed Step-by-Step Installation Wizard & Guaranteed Isolated Environment
+; Copyright (c) 2025-2026 AhBiYout  All rights reserved.
+; =====================================================================
+
+#define MyAppName "Grid IP Scanner2"
+#define MyAppVersion "2.4.7"
+#define MyAppPublisher "AhBiYout"
+#define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
+#define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
+#define MyAppExeName "Grid_IP_Scanner2.exe"
+#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"
+#define MyAppAssocName MyAppName + " Session File"
+#define MyAppAssocExt ".gscan"
+#define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
+
+[Setup]
+; =====================================================================
+; [1] Unique Application ID & Isolated Registration Entry
+; - Dedicated GUID ensures zero registry collisions with legacy versions
+; =====================================================================
+AppId={{D37F8A12-882C-4B9E-91C3-1F6A78E09B4D}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} v{#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppBlogURL}
+AppUpdatesURL={#MyAppBlogURL}
+UninstallDisplayName={#MyAppName} v{#MyAppVersion}
+UninstallDisplayIcon={app}\icon.ico
+CreateUninstallRegKey=yes
+UpdateUninstallRegKey=yes
+
+; =====================================================================
+; [2] Detailed Step-by-Step Installation Wizard Configuration (자세한 설치 단계 설정)
+; - 단계 1: 환영 인사 (Welcome Page)
+; - 단계 2: 이용 고지 및 백신/방화벽 안내 (Notice Page)
+; - 단계 3: 소프트웨어 라이선스 동의 (License Agreement)
+; - 단계 4: 설치 폴더 선택 (Select Destination Location)
+; - 단계 5: 시작 메뉴 폴더 지정 (Select Program Group)
+; - 단계 6: 바로가기 및 부팅 자동 실행 선택 (Select Additional Tasks)
+; - 단계 7: 설치 준비 완료 요약 (Ready to Install Summary)
+; - 단계 8: 파일 복사 및 설치 진행률 (Installing Progress Bar)
+; - 단계 9: 설치 완료 및 앱 즉시 실행 (Finished Page)
+; =====================================================================
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+DisableWelcomePage=no
+DisableDirPage=no
+DisableProgramGroupPage=no
+DisableReadyPage=no
+LicenseFile=..\docs\LICENSE.md
+InfoBeforeFile=NOTICE_BEFORE_INSTALL.txt
+OutputDir=..\dist_installer
+OutputBaseFilename=Grid_IP_Scanner2_v{#MyAppVersion}_Setup
+SetupIconFile=..\icon.ico
+WizardImageFile=wizard_large.bmp
+WizardSmallImageFile=wizard_small.bmp
+Compression=lzma2/ultra64
+SolidCompression=yes
+WizardStyle=modern
+WizardSizePercent=110
+ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
+
+; Unattended / Silent Capabilities
+CloseApplications=yes
+RestartApplications=no
+
+; Version Metadata
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Detailed Step-by-Step Multi-File Installer (v{#MyAppVersion})
+VersionInfoCopyright=Copyright (C) 2025-2026 {#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+
+[Languages]
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+korean.WelcomeLabel1=Grid IP Scanner2 v{#MyAppVersion} 설치 마법사에 오신 것을 환영합니다.
+korean.WelcomeLabel2=본 설치 마법사는 사용자 시스템에 Grid IP Scanner2를 안전하고 신속하게 설치하도록 상세 과정별로 안내합니다.%n%n• 초고속 IP/포트 스캔 네트워크 진단 유틸리티%n• IEEE 및 Wireshark 공식 9만 건 OUI 제조사 DB 내장%n• Windows 방화벽 예외 자동 연동%n%n[다음] 버튼을 누르시면 단계별 상세 설치가 진행됩니다.
+korean.WizardInfoBefore=📌 설치 전 주요 안내 및 백신/방화벽 연동 고지
+korean.WizardInfoBeforeSub=프로그램 실행 및 네트워크 스캔을 위한 권장 설정 안내입니다.
+korean.WizardSelectDir=설치 위치 선택
+korean.WizardSelectDirSub=Grid IP Scanner2를 설치할 폴더를 선택하십시오.
+korean.WizardSelectTasks=추가 작업 선택
+korean.WizardSelectTasksSub=Grid IP Scanner2 설치 시 수행할 추가 작업을 선택하십시오.
+
+[Tasks]
+Name: "desktopicon"; Description: "바탕 화면에 바로가기 아이콘 생성"; GroupDescription: "바로가기 생성:"; Flags: checkedonce
+Name: "startmenuicon"; Description: "시작 메뉴에 프로그램 바로가기 등록"; GroupDescription: "바로가기 생성:"; Flags: checkedonce
+Name: "autostart"; Description: "Windows 부팅 시 백그라운드 자동 실행 (상시 모니터링 모드)"; GroupDescription: "시스템 연동:"; Flags: unchecked
+
+[InstallDelete]
+; Clean up any legacy single-file binaries in installation folder
+Type: files; Name: "{app}\Grid IP Scanner2*.exe"
+
+[Files]
+; =====================================================================
+; [3] Unpacked Multi-File Folder Structure (개별 파일 구조 설치)
+; =====================================================================
+; 1. Primary Core Executable
+Source: "..\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\{#MyAppSourceExe}"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion skipifsourcedoesntexist
+
+; 2. OUI Database & Runtime Metadata
+Source: "..\master_oui.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\winres.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\package.json"; DestDir: "{app}"; Flags: ignoreversion
+
+; 3. Native Acceleration DLL Modules
+Source: "..\grid_probe_engine.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_port_iocp.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_discovery.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_oui_trie.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_banner_grabber.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_pcap_analyzer.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_net_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_vault_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+
+; 4. Icons & Brand Assets
+Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\icon.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\public\logo.png"; DestDir: "{app}"; Flags: ignoreversion
+
+; 5. Web UI Production Assets (Unpacked Bundle)
+Source: "..\dist\*"; DestDir: "{app}\dist"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; 6. Legal License
+Source: "..\docs\LICENSE.md"; DestDir: "{app}"; DestName: "LICENSE.md"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{group}\공식 홈페이지 ({#MyAppPublisher})"; Filename: "{#MyAppURL}"; IconFilename: "{app}\icon.ico"
+Name: "{group}\언인스톨 {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
+Name: "{userprograms}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: startmenuicon
+
+[Registry]
+; Enterprise Software Asset Management Compliance
+Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Version"; ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Publisher"; ValueData: "{#MyAppPublisher}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Executable"; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
+
+; Auto-start on Windows Boot
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName} v{#MyAppVersion}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+
+[Run]
+; =====================================================================
+; [4] Firewall Rule Pre-Registration (Silently Without Flashing CMD)
+; =====================================================================
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} (Inbound)"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} (Outbound)"" dir=out action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion} (Inbound)"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion} (Outbound)"" dir=out action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppExeName}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
+
+; Launch Application post-install
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; Clean up firewall rules silently on uninstall
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName}"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} (Inbound)"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} (Outbound)"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion}"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion} (Inbound)"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion} (Outbound)"""; Flags: runhidden waituntilterminated
+Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName}"""; Flags: runhidden waituntilterminated
+
+[Code]
+// =====================================================================
+// [5] Existing Installation Auto-Detection & Upgrade Prompt Logic
+// =====================================================================
+
+function InitializeSetup(): Boolean;
+var
+  ResultCode: Integer;
+  Response: Integer;
+  UninstallKey: String;
+  ExistingInstallPath: String;
+  ExistingVersion: String;
+  HasExisting: Boolean;
+  PromptMsg: String;
+begin
+  Result := True;
+  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1';
+  ExistingInstallPath := '';
+  ExistingVersion := '';
+  HasExisting := False;
+
+  // Check 64-bit and 32-bit registry entries for existing installation
+  if RegQueryStringValue(HKLM64, UninstallKey, 'InstallLocation', ExistingInstallPath) then
+    HasExisting := True
+  else if RegQueryStringValue(HKLM32, UninstallKey, 'InstallLocation', ExistingInstallPath) then
+    HasExisting := True
+  else if RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
+    HasExisting := True;
+
+  if not RegQueryStringValue(HKLM64, UninstallKey, 'DisplayVersion', ExistingVersion) then
+    RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'Version', ExistingVersion);
+
+  if not HasExisting then
+  begin
+    if DirExists(ExpandConstant('{autopf}\{#MyAppName}')) then
+    begin
+      HasExisting := True;
+      ExistingInstallPath := ExpandConstant('{autopf}\{#MyAppName}');
+    end;
+  end;
+
+  if HasExisting then
+  begin
+    if WizardSilent() then
+    begin
+      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Result := True;
+      Exit;
+    end;
+
+    PromptMsg := '시스템에 기존 ' + '{#MyAppName}';
+    if ExistingVersion <> '' then
+      PromptMsg := PromptMsg + ' (v' + ExistingVersion + ')';
+    PromptMsg := PromptMsg + ' 버전이 설치되어 있습니다.' + #13#10#13#10 +
+      '기존 설치 환경을 최신 v{#MyAppVersion}(으)로 업데이트 후 진행하시겠습니까?';
+
+    Response := MsgBox(PromptMsg, mbConfirmation, MB_YESNO);
+
+    if Response = IDYES then
+    begin
+      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Result := True;
+    end
+    else
+    begin
+      Result := False;
+    end;
+  end;
+end;

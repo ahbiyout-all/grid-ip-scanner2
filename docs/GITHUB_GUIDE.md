@@ -16,7 +16,7 @@
 * **공식 이슈(Issues) URL**: `https://github.com/AhBiYout-all/grid-ip-scanner2/issues`
 * **공식 릴리즈(Releases) URL**: `https://github.com/AhBiYout-all/grid-ip-scanner2/releases`
 * **공식 구글 블로그**: `https://ahbiyoutvibe.blogspot.com/`
-* **소속**: `https://www.cisnet.co.kr`
+* **소속**: `https://ahbiyoutvibe.blogspot.com`
 * **기본 브랜치 (Default Branch)**: `main`
 
 ---

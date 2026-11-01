@@ -196,14 +196,31 @@ const IPCell: React.FC<IPCellProps> = ({
     if (!displayDevice) return null;
     const hostname = (displayDevice.hostname || '').toLowerCase();
     const vendor = (displayDevice.vendor || '').toLowerCase();
+    const os = (displayDevice.os || '').toLowerCase();
+    const mdns = (displayDevice.mdns || '').toLowerCase();
+    const webTitle = (displayDevice.webTitle || '').toLowerCase();
+    const model = ((displayDevice as any).deviceModel || '').toLowerCase();
+    const devType = ((displayDevice as any).deviceType || '').toLowerCase();
+    const combined = `${hostname} ${vendor} ${os} ${mdns} ${webTitle} ${model} ${devType}`;
     const iconClass = "w-3 h-3 md:w-4 md:h-4 opacity-80";
     
     // 포트 기반 또는 명칭 기반 아이콘 결정
-    if (hostname.includes('printer') || vendor.includes('printer') || vendor.includes('epson') || vendor.includes('canon') || vendor.includes('brother')) return <Printer className={iconClass} />;
-    if (hostname.includes('ipad') || hostname.includes('tablet')) return <Tablet className={iconClass} />;
-    if (hostname.includes('iphone') || hostname.includes('phone') || hostname.includes('mobile') || vendor.includes('samsung') || vendor.includes('apple')) return <Smartphone className={iconClass} />;
-    if (hostname.includes('laptop') || hostname.includes('computer') || vendor.includes('dell') || vendor.includes('intel')) return <Laptop className={iconClass} />;
-    if (hostname.includes('server') || (displayDevice.openPorts?.includes(22) && displayDevice.openPorts?.length > 0)) return <Server className={iconClass} />;
+    if (combined.includes('printer') || combined.includes('epson') || combined.includes('canon') || combined.includes('brother')) return <Printer className={iconClass} />;
+    if (combined.includes('ipad') || combined.includes('tablet') || combined.includes('galaxy tab')) return <Tablet className={iconClass} />;
+    if (
+      combined.includes('iphone') || 
+      combined.includes('phone') || 
+      combined.includes('mobile') || 
+      combined.includes('galaxy') || 
+      combined.includes('pixel') || 
+      combined.includes('android') || 
+      combined.includes('oneplus') || 
+      combined.includes('xperia') || 
+      vendor.includes('samsung') || 
+      vendor.includes('apple')
+    ) return <Smartphone className={iconClass} />;
+    if (combined.includes('laptop') || combined.includes('macbook') || combined.includes('computer') || vendor.includes('dell') || vendor.includes('intel')) return <Laptop className={iconClass} />;
+    if (combined.includes('server') || (displayDevice.openPorts?.includes(22) && displayDevice.openPorts?.length > 0)) return <Server className={iconClass} />;
     
     return <Monitor className={iconClass} />;
   };
@@ -401,10 +418,28 @@ const IPCell: React.FC<IPCellProps> = ({
               <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
                 {diffStatus === 'offline' ? '이전 기준 식별명' : s.networkIdentity}
               </span>
-              <div className="text-[10px] font-black flex items-center gap-2 mt-0.5">
+              <div className="text-[10px] font-black flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span className={`truncate ${diffStatus === 'offline' ? 'text-rose-400 line-through opacity-80' : 'text-sky-500'}`}>
                   {displayDevice.hostname || s.deviceTypes.generic}
                 </span>
+                {displayDevice.nameSource && displayDevice.nameSource !== 'UNKNOWN' && (
+                  <span className={`px-1 py-0.2 rounded font-black text-[7.5px] border shrink-0 ${
+                    displayDevice.nameSource === 'SMB' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                    displayDevice.nameSource === 'NETBIOS' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
+                    displayDevice.nameSource === 'MDNS' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                    displayDevice.nameSource === 'WSD' || displayDevice.nameSource === 'UPNP' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                    displayDevice.nameSource === 'SNMP' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                    displayDevice.nameSource === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                    'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                  }`} title={`식별 출처: ${displayDevice.nameSource}`}>
+                    {displayDevice.nameSource}
+                  </span>
+                )}
+                {displayDevice.deviceModel && (
+                  <span className="px-1 py-0.2 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[8px] font-bold shrink-0">
+                    {displayDevice.deviceModel}
+                  </span>
+                )}
               </div>
             </div>
             

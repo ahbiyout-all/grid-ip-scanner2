@@ -9,19 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"unicode/utf8"
 	"unsafe"
 )
 
-// byteSliceToString converts a null-terminated byte slice to a Go string
-func byteSliceToString(b []byte) string {
-	for i, c := range b {
-		if c == 0 {
-			return string(b[:i])
-		}
-	}
-	return string(b)
-}
+
 
 const CREATE_NO_WINDOW = 0x08000000
 
@@ -465,11 +459,35 @@ func getDesktopPath() string {
 	return "."
 }
 
+// byteSliceToString converts a null-terminated byte slice to a Go string with Korean character preservation
+func byteSliceToString(b []byte) string {
+	for i, c := range b {
+		if c == 0 {
+			b = b[:i]
+			break
+		}
+	}
+	if len(b) == 0 {
+		return ""
+	}
+	if utf8.Valid(b) {
+		return string(b)
+	}
+	return decodeANSI(b)
+}
+
 func decodeANSI(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
-	// CP_ACP = 0
+	// If input is already valid UTF-8, return string directly
+	if utf8.Valid(b) {
+		str := string(b)
+		if !strings.ContainsRune(str, utf8.RuneError) {
+			return str
+		}
+	}
+	// CP_ACP = 0 (Windows System ANSI Code Page, e.g., CP949 / EUC-KR in Korean Windows)
 	ret, _, _ := procMultiByteToWideChar.Call(
 		0,
 		0,

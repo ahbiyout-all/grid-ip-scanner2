@@ -160,7 +160,7 @@ export interface LicenseInfo {
    * 스마트 엣지-투-엣지 아이콘 크롭, 6단계 멀티레이어 ICO 및 PE 리소스 직접 패칭 파이프라인 완비
 3. **3단계 (상용 릴리즈 & 스토어/결제 연동 - 진행 중)**:
    * Gumroad / Paddle 디지털 결제 연동 (라이선스 키 자동 발급)
-   * 공식 블로그 및 홈페이지(www.cisnet.co.kr)에 듀얼 다운로드 센터 개설 및 배포
+   * 공식 블로그 및 홈페이지(ahbiyoutvibe.blogspot.com)에 듀얼 다운로드 센터 개설 및 배포
 
 ---
 

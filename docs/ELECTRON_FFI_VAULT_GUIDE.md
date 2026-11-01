@@ -81,7 +81,7 @@ func GridVault_EncryptGCM(plaintext *C.char, keyPass *C.char, outBase64 *C.char,
 	}
 
 	goPlain := []byte(C.GoString(plaintext))
-	pass := "CISNET_GRID_SECURE_DEFAULT_KEY"
+	pass := "GRID_IP_SCANNER2_SECURE_DEFAULT_KEY"
 	if keyPass != nil && len(C.GoString(keyPass)) > 0 {
 		pass = C.GoString(keyPass)
 	}

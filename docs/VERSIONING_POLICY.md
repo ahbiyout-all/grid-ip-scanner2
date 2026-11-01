@@ -43,6 +43,24 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
   - 네트워크 어댑터 선택 상태 영속 유지(React State Retention) 버그 수정
   - UI 레이아웃 미세 조정, 번역 텍스트 보완, 문서 업데이트
 
+### 🛠️ 2.1. 3단계 시맨틱 버저닝 명령어 트리거
+
+Grid IP Scanner2 프로젝트는 변경 규모에 따라 아래 원클릭 npm 커맨드를 사용하여 3단계 버전을 승급하고 9대 타깃 파일에 즉시 동기화합니다.
+
+```bash
+# 🟢 1. PATCH 승급 (수치 패치 / 버그 수정 / 소규모 개선): X.Y.Z ➔ X.Y.Z+1
+npm run version:bump-patch   # 또는 npm run version:bump
+
+# 🟡 2. MINOR 승급 (부 버전 / 하위 호환 신규 기능 추가): X.Y.Z ➔ X.Y+1.0
+npm run version:bump-minor
+
+# 🔴 3. MAJOR 승급 (주 버전 / 파괴적 아키텍처 개편): X.Y.Z ➔ X+1.0.0
+npm run version:bump-major
+
+# 🔄 4. 지정 버전 수동 설정 및 9대 타깃 동기화
+node scripts/sync-version.js --set 2.5.0
+```
+
 ---
 
 ## 📝 3. 코드 수정 특이점 발생 시 패치노트 기록 규칙
@@ -88,7 +106,7 @@ Grid IP Scanner2의 모든 릴리즈 및 패치는 **`MAJOR.MINOR.PATCH` (예: `
 
 ### 💡 신규 문서 생성 지침
 * 새로운 하위 시스템(예: 새로운 프로토콜, 클라우드 연동, CI/CD 배포 파이프라인 등)이 도입되거나 독립된 설명이 필요할 경우, `docs/` 폴더에 즉시 신규 마크다운 문서를 생성하고 `docs/README.md` 인덱스에 등록합니다.
-* 모든 문서는 작성 일자, 작성자(AhBiYout), 공식 링크(`ahbiyoutvibe.blogspot.com`, `www.cisnet.co.kr`)를 명시하여 표준성을 유지합니다.
+* 모든 문서는 작성 일자, 작성자(AhBiYout), 공식 링크(`ahbiyoutvibe.blogspot.com`, `ahbiyoutvibe.blogspot.com`)를 명시하여 표준성을 유지합니다.
 
 ---
 

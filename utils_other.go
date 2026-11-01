@@ -33,6 +33,16 @@ func decodeANSI(b []byte) string {
 	return string(b)
 }
 
+func byteSliceToString(b []byte) string {
+	for i, c := range b {
+		if c == 0 {
+			b = b[:i]
+			break
+		}
+	}
+	return string(b)
+}
+
 func showNativeMessageBox(title, message string, flags uint) int {
 	fmt.Printf("\n=== [%s] ===\n%s\n", title, message)
 	return IDOK

@@ -4,7 +4,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.7"
+#define MyAppVersion "2.4.9"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -32,24 +32,22 @@ UpdateUninstallRegKey=yes
 ; Installation Paths (64-bit Native Program Files)
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-DisableProgramGroupPage=yes
+DisableWelcomePage=no
+DisableDirPage=no
+DisableProgramGroupPage=no
+DisableReadyPage=no
+SetupIconFile=..\icon.ico
+WizardImageFile=wizard_large.bmp
+WizardSmallImageFile=wizard_small.bmp
 LicenseFile=..\docs\LICENSE.md
 InfoBeforeFile=NOTICE_BEFORE_INSTALL.txt
 OutputDir=..\dist_installer
 OutputBaseFilename=Grid_IP_Scanner2_v{#MyAppVersion}_Setup
-SetupIconFile=..\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
-
-; Unattended / Silent Installation Capabilities (무인 설치 옵션 완전 지원)
-CloseApplications=yes
-RestartApplications=no
-DisableWelcomePage=auto
-DisableReadyPage=auto
 
 ; Version Information Stored in Setup.exe
 VersionInfoVersion={#MyAppVersion}.0
@@ -224,40 +222,24 @@ begin
       Exit;
     end;
 
-    // [대화형 일반 설치]: 사용자에게 삭제 후 설치할지, 기존 폴더에 덮어쓸지 상세 질의
-    PromptMsg := '기존 설치된 {#MyAppName}';
+    // [대화형 일반 설치]: 사용자에게 업데이트(덮어쓰기) 진행 여부 질의
+    PromptMsg := '시스템에 기존 ' + '{#MyAppName}';
     if ExistingVersion <> '' then
       PromptMsg := PromptMsg + ' (v' + ExistingVersion + ')';
-    PromptMsg := PromptMsg + ' 프로그램이 시스템에 감지되었습니다.' + #13#10#13#10 +
-      '어떻게 설치를 진행하시겠습니까?' + #13#10#13#10 +
-      '• [예 (Yes)] : 기존 버전을 완전히 삭제(제거)한 후 클린 설치를 진행합니다.' + #13#10 +
-      '• [아니오 (No)] : 기존 설치 폴더에 최신 파일로 덮어쓰기(업그레이드) 설치합니다.' + #13#10 +
-      '• [취소 (Cancel)] : 설치 작업을 중단하고 종료합니다.';
+    PromptMsg := PromptMsg + ' 버전이 이미 설치되어 있습니다.' + #13#10#13#10 +
+      '기존 버전을 최신 v{#MyAppVersion}(으)로 업데이트하고 설치를 계속하시겠습니까?';
 
-    Response := MsgBox(PromptMsg, mbConfirmation, MB_YESNOCANCEL);
+    Response := MsgBox(PromptMsg, mbConfirmation, MB_YESNO);
 
     if Response = IDYES then
     begin
-      // 사용자가 기존 버전 완전 삭제를 선택한 경우
-      if ExistingUninstaller <> '' then
-      begin
-        ExistingUninstaller := RemoveQuotes(ExistingUninstaller);
-        Exec(ExistingUninstaller, '/SILENT /VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      end
-      else if (ExistingInstallPath <> '') and DirExists(ExistingInstallPath) then
-      begin
-        DelTree(ExistingInstallPath, True, True, True);
-      end;
-      Result := True;
-    end
-    else if Response = IDNO then
-    begin
-      // 사용자가 덮어쓰기(업그레이드) 설치를 선택한 경우
+      // 기존 프로세스 종료 후 업데이트 진행
+      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Result := True;
     end
     else
     begin
-      // 취소 선택 시 설치 중단
+      // 아니오 선택 시 설치 중단
       Result := False;
     end;
   end;

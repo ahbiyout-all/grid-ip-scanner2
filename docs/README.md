@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.4.7)
+# 🌐 Grid IP Scanner2 (v2.4.9)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -18,6 +18,8 @@
    - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진 (254개 전체 호스트 동시 진단)
    - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별
    - 25개 주요 서비스 포트 정밀 스캐닝 및 위험도 분류
+   - **🏷️ 다중 프로토콜 뱃지 원클릭 이름 적용 & 한글(2byte) 깨짐 원천 방지**: SMB/NetBIOS/mDNS/UPnP/WSD/SNMP/Web 출처 뱃지 원클릭 기기 이름 변경, CP949/EUC-KR 통합 디코더 기반 한글 깨짐 원천 차단
+   - **🚦 3단계 시맨틱 버저닝(SemVer) 및 표준화된 기술 문서 관리**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (v2.4.9)
 
 2. **📄 A4 규격 최적화 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**
    - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델로 테이블 행 및 텍스트 줄 잘림 원천 방지

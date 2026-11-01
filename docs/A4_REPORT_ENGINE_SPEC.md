@@ -64,7 +64,7 @@
 
 * 매 페이지 하단에 전체 페이지 수를 사전에 계산(`totalPages = 1 + subPagesCount`)하여 다음과 같이 정렬된 푸터가 출력됩니다:
 ```text
-[ Grid IP Scanner2 • 배포: (주)씨아이에스넷 (www.cisnet.co.kr) • 개발: AhBiYout ]
+[ Grid IP Scanner2 • 개발: AhBiYout ]
                                     [ CONFIDENTIAL ]   페이지 1 / 3
 ```
 

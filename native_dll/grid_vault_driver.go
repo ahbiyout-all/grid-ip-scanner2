@@ -47,7 +47,7 @@ func GridVault_EncryptString(inJson *C.char, optionalPassphrase *C.char, outBase
 		return C.int(C.VAULT_ERR_INVALID_PARAM)
 	}
 	goPlain := C.GoString(inJson)
-	pass := "CISNET_GRID_DEFAULT_MACHINE_KEY"
+	pass := "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY"
 	if optionalPassphrase != nil {
 		p := C.GoString(optionalPassphrase)
 		if len(p) > 0 {
@@ -97,7 +97,7 @@ func GridVault_DecryptString(inBase64 *C.char, optionalPassphrase *C.char, outJs
 		return C.int(C.VAULT_ERR_AUTH_FAILED)
 	}
 
-	pass := "CISNET_GRID_DEFAULT_MACHINE_KEY"
+	pass := "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY"
 	if optionalPassphrase != nil {
 		p := C.GoString(optionalPassphrase)
 		if len(p) > 0 {

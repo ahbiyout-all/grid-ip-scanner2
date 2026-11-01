@@ -37,16 +37,22 @@ if (!fs.existsSync(distInstallerDir)) {
   fs.mkdirSync(distInstallerDir, { recursive: true });
 }
 
-// 3. Update version in Inno Setup script if needed
-const issPath = path.join(__dirname, 'Grid_IP_Scanner2_Setup.iss');
-if (fs.existsSync(issPath)) {
-  let issContent = fs.readFileSync(issPath, 'utf8');
-  issContent = issContent.replace(/#define MyAppVersion "[^"]*"/, `#define MyAppVersion "${version}"`);
-  issContent = issContent.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
-  issContent = issContent.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
-  fs.writeFileSync(issPath, issContent, 'utf8');
-  console.log('✅ Inno Setup script (.iss) version synchronized.');
-}
+// 3. Update version in Inno Setup scripts if needed
+const issFiles = ['Grid_IP_Scanner2_Dedicated_Setup.iss', 'Grid_IP_Scanner2_Setup.iss'];
+let primaryIssPath = path.join(__dirname, 'Grid_IP_Scanner2_Dedicated_Setup.iss');
+
+issFiles.forEach(fileName => {
+  const filePath = path.join(__dirname, fileName);
+  if (fs.existsSync(filePath)) {
+    let issContent = fs.readFileSync(filePath, 'utf8');
+    issContent = issContent.replace(/#define MyAppVersion "[^"]*"/, `#define MyAppVersion "${version}"`);
+    issContent = issContent.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
+    issContent = issContent.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
+    fs.writeFileSync(filePath, issContent, 'utf8');
+    console.log(`✅ Inno Setup script (${fileName}) version synchronized.`);
+  }
+});
+const issPath = fs.existsSync(primaryIssPath) ? primaryIssPath : path.join(__dirname, 'Grid_IP_Scanner2_Setup.iss');
 
 // 4. Check for Inno Setup Compiler (ISCC) on system
 const localAppData = process.env.LOCALAPPDATA || '';

@@ -10,6 +10,9 @@ import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, export
 import { UpdateModal } from './components/UpdateModal';
 import { SnapshotDiffModal } from './components/SnapshotDiffModal';
 import { ScheduleModal } from './components/ScheduleModal';
+import { NativeModulesModal } from './components/NativeModulesModal';
+import { fetchNativeModulesStatus } from './services/nativeModulesService';
+import { NativeModulesStatus } from './types';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
@@ -17,20 +20,285 @@ import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, n
 import { analyzeNetworkConflicts, findNewIntruderDevices, ConflictInfo } from './services/conflictDetector';
 import { getSchedules, recordScheduleRunCompletion, addHistoryRecord } from './services/schedulerService';
 
-const classifyDevice = (vendor: string, openPorts: number[], s: any) => {
+export interface DeviceClassificationContext {
+  hostname?: string;
+  mdns?: string;
+  webTitle?: string;
+  upnp?: string;
+  mac?: string;
+  httpHeaders?: string;
+}
+
+export interface DeviceClassification {
+  type: string;
+  os: string;
+  model?: string;
+}
+
+const classifyDevice = (
+  vendor: string,
+  openPorts: number[] = [],
+  s: any,
+  context?: DeviceClassificationContext
+): DeviceClassification => {
   const v = (vendor || "").toLowerCase();
-  if (openPorts.includes(9100) || openPorts.includes(631)) return { type: s.deviceTypes.printer, os: "Embedded" };
-  if (openPorts.includes(445) || openPorts.includes(135)) return { type: s.deviceTypes.windows, os: "Windows" };
-  if (openPorts.includes(22)) return { type: s.deviceTypes.linux, os: "Linux" };
-  if (openPorts.includes(3389)) return { type: s.deviceTypes.rdp, os: "Windows" };
-  if (openPorts.includes(62078)) return { type: s.deviceTypes.apple, os: "iOS" };
+  const hostname = (context?.hostname || "").toLowerCase();
+  const mdns = (context?.mdns || "").toLowerCase();
+  const webTitle = (context?.webTitle || "").toLowerCase();
+  const upnp = (context?.upnp || "").toLowerCase();
+  const httpHeaders = (context?.httpHeaders || "").toLowerCase();
   
-  if (v.includes("apple")) return { type: s.deviceTypes.apple, os: "iOS/macOS" };
-  if (v.includes("samsung") || v.includes("xiaomi") || v.includes("huawei")) return { type: s.deviceTypes.mobile, os: "Android" };
-  if (v.includes("cisco") || v.includes("tp-link") || v.includes("asus") || v.includes("netgear")) return { type: s.deviceTypes.network, os: "RTOS" };
-  if (v.includes("synology") || v.includes("qnap")) return { type: s.deviceTypes.nas, os: "Linux" };
-  
-  return { type: s.deviceTypes.generic, os: "Generic" };
+  // Combined text corpus for deep pattern matching
+  const corpus = `${hostname} ${mdns} ${webTitle} ${upnp} ${httpHeaders} ${v}`;
+
+  // ==========================================
+  // 1. Apple Ecosystem Deep Model Mapping
+  // ==========================================
+  const isAppleVendor = v.includes("apple");
+  const hasApplePort = openPorts.includes(62078); // Apple Mobile Device Sync port
+  const hasAppleMdns = mdns.includes("_apple-mobdev2._tcp") || mdns.includes("_airplay._tcp") || mdns.includes("_companion-link._tcp");
+  const isAppleEntity = isAppleVendor || hasApplePort || hasAppleMdns || corpus.includes("apple") || corpus.includes("iphone") || corpus.includes("ipad");
+
+  if (isAppleEntity) {
+    // 1-A. iPhone Model Mapping (via Hostname, mDNS Model IDs, UPnP, or WebTitle)
+    // Apple internal IDs (e.g., iPhone17,1 -> iPhone 16 Pro, iPhone16,2 -> iPhone 15 Pro Max)
+    const iphoneModelMatch = corpus.match(/iphone(\d+),(\d+)/i);
+    if (iphoneModelMatch) {
+      const major = parseInt(iphoneModelMatch[1], 10);
+      let mappedModel = "iPhone";
+      if (major === 17) mappedModel = "iPhone 16 Series";
+      else if (major === 16) mappedModel = "iPhone 15 Series";
+      else if (major === 15) mappedModel = "iPhone 14 Series";
+      else if (major === 14) mappedModel = "iPhone 13 Series";
+      else if (major === 13) mappedModel = "iPhone 12 Series";
+      else if (major === 12) mappedModel = "iPhone 11 Series";
+      else if (major === 11) mappedModel = "iPhone XS/XR";
+      else if (major === 10) mappedModel = "iPhone X/8";
+      else if (major <= 9) mappedModel = "iPhone (Legacy)";
+
+      return { type: "iPhone", os: "Apple iOS", model: mappedModel };
+    }
+
+    if (corpus.includes("iphone")) {
+      let iphoneLabel = "iPhone";
+      if (corpus.includes("16 pro max") || corpus.includes("16promax")) iphoneLabel = "iPhone 16 Pro Max";
+      else if (corpus.includes("16 pro") || corpus.includes("16pro")) iphoneLabel = "iPhone 16 Pro";
+      else if (corpus.includes("16 plus") || corpus.includes("16plus")) iphoneLabel = "iPhone 16 Plus";
+      else if (corpus.includes("iphone 16") || corpus.includes("iphone16")) iphoneLabel = "iPhone 16";
+      else if (corpus.includes("15 pro max") || corpus.includes("15promax")) iphoneLabel = "iPhone 15 Pro Max";
+      else if (corpus.includes("15 pro") || corpus.includes("15pro")) iphoneLabel = "iPhone 15 Pro";
+      else if (corpus.includes("15 plus") || corpus.includes("15plus")) iphoneLabel = "iPhone 15 Plus";
+      else if (corpus.includes("iphone 15") || corpus.includes("iphone15")) iphoneLabel = "iPhone 15";
+      else if (corpus.includes("14 pro max") || corpus.includes("14promax")) iphoneLabel = "iPhone 14 Pro Max";
+      else if (corpus.includes("14 pro") || corpus.includes("14pro")) iphoneLabel = "iPhone 14 Pro";
+      else if (corpus.includes("iphone 14") || corpus.includes("iphone14")) iphoneLabel = "iPhone 14";
+      else if (corpus.includes("13 pro max") || corpus.includes("13promax")) iphoneLabel = "iPhone 13 Pro Max";
+      else if (corpus.includes("13 pro") || corpus.includes("13pro")) iphoneLabel = "iPhone 13 Pro";
+      else if (corpus.includes("13 mini") || corpus.includes("13mini")) iphoneLabel = "iPhone 13 mini";
+      else if (corpus.includes("iphone 13") || corpus.includes("iphone13")) iphoneLabel = "iPhone 13";
+      else if (corpus.includes("iphone 12") || corpus.includes("iphone12")) iphoneLabel = "iPhone 12";
+      else if (corpus.includes("iphone 11") || corpus.includes("iphone11")) iphoneLabel = "iPhone 11";
+      else if (corpus.includes("iphone se") || corpus.includes("iphonese")) iphoneLabel = "iPhone SE";
+      else if (corpus.includes("pro max")) iphoneLabel = "iPhone Pro Max";
+      else if (corpus.includes("pro")) iphoneLabel = "iPhone Pro";
+      else if (corpus.includes("mini")) iphoneLabel = "iPhone mini";
+
+      return { type: "iPhone", os: "Apple iOS", model: iphoneLabel };
+    }
+
+    // 1-B. iPad Model Mapping
+    const ipadModelMatch = corpus.match(/ipad(\d+),(\d+)/i);
+    if (ipadModelMatch || corpus.includes("ipad")) {
+      let ipadLabel = "iPad";
+      if (corpus.includes("ipad pro") || corpus.includes("ipadpro")) ipadLabel = "iPad Pro";
+      else if (corpus.includes("ipad air") || corpus.includes("ipadair")) ipadLabel = "iPad Air";
+      else if (corpus.includes("ipad mini") || corpus.includes("ipadmini")) ipadLabel = "iPad mini";
+      return { type: "iPad", os: "Apple iPadOS", model: ipadLabel };
+    }
+
+    // 1-C. Apple Watch, Apple TV, Mac
+    if (corpus.includes("watch") || corpus.includes("applewatch")) {
+      return { type: "Apple Watch", os: "watchOS", model: "Apple Watch" };
+    }
+    if (corpus.includes("appletv") || corpus.includes("apple tv")) {
+      return { type: "Apple TV", os: "tvOS", model: "Apple TV" };
+    }
+    if (corpus.includes("macbook")) {
+      const macType = corpus.includes("pro") ? "MacBook Pro" : corpus.includes("air") ? "MacBook Air" : "MacBook";
+      return { type: macType, os: "macOS", model: macType };
+    }
+    if (corpus.includes("imac")) return { type: "iMac", os: "macOS", model: "iMac" };
+    if (corpus.includes("mac mini") || corpus.includes("macmini")) return { type: "Mac mini", os: "macOS", model: "Mac mini" };
+    if (corpus.includes("mac studio") || corpus.includes("macstudio")) return { type: "Mac Studio", os: "macOS", model: "Mac Studio" };
+    if (hasApplePort || hasAppleMdns) {
+      return { type: "iPhone / iPad", os: "Apple iOS", model: "Apple Mobile Device" };
+    }
+    if (isAppleVendor) {
+      return { type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" };
+    }
+  }
+
+  // ==========================================
+  // 2. Android Ecosystem Deep Model Mapping
+  // ==========================================
+
+  // 2-A. Samsung Galaxy S-Series / Z-Series / A-Series / Tab
+  const isSamsungVendor = v.includes("samsung");
+  const hasSamsungIndicator = isSamsungVendor || corpus.includes("samsung") || corpus.includes("galaxy") || corpus.includes("sec_product");
+
+  if (hasSamsungIndicator) {
+    // 2-A-1. Galaxy S-Series (Flagship: SM-S9xx, SM-G9xx, Galaxy S2x)
+    // Match SM-S93x (S25), SM-S92x (S24), SM-S91x (S23), SM-S90x (S22), SM-G99x (S21), SM-G98x (S20), SM-G97x (S10)
+    if (/sm-s93[0-9]/i.test(corpus) || corpus.includes("galaxy s25") || corpus.includes("galaxys25")) {
+      const model = corpus.includes("ultra") ? "Galaxy S25 Ultra" : (corpus.includes("+") || corpus.includes("plus")) ? "Galaxy S25+" : "Galaxy S25";
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+    }
+    if (/sm-s928/i.test(corpus) || corpus.includes("galaxy s24 ultra") || corpus.includes("s24 ultra")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24 Ultra" };
+    }
+    if (/sm-s926/i.test(corpus) || corpus.includes("galaxy s24+") || corpus.includes("s24 plus") || corpus.includes("s24+")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24+" };
+    }
+    if (/sm-s921/i.test(corpus) || /sm-s92[0-9]/i.test(corpus) || corpus.includes("galaxy s24") || corpus.includes("galaxys24")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24" };
+    }
+    if (/sm-s918/i.test(corpus) || corpus.includes("galaxy s23 ultra") || corpus.includes("s23 ultra")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23 Ultra" };
+    }
+    if (/sm-s916/i.test(corpus) || corpus.includes("galaxy s23+") || corpus.includes("s23+")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23+" };
+    }
+    if (/sm-s911/i.test(corpus) || /sm-s91[0-9]/i.test(corpus) || corpus.includes("galaxy s23") || corpus.includes("galaxys23")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23" };
+    }
+    if (/sm-s90[0-9]/i.test(corpus) || corpus.includes("galaxy s22") || corpus.includes("galaxys22")) {
+      const model = corpus.includes("ultra") ? "Galaxy S22 Ultra" : "Galaxy S22";
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+    }
+    if (/sm-g99[0-9]/i.test(corpus) || corpus.includes("galaxy s21") || corpus.includes("galaxys21")) {
+      const model = corpus.includes("ultra") ? "Galaxy S21 Ultra" : "Galaxy S21";
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+    }
+    if (/sm-g98[0-9]/i.test(corpus) || corpus.includes("galaxy s20") || corpus.includes("galaxys20")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S20 Series" };
+    }
+    if (/sm-g97[0-9]/i.test(corpus) || corpus.includes("galaxy s10") || corpus.includes("galaxys10")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S10 Series" };
+    }
+    if (/galaxy[-_ ]?s\b/i.test(corpus) || corpus.includes("galaxy-s")) {
+      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S-Series" };
+    }
+
+    // 2-A-2. Galaxy Z-Series (Fold / Flip)
+    if (/sm-f9[0-9]{2}/i.test(corpus) || corpus.includes("z fold") || corpus.includes("zfold") || corpus.includes("galaxy fold")) {
+      return { type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Fold" };
+    }
+    if (/sm-f7[0-9]{2}/i.test(corpus) || corpus.includes("z flip") || corpus.includes("zflip") || corpus.includes("galaxy flip")) {
+      return { type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Flip" };
+    }
+
+    // 2-A-3. Galaxy Tab
+    if (/sm-x[0-9]{3}/i.test(corpus) || /sm-t[0-9]{3}/i.test(corpus) || corpus.includes("galaxy tab") || corpus.includes("galaxytab")) {
+      return { type: "Galaxy Tab", os: "Android (One UI)", model: "Galaxy Tab" };
+    }
+
+    // 2-A-4. Galaxy A-Series / M-Series
+    if (/sm-a[0-9]{3}/i.test(corpus) || corpus.includes("galaxy a") || corpus.includes("galaxya")) {
+      const aMatch = corpus.match(/sm-a(\d{2,3})/i);
+      const model = aMatch ? `Galaxy A${aMatch[1].slice(0, 2)}` : "Galaxy A-Series";
+      return { type: "Galaxy A-Series", os: "Android (One UI)", model };
+    }
+
+    // General Samsung Galaxy
+    if (corpus.includes("galaxy")) {
+      return { type: "Galaxy", os: "Android (One UI)", model: "Samsung Galaxy" };
+    }
+  }
+
+  // 2-B. Google Pixel Devices
+  const isGoogleVendor = v.includes("google");
+  if (corpus.includes("pixel") || (isGoogleVendor && corpus.includes("pixel"))) {
+    let pixelModel = "Pixel";
+    if (corpus.includes("pixel 9 pro fold")) pixelModel = "Pixel 9 Pro Fold";
+    else if (corpus.includes("pixel 9 pro xl")) pixelModel = "Pixel 9 Pro XL";
+    else if (corpus.includes("pixel 9 pro")) pixelModel = "Pixel 9 Pro";
+    else if (corpus.includes("pixel 9")) pixelModel = "Pixel 9";
+    else if (corpus.includes("pixel 8 pro")) pixelModel = "Pixel 8 Pro";
+    else if (corpus.includes("pixel 8a")) pixelModel = "Pixel 8a";
+    else if (corpus.includes("pixel 8")) pixelModel = "Pixel 8";
+    else if (corpus.includes("pixel 7 pro")) pixelModel = "Pixel 7 Pro";
+    else if (corpus.includes("pixel 7a")) pixelModel = "Pixel 7a";
+    else if (corpus.includes("pixel 7")) pixelModel = "Pixel 7";
+    else if (corpus.includes("pixel 6 pro")) pixelModel = "Pixel 6 Pro";
+    else if (corpus.includes("pixel 6a")) pixelModel = "Pixel 6a";
+    else if (corpus.includes("pixel 6")) pixelModel = "Pixel 6";
+    else if (corpus.includes("pixel fold")) pixelModel = "Pixel Fold";
+    else if (corpus.includes("pixel tablet")) pixelModel = "Pixel Tablet";
+
+    return { type: "Pixel", os: "Android", model: pixelModel };
+  }
+
+  // Google Cast / Nest Smart Home Devices
+  if (corpus.includes("_googlecast._tcp") || corpus.includes("google cast") || corpus.includes("google home") || corpus.includes("nest hub")) {
+    return { type: "Google Nest / Cast", os: "CastOS / Android", model: "Google Cast Device" };
+  }
+
+  // 2-C. Xiaomi / Redmi / POCO
+  if (v.includes("xiaomi") || corpus.includes("xiaomi") || corpus.includes("redmi") || corpus.includes("poco") || corpus.includes("hyperos") || corpus.includes("miui")) {
+    const brand = corpus.includes("poco") ? "POCO (Xiaomi)" : corpus.includes("redmi") ? "Redmi (Xiaomi)" : "Xiaomi Phone";
+    return { type: "Xiaomi / Redmi", os: "Android (HyperOS/MIUI)", model: brand };
+  }
+
+  // 2-D. Other Mobile Devices (OnePlus, Sony Xperia, Motorola, Huawei)
+  if (corpus.includes("oneplus") || v.includes("oneplus")) {
+    return { type: "OnePlus", os: "Android (OxygenOS)", model: "OnePlus Smartphone" };
+  }
+  if (corpus.includes("xperia") || (v.includes("sony") && corpus.includes("phone"))) {
+    return { type: "Sony Xperia", os: "Android", model: "Sony Xperia" };
+  }
+  if (corpus.includes("motorola") || corpus.includes("moto g") || corpus.includes("moto edge")) {
+    return { type: "Motorola", os: "Android", model: "Motorola Smartphone" };
+  }
+  if (v.includes("huawei") || corpus.includes("huawei") || corpus.includes("honor")) {
+    return { type: "Huawei / Honor", os: "HarmonyOS / Android", model: "Huawei Device" };
+  }
+
+  // 2-E. Generic Android Detection (mDNS, Hostname prefix android-, DHCP)
+  if (corpus.includes("android") || corpus.includes("_android._tcp") || /^android-[a-f0-9]+/i.test(hostname)) {
+    return { type: s.deviceTypes?.mobile || "모바일 장치", os: "Android", model: "Android Smartphone" };
+  }
+
+  // ==========================================
+  // 3. Peripheral, Server & Network Equipment
+  // ==========================================
+  if (openPorts.includes(9100) || openPorts.includes(631) || corpus.includes("printer") || v.includes("epson") || v.includes("canon") || v.includes("brother") || v.includes("fuji xerox") || v.includes("hp inc")) {
+    return { type: s.deviceTypes?.printer || "네트워크 프린터", os: "Embedded" };
+  }
+  if (openPorts.includes(445) || openPorts.includes(135)) {
+    return { type: s.deviceTypes?.windows || "Windows PC", os: "Windows" };
+  }
+  if (openPorts.includes(3389)) {
+    return { type: s.deviceTypes?.rdp || "원격 데스크톱", os: "Windows" };
+  }
+  if (openPorts.includes(22)) {
+    return { type: s.deviceTypes?.linux || "리눅스/서버", os: "Linux" };
+  }
+
+  // Network infrastructure
+  if (v.includes("cisco") || v.includes("tp-link") || v.includes("asus") || v.includes("netgear") || v.includes("iptime") || v.includes("ubiquiti") || v.includes("d-link") || v.includes("zyxel") || corpus.includes("router") || corpus.includes("openwrt")) {
+    return { type: s.deviceTypes?.network || "네트워크 장비", os: "RTOS / Linux" };
+  }
+
+  // NAS
+  if (v.includes("synology") || v.includes("qnap") || v.includes("asustor") || corpus.includes("diskstation")) {
+    return { type: s.deviceTypes?.nas || "NAS 서버", os: "Linux (NAS)" };
+  }
+
+  // Fallbacks by vendor
+  if (v.includes("samsung")) return { type: s.deviceTypes?.mobile || "모바일 장치", os: "Android" };
+  if (v.includes("apple")) return { type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" };
+
+  return { type: s.deviceTypes?.generic || "네트워크 노드", os: "Generic" };
 };
 
 const translations = {
@@ -165,7 +433,7 @@ const translations = {
     mobileConnectDesc: "스마트폰 카메라 QR 코드로 원격 제어 또는 모바일 단독 앱 안내",
     helpTitle: "Grid IP Scanner2 도움말 및 안내",
     helpLicenseTitle: "1. 이중 라이선스 고지 (Dual Licensing Notice)",
-    helpLicenseDesc: "Grid IP Scanner2는 오픈소스 라이선스(GPL v3)와 상용 라이선스(Proprietary Commercial License)의 [이중 라이선스 (Dual Licensing)] 정책을 채택하여 배포됩니다.\n\n[1. 이중 라이선스 모델 안내]\n• 커뮤니티 에디션 (무상 사용): 소스코드를 공개 및 기여해야 하는 카피레프트 의무(GPL v3) 하에 무상으로 자유롭게 사용할 수 있습니다.\n• 상업용 에디션 (유료 판매): 소스코드를 독점적으로 유지한 채 독자적인 상용 라이선스를 적용하여 상업적으로 패키징하고, 유료 솔루션으로 재배포 및 판매하고자 하는 경우 상용 라이선스(Commercial License)를 취득하여 법적 제약 없이 완전한 비즈니스 권리를 누릴 수 있습니다.\n\n[2. 법적 안전성 및 오픈소스 준수]\n• 본 프로그램의 독창적인 UI, 자체 고안된 네트워크 탐색 파이프라인 및 코어 기능은 개발자/배포자(AhBiYout & Cisnet)에게 독점적 저작권이 귀속됩니다.\n• 앱의 하부 구조를 이루는 오픈소스 라이브러리(React, Lucide React, Go runtime 등)는 허용형 라이선스(MIT License)를 준수합니다. MIT 라이선스는 상업적 재배포, 서브라이선스 발행 및 유료 판매권을 완전히 보장하므로, 향후 이를 패키징하여 상용 소프트웨어로 유료 판매하더라도 법적으로 어떠한 분쟁이나 문제가 발생하지 않는 완전무결한 법적 효력을 갖습니다.\n\n[3. 하드웨어 OUI 데이터베이스 귀속 및 엔진]\n• 하드웨어 제조사 매핑 데이터는 IEEE 공식 OUI 레지스트리(MA-L/M/S), Wireshark Manuf Automated Database 및 Ringmast4r OUI Master Database(MIT)를 기반으로 가공된 최신 90,168개 이상의 엔트리를 탑재하고 있습니다. 다중 비트 마스크(/28, /36) 및 24비트 OUI를 완벽 지원하며, 이중 미러링(Tiered Fallback)을 통해 상업용 패키징 유료 판매 과정에서 특허나 라이선스 충돌 요소가 일체 없습니다.\n\n[4. 보증의 부인 및 책임 제한 (Standard Disclaimer)]\n• 본 소프트웨어는 일체의 명시적 또는 묵시적 보증 없이 '있는 그대로(AS IS)' 제공됩니다. 저작권자는 본 프로그램의 사용 또는 탐색 결과로 인해 발생하는 어떠한 직·간접적 손해에 대해서도 법적 책임을 지지 않습니다.",
+    helpLicenseDesc: "Grid IP Scanner2는 오픈소스 라이선스(GPL v3)와 상용 라이선스(Proprietary Commercial License)의 [이중 라이선스 (Dual Licensing)] 정책을 채택하여 배포됩니다.\n\n[1. 이중 라이선스 모델 안내]\n• 커뮤니티 에디션 (무상 사용): 소스코드를 공개 및 기여해야 하는 카피레프트 의무(GPL v3) 하에 무상으로 자유롭게 사용할 수 있습니다.\n• 상업용 에디션 (유료 판매): 소스코드를 독점적으로 유지한 채 독자적인 상용 라이선스를 적용하여 상업적으로 패키징하고, 유료 솔루션으로 재배포 및 판매하고자 하는 경우 상용 라이선스(Commercial License)를 취득하여 법적 제약 없이 완전한 비즈니스 권리를 누릴 수 있습니다.\n\n[2. 법적 안전성 및 오픈소스 준수]\n• 본 프로그램의 독창적인 UI, 자체 고안된 네트워크 탐색 파이프라인 및 코어 기능은 개발자(AhBiYout)에게 독점적 저작권이 귀속됩니다.\n• 앱의 하부 구조를 이루는 오픈소스 라이브러리(React, Lucide React, Go runtime 등)는 허용형 라이선스(MIT License)를 준수합니다. MIT 라이선스는 상업적 재배포, 서브라이선스 발행 및 유료 판매권을 완전히 보장하므로, 향후 이를 패키징하여 상용 소프트웨어로 유료 판매하더라도 법적으로 어떠한 분쟁이나 문제가 발생하지 않는 완전무결한 법적 효력을 갖습니다.\n\n[3. 하드웨어 OUI 데이터베이스 귀속 및 엔진]\n• 하드웨어 제조사 매핑 데이터는 IEEE 공식 OUI 레지스트리(MA-L/M/S), Wireshark Manuf Automated Database 및 Ringmast4r OUI Master Database(MIT)를 기반으로 가공된 최신 90,168개 이상의 엔트리를 탑재하고 있습니다. 다중 비트 마스크(/28, /36) 및 24비트 OUI를 완벽 지원하며, 이중 미러링(Tiered Fallback)을 통해 상업용 패키징 유료 판매 과정에서 특허나 라이선스 충돌 요소가 일체 없습니다.\n\n[4. 보증의 부인 및 책임 제한 (Standard Disclaimer)]\n• 본 소프트웨어는 일체의 명시적 또는 묵시적 보증 없이 '있는 그대로(AS IS)' 제공됩니다. 저작권자는 본 프로그램의 사용 또는 탐색 결과로 인해 발생하는 어떠한 직·간접적 손해에 대해서도 법적 책임을 지지 않습니다.",
     helpUsageTitle: "2. 간단한 사용법 (Quick Guide)",
     helpUsageDesc: "• 인터페이스 선택: 왼쪽 설정 패널에서 스캔할 네트워크 인터페이스(이더넷, Wi-Fi 등)를 선택합니다.\n• 스캔 범위 설정: 서브넷 내에서 스캔을 진행할 시작 IP와 종료 IP 범위를 설정합니다.\n• 스캔 모드 조절: 환경에 맞춰 고속, 표준, 정밀 모드 중 하나를 선택합니다. 정밀 모드는 느리지만 더욱 정확하게 기기를 탐색할 수 있습니다.\n• 실시간 그리드 탐색: 스캔이 시작되면 그리드 셀(IPCell)이 실시간으로 상태를 반영합니다. 활성화된 녹색 셀을 클릭하여 세부 프로필(제조사, 열린 포트 목록, OS 식별 정보 등)을 확인할 수 있습니다.\n• 관리자 권한 활성화: MAC 주소 추출 및 더욱 정교한 OUI 하드웨어 식별을 활성화하기 위해 상단의 주황색 '일반 모드' 배지를 클릭하고, UAC(사용자 계정 컨트롤) 승인을 통해 관리자 권한으로 앱을 다시 시작하십시오.",
     creatorContact: "GitHub 저장소 및 이슈 문의 (GitHub & Issues)",
@@ -424,7 +692,7 @@ const translations = {
     mobileConnectDesc: "Remote control via Smartphone QR Code or Mobile Standalone App Guide",
     helpTitle: "Grid IP Scanner2 Help & Documentation",
     helpLicenseTitle: "1. Dual Licensing Notice",
-    helpLicenseDesc: "Grid IP Scanner2 is distributed under a [Dual Licensing] scheme, offering both an Open Source License (GPL v3) and a Proprietary Commercial License.\n\n[1. Dual Licensing Model]\n• Community Edition (Free Use): If you use, modify, and distribute the software for personal or open-source projects under the copyleft obligation of sharing your derivative source code under the same terms, the GNU GPL v3 license applies, allowing free usage.\n• Commercial Edition (Paid/Proprietary): If you wish to package, rename, distribute, or sell Grid IP Scanner2 as a proprietary commercial solution without any obligation to disclose your source code, you can obtain a \"Proprietary Commercial License.\" This legally guarantees your right to monetize, lease, and sell the software as a paid proprietary solution.\n\n[2. Legal Security & Upstream Compliance]\n• The user interface, proprietary scanning logic, and specialized pipeline are fully owned by the developer/distributor (AhBiYout & Cisnet), granting complete legal authority for commercialization.\n• Underlying third-party libraries (such as React, Lucide React, Go runtime, etc.) are licensed under the highly permissive MIT License. The MIT License explicitly and fully permits sublicensing, modification, commercial distribution, and paid resale. Therefore, integrating these components into a commercial package is 100% compliant and legally secure.\n\n[3. OUI Database Compliance & Engine]\n• The hardware vendor OUI database is processed and derived from the official IEEE OUI registry (MA-L/M/S), Wireshark Automated Manuf Database, and Ringmast4r OUI Master Database (MIT License), featuring 90,168+ entries. All multi-bit masks (/28, /36) and 24-bit OUIs are supported with robust tiered fallback mirroring, ensuring total compliance and zero legal conflict.\n\n[4. Standard Disclaimer of Warranty & Liability]\n• THIS SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.",
+    helpLicenseDesc: "Grid IP Scanner2 is distributed under a [Dual Licensing] scheme, offering both an Open Source License (GPL v3) and a Proprietary Commercial License.\n\n[1. Dual Licensing Model]\n• Community Edition (Free Use): If you use, modify, and distribute the software for personal or open-source projects under the copyleft obligation of sharing your derivative source code under the same terms, the GNU GPL v3 license applies, allowing free usage.\n• Commercial Edition (Paid/Proprietary): If you wish to package, rename, distribute, or sell Grid IP Scanner2 as a proprietary commercial solution without any obligation to disclose your source code, you can obtain a \"Proprietary Commercial License.\" This legally guarantees your right to monetize, lease, and sell the software as a paid proprietary solution.\n\n[2. Legal Security & Upstream Compliance]\n• The user interface, proprietary scanning logic, and specialized pipeline are fully owned by the developer (AhBiYout), granting complete legal authority for commercialization.\n• Underlying third-party libraries (such as React, Lucide React, Go runtime, etc.) are licensed under the highly permissive MIT License. The MIT License explicitly and fully permits sublicensing, modification, commercial distribution, and paid resale. Therefore, integrating these components into a commercial package is 100% compliant and legally secure.\n\n[3. OUI Database Compliance & Engine]\n• The hardware vendor OUI database is processed and derived from the official IEEE OUI registry (MA-L/M/S), Wireshark Automated Manuf Database, and Ringmast4r OUI Master Database (MIT License), featuring 90,168+ entries. All multi-bit masks (/28, /36) and 24-bit OUIs are supported with robust tiered fallback mirroring, ensuring total compliance and zero legal conflict.\n\n[4. Standard Disclaimer of Warranty & Liability]\n• THIS SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.",
     helpUsageTitle: "2. Quick Guide",
     helpUsageDesc: "• Select Interface: In the left settings panel, select the network adapter/interface (Ethernet, Wi-Fi, etc.) to scan.\n• Configure Scan Range: Set the start and end IP address offsets in the selected subnet.\n• Choose Scan Mode: Select Fast, Standard, or Precision depending on your network conditions. Precision mode is slower but searches with much higher accuracy.\n• Real-Time Grid Nodes: The scanning progress is shown on the IPCell grid in real-time. Click any active (green) cell to view detailed node information (vendor, open ports, OS profiling) in the right sidebar.\n• Admin Elevation: To unlock full scanning features (including local MAC collection and OUI hardware matching), click the orange 'Standard Mode' badge at the top to elevate and restart with Administrator privileges.",
     creatorContact: "GitHub Repository & Issues Inquiry",
@@ -750,6 +1018,10 @@ const App: React.FC = () => {
       return 0;
     }
   });
+
+  // Native DLL Modules State
+  const [showNativeModal, setShowNativeModal] = useState(false);
+  const [nativeStatus, setNativeStatus] = useState<NativeModulesStatus | null>(null);
 
   // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
   const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
@@ -1154,20 +1426,23 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveNickname = (mac?: string, ip?: string) => {
+  const handleSaveNickname = (mac?: string, ip?: string, customName?: string) => {
     if (!mac && !ip) return;
     const key = normalizeMacKey(mac, ip);
+    const nicknameToSave = customName !== undefined ? customName.trim() : aliasNicknameInput.trim();
+    const existingAlias = getDeviceAlias(mac, ip);
     const updatedAlias: DeviceAlias = {
       mac: key.startsWith('IP:') ? '' : key,
       ip,
-      nickname: aliasNicknameInput.trim(),
-      notes: aliasNotesInput.trim(),
+      nickname: nicknameToSave,
+      notes: existingAlias?.notes || aliasNotesInput.trim(),
       updatedAt: new Date().toISOString()
     };
     saveDeviceAlias(updatedAlias);
     setAliases(getStoredAliases());
+    setAliasNicknameInput(nicknameToSave);
     setIsEditingAlias(false);
-    showToast(updatedAlias.nickname ? `기기 별칭이 "${updatedAlias.nickname}"(으)로 저장되었습니다.` : "기기 별칭이 초기화되었습니다.");
+    showToast(nicknameToSave ? `기기 이름이 "${nicknameToSave}"(으)로 설정되었습니다.` : "기기 별칭이 초기화되었습니다.");
   };
 
   const handleDeleteNickname = (mac?: string, ip?: string) => {
@@ -1540,6 +1815,9 @@ const App: React.FC = () => {
 
   // Background GitHub Releases Auto-Update Checker
   useEffect(() => {
+    // Load Native DLL Modules status
+    fetchNativeModulesStatus().then(st => setNativeStatus(st)).catch(() => {});
+
     const updateTimer = setTimeout(() => {
       checkGitHubRelease(false).then(res => {
         if (res.updateInfo) {
@@ -1716,9 +1994,18 @@ const App: React.FC = () => {
 
               const isSelf = res.ip === localIpInfo?.ip;
               const vendorName = res.vendor || "Unknown Vendor";
-              const classification = classifyDevice(vendorName, res.openPorts || [], s);
+              const classification = classifyDevice(vendorName, res.openPorts || [], s, {
+                hostname: res.hostname,
+                mdns: res.mdns,
+                webTitle: res.webTitle,
+                upnp: res.upnp,
+                mac: res.mac
+              });
               
               let finalName = res.hostname;
+              if (!finalName && classification.model) {
+                finalName = classification.model;
+              }
               if (!finalName && res.webTitle) {
                 finalName = res.webTitle.length > 25 ? res.webTitle.substring(0, 22) + "..." : res.webTitle;
               }
@@ -1726,7 +2013,7 @@ const App: React.FC = () => {
                 if (!res.mac || res.mac === "Unknown" || res.mac === "") {
                   finalName = isSelf ? s.deviceTypes.hostMachine : "Hidden Node";
                 } else {
-                  finalName = isSelf ? s.deviceTypes.hostMachine : (vendorName !== "Unknown Vendor" ? `${vendorName} ${classification.type}` : "Unknown Device");
+                  finalName = isSelf ? s.deviceTypes.hostMachine : (classification.model ? classification.model : (vendorName !== "Unknown Vendor" ? `${vendorName} ${classification.type}` : classification.type));
                 }
               }
 
@@ -1739,12 +2026,16 @@ const App: React.FC = () => {
                 vendor: isSelf ? s.deviceTypes.hostMachine : vendorName,
                 latency: res.latency,
                 hostname: finalName,
+                nameSource: res.nameSource || (res.mdns ? 'MDNS' : res.upnp ? 'UPNP' : res.snmp ? 'SNMP' : res.webTitle ? 'WEB' : res.hostname ? 'DNS' : 'UNKNOWN'),
+                hostnameSources: res.hostnameSources || (res.hostname ? { [res.nameSource || 'DNS']: res.hostname } : undefined),
                 webTitle: res.webTitle,
                 os: isSelf ? "Windows (Host PC)" : classification.os,
                 openPorts: res.openPorts,
                 mdns: res.mdns,
                 upnp: res.upnp,
-                snmp: res.snmp
+                snmp: res.snmp,
+                deviceType: classification.type,
+                deviceModel: classification.model
               } : undefined;
 
               if (!res.alive && prevResult && prevResult.status === 'active') {
@@ -1950,9 +2241,15 @@ const App: React.FC = () => {
       return;
     }
 
-    const headers = ["IP Address", "Status", "MAC Address", "Vendor", "Hostname", "Latency (ms)", "Open Ports", "Device Type", "OS"];
+    const headers = ["IP Address", "Status", "MAC Address", "Vendor", "Hostname", "Name Source", "Latency (ms)", "Open Ports", "Device Type", "Model", "OS"];
     const rows = exportData.map(r => {
-      const classification = classifyDevice(r.device?.vendor || "", r.device?.openPorts || [], s);
+      const classification = classifyDevice(r.device?.vendor || "", r.device?.openPorts || [], s, {
+        hostname: r.device?.hostname,
+        mdns: r.device?.mdns,
+        webTitle: r.device?.webTitle,
+        upnp: r.device?.upnp,
+        mac: r.device?.mac
+      });
       const escape = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
       
       return [
@@ -1961,9 +2258,11 @@ const App: React.FC = () => {
         escape(r.device?.mac || ""),
         escape(r.device?.vendor || ""),
         escape(r.device?.hostname || ""),
+        escape(r.device?.nameSource || "UNKNOWN"),
         escape(r.device?.latency || 0),
         escape((r.device?.openPorts || []).join(', ')),
         escape(classification.type),
+        escape(classification.model || r.device?.deviceModel || ""),
         escape(classification.os)
       ];
     });
@@ -2116,7 +2415,7 @@ const App: React.FC = () => {
   <div class="container">
     <header>
       <div class="title-group">
-        <h1>CISNET GRID SCAN2 REPORT</h1>
+        <h1>GRID SCAN2 REPORT</h1>
         <p>Network Infrastructure Scan</p>
       </div>
       <div class="meta-group">
@@ -2180,7 +2479,7 @@ const App: React.FC = () => {
     </div>
 
     <div class="footer">
-      GENERATED BY CISNET GRID IP SCANNER2 | WWW.CISNET.CO.KR
+      GENERATED BY GRID IP SCANNER2
     </div>
   </div>
 </body>
@@ -2390,12 +2689,20 @@ const App: React.FC = () => {
 
       if (!searchTerm) return true;
       const s_term = searchTerm.toLowerCase();
-      const classification = classifyDevice(item.device?.vendor || "", item.device?.openPorts || [], s);
+      const classification = classifyDevice(item.device?.vendor || "", item.device?.openPorts || [], s, {
+        hostname: item.device?.hostname,
+        mdns: item.device?.mdns,
+        webTitle: item.device?.webTitle,
+        upnp: item.device?.upnp,
+        mac: item.device?.mac
+      });
       return ip.includes(s_term) || 
              item.device?.vendor?.toLowerCase().includes(s_term) || 
              item.device?.hostname?.toLowerCase().includes(s_term) ||
              item.device?.mac?.toLowerCase().includes(s_term) ||
              classification.type.toLowerCase().includes(s_term) ||
+             (classification.model && classification.model.toLowerCase().includes(s_term)) ||
+             (item.device?.deviceModel && item.device.deviceModel.toLowerCase().includes(s_term)) ||
              (alias?.nickname && alias.nickname.toLowerCase().includes(s_term)) ||
              (alias?.notes && alias.notes.toLowerCase().includes(s_term));
     });
@@ -2524,6 +2831,18 @@ const App: React.FC = () => {
                 title={s.resetState}
               >
                 {s.resetBtn}
+              </button>
+              <button
+                onClick={() => setShowNativeModal(true)}
+                className={`px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 ${
+                  nativeStatus?.probeEngine
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25 shadow-sm shadow-sky-500/20'
+                    : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                }`}
+                title="6대 전용 C/Win32 네이티브 가속 DLL 진단 허브 열기"
+              >
+                <Cpu className="w-2.5 h-2.5 text-sky-400" />
+                <span>DLL 허브</span>
               </button>
             </div>
           </div>
@@ -2817,10 +3136,6 @@ const App: React.FC = () => {
                     <Github className="w-2.5 h-2.5" />
                     <span>AhBiYout-all/grid-ip-scanner2</span>
                   </a>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.website}</span>
-                  <a href="http://www.cisnet.co.kr" target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-500 hover:underline">www.cisnet.co.kr</a>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-[9px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.blog}</span>
@@ -3778,51 +4093,36 @@ const App: React.FC = () => {
           )}
         </header>
 
-        {/* ================= SNAPSHOT DIFF PERSISTENT SUB-HEADER TOOLBAR (ZERO CLIPPING & NO BOTTOM DESCRIPTION) ================= */}
+        {/* ================= SNAPSHOT DIFF PERSISTENT SUB-HEADER TOOLBAR (CLEAN 2-ROW ORGANIZED) ================= */}
         {viewMode === 'diff' && (
-          <div className={`w-full border-b shrink-0 z-20 transition-all shadow-sm ${
+          <div className={`w-full border-b shrink-0 z-20 transition-all shadow-md ${
             theme === 'beige'
               ? 'bg-[#f8f1e5] border-[#dfcaa7] text-[#4a341e]'
               : 'bg-slate-900/95 backdrop-blur border-indigo-500/30 text-indigo-100'
           }`}>
-            <div className="max-w-6xl mx-auto px-3 py-2 flex flex-col gap-2">
-              {/* Row 1: Diff Identity, Baseline Select, Quick Save, Diff Studio Button, Guide & Exit */}
+            <div className="max-w-7xl mx-auto px-3 py-2 flex flex-col gap-2">
+              {/* Row 1: Snapshot Controls & Action Buttons */}
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <div className={`p-1 rounded-lg shrink-0 ${
-                    theme === 'beige' ? 'bg-amber-500/20 text-amber-800' : 'bg-indigo-500/20 text-indigo-400'
-                  }`}>
-                    <Camera className="w-4 h-4" />
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`text-xs font-black uppercase tracking-tight ${
-                      theme === 'beige' ? 'text-[#382613]' : 'text-indigo-300'
-                    }`}>{s.diffMode}</span>
-                    <span className={`px-2 py-0.5 rounded text-[9.5px] font-mono font-bold border truncate max-w-[150px] sm:max-w-xs ${
-                      theme === 'beige'
-                        ? 'bg-[#edd8b6] border-[#d8c09a] text-[#543818]'
-                        : 'bg-indigo-500/30 border-indigo-500/40 text-indigo-200'
-                    }`} title={baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요 (스냅샷 저장)'}>
-                      {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 필요'}
-                    </span>
+                {/* Left: Mode Badge, Unified Baseline Selector & Quick Capture */}
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-black shrink-0">
+                    <Camera className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{s.diffMode}</span>
                   </div>
 
-                  {/* Baseline Selection Dropdown */}
-                  {snapshots.length > 0 && (
-                    <div className={`flex items-center gap-1 border rounded-lg px-2 py-0.5 shrink-0 ${
-                      theme === 'beige'
-                        ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]'
-                        : 'bg-black/40 border-white/10 text-zinc-100'
+                  {/* Unified Baseline Selector */}
+                  {snapshots.length > 0 ? (
+                    <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1 shrink-0 shadow-sm ${
+                      theme === 'beige' ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]' : 'bg-black/40 border-white/15 text-zinc-100'
                     }`}>
-                      <span className={`text-[9px] font-bold uppercase tracking-wider ${
-                        theme === 'beige' ? 'text-[#7d5f39]' : 'text-zinc-400'
-                      }`}>{s.baselineSelect}:</span>
+                      <span className="text-[10px] font-black opacity-60 uppercase">기준:</span>
                       <select
                         value={baselineSnapshot?.id || ''}
                         onChange={(e) => setBaselineSnapshotId(e.target.value)}
-                        className={`bg-transparent text-[10px] font-bold outline-none cursor-pointer py-0.5 pr-1 max-w-[130px] truncate ${
+                        className={`bg-transparent text-[11px] font-black outline-none cursor-pointer py-0.5 pr-1 max-w-[170px] sm:max-w-[280px] truncate ${
                           theme === 'beige' ? 'text-[#3d2711]' : 'text-zinc-100'
                         }`}
+                        title="비교 기준 스냅샷 선택"
                       >
                         {snapshots.map((snap) => (
                           <option 
@@ -3837,119 +4137,127 @@ const App: React.FC = () => {
                       {baselineSnapshot && (
                         <button
                           onClick={() => handleDeleteSnapshot(baselineSnapshot.id)}
-                          className="p-0.5 text-zinc-400 hover:text-red-500 transition-colors"
-                          title="선택한 기준 스냅샷 삭제"
+                          className="p-1 rounded hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors ml-0.5"
+                          title="현재 선택된 기준 스냅샷 삭제"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
+                  ) : (
+                    <span className="text-[10.5px] font-bold text-amber-400 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      기준 스냅샷 없음 (스냅샷 캡처 버튼을 눌러 생성)
+                    </span>
                   )}
 
                   {/* Capture Current Live Scan as Snapshot */}
                   <button
                     onClick={() => handleSaveSnapshot()}
-                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[9.5px] font-black uppercase tracking-tight shadow flex items-center gap-1 transition-all shrink-0 cursor-pointer"
-                    title="현재 스캔된 네트워크 상태를 새 기준 스냅샷으로 캡처하여 저장합니다"
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+                    title="현재 스캔 결과를 새 기준 스냅샷으로 캡처 및 저장"
                   >
-                    <Camera className="w-3 h-3" />
-                    <span>{s.diffSaveNewBtn}</span>
-                  </button>
-
-                  {/* Launch Snapshot 1:1 Diff Studio Modal */}
-                  <button
-                    onClick={() => setShowDiffStudioModal(true)}
-                    className="px-2.5 py-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-600 hover:from-indigo-500 hover:to-sky-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ring-1 ring-sky-400/40"
-                    title="임의의 두 스냅샷 간 1:1 나란히 대조 테이블 및 심층 변동 분석 스튜디오를 엽니다"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>스냅샷 1:1 대조 스튜디오 (Studio)</span>
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>스냅샷 캡처</span>
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                {/* Right: Studio & Guide & Return to Grid */}
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                  {/* 1:1 Diff Studio Modal */}
+                  <button
+                    onClick={() => setShowDiffStudioModal(true)}
+                    className="px-2.5 py-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-600 hover:from-indigo-500 hover:to-sky-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ring-1 ring-sky-400/40"
+                    title="임의의 두 스냅샷 간 1:1 나란히 대조 테이블 및 심층 변동 분석 스튜디오"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>1:1 대조 스튜디오</span>
+                  </button>
+
+                  {/* Guide Help */}
                   <button
                     onClick={() => setShowDiffGuide(true)}
-                    className={`px-2 py-1 rounded-lg border text-[9.5px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                    className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
                       theme === 'beige'
                         ? 'bg-[#f0e2ca] hover:bg-[#e7d4b4] border-[#d4be94] text-[#4a341e]'
                         : 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-500/40 text-indigo-300'
                     }`}
                     title={s.diffGuideBtn}
                   >
-                    <HelpCircle className="w-3 h-3 opacity-80" />
-                    <span>{s.diffGuideBtn}</span>
+                    <HelpCircle className="w-3.5 h-3.5 opacity-80" />
+                    <span>사용법</span>
                   </button>
 
+                  {/* Exit Diff and return to Grid */}
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`px-2 py-1 rounded-lg border text-[9.5px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
+                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5 transition-all shadow-sm ${
                       theme === 'beige'
                         ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
                         : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
                     }`}
                     title="스냅샷 비교 종료 및 기본 그리드로 복귀"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                     <span>그리드 복귀</span>
                   </button>
                 </div>
               </div>
 
-              {/* Row 2: Live Counters & Color Distinction Strip (Merged & Ultra-Compact) */}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[9.5px]">
-                <div className="flex flex-wrap items-center gap-1.5 font-black">
+              {/* Row 2: Interactive Filter Tabs & Baseline Color Palette */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/5">
+                {/* Left: Interactive Filter Counters */}
+                <div className="flex flex-wrap items-center gap-1.5 font-black text-[10px]">
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'new' ? 'all' : 'new')}
-                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'new'
-                        ? 'ring-2 ring-emerald-400 bg-emerald-500 text-white border-emerald-300'
+                        ? 'ring-2 ring-emerald-400 bg-emerald-500 text-white border-emerald-300 font-black'
                         : theme === 'beige'
                         ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
                         : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
                     }`}
-                    title="초록색: 신규 노드만 필터링하여 강조 (+NEW)"
+                    title="초록색: 신규 감지 노드 (+NEW) 필터링"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span>+ {s.diffNewBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.newCount}</span>
                   </button>
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'offline' ? 'all' : 'offline')}
-                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'offline'
-                        ? 'ring-2 ring-rose-400 bg-rose-600 text-white border-rose-300'
+                        ? 'ring-2 ring-rose-400 bg-rose-600 text-white border-rose-300 font-black'
                         : theme === 'beige'
                         ? 'bg-rose-100/90 text-rose-900 border-rose-300 hover:bg-rose-200'
                         : 'bg-rose-500/20 text-rose-400 border-rose-500/40 hover:bg-rose-500/30'
                     }`}
-                    title="빨간색: 연결 끊김/오프라인 노드만 필터링 (-OFF)"
+                    title="빨간색: 연결 끊김 / 오프라인 노드 (-OFF) 필터링"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <span className="w-2 h-2 rounded-full bg-rose-400" />
                     <span>- {s.diffGoneBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.offlineCount}</span>
                   </button>
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'changed' ? 'all' : 'changed')}
-                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 shadow-sm transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'changed'
-                        ? 'ring-2 ring-amber-400 bg-amber-500 text-black border-amber-300'
+                        ? 'ring-2 ring-amber-400 bg-amber-500 text-black border-amber-300 font-black'
                         : theme === 'beige'
                         ? 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200'
                         : 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
                     }`}
-                    title="주황색: MAC/호스트명 변동 노드만 필터링 (!CHG)"
+                    title="주황색: MAC/호스트명 변동 노드 (!CHG) 필터링"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
                     <span>! {s.diffChangedBadge}:</span>
                     <span className="mono text-xs font-black">{diffAnalysis.summary.changedCount}</span>
                   </button>
 
                   <button
                     onClick={() => setDiffFilter(diffFilter === 'same' ? 'all' : 'same')}
-                    className={`px-2 py-0.5 rounded-lg border flex items-center gap-1 transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
                       diffFilter === 'same'
                         ? diffBaselineColor === 'sky'
                           ? 'ring-2 ring-sky-400 bg-sky-500 text-black border-sky-300 font-black'
@@ -3957,7 +4265,7 @@ const App: React.FC = () => {
                           ? 'ring-2 ring-indigo-400 bg-indigo-600 text-white border-indigo-300 font-black'
                           : diffBaselineColor === 'teal'
                           ? 'ring-2 ring-teal-400 bg-teal-500 text-black border-teal-300 font-black'
-                          : 'ring-2 ring-slate-400 bg-slate-600 text-white border-slate-300'
+                          : 'ring-2 ring-slate-400 bg-slate-600 text-white border-slate-300 font-black'
                         : theme === 'beige'
                         ? diffBaselineColor === 'sky'
                           ? 'bg-sky-100/90 text-sky-900 border-sky-300 hover:bg-sky-200'
@@ -3974,9 +4282,9 @@ const App: React.FC = () => {
                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40 hover:bg-teal-500/30'
                         : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
                     }`}
-                    title="기준점과 동일하게 유지되는 정상 노드 필터링 (=SAME)"
+                    title="기준점과 동일 유지 노드 (=BASE) 필터링"
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${
+                    <span className={`w-2 h-2 rounded-full ${
                       diffBaselineColor === 'sky' ? 'bg-sky-400' :
                       diffBaselineColor === 'indigo' ? 'bg-indigo-400' :
                       diffBaselineColor === 'teal' ? 'bg-teal-400' : 'bg-slate-400'
@@ -3988,89 +4296,58 @@ const App: React.FC = () => {
                   {diffFilter !== 'all' && (
                     <button
                       onClick={() => setDiffFilter('all')}
-                      className="px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all cursor-pointer ml-1"
+                      className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all cursor-pointer ml-1"
                     >
                       전체 보기
                     </button>
                   )}
                 </div>
 
-                {/* Color Distinction Legend & Inline Color Switcher */}
-                <div className="flex flex-wrap items-center gap-1.5 font-bold text-[8.5px]">
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                    <span>추가 스캔 탐지: +신규(NEW)</span>
-                  </span>
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                    <span>-이탈(OFF)</span>
-                  </span>
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                    <span>!변동(CHG)</span>
-                  </span>
-
-                  {/* Dynamic Baseline Pill */}
-                  <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition-all ${
-                    diffBaselineColor === 'sky'
-                      ? 'bg-sky-500/20 text-sky-300 border-sky-400/50'
-                      : diffBaselineColor === 'indigo'
-                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/50'
-                      : diffBaselineColor === 'teal'
-                      ? 'bg-teal-500/20 text-teal-300 border-teal-400/50'
-                      : 'bg-slate-500/20 text-slate-200 border-slate-400/50'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full inline-block ${
-                      diffBaselineColor === 'sky' ? 'bg-sky-400' :
-                      diffBaselineColor === 'indigo' ? 'bg-indigo-400' :
-                      diffBaselineColor === 'teal' ? 'bg-teal-400' : 'bg-slate-300'
-                    }`} />
-                    <span>기존 기준 장비: =기준(BASE)</span>
-                  </span>
-
-                  <div className={`flex items-center gap-1 pl-2 border-l ${theme === 'beige' ? 'border-[#dfcaa7]' : 'border-white/10'}`}>
-                    <span className="opacity-60">기준색:</span>
+                {/* Right: Baseline Color Palette */}
+                <div className="flex items-center gap-1.5 text-[9.5px] font-bold">
+                  <span className="opacity-60 text-[10px]">기준색:</span>
+                  <div className="flex items-center bg-black/25 rounded-lg p-0.5 border border-white/5">
                     <button
                       onClick={() => setDiffBaselineColor('sky')}
-                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-black transition-all cursor-pointer ${
                         diffBaselineColor === 'sky'
-                          ? 'bg-sky-500 text-black font-black shadow-sm ring-1 ring-sky-300'
+                          ? 'bg-sky-500 text-black shadow-sm ring-1 ring-sky-300'
                           : 'opacity-60 hover:opacity-100 text-sky-400'
                       }`}
-                      title="기준점 색상: 하늘색 (Sky Blue)"
+                      title="하늘색 (Sky Blue)"
                     >
                       하늘
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('indigo')}
-                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-black transition-all cursor-pointer ${
                         diffBaselineColor === 'indigo'
-                          ? 'bg-indigo-600 text-white font-black shadow-sm ring-1 ring-indigo-300'
+                          ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-300'
                           : 'opacity-60 hover:opacity-100 text-indigo-400'
                       }`}
-                      title="기준점 색상: 보라색 (Indigo / Purple)"
+                      title="보라색 (Indigo / Purple)"
                     >
                       보라
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('teal')}
-                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-black transition-all cursor-pointer ${
                         diffBaselineColor === 'teal'
-                          ? 'bg-teal-500 text-black font-black shadow-sm ring-1 ring-teal-300'
+                          ? 'bg-teal-500 text-black shadow-sm ring-1 ring-teal-300'
                           : 'opacity-60 hover:opacity-100 text-teal-400'
                       }`}
-                      title="기준점 색상: 청록색 (Teal / Cyan)"
+                      title="청록색 (Teal / Cyan)"
                     >
                       청록
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('slate')}
-                      className={`px-1.5 py-0.2 rounded font-bold transition-all cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-[9.5px] font-black transition-all cursor-pointer ${
                         diffBaselineColor === 'slate'
-                          ? 'bg-slate-600 text-white font-black shadow-sm ring-1 ring-slate-300'
+                          ? 'bg-slate-600 text-white shadow-sm ring-1 ring-slate-300'
                           : 'opacity-60 hover:opacity-100 text-slate-300'
                       }`}
-                      title="기준점 색상: 스틸 회색 (Steel Slate)"
+                      title="스틸 회색 (Slate / Gray)"
                     >
                       회색
                     </button>
@@ -4398,9 +4675,33 @@ const App: React.FC = () => {
                      <div className={`p-4 ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-sky-500/10 border-sky-500/30'} rounded-2xl border flex flex-col items-center text-center shadow-sm`}>
                         <Monitor className="w-8 h-8 text-sky-500 mb-2" />
                         <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider mb-1`}>{s.networkIdentity}</span>
-                        <span className={`${isLgText ? 'text-lg md:text-xl' : 'text-base md:text-lg'} font-black text-sky-500 break-all leading-tight`}>
-                          {selectedAlias?.nickname ? selectedAlias.nickname : (effectiveDevice?.hostname || selectedIp)}
-                        </span>
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className={`${isLgText ? 'text-lg md:text-xl' : 'text-base md:text-lg'} font-black text-sky-500 break-all leading-tight`}>
+                            {selectedAlias?.nickname ? selectedAlias.nickname : (effectiveDevice?.hostname || selectedIp)}
+                          </span>
+                          {selectedAlias?.nickname ? (
+                            <span className="px-1.5 py-0.5 rounded font-black text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              별칭
+                            </span>
+                          ) : effectiveDevice?.nameSource && effectiveDevice.nameSource !== 'UNKNOWN' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.hostname)}
+                              className={`px-1.5 py-0.5 rounded font-black text-[9px] border shrink-0 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                                effectiveDevice.nameSource === 'SMB' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 hover:bg-blue-500/30' :
+                                effectiveDevice.nameSource === 'NETBIOS' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40 hover:bg-indigo-500/30' :
+                                effectiveDevice.nameSource === 'MDNS' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 hover:bg-purple-500/30' :
+                                effectiveDevice.nameSource === 'WSD' || effectiveDevice.nameSource === 'UPNP' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30' :
+                                effectiveDevice.nameSource === 'SNMP' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30' :
+                                effectiveDevice.nameSource === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30' :
+                                'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/30'
+                              }`} 
+                              title={`클릭하여 감지된 프로토콜 이름 ('${effectiveDevice.hostname}')을 이 장치 이름으로 적용`}
+                            >
+                              {effectiveDevice.nameSource} ↵
+                            </button>
+                          ) : null}
+                        </div>
                         {(selectedAlias?.nickname || selectedDevice?.hostname || selectedBaselineDevice?.hostname) && (
                           <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} opacity-75 font-mono mt-1`}>
                             {selectedAlias?.nickname ? (effectiveDevice?.hostname || selectedIp) : (selectedDiffStatus === 'offline' ? `(이전 기준: ${selectedBaselineDevice?.hostname || selectedBaselineDevice?.vendor || '장치'})` : selectedDevice?.hostname)}
@@ -4685,22 +4986,123 @@ const App: React.FC = () => {
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.os}</span>
                         <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold`}>{effectiveDevice?.os || 'Unknown'}</span>
                       </div>
+                      {(effectiveDevice?.deviceModel || effectiveDevice?.deviceType) && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>기기 모델/분류</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate ml-4 text-right`}>
+                            {effectiveDevice.deviceModel ? `${effectiveDevice.deviceModel} (${effectiveDevice.deviceType})` : effectiveDevice.deviceType}
+                          </span>
+                        </div>
+                      )}
                       {effectiveDevice?.mdns && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                           <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>mDNS</span>
-                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-sky-500`}>{effectiveDevice.mdns}</span>
+                          <div className="flex items-center gap-1.5 min-w-0 ml-4">
+                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate text-sky-500`}>{effectiveDevice.mdns}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.mdns)}
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 shrink-0 transition-colors cursor-pointer"
+                              title={`mDNS 이름 '${effectiveDevice.mdns}'을 이 장치 이름으로 설정`}
+                            >
+                              적용 ↵
+                            </button>
+                          </div>
                         </div>
                       )}
                       {effectiveDevice?.upnp && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                           <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>UPnP</span>
-                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-purple-500`}>{effectiveDevice.upnp}</span>
+                          <div className="flex items-center gap-1.5 min-w-0 ml-4">
+                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate text-purple-500`}>{effectiveDevice.upnp}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.upnp)}
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 border border-purple-500/30 shrink-0 transition-colors cursor-pointer"
+                              title={`UPnP 이름 '${effectiveDevice.upnp}'을 이 장치 이름으로 설정`}
+                            >
+                              적용 ↵
+                            </button>
+                          </div>
                         </div>
                       )}
                       {effectiveDevice?.snmp && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                           <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>SNMP</span>
-                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right text-amber-500`}>{effectiveDevice.snmp}</span>
+                          <div className="flex items-center gap-1.5 min-w-0 ml-4">
+                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate text-amber-500`}>{effectiveDevice.snmp}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.snmp)}
+                              className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 shrink-0 transition-colors cursor-pointer"
+                              title={`SNMP 이름 '${effectiveDevice.snmp}'을 이 장치 이름으로 설정`}
+                            >
+                              적용 ↵
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {effectiveDevice?.nameSource && effectiveDevice.nameSource !== 'UNKNOWN' && (
+                        <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>이름 식별 출처</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.hostname)}
+                            className={`px-2 py-0.5 rounded font-black text-xs border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                              effectiveDevice.nameSource === 'SMB' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 hover:bg-blue-500/30' :
+                              effectiveDevice.nameSource === 'NETBIOS' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40 hover:bg-indigo-500/30' :
+                              effectiveDevice.nameSource === 'MDNS' ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 hover:bg-purple-500/30' :
+                              effectiveDevice.nameSource === 'WSD' || effectiveDevice.nameSource === 'UPNP' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30' :
+                              effectiveDevice.nameSource === 'SNMP' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30' :
+                              effectiveDevice.nameSource === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30' :
+                              'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/30'
+                            }`}
+                            title={`클릭하여 "${effectiveDevice.hostname}"(출처: ${effectiveDevice.nameSource})을 이 장치 이름으로 적용`}
+                          >
+                            {effectiveDevice.nameSource} ({
+                              effectiveDevice.nameSource === 'SMB' ? 'SMB NTLMSSP' :
+                              effectiveDevice.nameSource === 'NETBIOS' ? 'NetBIOS UDP 137' :
+                              effectiveDevice.nameSource === 'MDNS' ? 'mDNS Bonjour' :
+                              effectiveDevice.nameSource === 'WSD' ? 'WS-Discovery' :
+                              effectiveDevice.nameSource === 'UPNP' ? 'UPnP SSDP' :
+                              effectiveDevice.nameSource === 'SNMP' ? 'SNMP sysName' :
+                              effectiveDevice.nameSource === 'WEB' ? 'Web Title / TLS' : 'DNS PTR'
+                            }) ↵
+                          </button>
+                        </div>
+                      )}
+                      {effectiveDevice?.hostnameSources && Object.keys(effectiveDevice.hostnameSources).length > 0 && (
+                        <div className="border-t border-current border-opacity-5 pt-3 space-y-1.5">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} uppercase font-bold block`}>
+                            탐색된 프로토콜별 이름 목록 ({Object.keys(effectiveDevice.hostnameSources).length}개 채널) - 클릭 시 즉시 적용
+                          </span>
+                          <div className="space-y-1 bg-black/20 p-2.5 rounded-lg font-mono text-[11px] border border-white/5">
+                            {Object.entries(effectiveDevice.hostnameSources).map(([src, nm]) => (
+                              <button
+                                key={src}
+                                type="button"
+                                onClick={() => handleSaveNickname(effectiveMac, selectedIp, nm)}
+                                className="w-full flex justify-between items-center py-1 px-1.5 rounded hover:bg-white/10 active:bg-white/20 transition-all cursor-pointer group/nameitem text-left border border-transparent hover:border-sky-500/30"
+                                title={`클릭하여 "${nm}" 이름(출처: ${src})을 이 장치의 기본 별칭/이름으로 지정`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className={`px-1.5 py-0.2 rounded font-black text-[9px] border shrink-0 ${
+                                    src === 'SMB' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                    src === 'NETBIOS' ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' :
+                                    src === 'MDNS' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                                    src === 'WSD' || src === 'UPNP' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                    src === 'SNMP' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                                    src === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                    'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                                  }`}>[{src}]</span>
+                                  <span className="font-bold text-sky-400 group-hover/nameitem:text-sky-300 truncate max-w-[170px]">{nm}</span>
+                                </div>
+                                <span className="text-[9.5px] font-bold text-emerald-400 opacity-60 group-hover/nameitem:opacity-100 transition-opacity shrink-0 ml-1">
+                                  적용 ↵
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -5027,12 +5429,6 @@ const App: React.FC = () => {
                       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
                         <span>github.com/AhBiYout-all/grid-ip-scanner2</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="opacity-70">{lang === 'ko' ? '소 속:' : 'Affiliation:'}</span>
-                      <a href="http://www.cisnet.co.kr/" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold">
-                        www.cisnet.co.kr
                       </a>
                     </div>
                     <div className="flex items-center justify-between">
@@ -5952,6 +6348,15 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Native Modules Diagnostics & Acceleration Modal */}
+      <NativeModulesModal
+        isOpen={showNativeModal}
+        onClose={() => setShowNativeModal(false)}
+        theme={theme}
+        currentSelectedIp={selectedIp || undefined}
+        currentSelectedMac={selectedIp ? results[selectedIp]?.device?.mac : undefined}
+      />
     </div>
   );
 };

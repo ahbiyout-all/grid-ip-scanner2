@@ -1,6 +1,6 @@
 {
   "name": "grid-ip-scanner2",
-  "version": "2.4.7",
+  "version": "2.4.9",
   "description": "Grid IP Scanner2 - Network Scan Tool",
   "main": "main.js",
   "author": "AhBiYout",
@@ -11,6 +11,9 @@
     "lint": "tsc --noEmit",
     "version:sync": "node scripts/sync-version.js",
     "version:bump": "node scripts/sync-version.js --bump-patch",
+    "version:bump-patch": "node scripts/sync-version.js --bump-patch",
+    "version:bump-minor": "node scripts/sync-version.js --bump-minor",
+    "version:bump-major": "node scripts/sync-version.js --bump-major",
     "build:exe": "node generate-assets.js && node build-win.js",
     "build:installer": "node installer/build-installer.js",
     "build:portable": "node scripts/package-portable.js",

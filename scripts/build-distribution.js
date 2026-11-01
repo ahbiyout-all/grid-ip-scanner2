@@ -184,6 +184,29 @@ targetFolders.forEach(folder => {
     fs.copyFileSync(path.join(rootDir, 'docs', 'LICENSE.md'), path.join(unpackedDir, 'LICENSE.md'));
   }
 
+  // 2.5. Copy native acceleration DLL modules to unpacked folder
+  const nativeDlls = [
+    'grid_probe_engine.dll',
+    'grid_port_iocp.dll',
+    'grid_discovery.dll',
+    'grid_oui_trie.dll',
+    'grid_banner_grabber.dll',
+    'grid_pcap_analyzer.dll',
+    'grid_net_driver.dll',
+    'grid_vault_driver.dll',
+    'oui_validator.dll',
+    'secure_vault.dll'
+  ];
+  nativeDlls.forEach(dll => {
+    const srcRoot = path.join(rootDir, dll);
+    const srcNative = path.join(rootDir, 'native_dll', dll);
+    if (fs.existsSync(srcRoot)) {
+      fs.copyFileSync(srcRoot, path.join(unpackedDir, dll));
+    } else if (fs.existsSync(srcNative)) {
+      fs.copyFileSync(srcNative, path.join(unpackedDir, dll));
+    }
+  });
+
   // 3. Copy essential sub-directories
   copyDir(path.join(rootDir, 'dist'), path.join(unpackedDir, 'dist'));
   copyDir(path.join(rootDir, 'public'), path.join(unpackedDir, 'public'));
@@ -224,12 +247,12 @@ targetFolders.forEach(folder => {
     fs.copyFileSync(rootInstaller, path.join(instDir, installerName));
   }
   // Copy Inno Setup script and builder for reference / manual compilation
-  if (fs.existsSync(path.join(rootDir, 'installer', 'Grid_IP_Scanner2_Setup.iss'))) {
-    fs.copyFileSync(path.join(rootDir, 'installer', 'Grid_IP_Scanner2_Setup.iss'), path.join(instDir, 'Grid_IP_Scanner2_Setup.iss'));
-  }
-  if (fs.existsSync(path.join(rootDir, 'installer', 'build-installer.js'))) {
-    fs.copyFileSync(path.join(rootDir, 'installer', 'build-installer.js'), path.join(instDir, 'build-installer.js'));
-  }
+  ['Grid_IP_Scanner2_Dedicated_Setup.iss', 'Grid_IP_Scanner2_Setup.iss', 'build-installer.js'].forEach(file => {
+    const srcPath = path.join(rootDir, 'installer', file);
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, path.join(instDir, file));
+    }
+  });
 });
 
 // =====================================================================
@@ -243,7 +266,7 @@ const manifest = {
   buildKey: buildKey,
   timestamp: timestamp,
   author: 'AhBiYout',
-  publisher: 'Cisnet (www.cisnet.co.kr)',
+  publisher: 'AhBiYout',
   repository: 'https://github.com/AhBiYout-all/grid-ip-scanner2',
   unpackedStructure: {
     rootExecutables: ['Grid_IP_Scanner2.exe'],

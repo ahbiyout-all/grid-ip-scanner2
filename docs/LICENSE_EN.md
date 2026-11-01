@@ -50,7 +50,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### 📞 Licensing & Commercial Contact
 - **Author / Developer**: AhBiYout
-- **Distribution Partner**: Cisnet ([www.cisnet.co.kr](http://www.cisnet.co.kr))
+- **Distribution Partner**:  ([ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com))
 - **Tech Blog**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
 - **GitHub**: [github.com/AhBiYout-all](https://github.com/AhBiYout-all)
 

@@ -4,7 +4,7 @@
  */
 
 const VAULT_MAGIC_PREFIX = 'GVAULT10_';
-const DEFAULT_SALT = new TextEncoder().encode('CISNET_GRID_SECURE_SALT_V1');
+const DEFAULT_SALT = new TextEncoder().encode('GRID_IP_SCANNER2_SECURE_SALT_V1');
 
 /**
  * Derives an AES-GCM CryptoKey from a passphrase using PBKDF2.
@@ -38,7 +38,7 @@ async function deriveKey(passphrase: string): Promise<CryptoKey> {
  */
 export async function encryptToVault(
   plaintext: string,
-  passphrase = 'CISNET_GRID_DEFAULT_MACHINE_KEY'
+  passphrase = 'GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY'
 ): Promise<string> {
   try {
     if (!crypto.subtle) {
@@ -83,7 +83,7 @@ export async function encryptToVault(
  */
 export async function decryptFromVault(
   vaultString: string,
-  passphrase = 'CISNET_GRID_DEFAULT_MACHINE_KEY'
+  passphrase = 'GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY'
 ): Promise<string> {
   try {
     if (!vaultString.startsWith(VAULT_MAGIC_PREFIX)) {

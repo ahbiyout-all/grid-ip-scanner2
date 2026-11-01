@@ -8,7 +8,9 @@
  * - Non-blocking Winsock2 TCP SYN/Connect port scanning
  */
 
+#ifndef BUILDING_GRID_NET_DRIVER
 #define BUILDING_GRID_NET_DRIVER
+#endif
 #include "grid_net_driver.h"
 
 #ifdef _WIN32
@@ -19,8 +21,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "iphlpapi.lib")
+#endif
 
 // Automatic Winsock Initializer
 static int g_wsaInitialized = 0;

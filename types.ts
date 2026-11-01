@@ -11,11 +11,25 @@ export interface SoftTrustInfo {
   graceExpiresAt?: number;
 }
 
+export type NameSourceType =
+  | 'CUSTOM'
+  | 'SMB'
+  | 'NETBIOS'
+  | 'MDNS'
+  | 'WSD'
+  | 'UPNP'
+  | 'SNMP'
+  | 'DNS'
+  | 'WEB'
+  | 'UNKNOWN';
+
 export interface DeviceInfo {
   ip: string;
   mac?: string;
   vendor?: string;
   hostname?: string;
+  nameSource?: NameSourceType;
+  hostnameSources?: Record<string, string>;
   webTitle?: string;
   os?: string;
   latency?: number;
@@ -31,6 +45,8 @@ export interface DeviceInfo {
   conflictDetails?: string;
   isNewDevice?: boolean;
   softTrustInfo?: SoftTrustInfo;
+  deviceType?: string;
+  deviceModel?: string;
 }
 
 export interface ScanResult {
@@ -226,5 +242,59 @@ export interface ScanSchedule {
   createdAt: number;
   updatedAt: number;
   totalRuns: number;
+}
+
+export interface NativeModulesStatus {
+  probeEngine: boolean;
+  portIocp: boolean;
+  discovery: boolean;
+  ouiTrie: boolean;
+  bannerGrabber: boolean;
+  pcapAnalyzer: boolean;
+  fingerprintEngine: boolean;
+  npcapLoaded: boolean;
+}
+
+export interface NativeDiscoveryResult {
+  hostname: string;
+  modelName: string;
+  manufacturer: string;
+  workgroup: string;
+  serviceType: string;
+  protocolsDiscovered: number;
+}
+
+export interface NativeDeepBannerResult {
+  serverHeader?: string;
+  htmlTitle?: string;
+  sshBanner?: string;
+  rtspServer?: string;
+  tlsSubject?: string;
+  detectedProtocol: number;
+}
+
+export interface NativeOsDetectResult {
+  ip: string;
+  osName: string;
+  ttl: number;
+  supported: boolean;
+}
+
+export interface NativeArpSpoofResult {
+  spoofingDetected: boolean;
+  alert: string;
+}
+
+export interface NativeFingerprintResult {
+  categoryCode: number;
+  categoryName: string;
+  detectedOS: string;
+  hardwareModel: string;
+  confidencePercent: number;
+  riskLevel: 'CLEAN' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskScore: number;
+  vulnerabilityCount: number;
+  vulnerabilities: string;
+  recommendation: string;
 }
 

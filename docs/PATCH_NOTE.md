@@ -1,4 +1,45 @@
-# Grid IP Scanner2 - Patch Note (v2.4.7)
+# Grid IP Scanner2 - Patch Note (v2.4.9)
+
+## 🚀 [v2.4.9] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **소프트웨어 버전 관리 규정 (SemVer) 강화 및 자동화 워크플로우 구축**
+   - **3단계 시맨틱 버저닝(MAJOR.MINOR.PATCH) 원칙 명문화**: `docs/VERSIONING_POLICY.md`를 통해 변경 규모에 따른 버전 승급 기준을 정의하고 프로젝트 전반에 적용했습니다.
+   - **버전 승급 트리거 스크립트 고도화**: `package.json`에 `version:bump-major`, `version:bump-minor`, `version:bump-patch` 명령을 신설하여 단일 명령으로 9대 타깃 파일의 버전을 일괄 동기화하는 자동화 파이프라인을 완성했습니다.
+
+2. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**
+   - **구글 블로거(Google Blogger) 전용 포스팅 가이드 신설**: `docs/GOOGLE_BLOGGER_POST.md`에 [서식 있는 텍스트] 및 [HTML 편집] 모드 대응 템플릿을 제작했습니다. 사용자 요청에 따른 10대 규정 순서(제목-본문-업데이트-앱 그림-다운로드-버전정보-시스템 요구 사항-제작자 안내-전체 업데이트-태그)를 엄격히 준수합니다.
+   - **깃허브(GitHub) 메인 README 최신화**: v2.4.9 신규 기능을 반영하고 기술 스택 및 핵심 차별화 포인트를 갱신했습니다.
+   - **작업 일지(WorkLog) 및 패치노트 동기화**: 개발 이력을 추적 가능하도록 모든 특이점을 기록하고 버전 관리 체계에 편입했습니다.
+
+---
+
+## 🚀 [v2.4.8] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **다중 프로토콜 이름 탐색 배지 원클릭 장치 이름 교체 기능 탑재 (`App.tsx`, `services/deviceAliasManager.ts`)**
+   - **프로토콜 출처 배지 상호작용 지원**:
+     - 장치 프로필 헤더 카드의 `[SMB]`, `[NETBIOS]`, `[MDNS]`, `[WSD]`, `[UPNP]`, `[SNMP]`, `[WEB]`, `[DNS]` 출처 배지 클릭 시 해당 프로토콜이 감지한 이름을 장치의 기본 대표 이름으로 즉시 교체 및 저장합니다.
+   - **탐색된 프로토콜별 이름 목록 채널 인터랙티브 적용**:
+     - 장치 기술 상세 패널의 "탐색된 프로토콜별 이름 목록" 각 채널 항목에 마우스 호버 시 `적용 ↵` 버튼이 표시되며, 원클릭 시 해당 프로토콜 이름을 기기 별칭/이름으로 즉시 할당합니다.
+     - mDNS, UPnP, SNMP 개별 프로토콜 속성 행에 `적용 ↵` 퀵 액션 버튼을 신설하여 원하는 출처의 이름을 자유롭게 선택 적용할 수 있습니다.
+   - **전체 애플리케이션 상태 상호 동기화**:
+     - 선택한 프로토콜 이름은 `localStorage` 및 Go 백엔드 데이터에 동시 저장되어 IP 매트릭스 셀, 테이블 뷰, 장치 프로필, A4 보안감사 PDF 및 CSV 내보내기 리포트에 즉시 반영됩니다.
+
+2. **장치 이름 한글 (2byte 멀티바이트) 인코딩 깨짐 원천 방지 및 유니코드 수집 고도화 (`name_resolver.go`, `utils_windows.go`, `utils_other.go`)**
+   - **네트워크 패킷 바이트 디코더 일원화 (`decodeNetworkBytes`)**:
+     - SMB, NetBIOS, mDNS, UPnP, WSD, SNMP, Web Title 등 8대 프로토콜 수신 패킷에 대해 UTF-8 유효성을 최우선 검증(`utf8.Valid`)한 후 복원하여 UTF-8 한글 장치 이름의 재인코딩 깨짐을 원천 차단했습니다.
+   - **Win32 CP949 (EUC-KR) ANSI 유연 변환**:
+     - 레거시 Windows 공유 PC 및 SNMP 프린터가 전달하는 CP949 / EUC-KR 멀티바이트 한글 바이트를 `MultiByteToWideChar` API로 손실 없이 UTF-8로 정밀 디코딩합니다.
+   - **mDNS / WSD 유니코드 한글 정규식 확장**:
+     - mDNS 및 WSD 정규 표현식을 기존 ASCII 한계(`a-zA-Z0-9`)에서 유니코드 한글 허용 규격(`[^\s\x00-\x1f\x7f\.\,]+`)으로 확장하여 한글 호스트명(예: `거실TV.local`, `홍길동-MacBook.local`)을 정확히 수집합니다.
+
+3. **Go 빌드 컴파일러 `byteSliceToString` 중복 선언 버그 완전 해결 (`utils_windows.go`)**
+   - `utils_windows.go` 내 `byteSliceToString` 중복 선언을 제거하여 `go build` 컴파일 실패 현상을 완전 해결하였습니다.
+
+---
 
 ## 🚀 [v2.4.7] - 2026-10-27
 
@@ -63,7 +104,7 @@
 
 3. **Windows 정식 프로그램 추가/제거(제어판) 등록 및 완전한 언인스톨러 지원 (`installer/Grid_IP_Scanner2_Setup.iss`)**
    - **Windows 10/11 '설정 > 앱 및 기능' 및 제어판 등록**:
-     - Inno Setup 스크립트에 `CreateUninstallRegKey=yes`, `UninstallDisplayName`, `UninstallDisplayIcon` 및 게시자(`AhBiYout / Cisnet`), 지원 URL, 버전 정보를 정식 연동했습니다.
+     - Inno Setup 스크립트에 `CreateUninstallRegKey=yes`, `UninstallDisplayName`, `UninstallDisplayIcon` 및 게시자(`AhBiYout `), 지원 URL, 버전 정보를 정식 연동했습니다.
      - 제어판 '프로그램 및 기능' 목록에서 정식 아이콘과 소프트웨어 크기가 올바르게 표기되며, 원클릭으로 잔존 파일 없이 클린 언인스톨을 지원합니다.
 
 4. **윈도우 인스톨러(Setup.exe) 및 단일 무설치 포터블(Portable .exe) 동시 자동 패키징 (`build-win.js`, `build.bat`, GitHub Actions)**

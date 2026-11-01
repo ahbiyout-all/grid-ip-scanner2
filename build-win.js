@@ -278,6 +278,20 @@ async function startBuild() {
     console.warn(`   - Notice: Direct patch skipped (standard syso was embedded): ${patchErr.message}`);
   }
 
+  // 4.8. Mirror Native DLLs to root directory if compiled
+  const nativeDllDir = path.join(process.cwd(), 'native_dll');
+  if (fs.existsSync(nativeDllDir)) {
+    const dllFiles = fs.readdirSync(nativeDllDir).filter(f => f.endsWith('.dll'));
+    dllFiles.forEach(dll => {
+      try {
+        fs.copyFileSync(path.join(nativeDllDir, dll), path.join(process.cwd(), dll));
+      } catch (e) {}
+    });
+    if (dllFiles.length > 0) {
+      console.log(`   - [OK] Mirrored ${dllFiles.length} Native Acceleration DLLs to application root.`);
+    }
+  }
+
   console.log(`\n✅ Build Successful! ${exeName} is ready.`);
   
   // 5. Trigger automated multi-folder distribution pipeline

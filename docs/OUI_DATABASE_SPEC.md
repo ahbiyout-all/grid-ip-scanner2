@@ -55,7 +55,7 @@ IEEE 공식 레지스트리와 Wireshark 정제 미러를 교차 활용하여 �
 * 이를 해결하기 위해 표준 데스크톱 브라우저 UA(`Mozilla/5.0 ... Chrome/124.0`) 및 명시적 Accept 헤더를 백엔드 전송 파이프라인에 영구 탑재하였습니다.
 
 ### 3) 로컬 영구 캐시 (Local Cache Storage)
-* **저장 위치**: `%USERPROFILE%\.cisnet_grid\master_oui.txt` (Linux/Container: `~/.cisnet_grid/master_oui.txt`)
+* **저장 위치**: `%USERPROFILE%\.grid_ip_scanner\master_oui.txt` (Linux/Container: `~/.grid_ip_scanner/master_oui.txt`)
 * **무결성 검증 (Self-Healing Fallback)**:
   * 온라인 다운로드 후 파일 크기 및 최소 레코드 수(1,000건 이상)를 엄격히 검증합니다.
   * 다운로드된 파일이 손상되었거나 파싱 결과가 비정상적일 경우, 프로그램에 내장된 정적 `master_oui.txt`(90,168건)로 즉시 롤백하여 안전성을 담보합니다.

@@ -6,7 +6,7 @@ const fs = require('fs');
 let mainWindow;
 
 // Set userData to a temporary directory to leave no traces
-const tempUserData = path.join(app.getPath('temp'), `cisnet_grid_scan_electron_${Date.now()}`);
+const tempUserData = path.join(app.getPath('temp'), `grid_ip_scanner_electron_${Date.now()}`);
 app.setPath('userData', tempUserData);
 
 // Disable Chromium translation prompts and force Korean locale

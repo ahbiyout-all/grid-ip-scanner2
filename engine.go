@@ -100,6 +100,11 @@ func (e *ScanEngine) GetMAC(ip string) string {
 		return mac
 	}
 
+	// 2.4. Try Native Probe Engine SendARP
+	if nativeMac, ok := tryNativeProbeResolveMac(ip); ok && nativeMac != "" {
+		return nativeMac
+	}
+
 	// 2.5. Try Direct Win32 SendARP API or Proprietary DLL (0.1ms Ultra Fast Resolution)
 	if nativeMac, ok := tryNativeGetMacAddress(ip); ok && nativeMac != "" {
 		return nativeMac
