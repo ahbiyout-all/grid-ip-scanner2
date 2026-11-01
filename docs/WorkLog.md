@@ -6,7 +6,8 @@
   1. **GitHub Actions Android 빌드 워크플로우 핫픽스**:
      - `.github/workflows/build-and-release.yml` 및 `mobile-release.yml` 내 Gradle 빌드 단계 최적화.
      - `./gradlew clean` 명령을 추가하여 이전 빌드 잔재로 인한 충돌 방지.
-     - `--no-daemon` 및 `--no-parallel` 옵션을 강제하여 CI 클라우드 환경에서의 메모리 및 스레딩 안정성 극대화.
+     - `--no-daemon` 및 `--no-parallel` 옵션을 강제하고, `GRADLE_OPTS`를 통해 JVM 메모리를 4GB로 증설하여 CI 환경에서의 빌드 안정성을 확보했습니다.
+     - `scripts/package-android.js`에 `SKIP_GRADLE` 로직을 추가하여 CI 단계에서의 중복 빌드 및 리소스 경합을 원천 차단했습니다.
      - `APP_VER` 추출 로직을 v2.4.9로 고정하여 태그 불일치 방지.
   2. **버전 동기화 자동화 확장 (10대 타깃)**:
      - `scripts/sync-version.js`에 `android/app/build.gradle` 동기화 로직을 신규 추가.

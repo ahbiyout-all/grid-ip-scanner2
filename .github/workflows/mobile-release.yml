@@ -81,6 +81,7 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+          SKIP_GRADLE: '1'
         run: node scripts/package-android.js
 
       - name: Build Android APK via Gradle Wrapper
@@ -88,6 +89,7 @@ jobs:
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: |
           APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.9'}")
           echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
@@ -95,14 +97,22 @@ jobs:
             chmod +x android/gradlew || true
             cd android
             echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-            # Stable build with clean and single-threaded execution
-            ./gradlew clean assembleDebug --no-daemon --no-parallel --stacktrace || ./gradlew clean assembleRelease --no-daemon --no-parallel --stacktrace || echo "Gradle build attempted"
+            # Clean and build with explicit single-threaded execution for CI stability
+            ./gradlew clean assembleDebug --no-daemon --no-parallel --stacktrace || ./gradlew clean assembleRelease --no-daemon --no-parallel --stacktrace
             cd ..
+            
+            # Find and copy the APK
             FOUND_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
             if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
               cp -v "$FOUND_APK" "Grid_IP_Scanner2_v${APP_VER}.apk"
               echo "✅ Successfully built and copied Android APK: Grid_IP_Scanner2_v${APP_VER}.apk"
+            else
+              echo "❌ Error: APK not found after build!"
+              exit 1
             fi
+          else
+            echo "❌ Error: android/ directory not found!"
+            exit 1
           fi
 
       - name: Collect Mobile Output Artifacts

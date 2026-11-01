@@ -75,7 +75,9 @@ if (!fs.existsSync(distAndroidDir)) fs.mkdirSync(distAndroidDir, { recursive: tr
 const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const gradlewPath = path.join(androidProjectDir, gradlewCmd);
 
-if (fs.existsSync(gradlewPath)) {
+if (process.env.SKIP_GRADLE === '1') {
+  console.log('   - SKIP_GRADLE=1 detected. Skipping native compilation phase.');
+} else if (fs.existsSync(gradlewPath)) {
   if (process.platform !== 'win32') {
     try {
       fs.chmodSync(gradlewPath, 0o755);
