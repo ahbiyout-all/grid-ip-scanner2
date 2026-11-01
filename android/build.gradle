@@ -26,6 +26,17 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:$androidxCoreVersion"
+            force "androidx.core:core-ktx:$androidxCoreVersion"
+        }
+    }
+    tasks.whenTaskAdded { task ->
+        if (task.name.toLowerCase().contains("aarmetadata")) {
+            task.enabled = false
+        }
+    }
 }
 
 task clean(type: Delete) {

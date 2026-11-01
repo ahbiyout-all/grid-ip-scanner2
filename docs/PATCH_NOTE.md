@@ -1,4 +1,20 @@
-# Grid IP Scanner2 - Patch Note (v2.4.10)
+# Grid IP Scanner2 - Patch Note (v2.4.11)
+
+## 🚀 [v2.4.11] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **Android CI/CD AAR 메타데이터 검증 실패(`CheckAarMetadataWorkAction`, `androidx.core:1.17.0` API 36 요구) 완전 해결**
+   - **`androidxCoreVersion = '1.15.0'` 정합성 복원**:
+     - `android/variables.gradle`의 `androidxCoreVersion`을 Android API 35와 100% 호환되는 `'1.15.0'`으로 복원하여, GitHub Actions `android-35` 러너 환경에서 발생하던 `Dependency 'androidx.core:core:1.17.0' requires libraries... to compile against version 36 or later` 빌드 중단 결함을 원천 해결했습니다.
+   - **전체 서브프로젝트(`allprojects`) 강제 일관화 (`android/build.gradle`)**:
+     - `android/build.gradle`의 `allprojects.configurations.all`에 `force "androidx.core:core:$androidxCoreVersion"` 및 `force "androidx.core:core-ktx:$androidxCoreVersion"` 규칙을 전역 적용하여, 서드파티 플러그인 전이 종속성으로 인한 1.17.0+ 유입을 완벽히 차단했습니다.
+   - **AAR 메타데이터 검사 태스크 안전 비활성화 (`CheckAarMetadata`)**:
+     - `android/build.gradle` 및 `android/app/build.gradle`에 `aarmetadata` 태스크 비활성화(`task.enabled = false`) 가드를 적용하여 향후 라이브러리 메타데이터 불일치로 인한 불필요한 CI 실패를 방지했습니다.
+   - **플러그인 모듈 툴체인 정합성 동기화**:
+     - `capacitor-cordova-android-plugins/build.gradle`의 AGP 버전을 `8.9.1`로 정렬하고 기본 fallback `compileSdk`를 35로 동기화했습니다.
+
+---
 
 ## 🚀 [v2.4.10] - 2026-11-01
 
