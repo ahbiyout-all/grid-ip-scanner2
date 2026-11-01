@@ -17,6 +17,10 @@ buildscript {
 
 apply from: "variables.gradle"
 
+// Explicitly ensure no deprecated '--parallel' CLI arguments or parallel worker lease locks interfere with build tasks
+gradle.startParameter.parallelProjectExecutionEnabled = false
+gradle.startParameter.maxWorkerCount = 2
+
 allprojects {
     repositories {
         google()

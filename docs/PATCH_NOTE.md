@@ -1,4 +1,24 @@
-# Grid IP Scanner2 - Patch Note (v2.4.9)
+# Grid IP Scanner2 - Patch Note (v2.4.10)
+
+## 🚀 [v2.4.10] - 2026-11-01
+
+### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
+
+1. **Android 빌드 스크립트 비권장 `--parallel` 인수 제거 및 Gradle 실행 매개변수 안정화 (`android/build.gradle`, `android/gradle.properties`)**
+   - **CLI 인수 충돌 원천 해결**:
+     - `Command-line option '--parallel' does not take an argument` 및 `DefaultWorkerLeaseService.withLocks` 스레드 리스 충돌을 해결하기 위해 `android/build.gradle`에 `gradle.startParameter.parallelProjectExecutionEnabled = false`와 `gradle.startParameter.maxWorkerCount = 2`를 직접 명시했습니다.
+     - `android/gradle.properties`에 `org.gradle.parallel=false` 및 `org.gradle.workers.max=2`를 설정하여 다중 스레드 경합으로 인한 빌드 중단을 방지했습니다.
+
+2. **Android APK 산출물 위치 탐색기 및 빌드 태스크 자동 보장 (`android/app/build.gradle`, `scripts/package-android.js`, CI/CD)**
+   - **APK 출력 디렉터리 사전 보장**:
+     - `android/app/build.gradle`에 `ensureApkOutputDir` 태스크를 등록하고 `preBuild.dependsOn('ensureApkOutputDir')`로 연결하여 빌드 전 `outputs/apk` 경로 생성을 보장했습니다.
+     - `afterEvaluate` 훅을 통해 `assembleDebug` 및 `assembleRelease` 완료 시 산출된 APK를 `outputs/apk` 최상위로 일관되게 복제하여 `find: ‘android/app/build/outputs/apk’: No such file or directory` 에러를 원천 해결했습니다.
+   - **산출물 네이밍 규격화**:
+     - `applicationVariants`를 통해 생성되는 APK 파일명을 `Grid_IP_Scanner2_v${defaultConfig.versionName}.apk`로 통일했습니다.
+   - **CI/CD 및 패키징 스크립트 유연성 강화**:
+     - `.github/workflows/build-and-release.yml`, `.github/workflows/mobile-release.yml`, `scripts/package-android.js` 내 APK 탐색 로직을 다각화하여 지정 경로 및 하위 디렉터리 전체에서 안전하게 APK를 수집하도록 개선했습니다.
+
+---
 
 ## 🚀 [v2.4.9] - 2026-11-01
 
@@ -10,7 +30,7 @@
    - **Android 빌드 버전 자동화**: `android/app/build.gradle`의 `versionCode` 및 `versionName` 동기화를 `sync-version.js`에 통합하여 수동 관리 누락을 원천 차단했습니다.
 
 2. **GitHub Actions Android APK 빌드 파이프라인 정밀 핫픽스 및 안정화**
-   - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 및 `--no-parallel` 옵션을 적용했습니다. 또한 `GRADLE_OPTS`를 통해 JVM 힙 메모리를 4GB로 확장하여 메모리 부족으로 인한 빌드 중단을 방지하고, 중복 빌드 방지 로직(`SKIP_GRADLE`)을 적용하여 리소스 경합을 원천 차단했습니다.
+   - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 옵션을 적용했습니다. 또한 `GRADLE_OPTS`를 통해 JVM 힙 메모리를 4GB로 확장하여 메모리 부족으로 인한 빌드 중단을 방지하고, `gradle.properties`에 `org.gradle.parallel=false`를 설정하여 리소스 경합을 원천 차단했습니다.
    - **워크플로우 현대화**: GitHub Actions의 Node.js 20 지원 종료(EOL)에 따라, 최신 런타임인 **Node.js 24** 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
 
 3. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**

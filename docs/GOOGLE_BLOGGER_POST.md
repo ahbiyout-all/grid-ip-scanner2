@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.9)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.10)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.9 | **작성일자**: 2026-11-01
+> **최신 버전**: v2.4.10 | **작성일자**: 2026-11-01
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.9)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 다중 프로토콜 이름 원클릭 교체, 한글(2byte) 깨짐 방지 디코더, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.10)를 소개합니다.
 
 ---
 
@@ -20,7 +20,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.9)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 다중 프로토콜 뱃지 원클릭 적용을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.10)**
 
 ---
 
@@ -44,16 +44,17 @@
 
 ---
 
-### 3. 업데이트 (v2.4.9 최신 릴리즈 하이라이트)
-* **소프트웨어 버전 관리 규정(SemVer) 강화**: `docs/VERSIONING_POLICY.md` 수립 및 3단계 버전 승급 자동화 파이프라인(Major/Minor/Patch) 완성.
-* **다중 프로토콜 이름 탐색 배지 원클릭 장치 이름 교체**:
-  - 장치 프로필 헤더 카드의 `[SMB]`, `[NETBIOS]`, `[MDNS]`, `[WSD]`, `[UPNP]`, `[SNMP]`, `[WEB]`, `[DNS]` 출처 배지 원클릭 대표 이름 할당 지원.
-  - "탐색된 프로토콜별 이름 목록" 각 채널 항목에 `적용 ↵` 퀵 버튼 탑재.
-* **장치 이름 한글 (2byte 멀티바이트) 인코딩 깨짐 원천 방지**:
-  - `decodeNetworkBytes` 일원화 디코더로 UTF-8 우선 보호 및 CP949 / EUC-KR 멀티바이트 한글 손실 없이 복원.
-  - mDNS 및 WSD 정규 표현식 유니코드 확장으로 한글 호스트명(`거실TV.local` 등) 완벽 수집.
-* **Go 컴파일러 빌드 안정화**: Windows 바이너리 컴파일 시 중복 선언 버그 완전 해결.
-* **구글 블로거 전용 10단계 포스팅 가이드 및 템플릿 최신화**.
+### 3. 업데이트 (v2.4.10 최신 릴리즈 하이라이트)
+* **Android Gradle 비권장 `--parallel` 인수 제거 및 스레드 안정화**:
+  - `android/build.gradle`에 `gradle.startParameter.parallelProjectExecutionEnabled = false` 및 `maxWorkerCount = 2`를 명시하여 CLI 인수 오류 및 `DefaultWorkerLeaseService` 교착 현상을 완벽히 해결.
+  - `android/gradle.properties`에 `org.gradle.parallel=false` 및 `workers.max=2`를 적용하여 리소스 경합 방지.
+* **Android APK 산출물 위치 탐색기 및 빌드 디렉터리 사전 보장**:
+  - `android/app/build.gradle`에 `ensureApkOutputDir` 태스크를 신설하고 `preBuild`와 연동하여 빌드 시작 전 `outputs/apk` 디렉터리가 항상 생성되도록 보장.
+  - `afterEvaluate` 훅을 통해 `assembleDebug` 및 `assembleRelease` 완료 시 APK를 `outputs/apk` 최상위로 자동 복제하여 'No such file or directory' 오류 원천 차단.
+  - `applicationVariants`로 APK 산출물 파일명을 `Grid_IP_Scanner2_v2.4.10.apk`로 통일 규격화.
+* **CI/CD 워크플로우 및 패키징 스크립트 탐색 안정성 강화**:
+  - GitHub Actions 워크플로우 및 `scripts/package-android.js`의 APK 수집 경로를 다각화하여 무결점 배포 보장.
+* **소프트웨어 버전 관리(SemVer) 10대 타깃 v2.4.10 일괄 동기화 완료**.
 
 ---
 
@@ -61,7 +62,7 @@
 
 ```
 +---------------------------------------------------------------------------------------+
-|  [Grid IP Scanner2 v2.4.9]   [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
+|  [Grid IP Scanner2 v2.4.10]  [ 192.168.0.1 - 254 ]   [▶ 고속 스캔]   [📸 스냅샷 비교]   |
 +------------------------------------------------------+--------------------------------+
 |  [ 16x16 실시간 시각화 매트릭스 그리드 맵 ]            |  [ 장치 상세 프로필 패널 ]       |
 |                                                      |  [가 100%] [가⁺ 115%]          |
@@ -87,13 +88,13 @@
 ### 5. 다운로드
 필요하신 운영체제 환경에 맞춰 최신 빌드를 다운로드하세요:
 
-* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.9_Setup.exe`  
+* 📦 **Windows 정식 인스톨러**: `Grid_IP_Scanner2_v2.4.10_Setup.exe`  
   *(Windows 제어판 정식 등록, 방화벽 규칙 자동 등록, 바탕화면 바로가기 생성)*
-* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.9_Portable.exe`  
+* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.4.10_Portable.exe`  
   *(설치 과정 없이 USB에서 즉시 실행 가능한 단일 실행 바이너리)*
-* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.9.apk`  
+* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.4.10.apk`  
   *(안드로이드 스마트폰/태블릿 직접 설치용 고성능 패키지)*
-* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.9_Mobile_PWA.zip`  
+* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.4.10_Mobile_PWA.zip`  
 * 🔗 **GitHub 공식 릴리즈 다운로드**: [https://github.com/AhBiYout-all/grid-ip-scanner2/releases](https://github.com/AhBiYout-all/grid-ip-scanner2/releases)
 
 > 🛡️ **백신 오탐지 안내**: 본 소프트웨어는 순수 네트워크 진단 도구입니다. 안랩 V3나 Windows Defender에서 오탐될 경우 '검사 예외'로 등록하시면 안전하게 동작합니다.
@@ -102,7 +103,7 @@
 
 ### 6. 버전정보
 * **프로그램 명칭**: Grid IP Scanner2
-* **소프트웨어 버전**: v2.4.9
+* **소프트웨어 버전**: v2.4.10
 * **출시 일자**: 2026-11-01
 * **라이선스**: Dual License (무료 커뮤니티 GPL v3 + Pro 상용 에디션)
 * **30일 무료 체험 키**: `GRID-PRO-TRIAL-2026`
@@ -126,6 +127,8 @@
 
 ### 9. 전체 업데이트 (기능 개선 내용 요약)
 
+* **[v2.4.10] (2026-11-01)**
+  - Android Gradle 비권장 `--parallel` 인수 제거 및 스레드 안정화. Android APK 산출물 위치 탐색기 및 디렉터리 사전 보장 로직 탑재. 10대 타깃 v2.4.10 버전 동기화.
 * **[v2.4.9] (2026-11-01)**
   - SemVer 3단계 버전 관리 체계 및 자동화 스크립트 구축. 기술 문서 자산 대규모 개편 및 구글 블로거 템플릿 최신화.
 * **[v2.4.8] (2026-11-01)**
@@ -165,16 +168,16 @@
 > **사용 방법**: 구글 블로거 글쓰기 화면 좌측 상단 연필 아이콘을 눌러 **`<> HTML 보기`**로 전환한 후, 아래 HTML 코드를 전체 복사하여 붙여넣으세요.
 
 ```html
-<!-- Grid IP Scanner2 Official Blogger Template (v2.4.9) -->
+<!-- Grid IP Scanner2 Official Blogger Template (v2.4.10) -->
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1e293b; max-width: 840px; margin: 0 auto;">
 
   <!-- 1. 제목 -->
   <div style="background: linear-gradient(135deg, #0f172a 0%, #0369a1 100%); color: #ffffff; padding: 32px 24px; border-radius: 14px; margin-bottom: 28px; box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.25);">
     <div style="display: inline-block; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-      v2.4.9 Official Release
+      v2.4.10 Official Release
     </div>
     <h1 style="font-size: 25px; font-weight: 900; margin: 0 0 10px 0; letter-spacing: -0.5px; line-height: 1.35; color: #ffffff;">
-      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.9)
+      Grid IP Scanner2 — 16x16 시각화 그리드 기반 차세대 초고속 네트워크 스캐너 (v2.4.10)
     </h1>
     <p style="font-size: 14px; color: #cbd5e1; margin: 0; line-height: 1.6;">
       다중 프로토콜 뱃지 원클릭 적용 &bull; 한글(2byte) 깨짐 원천 차단 &bull; 9만 건 내장 OUI 제조사 식별 &bull; 4색 스냅샷 Diff &bull; 24/7 침입 감시 &bull; A4 보안감사 PDF 리포트
@@ -190,7 +193,7 @@
       안녕하세요, <b>AhBiYout</b>입니다.
     </p>
     <p style="font-size: 14.5px; color: #334155; margin-bottom: 14px; line-height: 1.75;">
-      네트워크 관리자라면IP 주소를 단순한 텍스트 행 리스트로만 나열하여 전체 네트워크 밀도를 한눈에 파악하기 어려운 도구들에 답답함을 느끼셨을 것입니다.
+      네트워크 관리자라면 IP 주소를 단순한 텍스트 행 리스트로만 나열하여 전체 네트워크 밀도를 한눈에 파악하기 어려운 도구들에 답답함을 느끼셨을 것입니다.
     </p>
     <p style="font-size: 14.5px; color: #334155; margin-bottom: 18px; line-height: 1.75;">
       <b>『Grid IP Scanner2』</b>는 C클래스(/24) 전체 254개 IP를 <b>16x16 매트릭스 그리드 맵</b>으로 실시간 시각화하며, 다중 프로토콜 뱃지 원클릭 이름 교체, 한글(2byte) 인코딩 완벽 보호, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, A4 PDF 보안감사 보고서 출력을 제공하는 고성능 스캐너입니다.
@@ -200,13 +203,13 @@
   <!-- 3. 업데이트 -->
   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin-bottom: 30px;">
     <h2 style="font-size: 18px; font-weight: 800; color: #0284c7; margin: 0 0 14px 0; display: flex; align-items: center; gap: 8px;">
-      🚀 업데이트 하이라이트 (v2.4.9)
+      🚀 업데이트 하이라이트 (v2.4.10)
     </h2>
     <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #334155; line-height: 1.8;">
-      <li><b>소프트웨어 버전 관리 규정(SemVer) 강화</b>: MAJOR.MINOR.PATCH 원칙에 따른 3단계 버전 승급 자동화 파이프라인 구축.</li>
+      <li><b>Android Gradle 비권장 '--parallel' 인수 제거</b>: 빌드스크립트 매개변수 및 workers.max 최적화로 빌드 스레드 교착 상태 완전 해소.</li>
+      <li><b>Android APK 산출물 위치 탐색기 및 디렉터리 사전 보장</b>: <code>ensureApkOutputDir</code> 태스크 및 <code>afterEvaluate</code> 자동 복제로 'No such file or directory' 오류 원천 차단.</li>
       <li><b>다중 프로토콜 뱃지 원클릭 이름 지정</b>: SMB, NetBIOS, mDNS, UPnP, WSD, SNMP, Web Title 출처 뱃지 및 프로토콜 채널 목록 원클릭 기기 대표 이름 즉시 교체.</li>
       <li><b>한글(2byte) 멀티바이트 깨짐 원천 차단</b>: UTF-8 및 CP949 / EUC-KR 네트워크 패킷 유효성 검증과 유니코드 정규식을 통한 한글 호스트명 무결점 디코딩.</li>
-      <li><b>Go 컴파일러 빌드 안정화</b>: Windows 바이너리 컴파일러 중복 선언 버그 해결로 빌드 무결성 확보.</li>
     </ul>
   </div>
 
@@ -233,13 +236,13 @@
     </h2>
     <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #0284c7; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);">
-        📦 Windows 정식 인스톨러 (Grid_IP_Scanner2_v2.4.9_Setup.exe) 다운로드
+        📦 Windows 정식 인스톨러 (Grid_IP_Scanner2_v2.4.10_Setup.exe) 다운로드
       </a>
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center;">
-        🚀 Windows 무설치 포터블 (Grid_IP_Scanner2_v2.4.9_Portable.exe) 다운로드
+        🚀 Windows 무설치 포터블 (Grid_IP_Scanner2_v2.4.10_Portable.exe) 다운로드
       </a>
       <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/releases" target="_blank" style="display: block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 800; text-align: center;">
-        📱 Android 스마트폰 설치 APK (Grid_IP_Scanner2_v2.4.9.apk) 다운로드
+        📱 Android 스마트폰 설치 APK (Grid_IP_Scanner2_v2.4.10.apk) 다운로드
       </a>
     </div>
   </div>
@@ -249,7 +252,7 @@
     <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 10px 0;">ℹ️ 버전 정보</h3>
     <ul style="margin: 0; padding-left: 20px; font-size: 13.5px; color: #475569; line-height: 1.7;">
       <li><b>프로그램 명칭</b>: Grid IP Scanner2</li>
-      <li><b>소프트웨어 버전</b>: v2.4.9</li>
+      <li><b>소프트웨어 버전</b>: v2.4.10</li>
       <li><b>출시 일자</b>: 2026-11-01</li>
       <li><b>라이선스</b>: Dual License (Community GPL v3 + Pro Commercial)</li>
       <li><b>30일 무료 체험 키</b>: <code>GRID-PRO-TRIAL-2026</code></li>
@@ -274,7 +277,6 @@
       <li><b>공식 구글 블로그</b>: <a href="https://ahbiyoutvibe.blogspot.com/" target="_blank" style="color: #0284c7; font-weight: bold;">https://ahbiyoutvibe.blogspot.com/</a></li>
       <li><b>공식 GitHub 저장소</b>: <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" style="color: #0284c7; font-weight: bold;">https://github.com/AhBiYout-all/grid-ip-scanner2</a></li>
       <li><b>이슈 및 문의</b>: <a href="https://github.com/AhBiYout-all/grid-ip-scanner2/issues" target="_blank" style="color: #0284c7;">GitHub Issues 등록 바로가기</a></li>
-      
     </ul>
   </div>
 
@@ -282,6 +284,7 @@
   <div style="margin-bottom: 30px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
     <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 12px 0;">📜 주요 업데이트 연혁 (Release History)</h3>
     <div style="font-size: 13px; color: #475569; line-height: 1.7; max-height: 320px; overflow-y: auto; padding-right: 8px;">
+      <p style="margin: 0 0 8px 0;"><b>[v2.4.10] (2026-11-01)</b><br />Android Gradle 비권장 '--parallel' 인수 제거 및 스레드 안정화. APK 산출물 위치 탐색기 및 디렉터리 사전 보장 로직 탑재.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.9] (2026-11-01)</b><br />SemVer 3단계 버전 관리 체계 및 자동화 스크립트 구축. 구글 블로거 템플릿 최신화.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.8] (2026-11-01)</b><br />다중 프로토콜 이름 탐색 배지 원클릭 이름 교체 및 한글 (2byte) 인코딩 깨짐 원천 방지.</p>
       <p style="margin: 0 0 8px 0;"><b>[v2.4.7] (2026-10-27)</b><br />Node.js 22 LTS 및 Java 21 표준 전환, 릴리스 산출물 패키징 무결성 확보.</p>

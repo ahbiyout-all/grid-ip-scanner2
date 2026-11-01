@@ -1,3 +1,21 @@
+### 40. Android Gradle 비권장 '--parallel' 인수 제거 및 APK 산출물 위치 탐색기 고도화 (v2.4.10)
+- **사용자 요청 사항**:
+  - `android/build.gradle` 파일에서 비권장(deprecated) '--parallel' 빌드 인수 제거.
+  - `android/app/build.gradle`에서 APK 출력 디렉터리를 올바르게 찾을 수 있도록 Android 빌드 작업을 구성하여 'No such file or directory' 오류를 해결.
+  - 코드 수정 특이점 발생 시 자동으로 패치노트 기록 및 버전관리(v2.4.10), docs 폴더 문서, 깃허브용 및 구글 블로거용 문서 생성/업데이트.
+- **분석 및 구현 내역**:
+  1. **`android/build.gradle` 내 Gradle 실행 매개변수 안정화**:
+     - `gradle.startParameter.parallelProjectExecutionEnabled = false` 및 `gradle.startParameter.maxWorkerCount = 2`를 빌드스크립트에 명시하여 유효하지 않은 `--parallel` 플래그 및 워커 리스 교착 상태(`DefaultWorkerLeaseService.withLocks`) 원천 해결.
+     - `android/gradle.properties`에 `org.gradle.parallel=false` 및 `org.gradle.workers.max=2`를 함께 지정하여 Gradle 데몬 스레드 안정성 확보.
+  2. **`android/app/build.gradle` 내 APK 산출물 위치 탐색 및 디렉터리 보장**:
+     - `ensureApkOutputDir` 태스크를 등록하고 `preBuild.dependsOn('ensureApkOutputDir')`로 연결하여 빌드 전 `outputs/apk` 디렉터리가 항상 존재하도록 보장.
+     - `afterEvaluate` 훅을 통해 `assembleDebug` 및 `assembleRelease` 완료 시 산출된 APK를 `outputs/apk` 최상위로 자동 복제하여 'No such file or directory' 오류 원천 차단.
+     - `applicationVariants`를 통해 APK 출력 파일명을 `Grid_IP_Scanner2_v${defaultConfig.versionName}.apk`로 규격화.
+  3. **CI/CD 워크플로우 및 패키징 스크립트 APK 탐색기 보강**:
+     - `.github/workflows/build-and-release.yml`, `mobile-release.yml`, `scripts/package-android.js`에서 `mkdir -p` 선행 및 재귀/대체 경로 탐색을 추가하여 무결점 릴리즈 파일 수집 보장.
+  4. **10대 타깃 버전 동기화 및 공식 문서 업데이트**:
+     - `sync-version.js`로 v2.4.10 승급 적용 및 `docs/PATCH_NOTE.md`, `docs/WorkLog.md`, `docs/GOOGLE_BLOGGER_POST.md` 최신화.
+
 ### 39. GitHub Actions Android APK 빌드 파이프라인 안정화 및 10대 타깃 버전 동기화 완성 (v2.4.9)
 - **사용자 요청 사항**:
   - Android APK 빌드 실패 해결 및 CI/CD 안정성 확보.
@@ -6,7 +24,7 @@
   1. **GitHub Actions Android 빌드 워크플로우 핫픽스**:
      - `.github/workflows/build-and-release.yml` 및 `mobile-release.yml` 내 Gradle 빌드 단계 최적화.
      - `./gradlew clean` 명령을 추가하여 이전 빌드 잔재로 인한 충돌 방지.
-     - `--no-daemon` 및 `--no-parallel` 옵션을 강제하고, `GRADLE_OPTS`를 통해 JVM 메모리를 4GB로 증설하여 CI 환경에서의 빌드 안정성을 확보했습니다.
+     - `--no-daemon` 옵션을 강제하고, `GRADLE_OPTS`를 통해 JVM 메모리를 4GB로 증설하였으며, `gradle.properties`에 `org.gradle.parallel=false`를 명시하여 빌드 안정성을 확보했습니다.
      - `scripts/package-android.js`에 `SKIP_GRADLE` 로직을 추가하여 CI 단계에서의 중복 빌드 및 리소스 경합을 원천 차단했습니다.
      - `APP_VER` 추출 로직을 v2.4.9로 고정하여 태그 불일치 방지.
   2. **버전 동기화 자동화 확장 (10대 타깃)**:

@@ -88,12 +88,38 @@ if (process.env.SKIP_GRADLE === '1') {
 
   console.log('   - Compiling Android APK using Gradle Wrapper...');
   try {
-    const buildCmd = `${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} clean assembleDebug --no-daemon --no-parallel`;
+    const buildCmd = `${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} clean assembleDebug --no-daemon`;
     execSync(buildCmd, { cwd: androidProjectDir, stdio: 'inherit' });
 
-    const debugApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-    const releaseApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
-    const generatedApk = fs.existsSync(debugApk) ? debugApk : (fs.existsSync(releaseApk) ? releaseApk : null);
+    // Locate generated APK across potential output folders
+    const potentialPaths = [
+      path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', apkName),
+      path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', apkName),
+      path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'release', apkName),
+      path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk'),
+      path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
+    ];
+    let generatedApk = potentialPaths.find(p => fs.existsSync(p));
+
+    if (!generatedApk) {
+      const apkDir = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk');
+      if (fs.existsSync(apkDir)) {
+        const findRecursiveApk = (dir) => {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              const res = findRecursiveApk(fullPath);
+              if (res) return res;
+            } else if (entry.isFile() && entry.name.endsWith('.apk')) {
+              return fullPath;
+            }
+          }
+          return null;
+        };
+        generatedApk = findRecursiveApk(apkDir);
+      }
+    }
 
     if (generatedApk && fs.existsSync(generatedApk)) {
       fs.copyFileSync(generatedApk, outApkPath);

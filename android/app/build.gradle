@@ -7,8 +7,8 @@ android {
         applicationId "com.gridipscanner2.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 249
-        versionName "2.4.9"
+        versionCode 250
+        versionName "2.4.10"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -34,6 +34,44 @@ android {
             minifyEnabled false
             signingConfig signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def formattedVer = defaultConfig.versionName
+            outputFileName = "Grid_IP_Scanner2_v${formattedVer}.apk"
+        }
+    }
+}
+
+// Ensure the APK output directory is guaranteed to exist and locate output APKs reliably
+tasks.register('ensureApkOutputDir') {
+    doLast {
+        def apkOutputDir = file("${project.layout.buildDirectory.get().asFile}/outputs/apk")
+        if (!apkOutputDir.exists()) {
+            apkOutputDir.mkdirs()
+        }
+    }
+}
+preBuild.dependsOn('ensureApkOutputDir')
+
+afterEvaluate {
+    ['assembleDebug', 'assembleRelease'].each { taskName ->
+        tasks.findByName(taskName)?.doLast {
+            def apkOutputDir = file("${project.layout.buildDirectory.get().asFile}/outputs/apk")
+            if (!apkOutputDir.exists()) {
+                apkOutputDir.mkdirs()
+            }
+            // Guarantee APKs are located directly in outputs/apk
+            fileTree(dir: "${project.layout.buildDirectory.get().asFile}/outputs/apk", include: '**/*.apk').each { apkFile ->
+                if (apkFile.parentFile != apkOutputDir) {
+                    copy {
+                        from apkFile
+                        into apkOutputDir
+                    }
+                }
+            }
         }
     }
 }
