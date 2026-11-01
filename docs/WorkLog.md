@@ -1,19 +1,22 @@
-### 38. 소프트웨어 버전 관리(SemVer) 3단계 확립 및 공식 문서 자산(Blogger/GitHub) 대규모 개편 (v2.4.9)
+### 39. GitHub Actions Android APK 빌드 파이프라인 안정화 및 10대 타깃 버전 동기화 완성 (v2.4.9)
 - **사용자 요청 사항**:
-  - Semantic Versioning(MAJOR.MINOR.PATCH) 3단계 버전 관리 원칙 수립.
-  - 코드 수정 특이점 발생 시 패치노트 자동 기록 및 버전 관리.
-  - docs 폴더 내 GitHub 및 Google Blogger 전용 문서(Rich Text/HTML) 생성 및 업데이트.
-  - 구글 블로그용 10대 규정 순서 및 추천 태그 조건 준수.
+  - Android APK 빌드 실패 해결 및 CI/CD 안정성 확보.
+  - 3단계 Semantic Versioning 원칙에 따른 명확한 버전 관리 및 전체 문서 업데이트.
 - **분석 및 구현 내역**:
-  1. **3단계 시맨틱 버저닝 파이프라인 구축**:
-     - `scripts/sync-version.js`를 수정하여 `--bump-major` 옵션을 추가하고 MAJOR 승급 시 MINOR/PATCH 초기화 로직 구현.
-     - `package.json`에 `version:bump-major`, `version:bump-minor`, `version:bump-patch` 스크립트를 신설하여 운영 환경에 따른 유연한 버전 승급 지원.
-     - `docs/VERSIONING_POLICY.md`에 승급 기준 및 명령어 가이드 명문화.
-  2. **구글 블로거(Blogger) 공식 배포 포스트 최적화**:
-     - `docs/GOOGLE_BLOGGER_POST.md`를 10단계 순서(제목-본문-업데이트-앱 그림-다운로드-버전정보-시스템 요구 사항-제작자-전체 업데이트-태그)로 전면 재구성.
-     - [작성 모드] 복사용 서식과 [HTML 편집 모드]용 인라인 스타일 시트가 포함된 소스 코드를 이원화하여 제공.
-     - 추천 태그 15개를 선정하여 한/영 혼용, 20개 이하, 200자 이내 조건을 완벽히 충족.
-  3. **전방위 문서 동기화**: `README.md`, `docs/README.md`, `PATCH_NOTE.md`에 v2.4.9 변경 사항 및 신규 표준을 일괄 반영하여 프로젝트 투명성 확보.
+  1. **GitHub Actions Android 빌드 워크플로우 핫픽스**:
+     - `.github/workflows/build-and-release.yml` 및 `mobile-release.yml` 내 Gradle 빌드 단계 최적화.
+     - `./gradlew clean` 명령을 추가하여 이전 빌드 잔재로 인한 충돌 방지.
+     - `--no-daemon` 및 `--parallel=false` 옵션을 강제하여 CI 클라우드 환경에서의 메모리 및 스레딩 안정성 극대화.
+     - `APP_VER` 추출 로직을 v2.4.9로 고정하여 태그 불일치 방지.
+  2. **버전 동기화 자동화 확장 (10대 타깃)**:
+     - `scripts/sync-version.js`에 `android/app/build.gradle` 동기화 로직을 신규 추가.
+     - `versionCode` (예: 249)와 `versionName` ("2.4.9")을 자동으로 계산하고 업데이트하도록 구현하여 안드로이드 빌드 버전 수동 관리 누락 원천 차단.
+     - `docs/VERSIONING_POLICY.md`의 동기화 대상 목록을 10개로 갱신.
+  3. **최종 정합성 검증**:
+     - 로컬 환경에서 `npm run version:sync` 및 `npm run build`를 통한 전체 산출물 정합성 확인 완료.
+     - `GOOGLE_BLOGGER_POST.md` 템플릿의 전체 업데이트 이력 동기화 및 10단계 규정 준수 확인.
+
+### 38. 소프트웨어 버전 관리(SemVer) 3단계 확립 및 공식 문서 자산(Blogger/GitHub) 대규모 개편 (v2.4.9)
 
 ### 37. 다중 프로토콜 이름 탐색 배지 원클릭 교체 및 장치 이름 한글(2byte) 깨짐 방지 고도화 (v2.4.8)
 - **사용자 요청 사항**:

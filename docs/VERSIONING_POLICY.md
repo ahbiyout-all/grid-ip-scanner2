@@ -119,8 +119,8 @@ node scripts/sync-version.js --set 2.5.0
 2. **2차 기준 (Fallback)**: `package.json`이 누락되거나 Node 미설치 환경인 경우, `docs/PATCH_NOTE.md` 최상단 헤더(정규식 `\(v?([0-9.]+)\)`)에서 버전 번호를 자동 파싱하여 변수(`%APP_VER%`)에 할당합니다.
 3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.4.4`를 지정합니다.
 
-### 5.2. 9대 핵심 타깃 일괄 동기화 (Single Source of Truth)
-`node scripts/sync-version.js` 실행 시 다음 9개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
+### 5.2. 10대 핵심 타깃 일괄 동기화 (Single Source of Truth)
+`node scripts/sync-version.js` 실행 시 다음 10개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
 1. `package.json` (`"version": "X.Y.Z"`)
 2. `winres.json` (PE 메타데이터 `RT_MANIFEST` & `RT_VERSION` quad-version `"X.Y.Z.0"`)
 3. `installer/Grid_IP_Scanner2_Setup.iss` (`#define MyAppVersion "X.Y.Z"`)
@@ -129,7 +129,8 @@ node scripts/sync-version.js --set 2.5.0
 6. `installer/setup_builder.go` (`AppVersion = "X.Y.Z"`)
 7. `docs/PATCH_NOTE.md` (최상단 헤더 타이틀 `# Grid IP Scanner2 - Patch Note (vX.Y.Z)`)
 8. `docs/README.md` (`최신 vX.Y.Z 버전`)
-9. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
+9. `android/app/build.gradle` (`versionCode`, `versionName`)
+10. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
 
 ---
 * **문서 제정 및 최신 개정일**: 2026년 10월 20일 (v2.4.4 적용)

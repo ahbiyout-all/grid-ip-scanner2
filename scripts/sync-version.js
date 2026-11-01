@@ -73,7 +73,7 @@ const quadVer = `${targetVer}.0`;
 // 1. Synchronize package.json
 pkg.version = targetVer;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-console.log(`✅ [1/6] package.json -> version "${targetVer}"`);
+console.log(`✅ [1/10] package.json -> version "${targetVer}"`);
 
 // 2. Synchronize winres.json
 const winresPath = path.join(rootDir, 'winres.json');
@@ -95,7 +95,7 @@ if (fs.existsSync(winresPath)) {
       });
     }
     fs.writeFileSync(winresPath, JSON.stringify(winres, null, 2) + '\n', 'utf8');
-    console.log(`✅ [2/6] winres.json -> fixed/info "${quadVer}"`);
+    console.log(`✅ [2/10] winres.json -> fixed/info "${quadVer}"`);
   } catch (e) {
     console.warn(`⚠️ Warning: Failed to update winres.json:`, e.message);
   }
@@ -109,7 +109,7 @@ if (fs.existsSync(issPath)) {
   iss = iss.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
   iss = iss.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
   fs.writeFileSync(issPath, iss, 'utf8');
-  console.log(`✅ [3/6] installer/Grid_IP_Scanner2_Setup.iss -> MyAppVersion "${targetVer}"`);
+  console.log(`✅ [3/10] installer/Grid_IP_Scanner2_Setup.iss -> MyAppVersion "${targetVer}"`);
 }
 
 // 4. Synchronize App.tsx UI Badges & String References
@@ -132,7 +132,7 @@ if (fs.existsSync(appTsxPath)) {
   );
   
   fs.writeFileSync(appTsxPath, appTsx, 'utf8');
-  console.log(`✅ [4/8] App.tsx -> UI badges & modal references updated to v${targetVer}`);
+  console.log(`✅ [4/10] App.tsx -> UI badges & modal references updated to v${targetVer}`);
 }
 
 // 5. Synchronize services/updateChecker.ts
@@ -141,7 +141,7 @@ if (fs.existsSync(updateCheckerPath)) {
   let uc = fs.readFileSync(updateCheckerPath, 'utf8');
   uc = uc.replace(/export const CURRENT_APP_VERSION = '[^']*';/, `export const CURRENT_APP_VERSION = '${targetVer}';`);
   fs.writeFileSync(updateCheckerPath, uc, 'utf8');
-  console.log(`✅ [5/8] services/updateChecker.ts -> CURRENT_APP_VERSION = '${targetVer}'`);
+  console.log(`✅ [5/10] services/updateChecker.ts -> CURRENT_APP_VERSION = '${targetVer}'`);
 }
 
 // 6. Synchronize docs/PATCH_NOTE.md header
@@ -150,7 +150,7 @@ if (fs.existsSync(patchNotePath)) {
   let patch = fs.readFileSync(patchNotePath, 'utf8');
   patch = patch.replace(/^#\s*Grid IP Scanner2\s*-\s*Patch Note\s*\(v[^)]*\)/im, `# Grid IP Scanner2 - Patch Note (v${targetVer})`);
   fs.writeFileSync(patchNotePath, patch, 'utf8');
-  console.log(`✅ [6/8] docs/PATCH_NOTE.md -> Header (v${targetVer})`);
+  console.log(`✅ [6/10] docs/PATCH_NOTE.md -> Header (v${targetVer})`);
 }
 
 // 7. Synchronize docs/README.md & root README.md
@@ -162,7 +162,7 @@ if (fs.existsSync(patchNotePath)) {
     readme = readme.replace(/Grid_IP_Scanner2_v\d+\.\d+\.\d+_Setup\.exe/g, `Grid_IP_Scanner2_v${targetVer}_Setup.exe`);
     readme = readme.replace(/Grid_IP_Scanner2_v\d+\.\d+\.\d+\.apk/g, `Grid_IP_Scanner2_v${targetVer}.apk`);
     fs.writeFileSync(rmPath, readme, 'utf8');
-    console.log(`✅ [7/9] ${path.relative(rootDir, rmPath)} -> v${targetVer}`);
+    console.log(`✅ [7/10] ${path.relative(rootDir, rmPath)} -> v${targetVer}`);
   }
 });
 
@@ -172,13 +172,29 @@ if (fs.existsSync(setupGoPath)) {
   let setupGo = fs.readFileSync(setupGoPath, 'utf8');
   setupGo = setupGo.replace(/AppVersion\s*=\s*"[^"]*"/, `AppVersion = "${targetVer}"`);
   fs.writeFileSync(setupGoPath, setupGo, 'utf8');
-  console.log(`✅ [8/9] installer/setup_builder.go -> AppVersion "${targetVer}"`);
+  console.log(`✅ [8/10] installer/setup_builder.go -> AppVersion "${targetVer}"`);
 }
 
-// 9. Synchronize docs/WorkLog.md
+// 9. Synchronize Android version (android/app/build.gradle)
+const androidGradlePath = path.join(rootDir, 'android', 'app', 'build.gradle');
+if (fs.existsSync(androidGradlePath)) {
+  let gradle = fs.readFileSync(androidGradlePath, 'utf8');
+  const parts = targetVer.split('.').map(Number);
+  // Using a simple numeric version code: 2.4.9 -> 249
+  // This matches the existing pattern in the file (247 for 2.4.7)
+  const verCode = parts[0] * 100 + parts[1] * 10 + parts[2];
+  
+  gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${verCode}`);
+  gradle = gradle.replace(/versionName\s+"[^"]*"/, `versionName "${targetVer}"`);
+  
+  fs.writeFileSync(androidGradlePath, gradle, 'utf8');
+  console.log(`✅ [9/10] android/app/build.gradle -> versionCode ${verCode}, versionName "${targetVer}"`);
+}
+
+// 10. Synchronize docs/WorkLog.md
 const workLogPath = path.join(rootDir, 'docs', 'WorkLog.md');
 if (fs.existsSync(workLogPath)) {
-  console.log(`✅ [9/9] docs/WorkLog.md -> Checked`);
+  console.log(`✅ [10/10] docs/WorkLog.md -> Checked`);
 }
 
 console.log(`\n🎉 Version synchronization complete: All targets set to v${targetVer}!\n`);

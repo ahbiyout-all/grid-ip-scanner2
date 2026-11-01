@@ -96,7 +96,7 @@ npm run dev
 
 ### 버전에 따른 동기화 빌드 (SSOT Version Sync & Build)
 ```bash
-# 패치 버전 자동 상승 및 9개 대상 일괄 동기화
+# 패치 버전 자동 상승 및 10개 대상 일괄 동기화
 npm run version:bump
 
 # 실행 파일 및 Windows 빌드
@@ -124,16 +124,16 @@ github-push.bat
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.6 최신화)
-- [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러 아키텍처 및 데이터 명세서 (신규)
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.9 최신화)
+- [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러 아키텍처 및 데이터 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](./SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2, 1:1 대조 스튜디오 및 잘림 방지 서브헤더 기술 명세서
 - [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 완벽 가이드 ([작성 모드] & [HTML 편집 모드])
-- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.4.6 최신화)
+- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.4.9 최신화)
 - [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](./A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.4.6)
-- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.4.6)
+- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.4.9)
+- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.4.9)
 - [`docs/VERSIONING_POLICY.md`](./VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
 - [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드

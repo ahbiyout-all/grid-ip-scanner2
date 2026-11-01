@@ -85,7 +85,7 @@ npm run dev
 
 ### 버전에 따른 동기화 빌드 (SSOT Version Sync & Build)
 ```bash
-# 패치 버전 자동 상승 및 9개 대상 일괄 동기화
+# 패치 버전 자동 상승 및 10개 대상 일괄 동기화
 npm run version:bump
 
 # 실행 파일 및 Windows 빌드
@@ -113,7 +113,7 @@ github-push.bat
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.5 최신화)
+- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.4.9 최신화)
 - [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지
 - [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드
 - [`docs/MOBILE_GITHUB_GUIDE.md`](docs/MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드

@@ -89,13 +89,14 @@ jobs:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.7'}")
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.9'}")
           echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
           if [ -d "android" ]; then
             chmod +x android/gradlew || true
             cd android
             echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-            ./gradlew assembleDebug --no-daemon --stacktrace || ./gradlew assembleRelease --no-daemon --stacktrace || echo "Gradle build attempted"
+            # Stable build with clean and single-threaded execution
+            ./gradlew clean assembleDebug --no-daemon --parallel=false --stacktrace || ./gradlew clean assembleRelease --no-daemon --parallel=false --stacktrace || echo "Gradle build attempted"
             cd ..
             FOUND_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
             if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then

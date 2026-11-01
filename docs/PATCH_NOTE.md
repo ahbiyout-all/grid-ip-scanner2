@@ -4,14 +4,18 @@
 
 ### 🌟 주요 기능 추가 및 안정화 (Major Improvements & Fixes)
 
-1. **소프트웨어 버전 관리 규정 (SemVer) 강화 및 자동화 워크플로우 구축**
+1. **소프트웨어 버전 관리 규정 (SemVer) 강화 및 10대 타깃 자동화 워크플로우 구축**
    - **3단계 시맨틱 버저닝(MAJOR.MINOR.PATCH) 원칙 명문화**: `docs/VERSIONING_POLICY.md`를 통해 변경 규모에 따른 버전 승급 기준을 정의하고 프로젝트 전반에 적용했습니다.
-   - **버전 승급 트리거 스크립트 고도화**: `package.json`에 `version:bump-major`, `version:bump-minor`, `version:bump-patch` 명령을 신설하여 단일 명령으로 9대 타깃 파일의 버전을 일괄 동기화하는 자동화 파이프라인을 완성했습니다.
+   - **버전 승급 트리거 스크립트 고도화**: `package.json`에 `version:bump-major`, `version:bump-minor`, `version:bump-patch` 명령을 신설하여 단일 명령으로 10대 타깃 파일(Android 포함)의 버전을 일괄 동기화하는 자동화 파이프라인을 완성했습니다.
+   - **Android 빌드 버전 자동화**: `android/app/build.gradle`의 `versionCode` 및 `versionName` 동기화를 `sync-version.js`에 통합하여 수동 관리 누락을 원천 차단했습니다.
 
-2. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**
+2. **GitHub Actions Android APK 빌드 파이프라인 정밀 핫픽스 및 안정화**
+   - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 및 `--parallel=false` 옵션을 적용하여 메모리 잠금 및 스레딩 충돌을 방지했습니다.
+   - **워크플로우 현대화**: Node.js 22 LTS 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
+
+3. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**
    - **구글 블로거(Google Blogger) 전용 포스팅 가이드 신설**: `docs/GOOGLE_BLOGGER_POST.md`에 [서식 있는 텍스트] 및 [HTML 편집] 모드 대응 템플릿을 제작했습니다. 사용자 요청에 따른 10대 규정 순서(제목-본문-업데이트-앱 그림-다운로드-버전정보-시스템 요구 사항-제작자 안내-전체 업데이트-태그)를 엄격히 준수합니다.
-   - **깃허브(GitHub) 메인 README 최신화**: v2.4.9 신규 기능을 반영하고 기술 스택 및 핵심 차별화 포인트를 갱신했습니다.
-   - **작업 일지(WorkLog) 및 패치노트 동기화**: 개발 이력을 추적 가능하도록 모든 특이점을 기록하고 버전 관리 체계에 편입했습니다.
+   - **작업 일지(WorkLog) 및 패치노트 동기화**: 개발 이력을 추적 가능하도록 모든 특이점을 기록하고 v2.4.9 버전 관리 체계에 편입했습니다.
 
 ---
 
