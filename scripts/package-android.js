@@ -86,7 +86,7 @@ if (fs.existsSync(gradlewPath)) {
 
   console.log('   - Compiling Android APK using Gradle Wrapper...');
   try {
-    const buildCmd = `${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} assembleDebug --no-daemon`;
+    const buildCmd = `${process.platform === 'win32' ? 'gradlew.bat' : './gradlew'} clean assembleDebug --no-daemon --no-parallel`;
     execSync(buildCmd, { cwd: androidProjectDir, stdio: 'inherit' });
 
     const debugApk = path.join(androidProjectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');

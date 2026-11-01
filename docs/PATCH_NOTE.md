@@ -10,7 +10,7 @@
    - **Android 빌드 버전 자동화**: `android/app/build.gradle`의 `versionCode` 및 `versionName` 동기화를 `sync-version.js`에 통합하여 수동 관리 누락을 원천 차단했습니다.
 
 2. **GitHub Actions Android APK 빌드 파이프라인 정밀 핫픽스 및 안정화**
-   - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 및 `--parallel=false` 옵션을 적용하여 메모리 잠금 및 스레딩 충돌을 방지했습니다.
+   - **Gradle 빌드 안정성 극대화**: CI 클라우드 환경에서의 빌드 실패를 해결하기 위해 `./gradlew clean` 명령을 선행하고, `--no-daemon` 및 `--no-parallel` 옵션을 적용하여 메모리 잠금 및 스레딩 충돌을 방지했습니다.
    - **워크플로우 현대화**: Node.js 22 LTS 및 Java 21 기반의 최신 액션 라이브러리(`setup-node@v4`, `setup-java@v5`, `checkout@v4`)로 전면 전환하여 빌드 환경의 신뢰성을 확보했습니다.
 
 3. **프로젝트 공식 기술 문서 및 홍보 자산 전면 개편**

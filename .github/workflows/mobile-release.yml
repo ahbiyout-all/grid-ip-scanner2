@@ -96,7 +96,7 @@ jobs:
             cd android
             echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
             # Stable build with clean and single-threaded execution
-            ./gradlew clean assembleDebug --no-daemon --parallel=false --stacktrace || ./gradlew clean assembleRelease --no-daemon --parallel=false --stacktrace || echo "Gradle build attempted"
+            ./gradlew clean assembleDebug --no-daemon --no-parallel --stacktrace || ./gradlew clean assembleRelease --no-daemon --no-parallel --stacktrace || echo "Gradle build attempted"
             cd ..
             FOUND_APK=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
             if [ -n "$FOUND_APK" ] && [ -f "$FOUND_APK" ]; then
