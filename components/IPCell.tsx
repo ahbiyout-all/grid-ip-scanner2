@@ -13,6 +13,7 @@ interface IPCellProps {
   isHost?: boolean;
   theme: 'beige' | 'dark' | 'gray';
   s: any;
+  lang?: 'ko' | 'en';
   index: number;
   diffStatus?: DiffStatus;
   isConflict?: boolean;
@@ -36,6 +37,7 @@ const IPCell: React.FC<IPCellProps> = ({
   isHost, 
   theme, 
   s, 
+  lang,
   index, 
   diffStatus,
   isConflict,
@@ -48,6 +50,7 @@ const IPCell: React.FC<IPCellProps> = ({
   isDiffMode,
   baselineColor = 'sky'
 }) => {
+  const currentLang = lang || (s?.lang === 'en' ? 'en' : 'ko');
   const lastOctet = ip.split('.').pop();
   
   // Calculate grid position (0-15 for both col and row) based on visual array index
@@ -259,7 +262,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {diffStatus === 'new' && (
         <>
           <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-emerald-500 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_12px_rgba(16,185,129,0.9)] z-20 animate-bounce flex items-center gap-0.5 border border-white/60 ring-2 ring-emerald-300/60">
-            <span className="text-[6px]">✚</span>{s.lang === 'ko' ? '신규' : 'NEW'}
+            <span className="text-[6px]">✚</span>{currentLang === 'ko' ? '신규' : 'NEW'}
           </span>
           <span className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping z-20" />
         </>
@@ -267,7 +270,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {diffStatus === 'offline' && (
         <>
           <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-rose-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(244,63,94,0.8)] z-20 flex items-center gap-0.5 border border-white/60">
-            <span className="text-[6px]">━</span>{s.lang === 'ko' ? '이탈' : 'OFF'}
+            <span className="text-[6px]">━</span>{currentLang === 'ko' ? '이탈' : 'OFF'}
           </span>
           {/* Diagonal indicator slash for disconnected nodes */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
@@ -277,7 +280,7 @@ const IPCell: React.FC<IPCellProps> = ({
       )}
       {diffStatus === 'changed' && (
         <span className="absolute -top-1.5 -left-1.5 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_10px_rgba(245,158,11,0.9)] z-20 animate-pulse flex items-center gap-0.5 border border-black/40">
-          <span className="text-[6px]">▲</span>{s.lang === 'ko' ? '변동' : 'CHG'}
+          <span className="text-[6px]">▲</span>{currentLang === 'ko' ? '변동' : 'CHG'}
         </span>
       )}
       {diffStatus === 'same' && (() => {
@@ -292,7 +295,7 @@ const IPCell: React.FC<IPCellProps> = ({
         return (
           <>
             <span className={`absolute -top-1.5 -left-1.5 px-1 py-0.2 rounded text-[7px] font-black tracking-tighter z-20 flex items-center gap-0.5 border ${badgeClasses}`}>
-              <span className="text-[6px]">=</span>{s.lang === 'ko' ? '기준' : 'BASE'}
+              <span className="text-[6px]">=</span>{currentLang === 'ko' ? '기준' : 'BASE'}
             </span>
             <span className={`absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full z-20 ${
               bColor === 'sky' ? 'bg-sky-400' :
@@ -306,7 +309,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {/* IP Conflict Warning Badge */}
       {isConflict && (
         <span 
-          title={conflictDetails || "IP 충돌 의심"}
+          title={conflictDetails || (currentLang === 'ko' ? "IP 충돌 의심" : "IP Conflict Suspected")}
           className="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-rose-600 text-white rounded-full text-[8px] font-black tracking-tighter shadow-[0_0_10px_rgba(244,63,94,0.9)] z-30 animate-pulse border border-white"
         >
           ⚠️
@@ -316,7 +319,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {/* New Intruder / Unknown Device Badge (Normal scan mode) */}
       {isNewIntruder && !diffStatus && (
         <span 
-          title="새로 감지된 낯선 기기"
+          title={currentLang === 'ko' ? "새로 감지된 낯선 기기" : "Newly detected unknown device"}
           className="absolute -top-1 -left-1 px-1 py-0.2 bg-purple-600 text-white rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(168,85,247,0.8)] z-20 animate-bounce"
         >
           🚨NEW
@@ -326,7 +329,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {/* Soft Trust Grace Period Badge */}
       {isSoftTrust && !isNewIntruder && !diffStatus && (
         <span 
-          title="식별자 변동 유예 중인 소프트 신뢰 기기"
+          title={currentLang === 'ko' ? "식별자 변동 유예 중인 소프트 신뢰 기기" : "Soft-trusted device with grace period"}
           className="absolute -top-1 -left-1 px-1 py-0.2 bg-amber-500 text-black rounded text-[7px] font-black tracking-tighter shadow-[0_0_8px_rgba(245,158,11,0.8)] z-20"
         >
           🛡️SOFT
@@ -336,7 +339,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {/* Custom Nickname indicator dot */}
       {customNickname && (
         <div 
-          title={`별칭: ${customNickname}`}
+          title={currentLang === 'ko' ? `별칭: ${customNickname}` : `Alias: ${customNickname}`}
           className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-black/40 z-20 shadow-sm"
         />
       )}
@@ -389,10 +392,10 @@ const IPCell: React.FC<IPCellProps> = ({
                 'bg-slate-500/20 text-slate-300 border-slate-500/40'
               }`}>
                 <span>
-                  {diffStatus === 'new' && '🟢 스냅샷 비교: +신규 노드'}
-                  {diffStatus === 'offline' && '🔴 스냅샷 비교: -연결 끊김'}
-                  {diffStatus === 'changed' && '🟠 스냅샷 비교: !식별자 변동'}
-                  {diffStatus === 'same' && '⚪ 스냅샷 비교: =상태 일치'}
+                  {diffStatus === 'new' && (currentLang === 'ko' ? '🟢 스냅샷 비교: +신규 노드' : '🟢 Snapshot Diff: +New Node')}
+                  {diffStatus === 'offline' && (currentLang === 'ko' ? '🔴 스냅샷 비교: -연결 끊김' : '🔴 Snapshot Diff: -Disconnected')}
+                  {diffStatus === 'changed' && (currentLang === 'ko' ? '🟠 스냅샷 비교: !식별자 변동' : '🟠 Snapshot Diff: !Modified')}
+                  {diffStatus === 'same' && (currentLang === 'ko' ? '⚪ 스냅샷 비교: =상태 일치' : '⚪ Snapshot Diff: =Identical')}
                 </span>
                 <span className="text-[8px] uppercase opacity-80">
                   {diffStatus === 'offline' ? 'Offline' : diffStatus.toUpperCase()}
@@ -402,21 +405,27 @@ const IPCell: React.FC<IPCellProps> = ({
 
             {customNickname && (
               <div className="flex flex-col bg-amber-500/15 p-1 rounded border border-amber-500/30">
-                <span className="text-[8px] uppercase font-black text-amber-500 tracking-wider">🏷️ 사용자 지정 별칭</span>
+                <span className="text-[8px] uppercase font-black text-amber-500 tracking-wider">
+                  {currentLang === 'ko' ? '🏷️ 사용자 지정 별칭' : '🏷️ Custom Nickname'}
+                </span>
                 <span className="text-[10px] font-black truncate text-amber-400 mt-0.5">{customNickname}</span>
               </div>
             )}
 
             {isConflict && (
               <div className="flex flex-col bg-rose-500/20 p-1 rounded border border-rose-500/40">
-                <span className="text-[8px] uppercase font-black text-rose-400 tracking-wider">⚠️ IP 충돌 주의</span>
-                <span className="text-[9px] font-bold text-rose-300 leading-tight mt-0.5">{conflictDetails || "동일 IP 다중 응답 감지"}</span>
+                <span className="text-[8px] uppercase font-black text-rose-400 tracking-wider">
+                  {currentLang === 'ko' ? '⚠️ IP 충돌 주의' : '⚠️ IP Conflict Warning'}
+                </span>
+                <span className="text-[9px] font-bold text-rose-300 leading-tight mt-0.5">
+                  {conflictDetails || (currentLang === 'ko' ? "동일 IP 다중 응답 감지" : "Multiple responses on same IP")}
+                </span>
               </div>
             )}
 
             <div className="flex flex-col">
               <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
-                {diffStatus === 'offline' ? '이전 기준 식별명' : s.networkIdentity}
+                {diffStatus === 'offline' ? (currentLang === 'ko' ? '이전 기준 식별명' : 'Baseline Device Name') : s.networkIdentity}
               </span>
               <div className="text-[10px] font-black flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span className={`truncate ${diffStatus === 'offline' ? 'text-rose-400 line-through opacity-80' : 'text-sky-500'}`}>
@@ -445,7 +454,7 @@ const IPCell: React.FC<IPCellProps> = ({
             
             <div className="flex flex-col">
               <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
-                {diffStatus === 'offline' ? '이전 제조사 및 MAC' : s.macInfo}
+                {diffStatus === 'offline' ? (currentLang === 'ko' ? '이전 제조사 및 MAC' : 'Baseline Vendor & MAC') : s.macInfo}
               </span>
               <span className="text-[9px] font-bold truncate">{displayDevice.vendor || 'Unknown'}</span>
               {displayDevice.mac && (

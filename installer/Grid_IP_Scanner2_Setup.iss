@@ -4,7 +4,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.21"
+#define MyAppVersion "2.4.23"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -25,9 +25,14 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppBlogURL}
 AppUpdatesURL={#MyAppBlogURL}
 UninstallDisplayName={#MyAppName} v{#MyAppVersion}
-UninstallDisplayIcon={app}\icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 CreateUninstallRegKey=yes
 UpdateUninstallRegKey=yes
+
+; Process Management & Applications Closing during Install/Uninstall
+CloseApplications=yes
+CloseApplicationsFilter=*.exe
+RestartApplications=no
 
 ; Installation Paths (64-bit Native Program Files)
 DefaultDirName={autopf}\{#MyAppName}
@@ -70,13 +75,23 @@ Name: "autostart"; Description: "Windows 부팅 시 백그라운드 자동 실�
 ; 기존 설치 폴더에 잔존할 수 있는 구버전 포터블 바이너리(Grid IP Scanner2 v*.exe) 완전 자동 정리
 Type: files; Name: "{app}\Grid IP Scanner2*.exe"
 
+[UninstallDelete]
+; 언인스톨 시 동적으로 생성된 설정/캐시/임시 파일 및 잔여 폴더 완벽 삭제
+Type: filesandordirs; Name: "{app}\dist"
+Type: filesandordirs; Name: "{app}\public"
+Type: filesandordirs; Name: "{app}\native_dll"
+Type: files; Name: "{app}\*.log"
+Type: files; Name: "{app}\*.json"
+Type: files; Name: "{app}\*.txt"
+Type: files; Name: "{app}\*.dat"
+Type: files; Name: "{app}\*.bak"
+Type: files; Name: "{app}\*.tmp"
+Type: files; Name: "{app}\*.ico"
+Type: files; Name: "{app}\*.png"
+Type: files; Name: "{app}\*.exe"
+Type: filesandordirs; Name: "{app}"
+
 [Files]
-; =====================================================================
-; [폴더 풀림(Unpacked Multi-File) 개별파일 설치 구조]
-; - 불필요한 개발/포터블/임시 파일 및 중복 문서 추가 배제
-; - 포터블 단일 파일(Grid IP Scanner2 v2.4.3.exe)은 설치 대상에서 제외하고,
-;   설치 폴더({app})에는 표준 실행 파일(Grid_IP_Scanner2.exe) 단 하나만 설치
-; =====================================================================
 ; 1. Core Executable (표준 단일 설치 실행 파일)
 Source: "..\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\{#MyAppSourceExe}"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion skipifsourcedoesntexist
@@ -86,26 +101,33 @@ Source: "..\master_oui.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\winres.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package.json"; DestDir: "{app}"; Flags: ignoreversion
 
-; 3. Branding & Icon Assets
+; 3. Native Acceleration DLL Modules
+Source: "..\grid_probe_engine.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_port_iocp.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_discovery.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_oui_trie.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_banner_grabber.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+
+; 4. Branding & Icon Assets
 Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\icon.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\public\logo.png"; DestDir: "{app}"; Flags: ignoreversion
 
-; 4. Web UI & Frontend Distribution Bundle (Unpacked Web Production Assets)
+; 5. Web UI & Frontend Distribution Bundle (Unpacked Web Production Assets)
 Source: "..\dist\*"; DestDir: "{app}\dist"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 5. Public Static Assets & Manifests
+; 6. Public Static Assets & Manifests
 Source: "..\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 6. Legal License
+; 7. Legal License
 Source: "..\docs\LICENSE.md"; DestDir: "{app}"; DestName: "LICENSE.md"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
-Name: "{group}\홈페이지 방문 ({#MyAppPublisher})"; Filename: "{#MyAppURL}"; IconFilename: "{app}\icon.ico"
-Name: "{group}\언인스톨 {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
-Name: "{userprograms}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: startmenuicon
+Name: "{group}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\홈페이지 방문 ({#MyAppPublisher})"; Filename: "{#MyAppURL}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{group}\언인스톨 {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userprograms}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: startmenuicon
 
 [Registry]
 ; Enterprise Software Asset Management Compliance
@@ -115,49 +137,42 @@ Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Publ
 Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Executable"; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
 
 ; Auto-start on Windows Boot (if task checked)
-Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName} v{#MyAppVersion}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-; =====================================================================
-; [배포/설치 단계] 방화벽 규칙 사전 조용히 등록 (기본 이름 및 버전 정보 포함 이름 동시 등록)
-; 대상 바이너리: {app}\{#MyAppExeName} (Grid_IP_Scanner2.exe)
-; =====================================================================
-; 1. 기본 이름 (Grid IP Scanner2) 방화벽 규칙 등록
+; 1. 기본 방화벽 규칙 등록
 Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} (Inbound)"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} (Outbound)"" dir=out action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-
-; 2. 버전 정보가 붙은 상태의 앱 이름 (Grid IP Scanner2 v{#MyAppVersion}) 방화벽 규칙 등록
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion} (Inbound)"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppName} v{#MyAppVersion} (Outbound)"" dir=out action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-
-; 3. 실행 파일명 자체 (Grid_IP_Scanner2.exe) 방화벽 규칙 등록
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppExeName}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppExeName} (Inbound)"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppExeName} (Outbound)"" dir=out action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
 
 ; Launch Application after Setup Completion (Skip if Silent / Unattended)
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; =====================================================================
-; [제거 단계] 등록된 모든 방화벽 규칙 조용히 삭제 (기본 이름 및 버전 포함 이름)
-; =====================================================================
+; [제거 단계] 등록된 모든 방화벽 규칙 조용히 삭제
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName}"""; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} (Inbound)"""; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} (Outbound)"""; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion}"""; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion} (Inbound)"""; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion} (Outbound)"""; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName}"""; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName} (Inbound)"""; Flags: runhidden waituntilterminated
-Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName} (Outbound)"""; Flags: runhidden waituntilterminated
 
 [Code]
 // =====================================================================
-// 기존 설치 감지, 삭제/덮어쓰기 질의, 무인 설치(Silent) 완전 지원 로직
+// 언인스톨 단계 실행 중 프로세스 강제 종료 (파일 잠금 해제 및 완벽 삭제 보장)
 // =====================================================================
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    // 1. 언인스톨 시작 즉시 실행 중인 모든 관련 앱 프로세스 강제 종료
+    Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(500);
+  end;
+end;
 
 var
   ExistingInstallPath: String;
@@ -200,11 +215,10 @@ begin
       if not RegQueryStringValue(HKLM32, UninstallKey, 'QuietUninstallString', ExistingUninstaller) then
         RegQueryStringValue(HKLM32, UninstallKey, 'UninstallString', ExistingUninstaller);
 
-  // 2. 파일 시스템 기반 직접 감지 (기존 폴더 또는 실행 파일 존재 여부)
+  // 2. 파일 시스템 기반 직접 감지
   if not HasExisting then
   begin
     if FileExists(ExpandConstant('{autopf}\{#MyAppName}\{#MyAppExeName}')) or
-       FileExists(ExpandConstant('{autopf}\{#MyAppName}\{#MyAppAliasExeName}')) or
        DirExists(ExpandConstant('{autopf}\{#MyAppName}')) then
     begin
       HasExisting := True;
@@ -218,6 +232,7 @@ begin
     // [무인 설치 모드]: /SILENT 또는 /VERYSILENT 명령줄 옵션 시 대화 상자 없이 자동으로 덮어쓰기(업그레이드) 진행
     if WizardSilent() then
     begin
+      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Result := True;
       Exit;
     end;
@@ -235,11 +250,11 @@ begin
     begin
       // 기존 프로세스 종료 후 업데이트 진행
       Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Result := True;
     end
     else
     begin
-      // 아니오 선택 시 설치 중단
       Result := False;
     end;
   end;

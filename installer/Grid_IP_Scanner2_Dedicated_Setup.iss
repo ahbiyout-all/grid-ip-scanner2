@@ -1,11 +1,11 @@
 ; =====================================================================
-; Grid IP Scanner2 v2.4.7 - Dedicated Isolated Inno Setup 6 Script
+; Grid IP Scanner2 v2.4.23 - Dedicated Isolated Inno Setup 6 Script
 ; Detailed Step-by-Step Installation Wizard & Guaranteed Isolated Environment
 ; Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.7"
+#define MyAppVersion "2.4.23"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -18,9 +18,8 @@
 [Setup]
 ; =====================================================================
 ; [1] Unique Application ID & Isolated Registration Entry
-; - Dedicated GUID ensures zero registry collisions with legacy versions
 ; =====================================================================
-AppId={{D37F8A12-882C-4B9E-91C3-1F6A78E09B4D}
+AppId={{9C2116BA-10DD-4E5F-8DC5-4279D64B8DF3}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} v{#MyAppVersion}
@@ -29,7 +28,7 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppBlogURL}
 AppUpdatesURL={#MyAppBlogURL}
 UninstallDisplayName={#MyAppName} v{#MyAppVersion}
-UninstallDisplayIcon={app}\icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 CreateUninstallRegKey=yes
 UpdateUninstallRegKey=yes
 
@@ -100,6 +99,22 @@ Name: "autostart"; Description: "Windows 부팅 시 백그라운드 자동 실�
 [InstallDelete]
 ; Clean up any legacy single-file binaries in installation folder
 Type: files; Name: "{app}\Grid IP Scanner2*.exe"
+
+[UninstallDelete]
+; 언인스톨 시 동적으로 생성된 설정/캐시/임시 파일 및 잔여 폴더 완벽 삭제
+Type: filesandordirs; Name: "{app}\dist"
+Type: filesandordirs; Name: "{app}\public"
+Type: filesandordirs; Name: "{app}\native_dll"
+Type: files; Name: "{app}\*.log"
+Type: files; Name: "{app}\*.json"
+Type: files; Name: "{app}\*.txt"
+Type: files; Name: "{app}\*.dat"
+Type: files; Name: "{app}\*.bak"
+Type: files; Name: "{app}\*.tmp"
+Type: files; Name: "{app}\*.ico"
+Type: files; Name: "{app}\*.png"
+Type: files; Name: "{app}\*.exe"
+Type: filesandordirs; Name: "{app}"
 
 [Files]
 ; =====================================================================
@@ -182,8 +197,21 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#My
 
 [Code]
 // =====================================================================
-// [5] Existing Installation Auto-Detection & Upgrade Prompt Logic
+// 언인스톨 단계 실행 중 프로세스 강제 종료 (파일 잠금 해제 및 완벽 삭제 보장)
 // =====================================================================
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    // 언인스톨 시작 즉시 실행 중인 모든 관련 앱 프로세스 강제 종료
+    Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(500);
+  end;
+end;
 
 function InitializeSetup(): Boolean;
 var

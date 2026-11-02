@@ -35,6 +35,7 @@ interface SnapshotDiffModalProps {
   onSelectIp?: (ip: string) => void;
   theme: 'dark' | 'gray' | 'beige' | 'light';
   s: any;
+  lang?: 'ko' | 'en';
   showToast: (msg: string) => void;
 }
 
@@ -49,8 +50,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   onSelectIp,
   theme,
   s,
+  lang,
   showToast,
 }) => {
+  const currentLang = lang || (s?.lang === 'en' ? 'en' : 'ko');
+  const isEn = currentLang === 'en';
+
   // Source A (Before) and Source B (After) selection
   // 'live' means current active scan results
   const [sourceAId, setSourceAId] = useState<string>(() => {
@@ -74,7 +79,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
     if (id === 'live') {
       const activeCount = Object.values(currentResults || {}).filter((r) => r.status === 'active').length;
       return {
-        label: `현재 실시간 스캔 (${currentSubnet}.0/24, ${activeCount}대 온라인)`,
+        label: isEn 
+          ? `Live Scan (${currentSubnet}.0/24, ${activeCount} online)` 
+          : `현재 실시간 스캔 (${currentSubnet}.0/24, ${activeCount}대 온라인)`,
         results: currentResults || {},
         timestamp: Date.now(),
         count: activeCount,
@@ -90,7 +97,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
       };
     }
     return {
-      label: '알 수 없는 스냅샷',
+      label: isEn ? 'Unknown Snapshot' : '알 수 없는 스냅샷',
       results: {},
       count: 0,
     };
@@ -157,7 +164,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
     if (editLabelInput.trim()) {
       const updated = updateSnapshotLabel(id, editLabelInput.trim());
       onSnapshotsChange(updated);
-      showToast('스냅샷 이름이 변경되었습니다.');
+      showToast(isEn ? 'Snapshot renamed successfully.' : '스냅샷 이름이 변경되었습니다.');
     }
     setEditingSnapId(null);
   };
@@ -173,31 +180,31 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
     if (sourceBId === id) {
       setSourceBId('live');
     }
-    showToast('스냅샷이 삭제되었습니다.');
+    showToast(isEn ? 'Snapshot deleted.' : '스냅샷이 삭제되었습니다.');
   };
 
   // Export to CSV
   const handleExportCSV = () => {
     const filename = `GridIPScanner2_Diff_${dataA.label.slice(0, 15).replace(/[^a-zA-Z0-9가-힣]/g, '_')}_vs_${dataB.label.slice(0, 15).replace(/[^a-zA-Z0-9가-힣]/g, '_')}.csv`;
     exportDiffToCSV(diffResult, filename);
-    showToast('스냅샷 비교 분석 CSV가 다운로드되었습니다.');
+    showToast(isEn ? 'Diff analysis CSV downloaded.' : '스냅샷 비교 분석 CSV가 다운로드되었습니다.');
   };
 
   // Copy Summary to Clipboard
   const handleCopySummary = () => {
     const text = [
-      `=== Grid IP Scanner2 스냅샷 비교 분석 요약 ===`,
-      `[기준점 A]: ${dataA.label} (${dataA.timestamp ? new Date(dataA.timestamp).toLocaleString() : 'Live'})`,
-      `[비교점 B]: ${dataB.label} (${dataB.timestamp ? new Date(dataB.timestamp).toLocaleString() : 'Live'})`,
+      isEn ? `=== Grid IP Scanner2 Snapshot Diff Summary ===` : `=== Grid IP Scanner2 스냅샷 비교 분석 요약 ===`,
+      `${isEn ? '[Baseline A]' : '[기준점 A]'}: ${dataA.label} (${dataA.timestamp ? new Date(dataA.timestamp).toLocaleString() : 'Live'})`,
+      `${isEn ? '[Target B]' : '[비교점 B]'}: ${dataB.label} (${dataB.timestamp ? new Date(dataB.timestamp).toLocaleString() : 'Live'})`,
       `--------------------------------------------------`,
-      `• 신규 접속 (+NEW): ${diffResult.summary.newCount}대`,
-      `• 오프라인 이탈 (-OFF): ${diffResult.summary.offlineCount}대`,
-      `• 식별자/포트 변동 (!CHG): ${diffResult.summary.changedCount}대`,
-      `• 보안 주의 경보 (⚠️ ALERT): ${diffResult.summary.securityAlertCount || 0}건`,
-      `• 동일 유지 (=SAME): ${diffResult.summary.sameCount}대`,
-      `• 전체 대조 노드: ${diffResult.summary.totalEvaluated}개`,
+      `• ${isEn ? 'New Connected (+NEW):' : '신규 접속 (+NEW):'} ${diffResult.summary.newCount}`,
+      `• ${isEn ? 'Offline Gone (-OFF):' : '오프라인 이탈 (-OFF):'} ${diffResult.summary.offlineCount}`,
+      `• ${isEn ? 'Modified (!CHG):' : '식별자/포트 변동 (!CHG):'} ${diffResult.summary.changedCount}`,
+      `• ${isEn ? 'Security Alerts (⚠️ ALERT):' : '보안 주의 경보 (⚠️ ALERT):'} ${diffResult.summary.securityAlertCount || 0}`,
+      `• ${isEn ? 'Unchanged (=SAME):' : '동일 유지 (=SAME):'} ${diffResult.summary.sameCount}`,
+      `• ${isEn ? 'Total Evaluated:' : '전체 대조 노드:'} ${diffResult.summary.totalEvaluated}`,
       `--------------------------------------------------`,
-      `[주요 변동 내역 (${diffResult.items.filter((i) => i.diffStatus !== 'same').length}건)]:`,
+      `[${isEn ? 'Key Changes' : '주요 변동 내역'} (${diffResult.items.filter((i) => i.diffStatus !== 'same').length})]:`,
       ...diffResult.items
         .filter((i) => i.diffStatus !== 'same')
         .map((i) => `[${i.ip}] [${i.diffStatus.toUpperCase()}] ${i.changeDetails.join(' | ')}`),
@@ -206,7 +213,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
     navigator.clipboard.writeText(text);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-    showToast('비교 분석 요약이 클립보드에 복사되었습니다.');
+    showToast(isEn ? 'Diff summary copied to clipboard.' : '비교 분석 요약이 클립보드에 복사되었습니다.');
   };
 
   // Save live scan as snapshot
@@ -243,13 +250,17 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-black tracking-tight">스냅샷 비교 스튜디오 (Snapshot Diff Studio)</h2>
+                <h2 className="text-base font-black tracking-tight">
+                  {isEn ? 'Snapshot Diff Studio' : '스냅샷 비교 스튜디오 (Snapshot Diff Studio)'}
+                </h2>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
                   DEEP DIFF v2
                 </span>
               </div>
               <p className="text-[11px] opacity-70 mt-0.5">
-                두 시점 간의 신규 접속 단말, 오프라인 이탈, MAC 주소 충돌 및 개방 포트 변동을 1:1로 정밀 대조합니다.
+                {isEn 
+                  ? 'Side-by-side 1:1 comparison of new nodes, offline departures, MAC conflicts, and port changes between two points in time.' 
+                  : '두 시점 간의 신규 접속 단말, 오프라인 이탈, MAC 주소 충돌 및 개방 포트 변동을 1:1로 정밀 대조합니다.'}
               </p>
             </div>
           </div>
@@ -258,10 +269,10 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <button
               onClick={() => setShowSavePrompt(!showSavePrompt)}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-              title="현재 스캔 상태를 새 스냅샷으로 즉시 저장"
+              title={isEn ? "Save current live scan results as a new snapshot" : "현재 스캔 상태를 새 스냅샷으로 즉시 저장"}
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>새 스냅샷 저장</span>
+              <span>{isEn ? 'Save New Snapshot' : '새 스냅샷 저장'}</span>
             </button>
             <button
               onClick={onClose}
@@ -276,10 +287,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         {showSavePrompt && (
           <div className={`px-5 py-2.5 border-b flex flex-wrap items-center justify-between gap-2.5 bg-indigo-500/10 border-indigo-500/30 text-xs animate-in slide-in-from-top-2`}>
             <div className="flex items-center gap-2 flex-1">
-              <span className="font-bold shrink-0 text-indigo-400">스냅샷 메모/라벨:</span>
+              <span className="font-bold shrink-0 text-indigo-400">
+                {isEn ? 'Snapshot Note / Label:' : '스냅샷 메모/라벨:'}
+              </span>
               <input
                 type="text"
-                placeholder={`예: 정기점검 전, 신규AP 교체 후 (${currentSubnet}.0/24)`}
+                placeholder={isEn ? `e.g. Before routine maintenance, after AP replacement (${currentSubnet}.0/24)` : `예: 정기점검 전, 신규AP 교체 후 (${currentSubnet}.0/24)`}
                 value={newSnapLabelInput}
                 onChange={(e) => setNewSnapLabelInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveSnapshotConfirm()}
@@ -294,13 +307,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 onClick={handleSaveSnapshotConfirm}
                 className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs shadow cursor-pointer"
               >
-                저장 완료
+                {isEn ? 'Save' : '저장 완료'}
               </button>
               <button
                 onClick={() => setShowSavePrompt(false)}
                 className="px-2.5 py-1 bg-black/10 dark:bg-white/10 hover:opacity-80 rounded text-xs cursor-pointer"
               >
-                취소
+                {isEn ? 'Cancel' : '취소'}
               </button>
             </div>
           </div>
@@ -316,7 +329,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 <div className="flex items-center justify-between mb-1 text-[11px] font-bold opacity-75">
                   <span className="flex items-center gap-1 text-sky-500">
                     <span className="w-2 h-2 rounded-full bg-sky-500" />
-                    기준점 [A] (Before / 과거 기준)
+                    {isEn ? 'Baseline [A] (Before / Baseline Point)' : '기준점 [A] (Before / 과거 기준)'}
                   </span>
                   {dataA.timestamp && (
                     <span className="text-[10px] opacity-60 font-mono">
@@ -335,11 +348,11 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                       : 'bg-white border-slate-300 text-slate-800'
                   }`}
                 >
-                  <option value="live">⚡ 현재 실시간 스캔 결과 (Live)</option>
-                  <optgroup label="저장된 스냅샷 목록">
+                  <option value="live">{isEn ? '⚡ Current Live Scan (Live)' : '⚡ 현재 실시간 스캔 결과 (Live)'}</option>
+                  <optgroup label={isEn ? "Saved Snapshots" : "저장된 스냅샷 목록"}>
                     {snapshots.map((snap) => (
                       <option key={snap.id} value={snap.id}>
-                        📸 {snap.label} ({snap.activeCount}대 온라인)
+                        📸 {snap.label} ({snap.activeCount}{isEn ? ' online' : '대 온라인'})
                       </option>
                     ))}
                   </optgroup>
@@ -350,7 +363,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               <button
                 onClick={handleSwapSources}
                 className="self-end mb-0.5 p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-indigo-600 hover:text-white border border-current border-opacity-15 transition-all shadow-sm active:scale-95 cursor-pointer"
-                title="기준점(A)과 비교대상(B)을 서로 맞바꿉니다"
+                title={isEn ? "Swap baseline (A) and comparison target (B)" : "기준점(A)과 비교대상(B)을 서로 맞바꿉니다"}
               >
                 <ArrowRightLeft className="w-4 h-4" />
               </button>
@@ -360,7 +373,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 <div className="flex items-center justify-between mb-1 text-[11px] font-bold opacity-75">
                   <span className="flex items-center gap-1 text-emerald-500">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    대조 대상 [B] (After / 비교 시점)
+                    {isEn ? 'Comparison Target [B] (After / Comparison Point)' : '대조 대상 [B] (After / 비교 시점)'}
                   </span>
                   {dataB.timestamp && (
                     <span className="text-[10px] opacity-60 font-mono">
@@ -379,11 +392,11 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                       : 'bg-white border-slate-300 text-slate-800'
                   }`}
                 >
-                  <option value="live">⚡ 현재 실시간 스캔 결과 (Live)</option>
-                  <optgroup label="저장된 스냅샷 목록">
+                  <option value="live">{isEn ? '⚡ Current Live Scan (Live)' : '⚡ 현재 실시간 스캔 결과 (Live)'}</option>
+                  <optgroup label={isEn ? "Saved Snapshots" : "저장된 스냅샷 목록"}>
                     {snapshots.map((snap) => (
                       <option key={snap.id} value={snap.id}>
-                        📸 {snap.label} ({snap.activeCount}대 온라인)
+                        📸 {snap.label} ({snap.activeCount}{isEn ? ' online' : '대 온라인'})
                       </option>
                     ))}
                   </optgroup>
@@ -396,19 +409,19 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               <button
                 onClick={handleExportCSV}
                 className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer shadow-sm"
-                title="비교 분석 상세 내역을 CSV 파일로 다운로드합니다"
+                title={isEn ? "Download detailed comparison records as CSV" : "비교 분석 상세 내역을 CSV 파일로 다운로드합니다"}
               >
                 <Download className="w-3.5 h-3.5 text-emerald-500" />
-                <span>CSV 내보내기</span>
+                <span>{isEn ? 'Export CSV' : 'CSV 내보내기'}</span>
               </button>
 
               <button
                 onClick={handleCopySummary}
                 className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer shadow-sm"
-                title="보고용 텍스트 요약을 클립보드에 복사합니다"
+                title={isEn ? "Copy text report summary to clipboard" : "보고용 텍스트 요약을 클립보드에 복사합니다"}
               >
                 {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
-                <span>{isCopied ? '복사됨' : '요약 복사'}</span>
+                <span>{isCopied ? (isEn ? 'Copied' : '복사됨') : (isEn ? 'Copy Summary' : '요약 복사')}</span>
               </button>
             </div>
           </div>
@@ -423,9 +436,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   : 'bg-black/5 dark:bg-white/5 hover:bg-black/10'
               }`}
             >
-              <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">총 변동 장치</div>
-              <div className="text-lg font-black text-indigo-400 mono mt-0.5">{totalChanges}대</div>
-              <div className="text-[9px] opacity-60">변동 감지된 모든 노드</div>
+              <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">
+                {isEn ? 'Total Changed' : '총 변동 장치'}
+              </div>
+              <div className="text-lg font-black text-indigo-400 mono mt-0.5">{totalChanges}{isEn ? ' nodes' : '대'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'All changed nodes' : '변동 감지된 모든 노드'}
+              </div>
             </button>
 
             <button
@@ -436,9 +453,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   : 'bg-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10'
               }`}
             >
-              <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-tight">+ 신규 접속 (NEW)</div>
-              <div className="text-lg font-black text-emerald-500 mono mt-0.5">+{diffResult.summary.newCount}대</div>
-              <div className="text-[9px] opacity-60">새로 온라인 등장</div>
+              <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-tight">
+                {isEn ? '+ NEW (Connected)' : '+ 신규 접속 (NEW)'}
+              </div>
+              <div className="text-lg font-black text-emerald-500 mono mt-0.5">+{diffResult.summary.newCount}{isEn ? ' nodes' : '대'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'Newly appeared online' : '새로 온라인 등장'}
+              </div>
             </button>
 
             <button
@@ -449,9 +470,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   : 'bg-rose-500/5 border-rose-500/20 hover:bg-rose-500/10'
               }`}
             >
-              <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">- 오프라인 이탈 (OFF)</div>
-              <div className="text-lg font-black text-rose-500 mono mt-0.5">-{diffResult.summary.offlineCount}대</div>
-              <div className="text-[9px] opacity-60">전원차단 / 연결 끊김</div>
+              <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">
+                {isEn ? '- OFF (Offline)' : '- 오프라인 이탈 (OFF)'}
+              </div>
+              <div className="text-lg font-black text-rose-500 mono mt-0.5">-{diffResult.summary.offlineCount}{isEn ? ' nodes' : '대'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'Powered off / Disconnected' : '전원차단 / 연결 끊김'}
+              </div>
             </button>
 
             <button
@@ -462,9 +487,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   : 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10'
               }`}
             >
-              <div className="text-[10px] font-bold text-amber-500 uppercase tracking-tight">! 속성/포트 변동 (CHG)</div>
-              <div className="text-lg font-black text-amber-500 mono mt-0.5">{diffResult.summary.changedCount}대</div>
-              <div className="text-[9px] opacity-60">MAC, 포트, 호스트명, RTT</div>
+              <div className="text-[10px] font-bold text-amber-500 uppercase tracking-tight">
+                {isEn ? '! CHG (Modified)' : '! 속성/포트 변동 (CHG)'}
+              </div>
+              <div className="text-lg font-black text-amber-500 mono mt-0.5">{diffResult.summary.changedCount}{isEn ? ' nodes' : '대'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'MAC, Ports, Host, RTT' : 'MAC, 포트, 호스트명, RTT'}
+              </div>
             </button>
 
             <button
@@ -477,10 +506,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             >
               <div className="text-[10px] font-bold text-red-500 uppercase tracking-tight flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3 text-red-500" />
-                보안 경보 (ALERTS)
+                {isEn ? 'ALERTS (Security)' : '보안 경보 (ALERTS)'}
               </div>
-              <div className="text-lg font-black text-red-500 mono mt-0.5">{diffResult.summary.securityAlertCount || 0}건</div>
-              <div className="text-[9px] opacity-60">MAC변경 / 위험포트 개방</div>
+              <div className="text-lg font-black text-red-500 mono mt-0.5">{diffResult.summary.securityAlertCount || 0}{isEn ? ' alerts' : '건'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'MAC change / Target ports' : 'MAC변경 / 위험포트 개방'}
+              </div>
             </button>
 
             <button
@@ -491,9 +522,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   : 'bg-black/5 dark:bg-white/5 hover:bg-black/10'
               }`}
             >
-              <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">= 상태 유지 (SAME)</div>
-              <div className="text-lg font-black text-sky-400 mono mt-0.5">{diffResult.summary.sameCount}대</div>
-              <div className="text-[9px] opacity-60">변동 없는 정상 노드</div>
+              <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">
+                {isEn ? '= SAME (Unchanged)' : '= 상태 유지 (SAME)'}
+              </div>
+              <div className="text-lg font-black text-sky-400 mono mt-0.5">{diffResult.summary.sameCount}{isEn ? ' nodes' : '대'}</div>
+              <div className="text-[9px] opacity-60">
+                {isEn ? 'Exact match with baseline' : '변동 없는 정상 노드'}
+              </div>
             </button>
           </div>
         </div>
@@ -507,7 +542,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'changes' ? 'bg-indigo-600 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
             >
-              변동 사항만 ({totalChanges})
+              {isEn ? `Changes (${totalChanges})` : `변동 사항만 (${totalChanges})`}
             </button>
             <button
               onClick={() => setActiveTab('security')}
@@ -516,7 +551,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
-              보안 경보 ({diffResult.summary.securityAlertCount || 0})
+              {isEn ? `Alerts (${diffResult.summary.securityAlertCount || 0})` : `보안 경보 (${diffResult.summary.securityAlertCount || 0})`}
             </button>
             <button
               onClick={() => setActiveTab('new')}
@@ -524,7 +559,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'new' ? 'bg-emerald-600 text-white shadow' : 'text-emerald-500 hover:bg-emerald-500/10'
               }`}
             >
-              +신규 ({diffResult.summary.newCount})
+              {isEn ? `+New (${diffResult.summary.newCount})` : `+신규 (${diffResult.summary.newCount})`}
             </button>
             <button
               onClick={() => setActiveTab('offline')}
@@ -532,7 +567,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'offline' ? 'bg-rose-600 text-white shadow' : 'text-rose-500 hover:bg-rose-500/10'
               }`}
             >
-              -오프라인 ({diffResult.summary.offlineCount})
+              {isEn ? `-Offline (${diffResult.summary.offlineCount})` : `-오프라인 (${diffResult.summary.offlineCount})`}
             </button>
             <button
               onClick={() => setActiveTab('changed')}
@@ -540,7 +575,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'changed' ? 'bg-amber-600 text-white shadow' : 'text-amber-500 hover:bg-amber-500/10'
               }`}
             >
-              !속성변동 ({diffResult.summary.changedCount})
+              {isEn ? `!Changed (${diffResult.summary.changedCount})` : `!속성변동 (${diffResult.summary.changedCount})`}
             </button>
             <button
               onClick={() => setActiveTab('same')}
@@ -548,7 +583,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'same' ? 'bg-sky-600 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
             >
-              동일 유지 ({diffResult.summary.sameCount})
+              {isEn ? `Unchanged (${diffResult.summary.sameCount})` : `동일 유지 (${diffResult.summary.sameCount})`}
             </button>
             <button
               onClick={() => setActiveTab('all')}
@@ -556,7 +591,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                 activeTab === 'all' ? 'bg-zinc-700 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
             >
-              전체 대조 ({diffResult.items.length})
+              {isEn ? `All (${diffResult.items.length})` : `전체 대조 (${diffResult.items.length})`}
             </button>
           </div>
 
@@ -564,7 +599,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50" />
             <input
               type="text"
-              placeholder="IP, MAC, 호스트명, 포트 검색..."
+              placeholder={isEn ? "Search IP, MAC, hostname, port..." : "IP, MAC, 호스트명, 포트 검색..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`w-full pl-8 pr-3 py-1 rounded-lg border text-xs outline-none transition-all ${
@@ -587,7 +622,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
           <div className="flex items-center gap-1.5">
             <span className="text-amber-400">💡</span>
             <span>
-              <strong>판정 기준:</strong> MAC 주소(ARP 충돌), 호스트명, 포트 개방/차단 변동 시에만 <span className="font-bold text-amber-500">!CHG(변동)</span> 판정되며, 사용자 별칭(별명/메모)이나 단순 핑 지연 편차는 변동 판정에 영향을 주지 않습니다.
+              <strong>{isEn ? 'Rule:' : '판정 기준:'}</strong> {isEn 
+                ? 'Only discrepancies in MAC address (ARP conflict), hostname, or open/closed ports trigger !CHG. Custom aliases and ping latency fluctuations do not affect change status.'
+                : 'MAC 주소(ARP 충돌), 호스트명, 포트 개방/차단 변동 시에만 !CHG(변동) 판정되며, 사용자 별칭(별명/메모)이나 단순 핑 지연 편차는 변동 판정에 영향을 주지 않습니다.'}
             </span>
           </div>
         </div>
@@ -597,28 +634,32 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
           {filteredItems.length === 0 ? (
             <div className="py-16 text-center space-y-2 opacity-60">
               <div className="text-3xl">🎯</div>
-              <div className="text-sm font-bold">선택하신 조건에 해당하는 장치 변동이 없습니다.</div>
-              <p className="text-xs">상단 필터 탭을 변경하거나 검색어를 재설정하세요.</p>
+              <div className="text-sm font-bold">
+                {isEn ? 'No device changes found for selected filter.' : '선택하신 조건에 해당하는 장치 변동이 없습니다.'}
+              </div>
+              <p className="text-xs">
+                {isEn ? 'Try changing the filter tabs above or resetting the search term.' : '상단 필터 탭을 변경하거나 검색어를 재설정하세요.'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-current border-opacity-10">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className={`border-b text-[10.5px] font-black uppercase tracking-wider ${headerBg} opacity-85`}>
-                    <th className="py-2.5 px-3 w-[140px]">IP 주소 / 상태</th>
+                    <th className="py-2.5 px-3 w-[140px]">{isEn ? 'IP Address / Status' : 'IP 주소 / 상태'}</th>
                     <th className="py-2.5 px-3 w-[30%]">
                       <div className="flex items-center gap-1.5 text-sky-500 font-black">
                         <span className="w-2 h-2 rounded-full bg-sky-500" />
-                        <span>[A] 기준점 (Before)</span>
+                        <span>{isEn ? '[A] Baseline (Before)' : '[A] 기준점 (Before)'}</span>
                       </div>
                     </th>
                     <th className="py-2.5 px-3 w-[30%]">
                       <div className="flex items-center gap-1.5 text-emerald-500 font-black">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span>[B] 비교 시점 (After)</span>
+                        <span>{isEn ? '[B] Comparison (After)' : '[B] 비교 시점 (After)'}</span>
                       </div>
                     </th>
-                    <th className="py-2.5 px-3">변동 상세 및 진단 (Diff Analysis)</th>
+                    <th className="py-2.5 px-3">{isEn ? 'Diff Details & Analysis' : '변동 상세 및 진단 (Diff Analysis)'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-current divide-opacity-10">
@@ -630,10 +671,10 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
 
                     // Visual badge style based on diffStatus
                     const badge = {
-                      new: { bg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40', text: '+NEW 신규' },
-                      offline: { bg: 'bg-rose-500/20 text-rose-400 border-rose-500/40', text: '-OFF 오프라인' },
-                      changed: { bg: 'bg-amber-500/20 text-amber-400 border-amber-500/40', text: '!CHG 변동' },
-                      same: { bg: 'bg-sky-500/20 text-sky-400 border-sky-500/30', text: '=SAME 동일' },
+                      new: { bg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40', text: isEn ? '+NEW New' : '+NEW 신규' },
+                      offline: { bg: 'bg-rose-500/20 text-rose-400 border-rose-500/40', text: isEn ? '-OFF Offline' : '-OFF 오프라인' },
+                      changed: { bg: 'bg-amber-500/20 text-amber-400 border-amber-500/40', text: isEn ? '!CHG Changed' : '!CHG 변동' },
+                      same: { bg: 'bg-sky-500/20 text-sky-400 border-sky-500/30', text: isEn ? '=SAME Same' : '=SAME 동일' },
                     }[item.diffStatus];
 
                     return (
@@ -662,12 +703,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                                 }
                               }}
                               className="font-black text-xs hover:underline text-indigo-400 text-left cursor-pointer"
-                              title="메인 그리드에서 이 노드 상세정보 확인"
+                              title={isEn ? "View details of this node in main grid" : "메인 그리드에서 이 노드 상세정보 확인"}
                             >
                               {item.ip}
                             </button>
                             {item.hasSecurityRisk && (
-                              <span title="보안 위험 경보" className="text-red-500 animate-pulse">
+                              <span title={isEn ? "Security Risk Alert" : "보안 위험 경보"} className="text-red-500 animate-pulse">
                                 ⚠️
                               </span>
                             )}
@@ -678,7 +719,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                             return (
                               <div
                                 className="mt-1 text-[10px] text-amber-500 font-bold flex items-center gap-1 truncate max-w-[130px]"
-                                title={`사용자 정의 별칭: ${devAlias.nickname}${devAlias.notes ? ` (${devAlias.notes})` : ''}`}
+                                title={`${isEn ? 'Custom alias' : '사용자 정의 별칭'}: ${devAlias.nickname}${devAlias.notes ? ` (${devAlias.notes})` : ''}`}
                               >
                                 <span>🏷️</span>
                                 <span className="truncate">{devAlias.nickname}</span>
@@ -698,13 +739,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                             <div className="space-y-1">
                               <div className="flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                <span className="font-bold text-xs">{prevDev?.vendor || '제조사 미확인'}</span>
+                                <span className="font-bold text-xs">{prevDev?.vendor || (isEn ? 'Unknown Vendor' : '제조사 미확인')}</span>
                                 {prevDev?.latency ? (
-                                  <span className="text-[10px] opacity-60 font-mono">({prevDev.latency}ms)</span>
+                                   <span className="text-[10px] opacity-60 font-mono">({prevDev.latency}ms)</span>
                                 ) : null}
                               </div>
                               <div className="text-[11px] opacity-80 truncate" title={prevDev?.hostname}>
-                                {prevDev?.hostname ? `호스트: ${prevDev.hostname}` : '호스트명 없음'}
+                                {prevDev?.hostname ? `${isEn ? 'Host' : '호스트'}: ${prevDev.hostname}` : (isEn ? 'No hostname' : '호스트명 없음')}
                               </div>
                               <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
                                 MAC: {prevDev?.mac || 'Unknown'}
@@ -728,7 +769,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                           ) : (
                             <div className="flex items-center gap-1.5 opacity-40 text-xs italic">
                               <WifiOff className="w-3.5 h-3.5" />
-                              <span>미응답 (오프라인)</span>
+                              <span>{isEn ? 'Offline / Inactive' : '미응답 (오프라인)'}</span>
                             </div>
                           )}
                         </td>
@@ -739,13 +780,13 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                             <div className="space-y-1">
                               <div className="flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                <span className="font-bold text-xs">{curDev?.vendor || '제조사 미확인'}</span>
+                                <span className="font-bold text-xs">{curDev?.vendor || (isEn ? 'Unknown Vendor' : '제조사 미확인')}</span>
                                 {curDev?.latency ? (
                                   <span className="text-[10px] opacity-60 font-mono">({curDev.latency}ms)</span>
                                 ) : null}
                               </div>
                               <div className="text-[11px] opacity-80 truncate" title={curDev?.hostname}>
-                                {curDev?.hostname ? `호스트: ${curDev.hostname}` : '호스트명 없음'}
+                                {curDev?.hostname ? `${isEn ? 'Host' : '호스트'}: ${curDev.hostname}` : (isEn ? 'No hostname' : '호스트명 없음')}
                               </div>
                               <div
                                 className={`text-[10px] font-mono ${
@@ -782,7 +823,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                           ) : (
                             <div className="flex items-center gap-1.5 opacity-40 text-xs italic">
                               <WifiOff className="w-3.5 h-3.5" />
-                              <span>미응답 (오프라인)</span>
+                              <span>{isEn ? 'Offline / Inactive' : '미응답 (오프라인)'}</span>
                             </div>
                           )}
                         </td>
@@ -791,9 +832,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                         <td className="py-2.5 px-3 align-top">
                           <div className="space-y-1">
                             {item.changeDetails.map((detail, idx) => {
-                              const isAlert = detail.includes('⚠️') || detail.includes('보안') || detail.includes('MAC');
-                              const isAddedPort = detail.includes('신규 개방 포트');
-                              const isLatency = detail.includes('지연시간');
+                              const isAlert = detail.includes('⚠️') || detail.includes('보안') || detail.includes('MAC') || detail.includes('Alert');
+                              const isAddedPort = detail.includes('신규 개방 포트') || detail.includes('Port');
+                              const isLatency = detail.includes('지연시간') || detail.includes('Latency');
 
                               return (
                                 <div
@@ -827,7 +868,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         {/* Snapshot Management Drawer (Bottom Bar) */}
         <div className={`px-4 py-2.5 border-t flex flex-wrap items-center justify-between gap-3 text-xs ${headerBg}`}>
           <div className="flex items-center gap-2">
-            <span className="font-bold opacity-70">보관된 스냅샷 목록 ({snapshots.length}개):</span>
+            <span className="font-bold opacity-70">
+              {isEn ? `Saved Snapshots (${snapshots.length}):` : `보관된 스냅샷 목록 (${snapshots.length}개):`}
+            </span>
             <div className="flex items-center gap-1.5 overflow-x-auto max-w-xl py-0.5">
               {snapshots.slice(0, 5).map((snap) => (
                 <div
@@ -855,22 +898,22 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   )}
                   <button
                     onClick={() => handleStartRename(snap)}
-                    className="p-0.5 opacity-60 hover:opacity-100"
-                    title="이름 변경"
+                    className="p-0.5 opacity-60 hover:opacity-100 cursor-pointer"
+                    title={isEn ? "Rename" : "이름 변경"}
                   >
                     <Edit2 className="w-2.5 h-2.5" />
                   </button>
                   <button
                     onClick={(e) => handleDeleteSnapshot(snap.id, e)}
-                    className="p-0.5 opacity-60 hover:opacity-100 text-red-400"
-                    title="스냅샷 삭제"
+                    className="p-0.5 opacity-60 hover:opacity-100 text-red-400 cursor-pointer"
+                    title={isEn ? "Delete snapshot" : "스냅샷 삭제"}
                   >
                     <Trash2 className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ))}
               {snapshots.length > 5 && (
-                <span className="text-[10px] opacity-60">외 {snapshots.length - 5}개</span>
+                <span className="text-[10px] opacity-60">{isEn ? `+ ${snapshots.length - 5} more` : `외 ${snapshots.length - 5}개`}</span>
               )}
             </div>
           </div>
@@ -880,7 +923,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               onClick={onClose}
               className="px-4 py-1.5 rounded-xl border border-current border-opacity-20 hover:bg-black/5 dark:hover:bg-white/5 font-bold text-xs transition-all cursor-pointer"
             >
-              닫기
+              {isEn ? 'Close' : '닫기'}
             </button>
           </div>
         </div>

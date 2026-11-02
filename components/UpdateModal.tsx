@@ -11,6 +11,7 @@ interface UpdateModalProps {
   isChecking: boolean;
   onRefreshCheck: () => void;
   theme: 'dark' | 'gray' | 'beige';
+  lang?: 'ko' | 'en';
 }
 
 export const UpdateModal: React.FC<UpdateModalProps> = ({
@@ -19,9 +20,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   updateInfo,
   isChecking,
   onRefreshCheck,
-  theme
+  theme,
+  lang = 'ko'
 }) => {
   if (!isOpen) return null;
+  const isEn = lang === 'en';
 
   const hasUpdate = updateInfo?.hasUpdate ?? false;
   const latestVer = updateInfo?.latestVersion || CURRENT_APP_VERSION;
@@ -107,18 +110,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-base uppercase tracking-tight truncate">
-                  실시간 전자동 업데이트 센터
+                  {isEn ? 'Real-Time Auto-Update Center' : '실시간 전자동 업데이트 센터'}
                 </h3>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
                   hasUpdate 
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                     : 'bg-white/10 text-zinc-300'
                 }`}>
-                  {hasUpdate ? `v${latestVer} 업데이트 감지` : '최신 버전 유지 중'}
+                  {hasUpdate 
+                    ? (isEn ? `v${latestVer} Update Available` : `v${latestVer} 업데이트 감지`) 
+                    : (isEn ? 'Up to date' : '최신 버전 유지 중')}
                 </span>
               </div>
               <p className="text-[11px] opacity-70 truncate font-mono">
-                저장소: {GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}
+                {isEn ? 'Repository: ' : '저장소: '}{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}
               </p>
             </div>
           </div>
@@ -127,7 +132,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <button
               onClick={onRefreshCheck}
               disabled={isChecking}
-              title="GitHub Releases 실시간 재확인"
+              title={isEn ? "Check GitHub Releases in real-time" : "GitHub Releases 실시간 재확인"}
               className={`px-3.5 py-1.5 border rounded-lg text-[11px] font-black uppercase transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
                 theme === 'beige'
                   ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 hover:shadow-[0_0_12px_rgba(245,158,11,0.3)]'
@@ -135,7 +140,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               }`}
             >
               <RefreshCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isChecking ? 'animate-spin' : 'group-hover:rotate-180'}`} />
-              <span>업데이트 확인</span>
+              <span>{isEn ? 'Check Updates' : '업데이트 확인'}</span>
             </button>
             <button
               onClick={onClose}
@@ -159,13 +164,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             <div>
               <div className="text-xs font-black uppercase tracking-wide">
                 {hasUpdate 
-                  ? (isMobile ? '📱 모바일 맞춤형 신규 업데이트 패키지가 출시되었습니다!' : '새로운 정식 인스톨러 업데이트가 출시되었습니다!')
-                  : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.'}
+                  ? (isEn
+                      ? (isMobile ? '📱 Mobile-optimized update package released!' : 'New official installer update released!')
+                      : (isMobile ? '📱 모바일 맞춤형 신규 업데이트 패키지가 출시되었습니다!' : '새로운 정식 인스톨러 업데이트가 출시되었습니다!'))
+                  : (isEn ? 'Your system is running the latest official release.' : '현재 시스템이 최신 공식 릴리즈를 사용하고 있습니다.')}
               </div>
               <div className="text-[11px] opacity-75 mt-0.5 flex items-center gap-2 font-mono">
-                <span>현재 버전: <b>v{CURRENT_APP_VERSION}</b></span>
+                <span>{isEn ? 'Current: ' : '현재 버전: '}<b>v{CURRENT_APP_VERSION}</b></span>
                 <ArrowRight className="w-3 h-3 opacity-50" />
-                <span>최신 버전: <b className="text-emerald-400">v{latestVer}</b></span>
+                <span>{isEn ? 'Latest: ' : '최신 버전: '}<b className="text-emerald-400">v{latestVer}</b></span>
                 {updateInfo?.publishedAt && (
                   <span className="opacity-60 hidden sm:inline">
                     ({new Date(updateInfo.publishedAt).toLocaleDateString()})
@@ -181,7 +188,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             rel="noreferrer"
             className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all text-sky-400 hover:text-sky-300"
           >
-            <span>GitHub 릴리즈</span>
+            <span>{isEn ? 'GitHub Releases' : 'GitHub 릴리즈'}</span>
             <ExternalLink className="w-3 h-3 opacity-70" />
           </a>
         </div>
@@ -196,16 +203,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                   <div className="min-w-0">
                     <div className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 flex-wrap">
                       <Smartphone className="w-4 h-4 text-emerald-400 animate-pulse" />
-                      <span>📱 Android 모바일 APK 전자동 설치 패키지</span>
+                      <span>{isEn ? '📱 Android APK Package' : '📱 Android 모바일 APK 전자동 설치 패키지'}</span>
                       <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950 text-[8.5px] font-black uppercase">
-                        모바일 권장
+                        {isEn ? 'Recommended' : '모바일 권장'}
                       </span>
                     </div>
                     <div className="text-[10.5px] opacity-80 mt-0.5">
-                      공식 서명된 APK(`Grid_IP_Scanner2_v{latestVer}.apk`)를 터치하여 전자동 다운로드 및 즉시 업데이트를 진행합니다.
+                      {isEn 
+                        ? `Download official APK (Grid_IP_Scanner2_v${latestVer}.apk) for automatic mobile installation.`
+                        : `공식 서명된 APK(Grid_IP_Scanner2_v${latestVer}.apk)를 터치하여 전자동 다운로드 및 즉시 업데이트를 진행합니다.`}
                     </div>
                     <div className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[9px] text-rose-300 leading-tight">
-                      ⚠️ <b>업데이트 실패(충돌) 시:</b> 기존 버전과 보안 서명이 일치하지 않아 발생할 수 있습니다. <b>기존 앱을 삭제하신 후</b> 다시 설치해 주세요.
+                      {isEn
+                        ? <>⚠️ <b>If update fails (conflict):</b> Due to security signature mismatch, please <b>uninstall existing app</b> then reinstall.</>
+                        : <>⚠️ <b>업데이트 실패(충돌) 시:</b> 기존 버전과 보안 서명이 일치하지 않아 발생할 수 있습니다. <b>기존 앱을 삭제하신 후</b> 다시 설치해 주세요.</>}
                     </div>
                   </div>
 
@@ -216,7 +227,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Android APK 다운로드</span>
+                    <span>{isEn ? 'Download APK' : 'Android APK 다운로드'}</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -230,10 +241,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                   <div className="min-w-0">
                     <div className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
                       <Globe className="w-4 h-4 text-purple-400" />
-                      <span>⚡ 모바일 웹 / PWA 최신 버전 전자동 즉시 동기화</span>
+                      <span>{isEn ? '⚡ Instant Mobile Web / PWA Sync' : '⚡ 모바일 웹 / PWA 최신 버전 전자동 즉시 동기화'}</span>
                     </div>
                     <div className="text-[10.5px] opacity-80 mt-0.5">
-                      브라우저 및 PWA 스토리지 캐시를 원클릭 초기화하여 최신 웹 앱 번들을 즉시 동기화 적용합니다.
+                      {isEn
+                        ? 'Clear cache and immediately synchronize with the latest web bundle.'
+                        : '브라우저 및 PWA 스토리지 캐시를 원클릭 초기화하여 최신 웹 앱 번들을 즉시 동기화 적용합니다.'}
                     </div>
                   </div>
 
@@ -243,7 +256,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     className="px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-purple-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-300" />
-                    <span>PWA 최신 버전 즉시 동기화</span>
+                    <span>{isEn ? 'Sync PWA Now' : 'PWA 최신 버전 즉시 동기화'}</span>
                   </button>
                 </div>
               </div>
@@ -256,10 +269,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                   <div className="min-w-0">
                     <div className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
                       <Package className="w-4 h-4 text-sky-400" />
-                      <span>💻 Windows 공식 인스톨러 (Setup.exe)</span>
+                      <span>{isEn ? '💻 Windows Official Installer (Setup.exe)' : '💻 Windows 공식 인스톨러 (Setup.exe)'}</span>
                     </div>
                     <div className="text-[10.5px] opacity-80 mt-0.5">
-                      Windows PC용 설치 프로그램(`Grid_IP_Scanner2_v{latestVer}_Setup.exe`) 내려받기.
+                      {isEn 
+                        ? `Download Windows PC installer (Grid_IP_Scanner2_v${latestVer}_Setup.exe).`
+                        : `Windows PC용 설치 프로그램(Grid_IP_Scanner2_v${latestVer}_Setup.exe) 내려받기.`}
                     </div>
                   </div>
 
@@ -269,7 +284,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                     rel="noreferrer"
                     className="px-3.5 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-sky-500/25 flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-95 shrink-0"
                   >
-                    <span>Windows Setup.exe 다운로드</span>
+                    <span>{isEn ? 'Download Windows Setup.exe' : 'Windows Setup.exe 다운로드'}</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -281,10 +296,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               <div className="p-2.5 px-3.5 rounded-xl border border-white/5 bg-black/10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <Smartphone className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-[10px] font-bold text-zinc-300">Android APK 패키지도 제공됨</span>
+                  <span className="text-[10px] font-bold text-zinc-300">
+                    {isEn ? 'Android APK package also available' : 'Android APK 패키지도 제공됨'}
+                  </span>
                 </div>
                 <a href={fallbackApkUrl} target="_blank" rel="noreferrer" className="text-[10px] font-black text-sky-400 hover:underline">
-                  APK 다운로드
+                  {isEn ? 'Download APK' : 'APK 다운로드'}
                 </a>
               </div>
             )}
@@ -295,7 +312,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         {updateInfo?.releaseNotes && (
           <div className="flex-1 overflow-y-auto space-y-2 p-3.5 rounded-xl bg-black/20 border border-white/5 text-[11px]">
             <div className="font-bold text-zinc-300 flex items-center justify-between">
-              <span>📋 릴리즈 패치 노트 (Release Notes)</span>
+              <span>{isEn ? '📋 Release Notes' : '📋 릴리즈 패치 노트 (Release Notes)'}</span>
               <span className="text-[10px] opacity-50 font-mono">GitHub Releases SSOT</span>
             </div>
             <div className="opacity-80 whitespace-pre-line leading-relaxed font-mono text-[10.5px]">
@@ -307,7 +324,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         {/* Repository & Channel Info Footer */}
         <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-400 font-mono shrink-0">
           <div>
-            <span>저장소: </span>
+            <span>{isEn ? 'Repository: ' : '저장소: '}</span>
             <a 
               href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`} 
               target="_blank" 
@@ -318,7 +335,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </a>
           </div>
           <div>
-            <span>개발자: <b className="text-zinc-200">AhBiYout</b> (네임스페이스: {GITHUB_REPO_OWNER})</span>
+            <span>{isEn ? 'Author: ' : '개발자: '}<b className="text-zinc-200">AhBiYout</b> ({isEn ? 'Namespace: ' : '네임스페이스: '}{GITHUB_REPO_OWNER})</span>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-# Grid IP Scanner2 - Patch Note (v2.4.21)
+# Grid IP Scanner2 - Patch Note (v2.4.22)
 
 ## 🚀 [v2.4.15] - 2026-11-01
 

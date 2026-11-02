@@ -303,6 +303,7 @@ const classifyDevice = (
 
 const translations = {
   ko: {
+    lang: "ko",
     hostPcInfo: "현재 PC 정보",
     computerName: "컴퓨터 이름",
     title: "GRID IP 스캐너2",
@@ -537,9 +538,15 @@ const translations = {
     filterCustomAlias: "🏷️ 별칭 지정",
     scheduler: "정기 자동 스케줄러",
     schedulerBtn: "스케줄",
-    schedulerDesc: "주기적인 자동 네트워크 스캔 및 스냅샷 보관"
+    schedulerDesc: "주기적인 자동 네트워크 스캔 및 스냅샷 보관",
+    checkUpdate: "업데이트 확인",
+    updateAvailable: "v{version} 업데이트",
+    dllHub: "DLL 허브",
+    clickToExpand: "클릭하여 펼치기",
+    expanded: "펼쳐짐"
   },
   en: {
+    lang: "en",
     quickRemoteActions: "Quick Remote Actions",
     remoteWeb: "Web Console (HTTP)",
     remoteWebSSL: "Secure Web (HTTPS)",
@@ -774,7 +781,12 @@ const translations = {
     adapterSubnetNotice: "Adapter IPv4 subnet set as scan target.",
     scheduler: "Automated Scheduler",
     schedulerBtn: "Schedule",
-    schedulerDesc: "Automated recurring network scans & snapshots"
+    schedulerDesc: "Automated recurring network scans & snapshots",
+    checkUpdate: "Check Updates",
+    updateAvailable: "v{version} Update",
+    dllHub: "DLL Hub",
+    clickToExpand: "Click to expand",
+    expanded: "Expanded"
   }
 };
 
@@ -2844,12 +2856,9 @@ const App: React.FC = () => {
   return (
     <div 
       style={{
-        paddingTop: mobileNotchOffset > 0 
-          ? `calc(env(safe-area-inset-top, 0px) + ${mobileNotchOffset}px)` 
-          : 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-      }}
-      className={`h-screen h-[100dvh] w-full max-w-full flex flex-col md:flex-row ${t.bg} ${t.text} overflow-hidden font-sans transition-all duration-300`}
+        '--mobile-notch-offset': `${mobileNotchOffset}px`
+      } as React.CSSProperties}
+      className={`h-screen h-[100dvh] w-full max-w-full flex flex-col md:flex-row ${t.bg} ${t.text} overflow-hidden font-sans transition-all duration-300 mobile-notch-container`}
     >
       {/* Toast Message */}
       {toastMessage && (
@@ -2904,10 +2913,10 @@ const App: React.FC = () => {
                             ? 'bg-[#ffffff] text-[#422e1b] border border-[#c8ae95] hover:bg-[#faf5eb] hover:border-amber-500/50 hover:text-amber-700' 
                             : 'bg-white/5 hover:bg-white/10 hover:border-sky-500/30 hover:text-sky-400 text-zinc-300 border border-white/10')
                     }`}
-                    title="GitHub Releases 기반 실시간 업데이트 점검"
+                    title={lang === 'ko' ? "GitHub Releases 기반 실시간 업데이트 점검" : "Check for real-time updates via GitHub Releases"}
                   >
                     <RefreshCw className={`w-3 h-3 ${isCheckingUpdate ? 'animate-spin text-sky-400' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                    <span>{updateInfo?.hasUpdate ? `v${updateInfo.latestVersion} 업데이트` : '업데이트 확인'}</span>
+                    <span>{updateInfo?.hasUpdate ? (lang === 'ko' ? `v${updateInfo.latestVersion} 업데이트` : `v${updateInfo.latestVersion} Update`) : s.checkUpdate}</span>
                   </button>
                 </div>
               </div>
@@ -2956,10 +2965,10 @@ const App: React.FC = () => {
                     ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25 shadow-sm shadow-sky-500/20'
                     : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                 }`}
-                title="6대 전용 C/Win32 네이티브 가속 DLL 진단 허브 열기"
+                title={lang === 'ko' ? "6대 전용 C/Win32 네이티브 가속 DLL 진단 허브 열기" : "Open 6 dedicated C/Win32 native accelerated DLL diagnostic hub"}
               >
                 <Cpu className="w-2.5 h-2.5 text-sky-400" />
-                <span>DLL 허브</span>
+                <span>{s.dllHub}</span>
               </button>
             </div>
           </div>
@@ -3061,8 +3070,8 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Mobile Notch & Top Camera Hole Margin Control */}
-              <div className="space-y-2 pt-3 border-t border-white/5">
+              {/* Mobile Notch & Top Camera Hole Margin Control (Hidden on PC/Desktop) */}
+              <div className="md:hidden space-y-2 pt-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Camera className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -3165,7 +3174,7 @@ const App: React.FC = () => {
                     onClick={() => setInterfaceFilter('all')}
                     className="text-[9px] underline font-bold"
                   >
-                    초기화
+                    {lang === 'ko' ? '초기화' : 'Reset'}
                   </button>
                 </div>
               )}
@@ -3353,7 +3362,7 @@ const App: React.FC = () => {
                       ? 'bg-sky-500 text-white shadow-sm'
                       : 'bg-sky-500/15 text-sky-400'
                   }`}>
-                    {isExportDropdownOpen ? '펼쳐짐' : '클릭하여 펼치기'}
+                    {isExportDropdownOpen ? s.expanded : s.clickToExpand}
                   </span>
                 </div>
 
@@ -3501,12 +3510,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${Object.keys(results).length === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title={`전체 스캔 대역 PDF (${allIps.length}개) - 서브넷 전체 IP 노드 현황 종합도`}
+                        title={lang === 'ko' ? `전체 스캔 대역 PDF (${allIps.length}개) - 서브넷 전체 IP 노드 현황 종합도` : `Full Scan Range PDF (${allIps.length} nodes) - Subnet IP map`}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                           <span className="truncate">
-                            {s.exportPdfAll || '전체 스캔 대역 PDF'} ({allIps.length}개)
+                            {s.exportPdfAll || (lang === 'ko' ? '전체 스캔 대역 PDF' : 'Full Range PDF')} ({allIps.length})
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-300 shrink-0 ml-1">
@@ -3521,10 +3530,10 @@ const App: React.FC = () => {
                         className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left transition-colors text-[11px] text-sky-400 hover:text-sky-300 font-bold cursor-pointer ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/5 active:bg-white/10'
                         }`}
-                        title="PDF 리포트 센터 모달 마법사 열기 - 상세 커스터마이징 및 다중 옵션 리포트 생성"
+                        title={lang === 'ko' ? "PDF 리포트 센터 모달 마법사 열기 - 상세 커스터마이징 및 다중 옵션 리포트 생성" : "Open PDF Report Center - Detailed customization & options"}
                       >
                         <Layers className="w-3 h-3" />
-                        <span>{s.exportOpenModal || 'PDF 리포트 센터 (모달 마법사)...'}</span>
+                        <span>{s.exportOpenModal || (lang === 'ko' ? 'PDF 리포트 센터 (모달 마법사)...' : 'PDF Report Center...')}</span>
                       </button>
                     </div>
 
@@ -3535,7 +3544,7 @@ const App: React.FC = () => {
                       <div className="flex items-center justify-between px-1.5 py-0.5">
                         <span className={`text-[10px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1.5`}>
                           <Database className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>{s.exportSectionData || '스프레드시트 및 원시 데이터'}</span>
+                          <span>{s.exportSectionData || (lang === 'ko' ? '스프레드시트 및 원시 데이터' : 'Spreadsheets & Raw Data')}</span>
                         </span>
                       </div>
 
@@ -3546,12 +3555,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${Object.keys(results).length === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="Microsoft Excel 스프레드시트 호환 XLS 파일로 저장 (엑셀 16열 색상 그리드 시트)"
+                        title={lang === 'ko' ? "Microsoft Excel 스프레드시트 호환 XLS 파일로 저장 (엑셀 16열 색상 그리드 시트)" : "Save as Microsoft Excel compatible XLS file"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <Database className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           <span className="truncate text-emerald-700 dark:text-emerald-400">
-                            {s.exportExcelXls || 'Excel 스프레드시트 (.xls 그리드)'}
+                            {s.exportExcelXls || (lang === 'ko' ? 'Excel 스프레드시트 (.xls 그리드)' : 'Excel Spreadsheet (.xls grid)')}
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 shrink-0 ml-1">
@@ -3566,12 +3575,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${activeCount === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="온라인 응답 활성 장비 목록만 CSV 파일로 저장 (IP, 상태, 호스트명, MAC, 제조사)"
+                        title={lang === 'ko' ? "온라인 응답 활성 장비 목록만 CSV 파일로 저장 (IP, 상태, 호스트명, MAC, 제조사)" : "Save active devices only as CSV"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <Zap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                           <span className="truncate">
-                            {s.exportCsvActive || 'CSV 내보내기 (온라인 활성 장비)'} ({activeCount}대)
+                            {s.exportCsvActive || (lang === 'ko' ? 'CSV 내보내기 (온라인 활성 장비)' : 'Export CSV (Active Devices)')} ({activeCount})
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 shrink-0 ml-1">
@@ -3586,12 +3595,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${Object.keys(results).length === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="서브넷 전체 IP 대역 CSV 파일로 저장 (서브넷 256개 전체 IP 전수 데이터)"
+                        title={lang === 'ko' ? "서브넷 전체 IP 대역 CSV 파일로 저장 (서브넷 256개 전체 IP 전수 데이터)" : "Save full subnet range as CSV"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <Box className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                           <span className="truncate">
-                            {s.exportCsvAll || 'CSV 내보내기 (전체 스캔 대역)'}
+                            {s.exportCsvAll || (lang === 'ko' ? 'CSV 내보내기 (전체 스캔 대역)' : 'Export CSV (Full Subnet Range)')}
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-300 shrink-0 ml-1">
@@ -3607,7 +3616,7 @@ const App: React.FC = () => {
                       <div className="flex items-center justify-between px-1.5 py-0.5">
                         <span className={`text-[10px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1.5`}>
                           <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>{s.exportSectionWeb || '웹 대화형 및 보안 감사'}</span>
+                          <span>{s.exportSectionWeb || (lang === 'ko' ? '웹 대화형 및 보안 감사' : 'Web & Security Audit')}</span>
                         </span>
                       </div>
 
@@ -3618,12 +3627,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${Object.keys(results).length === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="독립 실행형 브라우저 그리드 파일로 저장하여 웹 브라우저에서 인터랙티브하게 확인"
+                        title={lang === 'ko' ? "독립 실행형 브라우저 그리드 파일로 저장하여 웹 브라우저에서 인터랙티브하게 확인" : "Save as standalone interactive HTML grid"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <Monitor className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                           <span className="truncate text-sky-600 dark:text-sky-400">
-                            {s.exportHtmlGrid || '인터랙티브 웹 HTML 그리드'}
+                            {s.exportHtmlGrid || (lang === 'ko' ? '인터랙티브 웹 HTML 그리드' : 'Interactive Web HTML Grid')}
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 shrink-0 ml-1">
@@ -3638,12 +3647,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${activeCount === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="웹 브라우저 즉시 인쇄용 HTML 보안 감사 보고서 새 탭에서 열기 (A4 인쇄 최적화)"
+                        title={lang === 'ko' ? "웹 브라우저 즉시 인쇄용 HTML 보안 감사 보고서 새 탭에서 열기 (A4 인쇄 최적화)" : "Open printable HTML security audit report in new tab"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                           <span className="truncate text-indigo-700 dark:text-indigo-300">
-                            {s.exportHtmlAudit || '보안 감사 보고서 (HTML 즉시 인쇄)'}
+                            {s.exportHtmlAudit || (lang === 'ko' ? '보안 감사 보고서 (HTML 즉시 인쇄)' : 'Security Audit Report (Printable HTML)')}
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 shrink-0 ml-1">
@@ -3659,7 +3668,7 @@ const App: React.FC = () => {
                       <div className="flex items-center justify-between px-1.5 py-0.5">
                         <span className={`text-[10px] font-black uppercase tracking-wider ${t.textMuted} flex items-center gap-1.5`}>
                           <BookmarkPlus className="w-3.5 h-3.5 text-purple-400" />
-                          <span>{s.exportSectionSnapshot || '네트워크 스냅샷'}</span>
+                          <span>{s.exportSectionSnapshot || (lang === 'ko' ? '네트워크 스냅샷' : 'Network Snapshots')}</span>
                         </span>
                       </div>
 
@@ -3670,12 +3679,12 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors text-xs font-bold cursor-pointer group ${
                           theme === 'beige' ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
                         } ${activeCount === 0 ? 'opacity-60' : 'opacity-100'}`}
-                        title="현재 스캔 상태를 기준점 스냅샷으로 저장 (비교 분석 및 변경 감지용 기준점 보관)"
+                        title={lang === 'ko' ? "현재 스캔 상태를 기준점 스냅샷으로 저장 (비교 분석 및 변경 감지용 기준점 보관)" : "Save current scan state as baseline snapshot"}
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <BookmarkPlus className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                           <span className="truncate text-purple-700 dark:text-purple-300">
-                            {s.exportSaveSnapshot || '현재 상태 스냅샷 저장 (기준점)'}
+                            {s.exportSaveSnapshot || (lang === 'ko' ? '현재 상태 스냅샷 저장 (기준점)' : 'Save Current Snapshot (Baseline)')}
                           </span>
                         </div>
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 shrink-0 ml-1">
@@ -3835,7 +3844,7 @@ const App: React.FC = () => {
                     className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
                       customFilterMode === 'conflict' ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-400' : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
                     }`}
-                    title="IP 충돌 의심 기기만 필터링"
+                    title={lang === 'ko' ? "IP 충돌 의심 기기만 필터링" : "Filter IP conflict suspected devices"}
                   >
                     <span>⚠️</span>
                     <span>{detectedConflicts.size}</span>
@@ -3847,7 +3856,7 @@ const App: React.FC = () => {
                     className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
                       customFilterMode === 'intruder' ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-400' : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
                     }`}
-                    title="신규 감지된 낯선 기기만 필터링"
+                    title={lang === 'ko' ? "신규 감지된 낯선 기기만 필터링" : "Filter newly detected unknown devices"}
                   >
                     <span>🚨</span>
                     <span>{detectedIntruders.length}</span>
@@ -3859,10 +3868,10 @@ const App: React.FC = () => {
                     className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
                       customFilterMode === 'soft_trust' ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-400' : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
                     }`}
-                    title="식별자 변동/유예 기간 적용된 소프트 신뢰 기기 필터링"
+                    title={lang === 'ko' ? "식별자 변동/유예 기간 적용된 소프트 신뢰 기기 필터링" : "Filter soft-trusted devices with grace period"}
                   >
                     <span>🛡️</span>
-                    <span>유예 {softTrustedDevices.length}</span>
+                    <span>{lang === 'ko' ? `유예 ${softTrustedDevices.length}` : `Grace ${softTrustedDevices.length}`}</span>
                   </button>
                 )}
                 {Object.keys(aliases).length > 0 && (
@@ -3871,7 +3880,7 @@ const App: React.FC = () => {
                     className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
                       customFilterMode === 'alias' ? 'bg-amber-600 text-white shadow-sm' : 'opacity-60 hover:opacity-100'
                     }`}
-                    title="별칭이 지정된 기기만 필터링"
+                    title={lang === 'ko' ? "별칭이 지정된 기기만 필터링" : "Filter aliased devices"}
                   >
                     <span>🏷️</span>
                     <span>{Object.keys(aliases).length}</span>
@@ -4012,7 +4021,7 @@ const App: React.FC = () => {
               {/* Real-time GitHub Update Button */}
               <button
                 onClick={handleManualCheckUpdate}
-                title={updateInfo?.hasUpdate ? `새 버전 v${updateInfo.latestVersion} 업데이트 가능` : 'GitHub 최신 릴리즈 점검'}
+                title={updateInfo?.hasUpdate ? (lang === 'ko' ? `새 버전 v${updateInfo.latestVersion} 업데이트 가능` : `New version v${updateInfo.latestVersion} available`) : (lang === 'ko' ? 'GitHub 최신 릴리즈 점검' : 'Check for GitHub updates')}
                 className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
                   updateInfo?.hasUpdate
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 animate-pulse'
@@ -4042,10 +4051,10 @@ const App: React.FC = () => {
                 <button 
                   onClick={() => setIsSidebarOpen(true)}
                   className="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg shrink-0 text-sky-400 active:scale-95 transition-all flex items-center gap-1"
-                  title="설정 및 스캔 제어 메뉴"
+                  title={lang === 'ko' ? "설정 및 스캔 제어 메뉴" : "Settings & Scan Menu"}
                 >
                   <Activity className="w-3.5 h-3.5 animate-pulse" />
-                  <span className="text-[10px] font-black uppercase tracking-tight">설정</span>
+                  <span className="text-[10px] font-black uppercase tracking-tight">{lang === 'ko' ? '설정' : 'Settings'}</span>
                 </button>
 
                 {/* Mobile Quick Scan Button */}
@@ -4068,12 +4077,12 @@ const App: React.FC = () => {
                   {isScanning ? (
                     <>
                       <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>중지</span>
+                      <span>{lang === 'ko' ? '중지' : 'Stop'}</span>
                     </>
                   ) : (
                     <>
                       <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
-                      <span>스캔</span>
+                      <span>{lang === 'ko' ? '스캔' : 'Scan'}</span>
                     </>
                   )}
                 </button>
@@ -4089,7 +4098,7 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setShowUpdateModal(true)}
                       className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[8.5px] font-black uppercase flex items-center gap-1 animate-pulse"
-                      title="새 버전 다운로드 가능"
+                      title={lang === 'ko' ? "새 버전 다운로드 가능" : "New version available"}
                     >
                       <Sparkles className="w-2.5 h-2.5" />
                       <span>UP</span>
@@ -4124,12 +4133,12 @@ const App: React.FC = () => {
                     }`}
                   >
                     <Monitor className="w-3 h-3" />
-                    <span>그리드</span>
+                    <span>{lang === 'ko' ? '그리드' : 'Grid'}</span>
                   </button>
                   <button
                     onClick={() => {
                       if (!license.features.diffCompare) {
-                        showToast("스냅샷 비교(Diff) 기능은 PRO 이상에서 제공됩니다.");
+                        showToast(lang === 'ko' ? "스냅샷 비교(Diff) 기능은 PRO 이상에서 제공됩니다." : "Snapshot Diff feature requires PRO edition or higher.");
                         setShowLicenseModal(true);
                         return;
                       }
@@ -4176,7 +4185,7 @@ const App: React.FC = () => {
                       onClick={() => handleExportPdf('search')}
                       disabled={isExportingPdf}
                       className="flex items-center space-x-1 px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[8.5px] font-bold"
-                      title={`"${searchTerm}" 검색 결과 PDF 다운로드`}
+                      title={lang === 'ko' ? `"${searchTerm}" 검색 결과 PDF 다운로드` : `Download "${searchTerm}" search results PDF`}
                     >
                       <FileDown className="w-2.5 h-2.5 text-sky-400" />
                       <span>PDF</span>
@@ -4235,11 +4244,11 @@ const App: React.FC = () => {
                       value={theme}
                       onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
                       className="bg-transparent border-none outline-none text-[9px] font-black cursor-pointer appearance-none pr-1"
-                      title={lang === 'ko' ? '테마 선택' : 'Theme'}
+                      title={lang === 'ko' ? '테마 선택' : 'Select Theme'}
                     >
-                      <option value="dark" className={t.bg}>다크</option>
-                      <option value="gray" className={t.bg}>그레이</option>
-                      <option value="beige" className={t.bg}>베이지</option>
+                      <option value="dark" className={t.bg}>{lang === 'ko' ? '다크' : 'Dark'}</option>
+                      <option value="gray" className={t.bg}>{lang === 'ko' ? '그레이' : 'Gray'}</option>
+                      <option value="beige" className={t.bg}>{lang === 'ko' ? '베이지' : 'Beige'}</option>
                     </select>
                   </div>
                 </div>
@@ -4312,14 +4321,14 @@ const App: React.FC = () => {
                     <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1 shrink-0 shadow-sm ${
                       theme === 'beige' ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]' : 'bg-black/40 border-white/15 text-zinc-100'
                     }`}>
-                      <span className="text-[10px] font-black opacity-60 uppercase">기준:</span>
+                      <span className="text-[10px] font-black opacity-60 uppercase">{lang === 'ko' ? '기준:' : 'Base:'}</span>
                       <select
                         value={baselineSnapshot?.id || ''}
                         onChange={(e) => setBaselineSnapshotId(e.target.value)}
                         className={`bg-transparent text-[11px] font-black outline-none cursor-pointer py-0.5 pr-1 max-w-[170px] sm:max-w-[280px] truncate ${
                           theme === 'beige' ? 'text-[#3d2711]' : 'text-zinc-100'
                         }`}
-                        title="비교 기준 스냅샷 선택"
+                        title={lang === 'ko' ? "비교 기준 스냅샷 선택" : "Select baseline snapshot"}
                       >
                         {snapshots.map((snap) => (
                           <option 
@@ -4327,7 +4336,7 @@ const App: React.FC = () => {
                             value={snap.id} 
                             className={theme === 'beige' ? 'bg-[#fcf7ee] text-[#3d2711]' : 'bg-zinc-900 text-zinc-100'}
                           >
-                            {snap.label} ({snap.activeCount}대)
+                            {snap.label} ({snap.activeCount})
                           </option>
                         ))}
                       </select>
@@ -4335,7 +4344,7 @@ const App: React.FC = () => {
                         <button
                           onClick={() => handleDeleteSnapshot(baselineSnapshot.id)}
                           className="p-1 rounded hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 transition-colors ml-0.5"
-                          title="현재 선택된 기준 스냅샷 삭제"
+                          title={lang === 'ko' ? "현재 선택된 기준 스냅샷 삭제" : "Delete selected baseline snapshot"}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -4343,7 +4352,7 @@ const App: React.FC = () => {
                     </div>
                   ) : (
                     <span className="text-[10.5px] font-bold text-amber-400 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                      기준 스냅샷 없음 (스냅샷 캡처 버튼을 눌러 생성)
+                      {lang === 'ko' ? '기준 스냅샷 없음 (스냅샷 캡처 버튼을 눌러 생성)' : 'No baseline snapshot (Click Snapshot Capture to create)'}
                     </span>
                   )}
 
@@ -4351,10 +4360,10 @@ const App: React.FC = () => {
                   <button
                     onClick={() => handleSaveSnapshot()}
                     className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
-                    title="현재 스캔 결과를 새 기준 스냅샷으로 캡처 및 저장"
+                    title={lang === 'ko' ? "현재 스캔 결과를 새 기준 스냅샷으로 캡처 및 저장" : "Capture and save current scan as baseline snapshot"}
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>스냅샷 캡처</span>
+                    <span>{lang === 'ko' ? '스냅샷 캡처' : 'Snapshot Capture'}</span>
                   </button>
                 </div>
 
@@ -4364,10 +4373,10 @@ const App: React.FC = () => {
                   <button
                     onClick={() => setShowDiffStudioModal(true)}
                     className="px-2.5 py-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-600 hover:from-indigo-500 hover:to-sky-500 active:scale-95 text-white rounded-lg text-[10px] font-black uppercase tracking-tight shadow flex items-center gap-1.5 transition-all shrink-0 cursor-pointer ring-1 ring-sky-400/40"
-                    title="임의의 두 스냅샷 간 1:1 나란히 대조 테이블 및 심층 변동 분석 스튜디오"
+                    title={lang === 'ko' ? "임의의 두 스냅샷 간 1:1 나란히 대조 테이블 및 심층 변동 분석 스튜디오" : "1:1 Side-by-side snapshot comparison & in-depth diff analysis studio"}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>1:1 대조 스튜디오</span>
+                    <span>{lang === 'ko' ? '1:1 대조 스튜디오' : '1:1 Diff Studio'}</span>
                   </button>
 
                   {/* Guide Help */}
@@ -4381,7 +4390,7 @@ const App: React.FC = () => {
                     title={s.diffGuideBtn}
                   >
                     <HelpCircle className="w-3.5 h-3.5 opacity-80" />
-                    <span>사용법</span>
+                    <span>{lang === 'ko' ? '사용법' : 'Guide'}</span>
                   </button>
 
                   {/* Exit Diff and return to Grid */}
@@ -4392,10 +4401,10 @@ const App: React.FC = () => {
                         ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
                         : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
                     }`}
-                    title="스냅샷 비교 종료 및 기본 그리드로 복귀"
+                    title={lang === 'ko' ? "스냅샷 비교 종료 및 기본 그리드로 복귀" : "Exit diff view and return to grid"}
                   >
                     <X className="w-3.5 h-3.5" />
-                    <span>그리드 복귀</span>
+                    <span>{lang === 'ko' ? '그리드 복귀' : 'Back to Grid'}</span>
                   </button>
                 </div>
               </div>
@@ -4495,14 +4504,14 @@ const App: React.FC = () => {
                       onClick={() => setDiffFilter('all')}
                       className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-all cursor-pointer ml-1"
                     >
-                      전체 보기
+                      {lang === 'ko' ? '전체 보기' : 'Show All'}
                     </button>
                   )}
                 </div>
 
                 {/* Right: Baseline Color Palette */}
                 <div className="flex items-center gap-1.5 text-[9.5px] font-bold">
-                  <span className="opacity-60 text-[10px]">기준색:</span>
+                  <span className="opacity-60 text-[10px]">{lang === 'ko' ? '기준색:' : 'Base Color:'}</span>
                   <div className="flex items-center bg-black/25 rounded-lg p-0.5 border border-white/5">
                     <button
                       onClick={() => setDiffBaselineColor('sky')}
@@ -4511,9 +4520,9 @@ const App: React.FC = () => {
                           ? 'bg-sky-500 text-black shadow-sm ring-1 ring-sky-300'
                           : 'opacity-60 hover:opacity-100 text-sky-400'
                       }`}
-                      title="하늘색 (Sky Blue)"
+                      title={lang === 'ko' ? "하늘색 (Sky Blue)" : "Sky Blue"}
                     >
-                      하늘
+                      {lang === 'ko' ? '하늘' : 'Sky'}
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('indigo')}
@@ -4522,9 +4531,9 @@ const App: React.FC = () => {
                           ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-300'
                           : 'opacity-60 hover:opacity-100 text-indigo-400'
                       }`}
-                      title="보라색 (Indigo / Purple)"
+                      title={lang === 'ko' ? "보라색 (Indigo / Purple)" : "Indigo / Purple"}
                     >
-                      보라
+                      {lang === 'ko' ? '보라' : 'Purple'}
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('teal')}
@@ -4533,9 +4542,9 @@ const App: React.FC = () => {
                           ? 'bg-teal-500 text-black shadow-sm ring-1 ring-teal-300'
                           : 'opacity-60 hover:opacity-100 text-teal-400'
                       }`}
-                      title="청록색 (Teal / Cyan)"
+                      title={lang === 'ko' ? "청록색 (Teal / Cyan)" : "Teal / Cyan"}
                     >
-                      청록
+                      {lang === 'ko' ? '청록' : 'Teal'}
                     </button>
                     <button
                       onClick={() => setDiffBaselineColor('slate')}
@@ -4544,9 +4553,9 @@ const App: React.FC = () => {
                           ? 'bg-slate-600 text-white shadow-sm ring-1 ring-slate-300'
                           : 'opacity-60 hover:opacity-100 text-slate-300'
                       }`}
-                      title="스틸 회색 (Slate / Gray)"
+                      title={lang === 'ko' ? "스틸 회색 (Slate / Gray)" : "Slate / Gray"}
                     >
-                      회색
+                      {lang === 'ko' ? '회색' : 'Gray'}
                     </button>
                   </div>
                 </div>
@@ -4580,6 +4589,7 @@ const App: React.FC = () => {
                   onDoubleClick={handleCellDoubleClick}
                   theme={theme}
                   s={s}
+                  lang={lang}
                   diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
                   isConflict={!!conflict}
                   conflictDetails={conflict?.reason}
@@ -4624,12 +4634,12 @@ const App: React.FC = () => {
                   }`}
                   title={s.profileFontScaleTooltip}
                 >
-                  <span className="font-mono">{profileTextScale === 'large' ? '가⁺ 115%' : '가 100%'}</span>
+                  <span className="font-mono">{profileTextScale === 'large' ? (lang === 'ko' ? '가⁺ 115%' : 'A⁺ 115%') : (lang === 'ko' ? '가 100%' : 'A 100%')}</span>
                 </button>
                 <button 
                   onClick={() => setSelectedIp(null)} 
                   className={`p-1.5 hover:bg-current hover:bg-opacity-10 rounded-lg ${t.textMuted} transition-colors cursor-pointer`}
-                  title="닫기"
+                  title={lang === 'ko' ? "닫기" : "Close"}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -4686,13 +4696,13 @@ const App: React.FC = () => {
                           )}
                           <div>
                             <h4 className={`font-black ${isLgText ? 'text-[13px]' : 'text-xs'} leading-tight`}>
-                              {selectedDiffStatus === 'new' && '신규 감지 노드 (+NEW)'}
-                              {selectedDiffStatus === 'offline' && '기기 연결 끊김 (-OFFLINE)'}
-                              {selectedDiffStatus === 'changed' && '기기 식별자 변동 (!CHANGED)'}
-                              {selectedDiffStatus === 'same' && '기준점 상태 동일 유지 (=SAME)'}
+                              {selectedDiffStatus === 'new' && (lang === 'ko' ? '신규 감지 노드 (+NEW)' : 'New Node Detected (+NEW)')}
+                              {selectedDiffStatus === 'offline' && (lang === 'ko' ? '기기 연결 끊김 (-OFFLINE)' : 'Device Disconnected (-OFFLINE)')}
+                              {selectedDiffStatus === 'changed' && (lang === 'ko' ? '기기 식별자 변동 (!CHANGED)' : 'Device Identifier Changed (!CHANGED)')}
+                              {selectedDiffStatus === 'same' && (lang === 'ko' ? '기준점 상태 동일 유지 (=SAME)' : 'Identical to Baseline (=SAME)')}
                             </h4>
                             <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-80 font-medium`}>
-                              {baselineSnapshot ? `기준: ${baselineSnapshot.label}` : '기준점 대비 비교'}
+                              {baselineSnapshot ? (lang === 'ko' ? `기준: ${baselineSnapshot.label}` : `Baseline: ${baselineSnapshot.label}`) : (lang === 'ko' ? '기준점 대비 비교' : 'Compare vs Baseline')}
                             </span>
                           </div>
                         </div>
@@ -4713,12 +4723,14 @@ const App: React.FC = () => {
                       {selectedDiffStatus === 'new' && (
                         <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
                           <p className="leading-relaxed opacity-95">
-                            기준 스냅샷 캡처 당시에는 존재하지 않았던 새로운 기기입니다. 정상 접속 기기인지 확인 후 신뢰 등록을 진행하세요.
+                            {lang === 'ko'
+                              ? '기준 스냅샷 캡처 당시에는 존재하지 않았던 새로운 기기입니다. 정상 접속 기기인지 확인 후 신뢰 등록을 진행하세요.'
+                              : 'This device was not present when the baseline was captured. Verify if authorized and add to trusted list.'}
                           </p>
                           <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 mt-1 border border-white/5`}>
-                            <div>• 현재 응답: <span className="text-emerald-400 font-bold">온라인 활성 ({selectedDevice?.latency || 1}ms)</span></div>
+                            <div>• {lang === 'ko' ? '현재 응답:' : 'Status:'} <span className="text-emerald-400 font-bold">{lang === 'ko' ? `온라인 활성 (${selectedDevice?.latency || 1}ms)` : `Online (${selectedDevice?.latency || 1}ms)`}</span></div>
                             <div>• MAC: {selectedDevice?.mac || 'Unknown'}</div>
-                            <div>• 제조사: {selectedDevice?.vendor || 'Unknown'}</div>
+                            <div>• {lang === 'ko' ? '제조사:' : 'Vendor:'} {selectedDevice?.vendor || 'Unknown'}</div>
                           </div>
                         </div>
                       )}
@@ -4726,13 +4738,15 @@ const App: React.FC = () => {
                       {selectedDiffStatus === 'offline' && (
                         <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
                           <p className="leading-relaxed opacity-95">
-                            기준 스냅샷에서는 정상 작동 중이었으나, 현재 네트워크 스캔에서 응답하지 않습니다. (장비 전원 차단, LAN 케이블 분리 또는 IP 변경 의심)
+                            {lang === 'ko'
+                              ? '기준 스냅샷에서는 정상 작동 중이었으나, 현재 네트워크 스캔에서 응답하지 않습니다. (장비 전원 차단, LAN 케이블 분리 또는 IP 변경 의심)'
+                              : 'Device was active in the baseline snapshot, but does not respond in current scan (Powered off, cable disconnected, or IP changed).'}
                           </p>
                           <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
-                            <div className="text-rose-400 font-bold">• 이전 기준 상태: 정상 작동 중이었음</div>
-                            <div>• 이전 MAC: {selectedBaselineDevice?.mac || 'N/A'}</div>
-                            <div>• 이전 제조사: {selectedBaselineDevice?.vendor || 'Unknown'}</div>
-                            <div>• 이전 호스트: {selectedBaselineDevice?.hostname || 'Unknown'}</div>
+                            <div className="text-rose-400 font-bold">• {lang === 'ko' ? '이전 기준 상태: 정상 작동 중이었음' : 'Baseline Status: Active'}</div>
+                            <div>• {lang === 'ko' ? '이전 MAC:' : 'Baseline MAC:'} {selectedBaselineDevice?.mac || 'N/A'}</div>
+                            <div>• {lang === 'ko' ? '이전 제조사:' : 'Baseline Vendor:'} {selectedBaselineDevice?.vendor || 'Unknown'}</div>
+                            <div>• {lang === 'ko' ? '이전 호스트:' : 'Baseline Host:'} {selectedBaselineDevice?.hostname || 'Unknown'}</div>
                           </div>
                         </div>
                       )}
@@ -4740,7 +4754,7 @@ const App: React.FC = () => {
                       {selectedDiffStatus === 'changed' && (
                         <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
                           <p className="leading-relaxed font-bold text-amber-300">
-                            ⚠️ 동일한 IP에서 기준 스냅샷과 다른 하드웨어 식별자가 감지되었습니다!
+                            ⚠️ {lang === 'ko' ? '동일한 IP에서 기준 스냅샷과 다른 하드웨어 식별자가 감지되었습니다!' : 'Different hardware identifier detected on the same IP address compared to baseline!'}
                           </p>
                           <div className={`bg-black/30 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
                             {selectedDiffItem?.changeDetails && selectedDiffItem.changeDetails.length > 0 ? (
@@ -4750,15 +4764,15 @@ const App: React.FC = () => {
                                 </div>
                               ))
                             ) : (
-                              <div className="text-amber-200">MAC 주소 또는 호스트명 변동 감지됨</div>
+                              <div className="text-amber-200">{lang === 'ko' ? 'MAC 주소 또는 호스트명 변동 감지됨' : 'MAC address or hostname change detected'}</div>
                             )}
                             <div className={`grid grid-cols-2 gap-2 pt-2 border-t border-white/10 ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'}`}>
                               <div>
-                                <span className="opacity-60 block">기준점 MAC:</span>
+                                <span className="opacity-60 block">{lang === 'ko' ? '기준점 MAC:' : 'Baseline MAC:'}</span>
                                 <span className="font-bold">{selectedBaselineDevice?.mac || 'N/A'}</span>
                               </div>
                               <div>
-                                <span className="opacity-60 block text-amber-400">현재 MAC:</span>
+                                <span className="opacity-60 block text-amber-400">{lang === 'ko' ? '현재 MAC:' : 'Current MAC:'}</span>
                                 <span className="font-bold text-amber-300">{selectedDevice?.mac || 'N/A'}</span>
                               </div>
                             </div>
@@ -4769,7 +4783,9 @@ const App: React.FC = () => {
                       {selectedDiffStatus === 'same' && (
                         <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1`}>
                           <p className="leading-relaxed opacity-90">
-                            기준 스냅샷 시점과 현재 네트워크 상태가 완벽히 일치하며 안정적으로 운영되고 있습니다.
+                            {lang === 'ko'
+                              ? '기준 스냅샷 시점과 현재 네트워크 상태가 완벽히 일치하며 안정적으로 운영되고 있습니다.'
+                              : 'Network state perfectly matches baseline snapshot and is operating stably.'}
                           </p>
                         </div>
                       )}
@@ -4780,7 +4796,7 @@ const App: React.FC = () => {
                         className={`w-full mt-1.5 ${isLgText ? 'py-2 text-xs' : 'py-1.5 text-[11px]'} px-3 rounded-lg bg-black/20 hover:bg-black/35 dark:bg-white/10 dark:hover:bg-white/20 border border-current border-opacity-15 font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm`}
                       >
                         <Layers className="w-4 h-4 text-indigo-400" />
-                        <span>스냅샷 1:1 대조 스튜디오 열기</span>
+                        <span>{lang === 'ko' ? '스냅샷 1:1 대조 스튜디오 열기' : 'Open Snapshot Diff Studio'}</span>
                       </button>
                     </div>
                   )}
@@ -4790,11 +4806,11 @@ const App: React.FC = () => {
                     <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
                       <div className={`flex items-center gap-1.5 text-rose-400 font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
                         <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                        <span>⚠️ IP 충돌 경고 (IP Conflict)</span>
+                        <span>⚠️ {lang === 'ko' ? 'IP 충돌 경고 (IP Conflict)' : 'IP Conflict Warning'}</span>
                       </div>
                       <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
                       <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} text-rose-300/90 bg-black/30 p-2 rounded mt-1`}>
-                        💡 해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.
+                        💡 {lang === 'ko' ? '해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.' : 'Resolution: Check for static IP duplication or renew DHCP router lease.'}
                       </div>
                     </div>
                   )}
@@ -4806,31 +4822,35 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-2 min-w-0">
                           <BellRing className="w-4 h-4 text-purple-400 animate-bounce shrink-0" />
                           <div className="truncate">
-                            <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-purple-300`}>신규 감지 낯선 기기</div>
-                            <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-85 truncate`}>신뢰 목록에 없는 기기입니다.</div>
+                            <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-purple-300`}>
+                              {lang === 'ko' ? '신규 감지 낯선 기기' : 'Newly Detected Unknown Device'}
+                            </div>
+                            <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-85 truncate`}>
+                              {lang === 'ko' ? '신뢰 목록에 없는 기기입니다.' : 'Not found in trusted devices list.'}
+                            </div>
                           </div>
                         </div>
                         <button
                           onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
                           className={`px-3 ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[11px]'} bg-purple-600 hover:bg-purple-500 text-white font-black rounded-lg shrink-0 shadow cursor-pointer`}
                         >
-                          이 기기 신뢰 등록
+                          {lang === 'ko' ? '이 기기 신뢰 등록' : 'Trust Device'}
                         </button>
                       </div>
                       <button
                         onClick={handleTrustAllCurrentDevices}
                         className={`w-full ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[10.5px]'} bg-purple-900/50 hover:bg-purple-800/60 border border-purple-500/30 text-purple-200 font-bold rounded-lg transition-colors text-center cursor-pointer`}
                       >
-                        ⚡ 현재 탐색된 모든 기기를 정상 기기로 등록
+                        {lang === 'ko' ? '⚡ 현재 탐색된 모든 기기를 정상 기기로 등록' : '⚡ Trust All Discovered Devices'}
                       </button>
                       {!license.features.intruderDetection && (
                         <div className={`pt-1 border-t border-purple-500/20 flex items-center justify-between ${isLgText ? 'text-[11px]' : 'text-[10px]'} text-purple-300`}>
-                          <span>🔔 백그라운드 감시/알림은 PRO 전용</span>
+                          <span>🔔 {lang === 'ko' ? '백그라운드 감시/알림은 PRO 전용' : 'Background monitoring is PRO only'}</span>
                           <button
                             onClick={() => setShowLicenseModal(true)}
                             className="underline font-black text-purple-200 hover:text-white transition-colors cursor-pointer"
                           >
-                            PRO 업그레이드
+                            {lang === 'ko' ? 'PRO 업그레이드' : 'Upgrade to PRO'}
                           </button>
                         </div>
                       )}
@@ -4845,15 +4865,15 @@ const App: React.FC = () => {
                           <Shield className="w-4 h-4 text-amber-400 shrink-0" />
                           <div className="truncate">
                             <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-amber-300 flex items-center gap-1`}>
-                              <span>소프트 신뢰 유예 중</span>
+                              <span>{lang === 'ko' ? '소프트 신뢰 유예 중' : 'Soft Trust Grace Period'}</span>
                               {selectedSoftTrust.softTrustInfo?.similarityScore && (
                                 <span className={`px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 ${isLgText ? 'text-[10px]' : 'text-[9px]'} font-mono font-bold`}>
-                                  {Math.round(selectedSoftTrust.softTrustInfo.similarityScore * 100)}% 매칭
+                                  {Math.round(selectedSoftTrust.softTrustInfo.similarityScore * 100)}% {lang === 'ko' ? '매칭' : 'Match'}
                                 </span>
                               )}
                             </div>
                             <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-90 leading-tight mt-0.5`}>
-                              {selectedSoftTrust.softTrustInfo?.reason || '식별자 변동 유예 중인 기존 신뢰 기기'}
+                              {selectedSoftTrust.softTrustInfo?.reason || (lang === 'ko' ? '식별자 변동 유예 중인 기존 신뢰 기기' : 'Existing trusted device with identifier shift')}
                             </div>
                           </div>
                         </div>
@@ -4861,7 +4881,7 @@ const App: React.FC = () => {
                           onClick={() => handleTrustDevice(effectiveMac, selectedIp)}
                           className={`px-3 ${isLgText ? 'py-1.5 text-xs' : 'py-1 text-[11px]'} bg-amber-500 hover:bg-amber-400 text-black font-black rounded-lg shrink-0 shadow cursor-pointer`}
                         >
-                          정식 신뢰 등록
+                          {lang === 'ko' ? '정식 신뢰 등록' : 'Confirm Trust'}
                         </button>
                       </div>
                     </div>
@@ -4878,7 +4898,7 @@ const App: React.FC = () => {
                           </span>
                           {selectedAlias?.nickname ? (
                             <span className="px-1.5 py-0.5 rounded font-black text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                              별칭
+                              {lang === 'ko' ? '별칭' : 'Alias'}
                             </span>
                           ) : effectiveDevice?.nameSource && effectiveDevice.nameSource !== 'UNKNOWN' ? (
                             <button
@@ -4893,7 +4913,7 @@ const App: React.FC = () => {
                                 effectiveDevice.nameSource === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30' :
                                 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/30'
                               }`} 
-                              title={`클릭하여 감지된 프로토콜 이름 ('${effectiveDevice.hostname}')을 이 장치 이름으로 적용`}
+                              title={lang === 'ko' ? `클릭하여 감지된 프로토콜 이름 ('${effectiveDevice.hostname}')을 이 장치 이름으로 적용` : `Click to apply discovered protocol name ('${effectiveDevice.hostname}')`}
                             >
                               {effectiveDevice.nameSource} ↵
                             </button>
@@ -4901,7 +4921,7 @@ const App: React.FC = () => {
                         </div>
                         {(selectedAlias?.nickname || selectedDevice?.hostname || selectedBaselineDevice?.hostname) && (
                           <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} opacity-75 font-mono mt-1`}>
-                            {selectedAlias?.nickname ? (effectiveDevice?.hostname || selectedIp) : (selectedDiffStatus === 'offline' ? `(이전 기준: ${selectedBaselineDevice?.hostname || selectedBaselineDevice?.vendor || '장치'})` : selectedDevice?.hostname)}
+                            {selectedAlias?.nickname ? (effectiveDevice?.hostname || selectedIp) : (selectedDiffStatus === 'offline' ? `(${lang === 'ko' ? '이전 기준' : 'Baseline'}: ${selectedBaselineDevice?.hostname || selectedBaselineDevice?.vendor || (lang === 'ko' ? '장치' : 'Device')})` : selectedDevice?.hostname)}
                           </span>
                         )}
                         {effectiveDevice?.webTitle && (
@@ -4918,14 +4938,14 @@ const App: React.FC = () => {
                            }`} />
                            <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} font-bold opacity-90`}>
                              {selectedDiffStatus === 'offline'
-                               ? '연결 끊김 (기준 스냅샷 대비 오프라인)'
+                               ? (lang === 'ko' ? '연결 끊김 (기준 스냅샷 대비 오프라인)' : 'Disconnected (Offline vs Baseline)')
                                : selectedDiffStatus === 'new'
-                               ? `온라인 활성 (+NEW) - ${selectedDevice?.latency || 1}ms`
+                               ? `${lang === 'ko' ? '온라인 활성 (+NEW)' : 'Online Active (+NEW)'} - ${selectedDevice?.latency || 1}ms`
                                : selectedDiffStatus === 'changed'
-                               ? `온라인 활성 (!CHG 변동) - ${selectedDevice?.latency || 1}ms`
+                               ? `${lang === 'ko' ? '온라인 활성 (!CHG 변동)' : 'Online Active (!CHG Changed)'} - ${selectedDevice?.latency || 1}ms`
                                : selectedResult?.status === 'active'
                                ? `${s.active} - ${selectedDevice?.latency || 1}ms`
-                               : '비활성 / 꺼짐 (Offline)'}
+                               : (lang === 'ko' ? '비활성 / 꺼짐 (Offline)' : 'Offline / Inactive')}
                            </span>
                         </div>
                      </div>
@@ -4948,14 +4968,14 @@ const App: React.FC = () => {
                           className={`px-2.5 py-1 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 flex items-center gap-1 cursor-pointer`}
                         >
                           <Edit3 className="w-3 h-3" />
-                          <span>{selectedAlias?.nickname ? "수정" : "+ 별칭 추가"}</span>
+                          <span>{selectedAlias?.nickname ? (lang === 'ko' ? "수정" : "Edit") : (lang === 'ko' ? "+ 별칭 추가" : "+ Add Alias")}</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => setIsEditingAlias(false)}
                           className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-zinc-400 hover:text-white cursor-pointer`}
                         >
-                          취소
+                          {lang === 'ko' ? '취소' : 'Cancel'}
                         </button>
                       )}
                     </div>
@@ -4963,22 +4983,26 @@ const App: React.FC = () => {
                     {isEditingAlias ? (
                       <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/40 border-amber-500/30'} space-y-3 animate-in fade-in`}>
                         <div>
-                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>기기 별칭 (예: 거실 공기청정기, 메인 NAS)</label>
+                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>
+                            {lang === 'ko' ? '기기 별칭 (예: 거실 공기청정기, 메인 NAS)' : 'Device Nickname (e.g. Living Room TV, Main NAS)'}
+                          </label>
                           <input
                             type="text"
                             value={aliasNicknameInput}
                             onChange={e => setAliasNicknameInput(e.target.value)}
-                            placeholder="별칭 입력..."
+                            placeholder={lang === 'ko' ? "별칭 입력..." : "Enter nickname..."}
                             className={`w-full px-3 ${isLgText ? 'py-2 text-sm' : 'py-1.5 text-xs'} rounded-lg border outline-none ${t.input}`}
                             autoFocus
                           />
                         </div>
                         <div>
-                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>관리자 메모</label>
+                          <label className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-bold opacity-75 block mb-1`}>
+                            {lang === 'ko' ? '관리자 메모' : 'Admin Notes'}
+                          </label>
                           <textarea
                             value={aliasNotesInput}
                             onChange={e => setAliasNotesInput(e.target.value)}
-                            placeholder="설치 위치, 담당자 연락처, 특이사항 등..."
+                            placeholder={lang === 'ko' ? "설치 위치, 담당자 연락처, 특이사항 등..." : "Location, manager contact, notes..."}
                             rows={2}
                             className={`w-full px-3 ${isLgText ? 'py-2 text-sm' : 'py-1.5 text-xs'} rounded-lg border outline-none resize-none ${t.input}`}
                           />
@@ -4989,7 +5013,7 @@ const App: React.FC = () => {
                               onClick={() => handleDeleteNickname(selectedMac, selectedIp)}
                               className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-rose-400 hover:text-rose-300 font-bold cursor-pointer`}
                             >
-                              삭제
+                              {lang === 'ko' ? '삭제' : 'Delete'}
                             </button>
                           )}
                           <div className="flex gap-2 ml-auto">
@@ -4997,13 +5021,13 @@ const App: React.FC = () => {
                               onClick={() => setIsEditingAlias(false)}
                               className={`px-3 py-1.5 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-bold bg-white/5 hover:bg-white/10 cursor-pointer`}
                             >
-                              취소
+                              {lang === 'ko' ? '취소' : 'Cancel'}
                             </button>
                             <button
                               onClick={() => handleSaveNickname(selectedMac, selectedIp)}
                               className={`px-3.5 py-1.5 rounded ${isLgText ? 'text-xs' : 'text-[11px]'} font-black bg-amber-500 hover:bg-amber-400 text-black shadow cursor-pointer`}
                             >
-                              저장
+                              {lang === 'ko' ? '저장' : 'Save'}
                             </button>
                           </div>
                         </div>
@@ -5033,7 +5057,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'web', 80)}
                         className={`p-2.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="기본 웹 브라우저로 접속 (http://IP)"
+                        title={lang === 'ko' ? "기본 웹 브라우저로 접속 (http://IP)" : "Open in web browser (http://IP)"}
                       >
                         <Globe className="w-4 h-4 text-sky-400 shrink-0" />
                         <span className="truncate">{s.remoteWeb}</span>
@@ -5042,7 +5066,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'web_ssl', 443)}
                         className={`p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="보안 웹(HTTPS) 접속 (https://IP)"
+                        title={lang === 'ko' ? "보안 웹(HTTPS) 접속 (https://IP)" : "Open HTTPS web (https://IP)"}
                       >
                         <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
                         <span className="truncate">{s.remoteWebSSL}</span>
@@ -5051,7 +5075,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'rdp', 3389)}
                         className={`p-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="Windows 원격 데스크톱(mstsc.exe) 실행"
+                        title={lang === 'ko' ? "Windows 원격 데스크톱(mstsc.exe) 실행" : "Launch Windows Remote Desktop (mstsc.exe)"}
                       >
                         <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
                         <span className="truncate">{s.remoteRdp}</span>
@@ -5060,7 +5084,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'ssh', 22)}
                         className={`p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="SSH 콘솔/PuTTY 세션 호출"
+                        title={lang === 'ko' ? "SSH 콘솔/PuTTY 세션 호출" : "Launch SSH Console / PuTTY session"}
                       >
                         <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span className="truncate">{s.remoteSsh}</span>
@@ -5069,7 +5093,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'smb', 445)}
                         className={`p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="Windows 탐색기로 SMB 공유 폴더 (\\IP) 열기"
+                        title={lang === 'ko' ? "Windows 탐색기로 SMB 공유 폴더 (\\\\IP) 열기" : "Open SMB Shared Folder (\\\\IP)"}
                       >
                         <Folder className="w-4 h-4 text-amber-400 shrink-0" />
                         <span className="truncate">{s.remoteSmb}</span>
@@ -5078,7 +5102,7 @@ const App: React.FC = () => {
                       <button
                         onClick={() => handleRemoteAction(selectedIp, 'ping')}
                         className={`p-2.5 rounded-xl border border-zinc-500/30 bg-zinc-500/10 hover:bg-zinc-500/20 text-zinc-300 font-bold ${isLgText ? 'text-xs' : 'text-[11.5px]'} flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer`}
-                        title="연속 콘솔 Ping 진단 (ping -t IP)"
+                        title={lang === 'ko' ? "연속 콘솔 Ping 진단 (ping -t IP)" : "Continuous Console Ping (ping -t IP)"}
                       >
                         <Activity className="w-4 h-4 text-zinc-400 shrink-0" />
                         <span className="truncate">{s.remotePing}</span>
@@ -5100,11 +5124,11 @@ const App: React.FC = () => {
                           title="Pro 라이선스 활성화 필요"
                         >
                           <Key className="w-3 h-3" />
-                          <span>PRO 전용</span>
+                          <span>{lang === 'ko' ? 'PRO 전용' : 'PRO Only'}</span>
                         </button>
                       ) : (
                         <span className={`px-2 py-0.5 rounded ${isLgText ? 'text-[9.5px]' : 'text-[9px]'} font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30`}>
-                          PRO 활성
+                          {lang === 'ko' ? 'PRO 활성' : 'PRO Active'}
                         </span>
                       )}
                     </div>
@@ -5120,32 +5144,32 @@ const App: React.FC = () => {
                       }`}
                       title={
                         !license.features.remoteBoot
-                          ? "원격 부팅(WoL)은 PRO 라이선스 전용 기능입니다. 클릭하여 Pro 라이선스를 활성화하세요."
+                          ? (lang === 'ko' ? "원격 부팅(WoL)은 PRO 라이선스 전용 기능입니다. 클릭하여 Pro 라이선스를 활성화하세요." : "Remote Boot (WoL) requires PRO license. Click to activate.")
                           : effectiveMac && effectiveMac !== 'Unknown'
-                            ? "UDP 9/7 브로드캐스트로 Magic Packet을 발송하여 원격 장비를 부팅합니다"
-                            : "MAC 주소가 확인되지 않아 WoL을 발송할 수 없습니다"
+                            ? (lang === 'ko' ? "UDP 9/7 브로드캐스트로 Magic Packet을 발송하여 원격 장비를 부팅합니다" : "Broadcast Magic Packet over UDP 9/7 to boot remote device")
+                            : (lang === 'ko' ? "MAC 주소가 확인되지 않아 WoL을 발송할 수 없습니다" : "Cannot send WoL because MAC address is unknown")
                       }
                     >
                       {!license.features.remoteBoot ? (
                         <>
                           <Key className="w-4 h-4 text-amber-400" />
-                          <span>{s.wolSendBtn} (PRO 필요)</span>
+                          <span>{s.wolSendBtn} ({lang === 'ko' ? 'PRO 필요' : 'Requires PRO'})</span>
                         </>
                       ) : (
                         <>
                           <Zap className={`w-4 h-4 text-amber-400 ${isSendingWol ? 'animate-bounce' : ''}`} />
-                          <span>{isSendingWol ? "매직 패킷 발송 중..." : s.wolSendBtn}</span>
+                          <span>{isSendingWol ? (lang === 'ko' ? "매직 패킷 발송 중..." : "Sending Magic Packet...") : s.wolSendBtn}</span>
                         </>
                       )}
                     </button>
                     {!license.features.remoteBoot ? (
                       <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} text-amber-500/80 dark:text-amber-400/80 text-center`}>
-                        💡 PC/서버 원격 부팅(WoL)은 PRO 에디션 이상에서 이용하실 수 있습니다.
+                        💡 {lang === 'ko' ? 'PC/서버 원격 부팅(WoL)은 PRO 에디션 이상에서 이용하실 수 있습니다.' : 'Remote Boot (WoL) is available in PRO edition.'}
                       </div>
                     ) : (
                       effectiveMac && effectiveMac !== 'Unknown' && (
                         <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} opacity-60 text-center mono`}>
-                          Target MAC: {effectiveMac} {selectedDiffStatus === 'offline' && '(이전 기록)'} (Broadcast UDP 9/7)
+                          Target MAC: {effectiveMac} {selectedDiffStatus === 'offline' && (lang === 'ko' ? '(이전 기록)' : '(Previous)')} (Broadcast UDP 9/7)
                         </div>
                       )
                     )}
@@ -5170,7 +5194,7 @@ const App: React.FC = () => {
                       <div className="flex justify-between items-center">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.macInfo}</span>
                         <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black mono text-emerald-500`}>
-                          {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>(이전 기준)</span>}
+                          {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
@@ -5185,7 +5209,7 @@ const App: React.FC = () => {
                       </div>
                       {(effectiveDevice?.deviceModel || effectiveDevice?.deviceType) && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
-                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>기기 모델/분류</span>
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{lang === 'ko' ? '기기 모델/분류' : 'Device Model / Type'}</span>
                           <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate ml-4 text-right`}>
                             {effectiveDevice.deviceModel ? `${effectiveDevice.deviceModel} (${effectiveDevice.deviceType})` : effectiveDevice.deviceType}
                           </span>
@@ -5200,9 +5224,9 @@ const App: React.FC = () => {
                               type="button"
                               onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.mdns)}
                               className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 shrink-0 transition-colors cursor-pointer"
-                              title={`mDNS 이름 '${effectiveDevice.mdns}'을 이 장치 이름으로 설정`}
+                              title={lang === 'ko' ? `mDNS 이름 '${effectiveDevice.mdns}'을 이 장치 이름으로 설정` : `Set mDNS name '${effectiveDevice.mdns}' as device name`}
                             >
-                              적용 ↵
+                              {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
                             </button>
                           </div>
                         </div>
@@ -5216,9 +5240,9 @@ const App: React.FC = () => {
                               type="button"
                               onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.upnp)}
                               className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 border border-purple-500/30 shrink-0 transition-colors cursor-pointer"
-                              title={`UPnP 이름 '${effectiveDevice.upnp}'을 이 장치 이름으로 설정`}
+                              title={lang === 'ko' ? `UPnP 이름 '${effectiveDevice.upnp}'을 이 장치 이름으로 설정` : `Set UPnP name '${effectiveDevice.upnp}' as device name`}
                             >
-                              적용 ↵
+                              {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
                             </button>
                           </div>
                         </div>
@@ -5232,16 +5256,16 @@ const App: React.FC = () => {
                               type="button"
                               onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.snmp)}
                               className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 shrink-0 transition-colors cursor-pointer"
-                              title={`SNMP 이름 '${effectiveDevice.snmp}'을 이 장치 이름으로 설정`}
+                              title={lang === 'ko' ? `SNMP 이름 '${effectiveDevice.snmp}'을 이 장치 이름으로 설정` : `Set SNMP name '${effectiveDevice.snmp}' as device name`}
                             >
-                              적용 ↵
+                              {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
                             </button>
                           </div>
                         </div>
                       )}
                       {effectiveDevice?.nameSource && effectiveDevice.nameSource !== 'UNKNOWN' && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
-                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>이름 식별 출처</span>
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{lang === 'ko' ? '이름 식별 출처' : 'Name Source'}</span>
                           <button
                             type="button"
                             onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.hostname)}
@@ -5254,7 +5278,7 @@ const App: React.FC = () => {
                               effectiveDevice.nameSource === 'WEB' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30' :
                               'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/30'
                             }`}
-                            title={`클릭하여 "${effectiveDevice.hostname}"(출처: ${effectiveDevice.nameSource})을 이 장치 이름으로 적용`}
+                            title={lang === 'ko' ? `클릭하여 "${effectiveDevice.hostname}"(출처: ${effectiveDevice.nameSource})을 이 장치 이름으로 적용` : `Click to apply "${effectiveDevice.hostname}" (Source: ${effectiveDevice.nameSource})`}
                           >
                             {effectiveDevice.nameSource} ({
                               effectiveDevice.nameSource === 'SMB' ? 'SMB NTLMSSP' :
@@ -5271,7 +5295,9 @@ const App: React.FC = () => {
                       {effectiveDevice?.hostnameSources && Object.keys(effectiveDevice.hostnameSources).length > 0 && (
                         <div className="border-t border-current border-opacity-5 pt-3 space-y-1.5">
                           <span className={`${t.textMuted} ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} uppercase font-bold block`}>
-                            탐색된 프로토콜별 이름 목록 ({Object.keys(effectiveDevice.hostnameSources).length}개 채널) - 클릭 시 즉시 적용
+                            {lang === 'ko' 
+                              ? `탐색된 프로토콜별 이름 목록 (${Object.keys(effectiveDevice.hostnameSources).length}개 채널) - 클릭 시 즉시 적용` 
+                              : `Discovered Protocol Names (${Object.keys(effectiveDevice.hostnameSources).length} channels) - Click to apply`}
                           </span>
                           <div className="space-y-1 bg-black/20 p-2.5 rounded-lg font-mono text-[11px] border border-white/5">
                             {Object.entries(effectiveDevice.hostnameSources).map(([src, nm]) => (
@@ -5280,7 +5306,7 @@ const App: React.FC = () => {
                                 type="button"
                                 onClick={() => handleSaveNickname(effectiveMac, selectedIp, nm)}
                                 className="w-full flex justify-between items-center py-1 px-1.5 rounded hover:bg-white/10 active:bg-white/20 transition-all cursor-pointer group/nameitem text-left border border-transparent hover:border-sky-500/30"
-                                title={`클릭하여 "${nm}" 이름(출처: ${src})을 이 장치의 기본 별칭/이름으로 지정`}
+                                title={lang === 'ko' ? `클릭하여 "${nm}" 이름(출처: ${src})을 이 장치의 기본 별칭/이름으로 지정` : `Click to assign "${nm}" (${src}) as device name`}
                               >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <span className={`px-1.5 py-0.2 rounded font-black text-[9px] border shrink-0 ${
@@ -5295,7 +5321,7 @@ const App: React.FC = () => {
                                   <span className="font-bold text-sky-400 group-hover/nameitem:text-sky-300 truncate max-w-[170px]">{nm}</span>
                                 </div>
                                 <span className="text-[9.5px] font-bold text-emerald-400 opacity-60 group-hover/nameitem:opacity-100 transition-opacity shrink-0 ml-1">
-                                  적용 ↵
+                                  {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
                                 </span>
                               </button>
                             ))}
@@ -5309,7 +5335,7 @@ const App: React.FC = () => {
                   {effectiveDevice?.openPorts && effectiveDevice.openPorts.length > 0 && (
                     <section className="space-y-2">
                       <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>
-                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>(이전 기준)</span>}
+                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {effectiveDevice.openPorts.map(p => (
@@ -5338,12 +5364,12 @@ const App: React.FC = () => {
                         {isAuditingPorts ? (
                           <>
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>분석 중...</span>
+                            <span>{lang === 'ko' ? '분석 중...' : 'Auditing...'}</span>
                           </>
                         ) : (
                           <>
                             <Zap className="w-3.5 h-3.5 text-amber-400" />
-                            <span>정밀 진단</span>
+                            <span>{lang === 'ko' ? '정밀 진단' : 'Audit Ports'}</span>
                           </>
                         )}
                       </button>
@@ -5352,8 +5378,8 @@ const App: React.FC = () => {
                     {portAuditResult && portAuditResult.ip === selectedIp && (
                       <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
                         <div className={`flex justify-between items-center ${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-75`}>
-                          <span>점검 포트: {portAuditResult.totalChecked}개</span>
-                          <span>탐지: {portAuditResult.openPorts.length}개</span>
+                          <span>{lang === 'ko' ? `점검 포트: ${portAuditResult.totalChecked}개` : `Checked: ${portAuditResult.totalChecked} ports`}</span>
+                          <span>{lang === 'ko' ? `탐지: ${portAuditResult.openPorts.length}개` : `Detected: ${portAuditResult.openPorts.length}`}</span>
                         </div>
                         {portAuditResult.openPorts.length > 0 ? (
                           <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
@@ -5384,7 +5410,7 @@ const App: React.FC = () => {
                           </div>
                         ) : (
                           <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} text-emerald-400 py-1.5 text-center font-bold`}>
-                            ✓ 점검 결과 주의 대상 포트가 닫혀있습니다.
+                            {lang === 'ko' ? '✓ 점검 결과 주의 대상 포트가 닫혀있습니다.' : '✓ All target security ports are securely closed.'}
                           </div>
                         )}
                       </div>
@@ -5998,28 +6024,28 @@ const App: React.FC = () => {
                     <span>{license.tier.toUpperCase()} EDITION</span>
                     <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-current/20">
                       {license.tier === 'free' 
-                        ? '무료 커뮤니티' 
+                        ? (lang === 'ko' ? '무료 커뮤니티' : 'Free Community')
                         : license.licenseType === 'annual'
-                        ? '📅 1년 정기 이용권'
+                        ? (lang === 'ko' ? '📅 1년 정기 이용권' : '📅 1-Year Subscription')
                         : license.licenseType === 'trial'
-                        ? '⏳ 30일 체험판'
-                        : '💎 영구 소장 정품'}
+                        ? (lang === 'ko' ? '⏳ 30일 체험판' : '⏳ 30-Day Trial')
+                        : (lang === 'ko' ? '💎 영구 소장 정품' : '💎 Lifetime License')}
                     </span>
                   </div>
                   <div className="text-[10.5px] opacity-75 mt-1">
-                    등록 대상: <span className="font-bold">{license.licensedTo || '커뮤니티 사용자'}</span>
+                    {lang === 'ko' ? '등록 대상:' : 'Licensed to:'} <span className="font-bold">{license.licensedTo || (lang === 'ko' ? '커뮤니티 사용자' : 'Community User')}</span>
                   </div>
                   {license.expiresAt ? (
                     <div className="text-[10.5px] text-amber-500 dark:text-amber-400 font-bold mt-2 flex flex-wrap items-center gap-1.5 leading-none">
-                      <span>만료 예정일: {new Date(license.expiresAt).toLocaleDateString()}</span>
+                      <span>{lang === 'ko' ? '만료 예정일:' : 'Expires:'} {new Date(license.expiresAt).toLocaleDateString()}</span>
                       <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[9px] uppercase font-black animate-pulse">
-                        D-{Math.max(0, Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일 남음
+                        D-{Math.max(0, Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}{lang === 'ko' ? '일 남음' : 'd left'}
                       </span>
                     </div>
                   ) : license.tier !== 'free' ? (
                     <div className="text-[10.5px] text-emerald-400 font-bold mt-2 flex items-center gap-1.5">
                       <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>평생 영구 소장 (만료일 없음 & 평생 업데이트)</span>
+                      <span>{lang === 'ko' ? '평생 영구 소장 (만료일 없음 & 평생 업데이트)' : 'Lifetime Access (No expiration & Lifetime updates)'}</span>
                     </div>
                   ) : null}
                 </div>
@@ -6030,66 +6056,68 @@ const App: React.FC = () => {
 
               {/* Feature Entitlement Matrix */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-wider opacity-60">기능 해금 현황 (Feature Gates)</label>
+                <label className="text-[10px] font-black uppercase tracking-wider opacity-60">
+                  {lang === 'ko' ? '기능 해금 현황 (Feature Gates)' : 'Feature Gates & Entitlements'}
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>16x16 시각화 그리드 맵</span>
+                    <span>{lang === 'ko' ? '16x16 시각화 그리드 맵' : '16x16 Visual Grid Map'}</span>
                     <Check className="w-4 h-4 text-emerald-400" />
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>9만 건 OUI 제조사 식별</span>
+                    <span>{lang === 'ko' ? '9만 건 OUI 제조사 식별' : '90k OUI Vendor Database'}</span>
                     <Check className="w-4 h-4 text-emerald-400" />
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>스냅샷 비교 (Diff Engine)</span>
+                    <span>{lang === 'ko' ? '스냅샷 비교 (Diff Engine)' : 'Snapshot Diff Engine'}</span>
                     {license.features.diffCompare ? (
-                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                      <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                      <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>심층 포트 정밀 보안 감사</span>
+                    <span>{lang === 'ko' ? '심층 포트 정밀 보안 감사' : 'Deep Port Security Audit'}</span>
                     {license.features.portScanDeep ? (
-                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                      <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                      <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>A4 보안 감사 보고서 (HTML)</span>
+                    <span>{lang === 'ko' ? 'A4 보안 감사 보고서 (HTML)' : 'A4 Security Audit Report (HTML)'}</span>
                     {license.features.exportReport ? (
-                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                      <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                      <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Power className="w-3.5 h-3.5 text-amber-400" />
-                      <span>원격 부팅 (Wake-on-LAN)</span>
+                      <span>{lang === 'ko' ? '원격 부팅 (Wake-on-LAN)' : 'Remote Boot (Wake-on-LAN)'}</span>
                     </span>
                     {license.features.remoteBoot ? (
-                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                      <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                      <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <BellRing className="w-3.5 h-3.5 text-purple-400" />
-                      <span>낯선 기기 감시 (Soft Trust 침입 탐지)</span>
+                      <span>{lang === 'ko' ? '낯선 기기 감시 (Soft Trust 침입 탐지)' : 'Intruder & Soft Trust Guard'}</span>
                     </span>
                     {license.features.intruderDetection ? (
-                      <span className="text-[10px] font-bold text-emerald-400">● 활성</span>
+                      <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
                     ) : (
-                      <span className="text-[10px] font-bold text-zinc-500">○ 비활성 (잠김)</span>
+                      <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
                   <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
-                    <span>다중 서브넷 허용 한도</span>
+                    <span>{lang === 'ko' ? '다중 서브넷 허용 한도' : 'Max Subnets Allowance'}</span>
                     <span className="text-[10px] font-bold mono text-sky-400">
-                      {license.maxSubnets === 999 ? '무제한' : `${license.maxSubnets}개 대역`}
+                      {license.maxSubnets === 999 ? (lang === 'ko' ? '무제한' : 'Unlimited') : `${license.maxSubnets}${lang === 'ko' ? '개 대역' : ' subnets'}`}
                     </span>
                   </div>
                 </div>
@@ -6099,7 +6127,7 @@ const App: React.FC = () => {
               <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/10'} space-y-3`}>
                 <label className="text-[10px] font-black uppercase tracking-wider opacity-80 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-amber-400" />
-                  <span>라이선스 키 입력 및 활성화</span>
+                  <span>{lang === 'ko' ? '라이선스 키 입력 및 활성화' : 'Enter License Key & Activate'}</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -6111,7 +6139,7 @@ const App: React.FC = () => {
                   />
                   <button
                     onClick={handleActivateLicense}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl text-xs uppercase tracking-tight transition-all shadow-md shrink-0"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl text-xs uppercase tracking-tight transition-all shadow-md shrink-0 cursor-pointer"
                   >
                     {s.activateBtn}
                   </button>
@@ -6119,24 +6147,24 @@ const App: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   {getTrialHistory().used ? (
                     <span className="text-[10px] text-amber-500/80 font-semibold flex items-center gap-1">
-                      <span>🔒 30일 체험판 이용 완료 (추가 사용은 정품 키 필요)</span>
+                      <span>🔒 {lang === 'ko' ? '30일 체험판 이용 완료 (추가 사용은 정품 키 필요)' : '30-Day Trial completed (Requires full license key)'}</span>
                     </span>
                   ) : (
                     <button
                       onClick={() => {
                         setLicenseKeyInput('GRID-PRO-TRIAL-2026');
                       }}
-                      className="text-[10px] text-sky-400 hover:underline font-semibold"
+                      className="text-[10px] text-sky-400 hover:underline font-semibold cursor-pointer"
                     >
-                      💡 데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)
+                      💡 {lang === 'ko' ? '데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)' : 'Auto-fill Demo Pro 30-Day Key (GRID-PRO-TRIAL-2026)'}
                     </button>
                   )}
                   {license.tier !== 'free' && (
                     <button
                       onClick={handleResetLicense}
-                      className="text-[10px] text-red-400 hover:underline"
+                      className="text-[10px] text-red-400 hover:underline cursor-pointer"
                     >
-                      무료 버전으로 초기화
+                      {lang === 'ko' ? '무료 버전으로 초기화' : 'Reset to Free Community'}
                     </button>
                   )}
                 </div>
@@ -6145,7 +6173,7 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => setShowLicenseModal(false)}
-              className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-black text-xs uppercase transition-all flex-shrink-0"
+              className="w-full py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-black text-xs uppercase transition-all flex-shrink-0 cursor-pointer"
             >
               {s.done || "Done"}
             </button>
@@ -6161,6 +6189,7 @@ const App: React.FC = () => {
         isChecking={isCheckingUpdate}
         onRefreshCheck={handleManualCheckUpdate}
         theme={theme}
+        lang={lang}
       />
 
       {/* Deep Snapshot Comparison Studio Modal */}
@@ -6183,6 +6212,7 @@ const App: React.FC = () => {
         }}
         theme={theme}
         s={s}
+        lang={lang}
         showToast={showToast}
       />
 
@@ -6372,19 +6402,19 @@ const App: React.FC = () => {
             {/* Subnet & Status Info Strip */}
             <div className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between text-xs flex-wrap gap-2 shrink-0">
               <div className="flex items-center space-x-2">
-                <span className="opacity-60">스캔 서브넷:</span>
+                <span className="opacity-60">{lang === 'ko' ? '스캔 서브넷:' : 'Subnet:'}</span>
                 <span className="font-mono font-bold text-sky-400">{config.subnet}.0/24</span>
                 <span className="opacity-40">|</span>
-                <span className="opacity-60">탐지 활성 노드:</span>
-                <span className="font-mono font-bold text-emerald-400">{activeCount}개</span>
+                <span className="opacity-60">{lang === 'ko' ? '탐지 활성 노드:' : 'Active Nodes:'}</span>
+                <span className="font-mono font-bold text-emerald-400">{activeCount}{lang === 'ko' ? '개' : ' active'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 {searchTerm ? (
                   <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30">
-                    검색어: "{searchTerm}" ({filteredIps.length}건)
+                    {lang === 'ko' ? `검색어: "${searchTerm}" (${filteredIps.length}건)` : `Filter: "${searchTerm}" (${filteredIps.length})`}
                   </span>
                 ) : (
-                  <span className="opacity-50 text-[11px]">필터 없음 (전체 표시)</span>
+                  <span className="opacity-50 text-[11px]">{lang === 'ko' ? '필터 없음 (전체 표시)' : 'No filter (Show all)'}</span>
                 )}
               </div>
             </div>
@@ -6403,28 +6433,28 @@ const App: React.FC = () => {
                       <span className="text-sm font-black text-sky-400">🔍 {s.exportPdfSearch || '현재 검색 및 필터 결과 PDF'}</span>
                       {searchTerm && (
                         <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black uppercase bg-sky-500 text-white animate-pulse">
-                          추천
+                          {lang === 'ko' ? '추천' : 'Recommended'}
                         </span>
                       )}
                     </div>
                     <p className="text-xs opacity-80">
                       {searchTerm 
-                        ? `검색어 "${searchTerm}"에 일치하는 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.` 
-                        : `현재 화면에 필터링된 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.`}
+                        ? (lang === 'ko' ? `검색어 "${searchTerm}"에 일치하는 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.` : `Export ${filteredIps.length} nodes matching "${searchTerm}" to PDF.`) 
+                        : (lang === 'ko' ? `현재 화면에 필터링된 ${filteredIps.length}개 노드 목록을 PDF로 출력합니다.` : `Export ${filteredIps.length} filtered nodes to PDF.`)}
                     </p>
                     <div className="text-[11px] opacity-60 font-mono">
-                      포함: IP 주소, MAC, 제조사, 호스트명, RTT, 개방 포트 상태
+                      {lang === 'ko' ? '포함: IP 주소, MAC, 제조사, 호스트명, RTT, 개방 포트 상태' : 'Includes: IP, MAC, Vendor, Hostname, RTT, Open Ports'}
                     </div>
                   </div>
                   <button
                     onClick={() => handleExportPdf('search')}
                     disabled={isExportingPdf || filteredIps.length === 0}
-                    className={`px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 cursor-pointer ${
                       isExportingPdf || filteredIps.length === 0 ? 'opacity-40 cursor-not-allowed' : ''
                     }`}
                   >
                     <FileDown className="w-3.5 h-3.5" />
-                    <span>PDF 다운로드 ({filteredIps.length})</span>
+                    <span>{lang === 'ko' ? `PDF 다운로드 (${filteredIps.length})` : `Download PDF (${filteredIps.length})`}</span>
                   </button>
                 </div>
               </div>
@@ -6437,21 +6467,23 @@ const App: React.FC = () => {
                       <span className="text-sm font-black text-emerald-400">🟢 {s.exportPdfActive || '온라인 활성 장비 인벤토리 PDF'}</span>
                     </div>
                     <p className="text-xs opacity-80">
-                      현재 네트워크에서 응답이 확인된 온라인 활성 단말 ({activeCount}대) 자산 인벤토리 보고서를 생성합니다.
+                      {lang === 'ko' 
+                        ? `현재 네트워크에서 응답이 확인된 온라인 활성 단말 (${activeCount}대) 자산 인벤토리 보고서를 생성합니다.` 
+                        : `Generate inventory report of ${activeCount} active online devices.`}
                     </p>
                     <div className="text-[11px] opacity-60 font-mono">
-                      포함: 활성 노드 인벤토리, 제조사별 통계, RTT 응답속도
+                      {lang === 'ko' ? '포함: 활성 노드 인벤토리, 제조사별 통계, RTT 응답속도' : 'Includes: Active node inventory, vendor statistics, RTT latency'}
                     </div>
                   </div>
                   <button
                     onClick={() => handleExportPdf('active')}
                     disabled={isExportingPdf || activeCount === 0}
-                    className={`px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 cursor-pointer ${
                       isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''
                     }`}
                   >
                     <FileDown className="w-3.5 h-3.5" />
-                    <span>PDF 다운로드 ({activeCount})</span>
+                    <span>{lang === 'ko' ? `PDF 다운로드 (${activeCount})` : `Download PDF (${activeCount})`}</span>
                   </button>
                 </div>
               </div>
@@ -6467,21 +6499,23 @@ const App: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-xs opacity-80">
-                      SMB(445) 랜섬웨어 표적, RDP(3389), Telnet(23) 등 보안 위험 포트 분석 및 제조사 점유율 정밀 진단서를 발행합니다.
+                      {lang === 'ko' 
+                        ? 'SMB(445) 랜섬웨어 표적, RDP(3389), Telnet(23) 등 보안 위험 포트 분석 및 제조사 점유율 정밀 진단서를 발행합니다.' 
+                        : 'Audit sensitive target ports (SMB 445, RDP 3389, Telnet 23) and issue deep security analysis.'}
                     </p>
                     <div className="text-[11px] opacity-60 font-mono">
-                      포함: 위험 포트 노출 경고, 위협 완화 권고사항, OUI 제조사 점유율
+                      {lang === 'ko' ? '포함: 위험 포트 노출 경고, 위협 완화 권고사항, OUI 제조사 점유율' : 'Includes: Exposed risk port warnings, mitigation recommendations, vendor share'}
                     </div>
                   </div>
                   <button
                     onClick={() => handleExportPdf('audit')}
                     disabled={isExportingPdf || activeCount === 0}
-                    className={`px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 cursor-pointer ${
                       isExportingPdf || activeCount === 0 ? 'opacity-40 cursor-not-allowed' : ''
                     }`}
                   >
                     <FileDown className="w-3.5 h-3.5" />
-                    <span>보안 감사 PDF</span>
+                    <span>{lang === 'ko' ? '보안 감사 PDF' : 'Security Audit PDF'}</span>
                   </button>
                 </div>
               </div>
@@ -6494,21 +6528,23 @@ const App: React.FC = () => {
                       <span className="text-sm font-black text-zinc-300">📋 {s.exportPdfAll || '전체 스캔 대역 종합 보고서 PDF'}</span>
                     </div>
                     <p className="text-xs opacity-80">
-                      서브넷 전체 IP 대역 ({config.subnet}.{config.start} ~ .{config.end}, 총 {allIps.length}개 대상)의 상태를 종합 기록합니다.
+                      {lang === 'ko' 
+                        ? `서브넷 전체 IP 대역 (${config.subnet}.${config.start} ~ .${config.end}, 총 ${allIps.length}개 대상)의 상태를 종합 기록합니다.` 
+                        : `Record full state of ${config.subnet}.${config.start} ~ .${config.end} (${allIps.length} total targets).`}
                     </p>
                     <div className="text-[11px] opacity-60 font-mono">
-                      포함: 활성 및 비활성 전체 노드 전수 지도
+                      {lang === 'ko' ? '포함: 활성 및 비활성 전체 노드 전수 지도' : 'Includes: Complete map of all active and inactive nodes'}
                     </div>
                   </div>
                   <button
                     onClick={() => handleExportPdf('all')}
                     disabled={isExportingPdf || Object.keys(results).length === 0}
-                    className={`px-3.5 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 ${
+                    className={`px-3.5 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white font-black text-xs uppercase transition-all shadow-md shrink-0 flex items-center space-x-1.5 cursor-pointer ${
                       isExportingPdf || Object.keys(results).length === 0 ? 'opacity-40 cursor-not-allowed' : ''
                     }`}
                   >
                     <FileDown className="w-3.5 h-3.5" />
-                    <span>전체 대역 PDF</span>
+                    <span>{lang === 'ko' ? '전체 대역 PDF' : 'Full Subnet PDF'}</span>
                   </button>
                 </div>
               </div>
@@ -6528,18 +6564,18 @@ const App: React.FC = () => {
                       handleExportAuditReport();
                       setShowPdfExportModal(false);
                     }}
-                    className="text-xs text-sky-400 hover:text-sky-300 font-bold underline transition-colors"
+                    className="text-xs text-sky-400 hover:text-sky-300 font-bold underline transition-colors cursor-pointer"
                   >
-                    🌐 대화형 HTML 보고서 (인쇄 창) 열기
+                    {lang === 'ko' ? '🌐 대화형 HTML 보고서 (인쇄 창) 열기' : '🌐 Open Interactive HTML Report (Print)'}
                   </button>
                 )}
               </div>
               <button
                 onClick={() => setShowPdfExportModal(false)}
                 disabled={isExportingPdf}
-                className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all"
+                className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all cursor-pointer"
               >
-                닫기
+                {lang === 'ko' ? '닫기' : 'Close'}
               </button>
             </div>
           </div>
@@ -6551,6 +6587,7 @@ const App: React.FC = () => {
         isOpen={showNativeModal}
         onClose={() => setShowNativeModal(false)}
         theme={theme}
+        lang={lang}
         currentSelectedIp={selectedIp || undefined}
         currentSelectedMac={selectedIp ? results[selectedIp]?.device?.mac : undefined}
       />

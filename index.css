@@ -24,6 +24,13 @@ body {
   -webkit-user-drag: none;
 }
 
+@media (max-width: 767px) {
+  .mobile-notch-container {
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--mobile-notch-offset, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 input {
   user-select: text !important;
 }
