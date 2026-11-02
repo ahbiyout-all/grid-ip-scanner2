@@ -23,7 +23,7 @@ var embeddedPayload []byte
 var embeddedIcon []byte
 
 const (
-	AppVersion = "2.4.22"
+	AppVersion = "2.4.23"
 	AppName    = "Grid IP Scanner2"
 )
 
@@ -584,6 +584,80 @@ func performInstallationGUI() {
 	procPostMessageW.Call(hMainWnd, WM_APP_FINISHED, 1, 0)
 }
 
+var wizardStep int = 0 // 0: Notice -> 1: License -> 2: Installing -> 3: Finished
+
+func updateWizardStepUI() {
+	if hMainWnd == 0 {
+		return
+	}
+	switch wizardStep {
+	case 0:
+		// Step 0: Notice & Disclaimer
+		noticeText := "📌 Step 1/3 - [" + AppName + " v" + AppVersion + " 설치 및 백신 고지]\r\n\r\n" +
+			"1. 백신 오탐 예외 안내: 초고속 서브넷 IP/포트 탐색 특성상 백신(Windows Defender, 안랩 V3)에서 오탐지될 수 있습니다. 실행 차단 시 '검사 예외 목록'에 추가해 주십시오.\r\n" +
+			"2. 방화벽 자동 연동: 네트워크 통신을 위한 Windows 방화벽 예외 규칙이 설치 과정에서 자동 등록됩니다.\r\n" +
+			"3. 제어판 정식 등록: Windows '프로그램 추가/제거' 및 시작 메뉴에 정식으로 등록됩니다.\r\n\r\n" +
+			"아래 [다음 >] 버튼을 눌러 소프트웨어 라이선스 약관을 확인하세요."
+		btnTextPtr, _ := syscall.UTF16PtrFromString("다음 (라이선스) >")
+		statusTextPtr, _ := syscall.UTF16PtrFromString("단계 1/3: 설치 안내 및 백신 고지 사항을 확인 후 [다음]을 누르세요.")
+		noticeTextPtr, _ := syscall.UTF16PtrFromString(noticeText)
+		procSetWindowTextW.Call(hNoticeTxt, uintptr(unsafe.Pointer(noticeTextPtr)))
+		procSetWindowTextW.Call(hStatusTxt, uintptr(unsafe.Pointer(statusTextPtr)))
+		procSetWindowTextW.Call(hInstallBtn, uintptr(unsafe.Pointer(btnTextPtr)))
+
+	case 1:
+		// Step 1: License Agreement
+		licenseText := "📜 Step 2/3 - [소프트웨어 이용 약관 및 이중 라이선스 고지]\r\n\r\n" +
+			"1. 이중 라이선스 (Dual License): 본 소프트웨어는 GNU General Public License v3 (GPL v3) 및 상용 전용 라이선스(Commercial License) 정책에 따라 배포됩니다.\r\n" +
+			"2. 자유로운 무상 사용: 개인 및 비영리 목적으로 무상 자유 사용이 보장됩니다.\r\n" +
+			"3. 상업적 패키징 및 서브라이선스: 하부 라이브러리(React, Lucide, Go)는 MIT 허용형 라이선스를 준수하며 상업적 포장 및 재배포 권리를 전면 보장합니다.\r\n" +
+			"4. 책임의 한계: 본 프로그램은 일체의 명시적 보증 없이 '있는 그대로(AS IS)' 제공됩니다.\r\n\r\n" +
+			"위 이용 약관에 동의하시면 아래 [동의 및 설치 시작 >] 버튼을 눌러 설치를 진행하세요."
+		btnTextPtr, _ := syscall.UTF16PtrFromString("동의 및 설치 시작 >")
+		statusTextPtr, _ := syscall.UTF16PtrFromString("단계 2/3: 이용 약관 동의 후 [동의 및 설치 시작]을 누르세요.")
+		noticeTextPtr, _ := syscall.UTF16PtrFromString(licenseText)
+		procSetWindowTextW.Call(hNoticeTxt, uintptr(unsafe.Pointer(noticeTextPtr)))
+		procSetWindowTextW.Call(hStatusTxt, uintptr(unsafe.Pointer(statusTextPtr)))
+		procSetWindowTextW.Call(hInstallBtn, uintptr(unsafe.Pointer(btnTextPtr)))
+
+	case 2:
+		// Step 2: Installing
+		installMsg := "⚙️ Step 3/3 - [파일 복사 및 시스템 연동 진행 중...]\r\n\r\n" +
+			"• 설치 위치: C:\\Program Files\\Grid IP Scanner2\\\r\n" +
+			"• 기존 설치 버전 자동 점검 및 프로세스 정돈\r\n" +
+			"• 9만 건 IEEE/Wireshark OUI DB 및 C/Win32 네이티브 모듈 복사 중\r\n" +
+			"• Windows 방화벽 인바운드/아웃바운드 규칙 등록 중\r\n\r\n" +
+			"잠시만 기다려 주십시오..."
+		btnTextPtr, _ := syscall.UTF16PtrFromString("설치 진행 중...")
+		statusTextPtr, _ := syscall.UTF16PtrFromString("단계 3/3: 파일 복사 및 시스템 연동 진행 중입니다.")
+		noticeTextPtr, _ := syscall.UTF16PtrFromString(installMsg)
+		procSetWindowTextW.Call(hNoticeTxt, uintptr(unsafe.Pointer(noticeTextPtr)))
+		procSetWindowTextW.Call(hStatusTxt, uintptr(unsafe.Pointer(statusTextPtr)))
+		procSetWindowTextW.Call(hInstallBtn, uintptr(unsafe.Pointer(btnTextPtr)))
+		procEnableWindow.Call(hInstallBtn, 0)
+		procEnableWindow.Call(hCancelBtn, 0)
+
+	case 3:
+		// Step 3: Finished
+		finishText := "🎉 [Grid IP Scanner2 v" + AppVersion + " 설치 완료!]\r\n\r\n" +
+			"• 설치 위치: C:\\Program Files\\Grid IP Scanner2\\\r\n" +
+			"• 바탕화면 및 시작 메뉴에 프로그램 바로가기 아이콘 등록 완료\r\n" +
+			"• 제어판 '프로그램 추가/제거'에 정식 등록 완료\r\n" +
+			"• Windows 방화벽 통신 규칙 등록 완료\r\n\r\n" +
+			"아래 [완료 (앱 실행)] 버튼을 누르면 Grid IP Scanner2가 즉시 실행됩니다."
+		btnTextPtr, _ := syscall.UTF16PtrFromString("완료 (앱 실행)")
+		cancelTextPtr, _ := syscall.UTF16PtrFromString("닫기")
+		statusTextPtr, _ := syscall.UTF16PtrFromString("🎉 설치가 성공적으로 완료되었습니다!")
+		noticeTextPtr, _ := syscall.UTF16PtrFromString(finishText)
+		procSetWindowTextW.Call(hNoticeTxt, uintptr(unsafe.Pointer(noticeTextPtr)))
+		procSetWindowTextW.Call(hStatusTxt, uintptr(unsafe.Pointer(statusTextPtr)))
+		procSetWindowTextW.Call(hInstallBtn, uintptr(unsafe.Pointer(btnTextPtr)))
+		procSetWindowTextW.Call(hCancelBtn, uintptr(unsafe.Pointer(cancelTextPtr)))
+		procEnableWindow.Call(hInstallBtn, 1)
+		procEnableWindow.Call(hCancelBtn, 1)
+	}
+}
+
 func wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 	switch msg {
 	case WM_APP_PROGRESS:
@@ -603,31 +677,30 @@ func wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 
 	case WM_APP_FINISHED:
 		isFinished = true
-		if hInstallBtn != 0 {
-			btnTextPtr, _ := syscall.UTF16PtrFromString("설치 완료 (실행)")
-			procSetWindowTextW.Call(hInstallBtn, uintptr(unsafe.Pointer(btnTextPtr)))
-			procEnableWindow.Call(hInstallBtn, 1)
-		}
-		if hCancelBtn != 0 {
-			cancelTextPtr, _ := syscall.UTF16PtrFromString("닫기")
-			procSetWindowTextW.Call(hCancelBtn, uintptr(unsafe.Pointer(cancelTextPtr)))
-			procEnableWindow.Call(hCancelBtn, 1)
-		}
+		wizardStep = 3
+		updateWizardStepUI()
 		return 0
 
 	case WM_COMMAND:
 		controlID := uint16(wparam & 0xffff)
 		if controlID == IDC_INSTALL_BTN {
-			if isFinished {
+			if wizardStep == 0 {
+				// Move to Step 1 (License)
+				wizardStep = 1
+				updateWizardStepUI()
+			} else if wizardStep == 1 {
+				// Move to Step 2 (Installing) and start background installation
+				wizardStep = 2
+				isInstalling = true
+				updateWizardStepUI()
+				go performInstallationGUI()
+			} else if isFinished || wizardStep == 3 {
+				// Move to Launch & Close
 				if launchPath != "" && fileExists(launchPath) {
 					cmd := exec.Command(launchPath)
 					_ = cmd.Start()
 				}
 				procDestroyWindow.Call(hwnd)
-			} else if !isInstalling {
-				procEnableWindow.Call(hInstallBtn, 0)
-				procEnableWindow.Call(hCancelBtn, 0)
-				go performInstallationGUI()
 			}
 		} else if controlID == IDC_CANCEL_BTN {
 			procDestroyWindow.Call(hwnd)
@@ -794,11 +867,11 @@ func runGUIInstaller() {
 	)
 
 	// Install Button
-	installTextPtr, _ := syscall.UTF16PtrFromString("설치 시작")
+	installTextPtr, _ := syscall.UTF16PtrFromString("다음 (라이선스) >")
 	hInstallBtn, _, _ = procCreateWindowExW.Call(
 		0, uintptr(unsafe.Pointer(buttonClassPtr)), uintptr(unsafe.Pointer(installTextPtr)),
 		WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON,
-		280, 290, 110, 32,
+		260, 290, 130, 32,
 		hMainWnd, IDC_INSTALL_BTN, hInstance, 0,
 	)
 	procSendMessageW.Call(hInstallBtn, WM_SETFONT, hFont, 1)
@@ -812,6 +885,10 @@ func runGUIInstaller() {
 		hMainWnd, IDC_CANCEL_BTN, hInstance, 0,
 	)
 	procSendMessageW.Call(hCancelBtn, WM_SETFONT, hFont, 1)
+
+	// Set Step 0 Initial UI
+	wizardStep = 0
+	updateWizardStepUI()
 
 	procShowWindow.Call(hMainWnd, 1)
 	procUpdateWindow.Call(hMainWnd)
