@@ -1,6 +1,7 @@
 import { ScanResult, LicenseInfo } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { CURRENT_APP_VERSION } from './updateChecker';
 
 export interface AuditReportExportResult {
   success: boolean;
@@ -217,7 +218,7 @@ export async function exportSecurityAuditReportToPDF(
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px;">OFFICIAL AUDIT</span>
-          <span style="font-size: 11px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 v2.4.5</span>
+          <span style="font-size: 11px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 v${CURRENT_APP_VERSION}</span>
         </div>
         <h1 style="margin: 4px 0 2px 0; font-size: 20px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">
           ${isKo ? '네트워크 정밀 보안 진단 감사 보고서' : 'Network Security & Infrastructure Audit Report'}
@@ -531,7 +532,7 @@ export async function exportDeviceListToPDF(
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px;">INVENTORY REPORT</span>
-          <span style="font-size: 11px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 v2.4.5</span>
+          <span style="font-size: 11px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 v${CURRENT_APP_VERSION}</span>
         </div>
         <h1 style="margin: 4px 0 2px 0; font-size: 19px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">
           ${title}
