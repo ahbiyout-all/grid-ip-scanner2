@@ -229,28 +229,38 @@ begin
   // 기존 설치가 감지된 경우 분기 처리
   if HasExisting then
   begin
-    // [무인 설치 모드]: /SILENT 또는 /VERYSILENT 명령줄 옵션 시 대화 상자 없이 자동으로 덮어쓰기(업그레이드) 진행
+    // [무인 설치 모드]: /SILENT 또는 /VERYSILENT 명령줄 옵션 시 대화 상자 없이 기존 버전 자동 완전 삭제 후 설치 진행
     if WizardSilent() then
     begin
       Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      if FileExists(ExistingInstallPath + '\unins000.exe') then
+        Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Result := True;
       Exit;
     end;
 
-    // [대화형 일반 설치]: 사용자에게 업데이트(덮어쓰기) 진행 여부 질의
+    // [대화형 일반 설치]: 사용자에게 기존 버전 완전 제거 후 최신 버전 설치 진행 여부 질의
     PromptMsg := '시스템에 기존 ' + '{#MyAppName}';
     if ExistingVersion <> '' then
       PromptMsg := PromptMsg + ' (v' + ExistingVersion + ')';
     PromptMsg := PromptMsg + ' 버전이 이미 설치되어 있습니다.' + #13#10#13#10 +
-      '기존 버전을 최신 v{#MyAppVersion}(으)로 업데이트하고 설치를 계속하시겠습니까?';
+      '안정적인 설치를 위해 기존 버전을 제거하고 최신 v{#MyAppVersion}(으)로 업그레이드하시겠습니까?';
 
     Response := MsgBox(PromptMsg, mbConfirmation, MB_YESNO);
 
     if Response = IDYES then
     begin
-      // 기존 프로세스 종료 후 업데이트 진행
+      // 1. 기존 실행 프로세스 강제 종료
       Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+      // 2. 기존 언인스톨러 조용히 실행 (구버전 완전 삭제)
+      if (ExistingInstallPath <> '') and FileExists(ExistingInstallPath + '\unins000.exe') then
+      begin
+        Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      end;
+
       Result := True;
     end
     else
