@@ -196,20 +196,36 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#My
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName}"""; Flags: runhidden waituntilterminated
 
 [Code]
-// =====================================================================
-// 언인스톨 단계 실행 중 프로세스 강제 종료 (파일 잠금 해제 및 완벽 삭제 보장)
-// =====================================================================
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  // 기존앱 종료: 언인스톨 시작 즉시 모든 관련 실행 프로세스 강제 종료
+  Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
 begin
   if CurUninstallStep = usUninstall then
   begin
-    // 언인스톨 시작 즉시 실행 중인 모든 관련 앱 프로세스 강제 종료
-    Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Exec('taskkill.exe', '/F /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Sleep(500);
+    Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(300);
+  end
+  else if CurUninstallStep = usPostUninstall then
+  begin
+    // 언인스톨 완료 후 잔여 디렉토리 및 레지스트리 완벽 삭제
+    DelTree(ExpandConstant('{app}'), True, True, True);
+    RegDeleteKeyIncludingSubkeys(HKLM, 'Software\{#MyAppName}');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\{#MyAppName}');
+    RegDeleteValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
   end;
 end;
 
