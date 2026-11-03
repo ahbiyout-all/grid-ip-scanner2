@@ -247,7 +247,7 @@ targetFolders.forEach(folder => {
     fs.copyFileSync(rootInstaller, path.join(instDir, installerName));
   }
   // Copy Inno Setup script and builder for reference / manual compilation
-  ['Grid_IP_Scanner2_Dedicated_Setup.iss', 'Grid_IP_Scanner2_Setup.iss', 'build-installer.js'].forEach(file => {
+  ['Grid_IP_Scanner2_Dedicated_Setup.iss', 'build-installer.js'].forEach(file => {
     const srcPath = path.join(rootDir, 'installer', file);
     if (fs.existsSync(srcPath)) {
       fs.copyFileSync(srcPath, path.join(instDir, file));

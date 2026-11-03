@@ -38,8 +38,8 @@ if (!fs.existsSync(distInstallerDir)) {
 }
 
 // 3. Update version in Inno Setup scripts if needed
-const issFiles = ['Grid_IP_Scanner2_Dedicated_Setup.iss', 'Grid_IP_Scanner2_Setup.iss'];
-let primaryIssPath = path.join(__dirname, 'Grid_IP_Scanner2_Dedicated_Setup.iss');
+const issFiles = ['Grid_IP_Scanner2_Dedicated_Setup.iss'];
+const issPath = path.join(__dirname, 'Grid_IP_Scanner2_Dedicated_Setup.iss');
 
 issFiles.forEach(fileName => {
   const filePath = path.join(__dirname, fileName);
@@ -52,7 +52,6 @@ issFiles.forEach(fileName => {
     console.log(`✅ Inno Setup script (${fileName}) version synchronized.`);
   }
 });
-const issPath = fs.existsSync(primaryIssPath) ? primaryIssPath : path.join(__dirname, 'Grid_IP_Scanner2_Setup.iss');
 
 // 4. Check for Inno Setup Compiler (ISCC) on system
 const localAppData = process.env.LOCALAPPDATA || '';
@@ -85,17 +84,30 @@ for (const p of defaultInnoPaths) {
 
 const targetSetupExe = path.join(distInstallerDir, `Grid_IP_Scanner2_v${version}_Setup.exe`);
 
+// 3.5. Clean up old installer binary if present to guarantee fresh compilation
+if (fs.existsSync(targetSetupExe)) {
+  try {
+    fs.unlinkSync(targetSetupExe);
+    console.log(`🧹 Stale installer binary removed for fresh build: ${targetSetupExe}`);
+  } catch (e) {
+    console.warn(`⚠️ Warning: Could not remove old installer binary: ${e.message}`);
+  }
+}
+
 if (isccExe) {
   console.log(`🔨 Compiling official Inno Setup installer using ${isccExe}...`);
   try {
-    execSync(`"${isccExe}" "${issPath}"`, { stdio: 'inherit' });
+    execSync(`"${isccExe}" /O"${distInstallerDir}" /F"Grid_IP_Scanner2_v${version}_Setup" "${issPath}"`, {
+      cwd: __dirname,
+      stdio: 'inherit'
+    });
     console.log(`\n🎉 Official Inno Setup installer successfully built in dist_installer/!`);
   } catch (err) {
     console.warn('⚠️ Inno Setup compilation notice:', err.message);
   }
 }
 
-// Fallback: If ISCC didn't run or didn't generate targetSetupExe, build Standalone Setup.exe using Go
+// Fallback: If ISCC didn't run or failed to generate targetSetupExe, build Standalone Setup.exe via Go
 if (!fs.existsSync(targetSetupExe)) {
   console.log('\n🔨 Generating Standalone Windows Setup.exe Installer via Go compiler...');
   try {

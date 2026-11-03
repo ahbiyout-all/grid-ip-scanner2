@@ -101,15 +101,15 @@ if (fs.existsSync(winresPath)) {
   }
 }
 
-// 3. Synchronize Inno Setup script (installer/Grid_IP_Scanner2_Setup.iss)
-const issPath = path.join(rootDir, 'installer', 'Grid_IP_Scanner2_Setup.iss');
+// 3. Synchronize Inno Setup script (installer/Grid_IP_Scanner2_Dedicated_Setup.iss)
+const issPath = path.join(rootDir, 'installer', 'Grid_IP_Scanner2_Dedicated_Setup.iss');
 if (fs.existsSync(issPath)) {
   let iss = fs.readFileSync(issPath, 'utf8');
   iss = iss.replace(/#define MyAppVersion "[^"]*"/, `#define MyAppVersion "${targetVer}"`);
   iss = iss.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
   iss = iss.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
   fs.writeFileSync(issPath, iss, 'utf8');
-  console.log(`✅ [3/10] installer/Grid_IP_Scanner2_Setup.iss -> MyAppVersion "${targetVer}"`);
+  console.log(`✅ [3/10] installer/Grid_IP_Scanner2_Dedicated_Setup.iss -> MyAppVersion "${targetVer}"`);
 }
 
 // 4. Synchronize App.tsx UI Badges & String References

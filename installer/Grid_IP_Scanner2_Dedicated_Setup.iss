@@ -232,12 +232,10 @@ end;
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
-  Response: Integer;
   UninstallKey: String;
   ExistingInstallPath: String;
   ExistingVersion: String;
   HasExisting: Boolean;
-  PromptMsg: String;
 begin
   Result := True;
   UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1';
@@ -245,7 +243,13 @@ begin
   ExistingVersion := '';
   HasExisting := False;
 
-  // Check 64-bit and 32-bit registry entries for existing installation
+  // 1. 기존 실행 중인 모든 앱 및 스케줄러 프로세스 무조건 자동 강제 종료 (파일 잠금 해제)
+  Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(300);
+
+  // 2. 레지스트리 및 디렉토리에서 기존 설치 정보 자동 조회
   if RegQueryStringValue(HKLM64, UninstallKey, 'InstallLocation', ExistingInstallPath) then
     HasExisting := True
   else if RegQueryStringValue(HKLM32, UninstallKey, 'InstallLocation', ExistingInstallPath) then
@@ -265,43 +269,13 @@ begin
     end;
   end;
 
+  // 3. 기존 버전 감지 시 별도 확인 팝업 없이 '자동 무소음 언인스톨' 수행
   if HasExisting then
   begin
-    if WizardSilent() then
+    if (ExistingInstallPath <> '') and FileExists(ExistingInstallPath + '\unins000.exe') then
     begin
-      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      if FileExists(ExistingInstallPath + '\unins000.exe') then
-        Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Result := True;
-      Exit;
-    end;
-
-    PromptMsg := '시스템에 기존 ' + '{#MyAppName}';
-    if ExistingVersion <> '' then
-      PromptMsg := PromptMsg + ' (v' + ExistingVersion + ')';
-    PromptMsg := PromptMsg + ' 버전이 설치되어 있습니다.' + #13#10#13#10 +
-      '안정적인 설치를 위해 기존 버전을 제거하고 최신 v{#MyAppVersion}(으)로 업그레이드하시겠습니까?';
-
-    Response := MsgBox(PromptMsg, mbConfirmation, MB_YESNO);
-
-    if Response = IDYES then
-    begin
-      // 1. 기존 실행 프로세스 강제 종료
-      Exec('taskkill.exe', '/F /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec('taskkill.exe', '/F /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-
-      // 2. 기존 언인스톨러 조용히 실행 (구버전 완전 삭제)
-      if (ExistingInstallPath <> '') and FileExists(ExistingInstallPath + '\unins000.exe') then
-      begin
-        Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      end;
-
-      Result := True;
-    end
-    else
-    begin
-      Result := False;
+      Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Sleep(500);
     end;
   end;
 end;
