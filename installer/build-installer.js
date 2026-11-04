@@ -40,11 +40,30 @@ if (!fs.existsSync(distInstallerDir)) {
 // 2.5 Ensure root executable is available for Inno Setup compilation
 const primaryExe = path.join(rootDir, 'Grid_IP_Scanner2.exe');
 const versionedExe = path.join(rootDir, `Grid IP Scanner2 v${version}.exe`);
-if (!fs.existsSync(primaryExe) && fs.existsSync(versionedExe)) {
-  try {
-    fs.copyFileSync(versionedExe, primaryExe);
-    console.log(`✅ Mirrored ${path.basename(versionedExe)} -> Grid_IP_Scanner2.exe for Inno Setup`);
-  } catch (e) {}
+
+if (!fs.existsSync(primaryExe)) {
+  const possiblePaths = [
+    versionedExe,
+    path.join(rootDir, 'dist_releases', `v${version}`, 'portable', `Grid IP Scanner2 v${version}.exe`),
+    path.join(rootDir, 'dist_releases', `v${version}`, 'portable', `Grid_IP_Scanner2_v${version}_Portable.exe`),
+    path.join(rootDir, 'dist_releases', `v${version}`, 'unpacked', 'Grid_IP_Scanner2.exe')
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        fs.copyFileSync(p, primaryExe);
+        console.log(`✅ Mirrored executable: ${p} -> Grid_IP_Scanner2.exe for Inno Setup`);
+        break;
+      } catch (e) {}
+    }
+  }
+}
+
+if (fs.existsSync(primaryExe)) {
+  const exeSize = fs.statSync(primaryExe).size;
+  console.log(`📦 Primary application executable verified: Grid_IP_Scanner2.exe (${(exeSize / (1024 * 1024)).toFixed(2)} MB)`);
+} else {
+  console.warn('⚠️ Warning: Primary application executable (Grid_IP_Scanner2.exe) not found prior to Inno Setup packaging!');
 }
 
 // 3. Update version in Inno Setup scripts if needed
@@ -182,28 +201,36 @@ if (!innoBuildSuccess && !fs.existsSync(targetSetupExe)) {
   }
 }
 
-// 5. Always verify and embed icon & PE metadata into the Installer executable
+// 5. Verify Installer executable integrity (Never corrupt Inno Setup binary with external PE patchers)
 if (fs.existsSync(targetSetupExe)) {
-  console.log(`\n🎨 Step 5: Verifying and embedding icon & metadata into Installer executable (${path.basename(targetSetupExe)})...`);
-  try {
-    let goExe = 'go';
-    const localGoWin = path.join(rootDir, 'go', 'bin', 'go.exe');
-    const localGoNix = path.join(rootDir, 'go', 'bin', 'go');
-    if (fs.existsSync(localGoWin)) goExe = localGoWin;
-    else if (fs.existsSync(localGoNix)) goExe = localGoNix;
+  const finalSize = fs.statSync(targetSetupExe).size;
+  const sizeMb = (finalSize / (1024 * 1024)).toFixed(2);
+  console.log(`\n📦 Installer output verified: ${targetSetupExe} (${sizeMb} MB)`);
 
-    const winresJson = path.join(rootDir, 'winres', 'winres.json');
-    const winresFallback = path.join(rootDir, 'winres.json');
-    const patchTarget = fs.existsSync(winresJson) ? winresJson : (fs.existsSync(winresFallback) ? winresFallback : null);
+  // ONLY patch standalone Go fallback binary; NEVER patch Inno Setup binaries as it corrupts its embedded archive
+  if (!innoBuildSuccess) {
+    try {
+      let goExe = 'go';
+      const localGoWin = path.join(rootDir, 'go', 'bin', 'go.exe');
+      const localGoNix = path.join(rootDir, 'go', 'bin', 'go');
+      if (fs.existsSync(localGoWin)) goExe = localGoWin;
+      else if (fs.existsSync(localGoNix)) goExe = localGoNix;
 
-    if (patchTarget) {
-      execSync(`"${goExe}" run github.com/tc-hib/go-winres@latest patch --in "${patchTarget}" "${targetSetupExe}"`, {
-        cwd: rootDir,
-        stdio: 'inherit'
-      });
-      console.log(`   - [OK] Icon and PE version metadata patched directly into ${path.basename(targetSetupExe)}!`);
+      const winresJson = path.join(rootDir, 'winres', 'winres.json');
+      const winresFallback = path.join(rootDir, 'winres.json');
+      const patchTarget = fs.existsSync(winresJson) ? winresJson : (fs.existsSync(winresFallback) ? winresFallback : null);
+
+      if (patchTarget) {
+        execSync(`"${goExe}" run github.com/tc-hib/go-winres@latest patch --in "${patchTarget}" "${targetSetupExe}"`, {
+          cwd: rootDir,
+          stdio: 'inherit'
+        });
+        console.log(`   - [OK] Icon patched on fallback Go binary.`);
+      }
+    } catch (patchErr) {
+      console.warn(`   - Notice: Fallback icon patch notice: ${patchErr.message}`);
     }
-  } catch (patchErr) {
-    console.warn(`   - Notice: Installer icon patch warning: ${patchErr.message}`);
+  } else {
+    console.log(`   - [OK] Inno Setup native icons & PE resources preserved intact (No external PE corruption applied).`);
   }
 }
