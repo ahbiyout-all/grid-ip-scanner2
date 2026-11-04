@@ -37,6 +37,16 @@ if (!fs.existsSync(distInstallerDir)) {
   fs.mkdirSync(distInstallerDir, { recursive: true });
 }
 
+// 2.5 Ensure root executable is available for Inno Setup compilation
+const primaryExe = path.join(rootDir, 'Grid_IP_Scanner2.exe');
+const versionedExe = path.join(rootDir, `Grid IP Scanner2 v${version}.exe`);
+if (!fs.existsSync(primaryExe) && fs.existsSync(versionedExe)) {
+  try {
+    fs.copyFileSync(versionedExe, primaryExe);
+    console.log(`✅ Mirrored ${path.basename(versionedExe)} -> Grid_IP_Scanner2.exe for Inno Setup`);
+  } catch (e) {}
+}
+
 // 3. Update version in Inno Setup scripts if needed
 const issFiles = ['Grid_IP_Scanner2_Dedicated_Setup.iss'];
 const issPath = path.join(__dirname, 'Grid_IP_Scanner2_Dedicated_Setup.iss');
