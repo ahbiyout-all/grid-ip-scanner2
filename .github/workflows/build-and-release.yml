@@ -40,21 +40,36 @@ jobs:
       - name: Synchronize Version
         run: node scripts/sync-version.js
 
-      - name: Build Web Bundle & Windows Portable .exe
-        run: npm run build:exe
+      - name: Install Inno Setup 6 Compiler
+        shell: pwsh
+        run: |
+          Write-Host "Installing Inno Setup 6 via Chocolatey..."
+          choco install innosetup -y
+          $innoDir = "C:\Program Files (x86)\Inno Setup 6"
+          if (Test-Path $innoDir) {
+            Write-Host "Adding Inno Setup to GITHUB_PATH: $innoDir"
+            $innoDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            $env:PATH = "$innoDir;" + $env:PATH
+          }
+          iscc /?
 
-      - name: Install Inno Setup for Setup.exe Builder
-        run: choco install innosetup -y
-
-      - name: Build Windows Installer (Setup.exe)
+      - name: Build Web Bundle & Windows Portable .exe & Inno Setup Installer
         shell: pwsh
         run: |
           $innoDir = "C:\Program Files (x86)\Inno Setup 6"
           if (Test-Path $innoDir) {
-            Write-Host "Adding Inno Setup to PATH: $innoDir"
-            $innoDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            $env:PATH = "$innoDir;" + $env:PATH
           }
-          npm run build:installer || echo "Installer build finished"
+          npm run build:exe
+
+      - name: Compile Official Inno Setup 8-Step Wizard Installer
+        shell: pwsh
+        run: |
+          $innoDir = "C:\Program Files (x86)\Inno Setup 6"
+          if (Test-Path $innoDir) {
+            $env:PATH = "$innoDir;" + $env:PATH
+          }
+          npm run build:installer
 
       - name: Verify Windows Executables
         shell: pwsh
