@@ -231,6 +231,8 @@ jobs:
     needs: [build-windows, build-web-mobile, build-android-apk]
     if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Source Code
@@ -289,6 +291,7 @@ jobs:
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ steps.resolve_tag.outputs.tag }}
           name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} (Windows & Mobile)
           files: |
