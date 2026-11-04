@@ -30,7 +30,6 @@ AppUpdatesURL={#MyAppBlogURL}
 UninstallDisplayName={#MyAppName} v{#MyAppVersion}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 CreateUninstallRegKey=yes
-UpdateUninstallRegKey=yes
 
 ; =====================================================================
 ; [2] Detailed Step-by-Step Installation Wizard Configuration (자세한 설치 단계 설정)
