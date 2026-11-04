@@ -58,8 +58,9 @@ issFiles.forEach(fileName => {
     issContent = issContent.replace(/#define MyAppVersion "[^"]*"/, `#define MyAppVersion "${version}"`);
     issContent = issContent.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
     issContent = issContent.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
+    issContent = issContent.replace(/^UpdateUninstallRegKey=.*$/gm, '; UpdateUninstallRegKey removed (unrecognized in Inno Setup 6)');
     fs.writeFileSync(filePath, issContent, 'utf8');
-    console.log(`✅ Inno Setup script (${fileName}) version synchronized.`);
+    console.log(`✅ Inno Setup script (${fileName}) version and directives sanitized.`);
   }
 });
 
