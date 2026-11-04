@@ -82,9 +82,15 @@ const defaultInnoPaths = [
 let isccExe = null;
 for (const p of defaultInnoPaths) {
   try {
-    if (p === 'iscc' || fs.existsSync(p)) {
-      execSync(`"${p}" /?`, { stdio: 'ignore' });
+    if (p === 'iscc') {
+      const checkCmd = process.platform === 'win32' ? 'where iscc' : 'which iscc';
+      execSync(checkCmd, { stdio: 'ignore' });
+      isccExe = 'iscc';
+      console.log(`🔍 Inno Setup compiler detected via PATH: ${isccExe}`);
+      break;
+    } else if (fs.existsSync(p)) {
       isccExe = p;
+      console.log(`🔍 Inno Setup compiler detected at: ${isccExe}`);
       break;
     }
   } catch (e) {
@@ -104,8 +110,9 @@ if (fs.existsSync(targetSetupExe)) {
   }
 }
 
+let innoBuildSuccess = false;
 if (isccExe) {
-  console.log(`🔨 Compiling official Inno Setup installer using ${isccExe}...`);
+  console.log(`🔨 Compiling official Inno Setup installer using: ${isccExe}...`);
   console.log(`   - Script target: ${issPath}`);
   console.log(`   - Output directory: ${distInstallerDir}`);
   try {
@@ -113,13 +120,15 @@ if (isccExe) {
       cwd: __dirname,
       stdio: 'inherit'
     });
-    console.log(`\n🎉 Official Inno Setup installer successfully built in dist_installer/!`);
+    if (fs.existsSync(targetSetupExe)) {
+      innoBuildSuccess = true;
+      console.log(`\n🎉 Official Inno Setup 8-Step Wizard successfully built: ${targetSetupExe}!`);
+    }
   } catch (err) {
     console.error('\n❌ Inno Setup (ISCC.exe) compilation FAILED:');
     if (err.stdout) console.error(err.stdout.toString());
     if (err.stderr) console.error(err.stderr.toString());
     console.error('Error detail:', err.message);
-    console.error('Please inspect the above ISCC errors.\n');
   }
 } else {
   console.warn('\n⚠️ [NOTICE] Inno Setup 6 (ISCC.exe) was NOT found on this system!');
@@ -127,9 +136,17 @@ if (isccExe) {
   console.warn('   👉 https://jrsoftware.org/isdl.php');
 }
 
-// Fallback: If ISCC didn't run or failed to generate targetSetupExe, build Standalone Setup.exe via Go
-if (!fs.existsSync(targetSetupExe)) {
-  console.log('\n🔨 [Fallback] Generating Standalone Windows Setup.exe Installer via Go compiler...');
+// Fallback logic: In CI/GitHub Actions, DO NOT secretly fall back to Go single-screen builder!
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+if (!innoBuildSuccess && isCI) {
+  console.error('\n❌ CRITICAL: Official Inno Setup compiler failed in CI environment!');
+  console.error('   Aborting to prevent distributing outdated Go single-screen setup.');
+  process.exit(1);
+}
+
+// Fallback: ONLY in non-CI local offline development without Inno Setup
+if (!innoBuildSuccess && !fs.existsSync(targetSetupExe)) {
+  console.log('\n🔨 [Local Fallback] Generating Standalone Windows Setup.exe Installer via Go compiler...');
   try {
     let goExe = 'go';
     const localGoWin = path.join(rootDir, 'go', 'bin', 'go.exe');
