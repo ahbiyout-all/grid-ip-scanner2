@@ -75,7 +75,8 @@ VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} Detailed Step-by-Step Multi-File Installer (v{#MyAppVersion})
 VersionInfoCopyright=Copyright (C) 2025-2026 {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyAppVersion}.0
+VersionInfoProductTextVersion={#MyAppVersion}
 
 [Languages]
 Name: "korean"; MessagesFile: "Korean.isl"

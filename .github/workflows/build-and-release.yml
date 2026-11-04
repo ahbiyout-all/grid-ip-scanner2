@@ -285,10 +285,11 @@ jobs:
           ls -la release_files/
 
       - name: Publish Official GitHub Release (PC & Mobile)
+        id: gh_release
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.resolve_tag.outputs.tag }}
-          target_commitish: ${{ github.sha }}
           name: Grid IP Scanner2 ${{ steps.resolve_tag.outputs.tag }} (Windows & Mobile)
           files: |
             release_files/*.exe
@@ -309,3 +310,21 @@ jobs:
           make_latest: true
           draft: false
           prerelease: false
+
+      - name: Fallback to GitHub CLI (gh release) if action-gh-release encountered server error
+        if: steps.gh_release.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.resolve_tag.outputs.tag }}"
+          echo "Attempting fallback release upload via official GitHub CLI for tag: $TAG..."
+          
+          # Check if release exists
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists. Uploading assets directly..."
+            gh release upload "$TAG" release_files/* --clobber
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" release_files/* --title "Grid IP Scanner2 $TAG (Windows & Mobile)" --generate-notes
+          fi
+          echo "✅ GitHub Release successfully completed via GitHub CLI!"
