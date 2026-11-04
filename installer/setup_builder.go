@@ -834,11 +834,11 @@ func runGUIInstaller() {
 	procSendMessageW.Call(hSub, WM_SETFONT, hFont, 1)
 
 	// Notice / Disclaimer Text Box
-	noticeText := "📌 [" + AppName + " 설치 및 주요 안내 사항]\r\n\r\n" +
-		"1. 백신 예외 안내: 고속 네트워크 스캔 특성상 백신(Windows Defender, V3 등)에서 오탐지할 수 있으므로, 실행 차단 시 '검사 예외 목록'에 추가해 주세요.\r\n" +
-		"2. 방화벽 자동 연동: 스캔 통신을 위한 Windows 방화벽 예외 규칙이 설치 과정에서 자동 등록됩니다.\r\n" +
-		"3. 정식 등록: Windows 제어판 '프로그램 추가/제거' 및 시작 메뉴에 정식 등록됩니다.\r\n\r\n" +
-		"아래 [설치 시작] 버튼을 누르면 설치가 시작됩니다."
+	noticeText := "📌 Step 1/3 - [" + AppName + " v" + AppVersion + " 설치 및 백신 고지]\r\n\r\n" +
+		"1. 백신 오탐 예외 안내: 초고속 서브넷 IP/포트 탐색 특성상 백신(Windows Defender, 안랩 V3)에서 오탐지될 수 있습니다. 실행 차단 시 '검사 예외 목록'에 추가해 주십시오.\r\n" +
+		"2. 방화벽 자동 연동: 네트워크 통신을 위한 Windows 방화벽 예외 규칙이 설치 과정에서 자동 등록됩니다.\r\n" +
+		"3. 제어판 정식 등록: Windows '프로그램 추가/제거' 및 시작 메뉴에 정식으로 등록됩니다.\r\n\r\n" +
+		"아래 [다음 (라이선스) >] 버튼을 눌러 소프트웨어 라이선스 약관을 확인하세요."
 	noticeTextPtr, _ := syscall.UTF16PtrFromString(noticeText)
 	hNoticeTxt, _, _ = procCreateWindowExW.Call(
 		WS_EX_CLIENTEDGE, uintptr(unsafe.Pointer(editClassPtr)), uintptr(unsafe.Pointer(noticeTextPtr)),

@@ -96,6 +96,8 @@ if (fs.existsSync(targetSetupExe)) {
 
 if (isccExe) {
   console.log(`🔨 Compiling official Inno Setup installer using ${isccExe}...`);
+  console.log(`   - Script target: ${issPath}`);
+  console.log(`   - Output directory: ${distInstallerDir}`);
   try {
     execSync(`"${isccExe}" /O"${distInstallerDir}" /F"Grid_IP_Scanner2_v${version}_Setup" "${issPath}"`, {
       cwd: __dirname,
@@ -103,13 +105,21 @@ if (isccExe) {
     });
     console.log(`\n🎉 Official Inno Setup installer successfully built in dist_installer/!`);
   } catch (err) {
-    console.warn('⚠️ Inno Setup compilation notice:', err.message);
+    console.error('\n❌ Inno Setup (ISCC.exe) compilation FAILED:');
+    if (err.stdout) console.error(err.stdout.toString());
+    if (err.stderr) console.error(err.stderr.toString());
+    console.error('Error detail:', err.message);
+    console.error('Please inspect the above ISCC errors.\n');
   }
+} else {
+  console.warn('\n⚠️ [NOTICE] Inno Setup 6 (ISCC.exe) was NOT found on this system!');
+  console.warn('   To build the authentic 8-step Inno Setup installer, please install Inno Setup 6 from:');
+  console.warn('   👉 https://jrsoftware.org/isdl.php');
 }
 
 // Fallback: If ISCC didn't run or failed to generate targetSetupExe, build Standalone Setup.exe via Go
 if (!fs.existsSync(targetSetupExe)) {
-  console.log('\n🔨 Generating Standalone Windows Setup.exe Installer via Go compiler...');
+  console.log('\n🔨 [Fallback] Generating Standalone Windows Setup.exe Installer via Go compiler...');
   try {
     let goExe = 'go';
     const localGoWin = path.join(rootDir, 'go', 'bin', 'go.exe');

@@ -67,6 +67,24 @@ if not exist "node_modules\" (
 )
 echo.
 
+:: Step 2.5: Verify Inno Setup (ISCC.exe) environment
+echo [2.5/6] Checking Inno Setup 6 Compiler (ISCC.exe)...
+set "ISCC_DETECTED="
+where iscc >nul 2>nul
+if %errorlevel% equ 0 set "ISCC_DETECTED=iscc"
+if "%ISCC_DETECTED%"=="" if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC_DETECTED=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if "%ISCC_DETECTED%"=="" if exist "C:\Program Files\Inno Setup 6\ISCC.exe" set "ISCC_DETECTED=C:\Program Files\Inno Setup 6\ISCC.exe"
+if "%ISCC_DETECTED%"=="" if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC_DETECTED=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+
+if defined ISCC_DETECTED (
+    echo   [OK] Inno Setup 6 detected: !ISCC_DETECTED!
+) else (
+    echo   [!] Inno Setup 6 not found in PATH or standard Program Files.
+    echo       Official 8-step wizard requires Inno Setup 6 (https://jrsoftware.org/isdl.php).
+    echo       (Fallback to Go-based setup builder if ISCC is not installed)
+)
+echo.
+
 :: Step 3: Synchronize versions across all project targets
 echo [3/6] Synchronizing Semantic Versions across SSOT targets...
 call node scripts\sync-version.js

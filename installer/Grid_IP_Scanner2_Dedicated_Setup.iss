@@ -78,7 +78,7 @@ VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
-Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+Name: "korean"; MessagesFile: "Korean.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
