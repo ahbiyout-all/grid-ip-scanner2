@@ -4044,25 +4044,6 @@ const App: React.FC = () => {
                 )}
               </button>
 
-              {/* Recurring Automated Scan Scheduler Button */}
-              <button
-                onClick={() => setShowScheduleModal(true)}
-                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight transition-all shrink-0 ${
-                  activeScheduleCount > 0
-                    ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25 ring-1 ring-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
-                    : 'bg-black/10 border-white/5 opacity-70 hover:opacity-100 text-zinc-300'
-                }`}
-                title={lang === 'ko' ? `정기 자동 스케줄러 (${activeScheduleCount}개 활성)` : `Automated Scan Scheduler (${activeScheduleCount} active)`}
-              >
-                <Clock className={`w-3.5 h-3.5 ${activeScheduleCount > 0 ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
-                <span>{s.schedulerBtn || '스케줄'}</span>
-                {activeScheduleCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-cyan-500 text-slate-950">
-                    {activeScheduleCount}
-                  </span>
-                )}
-              </button>
-
               {/* License Tier Badge */}
               <button
                 onClick={() => setShowLicenseModal(true)}
@@ -4126,29 +4107,6 @@ const App: React.FC = () => {
                     <Maximize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                     <span>{lang === 'ko' ? '화면 맞춤' : 'Fit Screen'}</span>
                   </>
-                )}
-              </button>
-
-              {/* Quick PDF Export Header Button */}
-              <button
-                type="button"
-                onClick={() => setShowPdfExportModal(true)}
-                disabled={isExportingPdf || Object.keys(results).length === 0}
-                title={lang === 'ko' ? `스캔 결과 PDF 즉시 내보내기 (${activeCount}개 활성 노드)` : `Quick PDF Export (${activeCount} active nodes)`}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
-                  isExportingPdf ? 'opacity-50 cursor-wait' : ''
-                } ${
-                  theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6]' :
-                  theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' :
-                  'bg-black/20 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <FileDown className={`w-3.5 h-3.5 ${activeCount > 0 ? 'text-rose-400' : 'text-zinc-400'} ${isExportingPdf ? 'animate-bounce' : ''}`} />
-                <span>PDF</span>
-                {activeCount > 0 && (
-                  <span className="text-[8.5px] px-1 py-0.2 rounded font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    {activeCount}
-                  </span>
                 )}
               </button>
 
