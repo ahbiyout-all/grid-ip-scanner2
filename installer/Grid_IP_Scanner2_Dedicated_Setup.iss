@@ -63,7 +63,7 @@ WizardStyle=modern
 WizardSizePercent=110
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequiredOverridesAllowed=none
 
 ; Unattended / Silent Capabilities
 CloseApplications=yes
@@ -103,6 +103,10 @@ korean.TaskDefenderExclusion=Windows Defender 검사 예외 목록에 설치 폴
 english.TaskDefenderExclusion=Automatically add installation folder to Windows Defender exclusions (recommended to prevent false positives)
 korean.TaskGroupSecurity=보안 및 백신 연동 (권장):
 english.TaskGroupSecurity=Security & Antivirus Integration (Recommended):
+korean.ExistingAppTerminatedMsg=【기존 앱 종료 알림】%n%n현재 실행 중인 기존 Grid IP Scanner2 애플리케이션을 감지하여 안전하게 종료하였습니다.%n(원활한 설치 및 파일 잠금 해제를 위해 프로세스를 종료했습니다.)
+english.ExistingAppTerminatedMsg=[Existing App Terminated]%n%nAn existing running instance of Grid IP Scanner2 was detected and safely closed to unlock files and ensure a smooth installation.
+korean.ExistingAppRemovalMsg=【기존 앱 삭제(제거) 알림】%n%n시스템에 설치된 기존 Grid IP Scanner2%1 버전이 감지되었습니다.%n%n새로운 버전(v{#MyAppVersion})의 안정적이고 깨끗한 설치를 위해 기존 설치 파일을 안전하게 삭제(제거)한 후 최신 버전 설치를 진행합니다.
+english.ExistingAppRemovalMsg=[Existing App Removal Notice]%n%nAn existing installation of Grid IP Scanner2%1 was detected on your system.%n%nTo ensure a clean and reliable upgrade to v{#MyAppVersion}, the existing installation will be automatically removed before installing the new version.
 
 [Tasks]
 Name: "desktopicon"; Description: "바탕 화면에 바로가기 아이콘 생성"; GroupDescription: "바로가기 생성:"; Flags: checkedonce
@@ -203,8 +207,8 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyApp
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionPath '{app}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion; StatusMsg: "Windows Defender 검사 예외 목록에 설치 폴더 등록 중..."
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionProcess '{#MyAppExeName}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion
 
-; Launch Application post-install
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Launch Application post-install (runascurrentuser executes elevated to prevent CreateProcess error 740)
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallRun]
 ; Clean up firewall rules silently on uninstall
@@ -284,22 +288,44 @@ end;
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
+  FindResult: Integer;
+  KillResult1, KillResult2, KillResult3: Integer;
   UninstallKey: String;
   ExistingInstallPath: String;
   ExistingVersion: String;
   HasExisting: Boolean;
+  WasRunning: Boolean;
+  VerPrompt: String;
 begin
   Result := True;
   UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1';
   ExistingInstallPath := '';
   ExistingVersion := '';
   HasExisting := False;
+  WasRunning := False;
 
-  // 1. 기존 실행 중인 모든 앱 및 스케줄러 프로세스 무조건 자동 강제 종료 (파일 잠금 해제)
-  Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(300);
+  // 1. 기존 실행 중인 앱 감지 및 강제 종료 (파일 잠금 해제)
+  // tasklist 명령어로 Grid_IP_Scanner2 프로세스 존재 여부 사전 점검
+  if Exec('cmd.exe', '/c tasklist | findstr /I "Grid_IP_Scanner2 Grid IP Scanner2"', '', SW_HIDE, ewWaitUntilTerminated, FindResult) then
+  begin
+    if FindResult = 0 then
+      WasRunning := True;
+  end;
+
+  // 프로세스 강제 종료 수행
+  Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, KillResult1);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, KillResult2);
+  Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, KillResult3);
+  if (KillResult1 = 0) or (KillResult2 = 0) or (KillResult3 = 0) then
+    WasRunning := True;
+
+  Sleep(400);
+
+  // [기존앱 종료 알림]: 실행 중인 앱을 감지하여 종료한 경우 사용자에게 알림 표시
+  if WasRunning and (not WizardSilent) then
+  begin
+    MsgBox(ExpandConstant('{cm:ExistingAppTerminatedMsg}'), mbInformation, MB_OK);
+  end;
 
   // 2. 레지스트리 및 디렉토리에서 기존 설치 정보 자동 조회
   if RegQueryStringValue(HKLM64, UninstallKey, 'InstallLocation', ExistingInstallPath) then
@@ -307,10 +333,17 @@ begin
   else if RegQueryStringValue(HKLM32, UninstallKey, 'InstallLocation', ExistingInstallPath) then
     HasExisting := True
   else if RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
+    HasExisting := True
+  else if RegQueryStringValue(HKCU64, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
+    HasExisting := True
+  else if RegQueryStringValue(HKLM, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
     HasExisting := True;
 
   if not RegQueryStringValue(HKLM64, UninstallKey, 'DisplayVersion', ExistingVersion) then
-    RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'Version', ExistingVersion);
+  begin
+    if not RegQueryStringValue(HKLM32, UninstallKey, 'DisplayVersion', ExistingVersion) then
+      RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'Version', ExistingVersion);
+  end;
 
   if not HasExisting then
   begin
@@ -321,9 +354,21 @@ begin
     end;
   end;
 
-  // 3. 기존 버전 감지 시 별도 확인 팝업 없이 '자동 무소음 언인스톨' 수행
+  // 3. [기존앱 삭제 알림] 및 기존 설치 버전 자동 언인스톨/정리 수행
   if HasExisting then
   begin
+    // 사용자에게 기존 앱 삭제(제거) 안내 알림 팝업 제공
+    if not WizardSilent then
+    begin
+      if ExistingVersion <> '' then
+        VerPrompt := ' (v' + ExistingVersion + ')'
+      else
+        VerPrompt := '';
+
+      MsgBox(FmtMessage(ExpandConstant('{cm:ExistingAppRemovalMsg}'), [VerPrompt]), mbInformation, MB_OK);
+    end;
+
+    // 기존 버전 언인스톨러 자동 실행
     if (ExistingInstallPath <> '') and FileExists(ExistingInstallPath + '\unins000.exe') then
     begin
       Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);

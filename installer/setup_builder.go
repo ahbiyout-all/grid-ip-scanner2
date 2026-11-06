@@ -55,6 +55,7 @@ var (
 	procInitCommonControlsEx = comctl32.NewProc("InitCommonControlsEx")
 	procShellExecuteW        = shell32.NewProc("ShellExecuteW")
 	procLoadImageW           = user32.NewProc("LoadImageW")
+	procMessageBoxW          = user32.NewProc("MessageBoxW")
 
 	procRegCreateKeyExW = advapi32.NewProc("RegCreateKeyExW")
 	procRegSetValueExW  = advapi32.NewProc("RegSetValueExW")
@@ -209,12 +210,25 @@ func execHidden(name string, args ...string) error {
 	return cmd.Run()
 }
 
-func killExistingProcesses() {
+func showMsgBox(title, text string) {
+	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	textPtr, _ := syscall.UTF16PtrFromString(text)
+	procMessageBoxW.Call(hMainWnd, uintptr(unsafe.Pointer(textPtr)), uintptr(unsafe.Pointer(titlePtr)), 0x00000040) // MB_ICONINFORMATION
+}
+
+func killExistingProcesses() bool {
 	currentExe, _ := os.Executable()
 	currentName := filepath.Base(currentExe)
+	killed := false
 	if !strings.EqualFold(currentName, "Grid_IP_Scanner2.exe") {
-		_ = execHidden("taskkill", "/F", "/IM", "Grid_IP_Scanner2.exe")
+		if err := execHidden("taskkill", "/F", "/IM", "Grid_IP_Scanner2.exe"); err == nil {
+			killed = true
+		}
+		if err := execHidden("taskkill", "/F", "/IM", "Grid IP Scanner2.exe"); err == nil {
+			killed = true
+		}
 	}
+	return killed
 }
 
 func registerFirewallRule(ruleName, exePath string) {
@@ -495,13 +509,20 @@ func performInstallationGUI() {
 	isInstalling = true
 
 	postStatus("기존 실행 프로세스 확인 및 정리 중...")
-	killExistingProcesses()
+	if killExistingProcesses() && !isSilent() {
+		showMsgBox("기존 앱 종료 알림", "현재 실행 중인 기존 Grid IP Scanner2 애플리케이션을 감지하여 안전하게 종료하였습니다.\n\n(원활한 설치 및 파일 잠금 해제를 위해 프로세스를 종료했습니다.)")
+	}
 
 	progFiles := os.Getenv("ProgramFiles")
 	if progFiles == "" {
 		progFiles = `C:\Program Files`
 	}
 	targetDir := filepath.Join(progFiles, "Grid IP Scanner2")
+
+	// 기존 설치 감지 시 기존 앱 삭제(제거) 알림
+	if fileExists(filepath.Join(targetDir, "Grid_IP_Scanner2.exe")) && !isSilent() {
+		showMsgBox("기존 앱 삭제(제거) 알림", fmt.Sprintf("시스템에 이미 설치된 기존 Grid IP Scanner2가 감지되었습니다.\n\n새로운 버전(v%s)의 안정적이고 깨끗한 설치를 위해 기존 버전을 삭제 및 갱신한 후 설치를 진행합니다.", AppVersion))
+	}
 
 	err := os.MkdirAll(targetDir, 0755)
 	if err != nil {
@@ -695,10 +716,19 @@ func wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 				updateWizardStepUI()
 				go performInstallationGUI()
 			} else if isFinished || wizardStep == 3 {
-				// Move to Launch & Close
+				// Move to Launch & Close (Launch elevated with runas to prevent code 740)
 				if launchPath != "" && fileExists(launchPath) {
-					cmd := exec.Command(launchPath)
-					_ = cmd.Start()
+					verbPtr, _ := syscall.UTF16PtrFromString("runas")
+					exePtr, _ := syscall.UTF16PtrFromString(launchPath)
+					dirPtr, _ := syscall.UTF16PtrFromString(filepath.Dir(launchPath))
+					procShellExecuteW.Call(
+						0,
+						uintptr(unsafe.Pointer(verbPtr)),
+						uintptr(unsafe.Pointer(exePtr)),
+						0,
+						uintptr(unsafe.Pointer(dirPtr)),
+						1, // SW_SHOWNORMAL
+					)
 				}
 				procDestroyWindow.Call(hwnd)
 			}
