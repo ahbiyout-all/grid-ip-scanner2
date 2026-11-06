@@ -10,7 +10,7 @@ interface UpdateModalProps {
   updateInfo: UpdateInfo | null;
   isChecking: boolean;
   onRefreshCheck: () => void;
-  theme: 'dark' | 'gray' | 'beige';
+  theme: 'dark' | 'gray' | 'white' | 'beige';
   lang?: 'ko' | 'en';
 }
 
@@ -76,6 +76,15 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       accent: 'text-[#5865f2]',
       btnActive: 'bg-[#5865f2] text-white shadow-lg shadow-[#5865f2]/20'
     },
+    white: {
+      bg: 'bg-white',
+      border: 'border-slate-200',
+      card: 'bg-slate-50 border-slate-200',
+      text: 'text-slate-900',
+      textMuted: 'text-slate-600',
+      accent: 'text-sky-600',
+      btnActive: 'bg-sky-600 text-white shadow-lg shadow-sky-600/20'
+    },
     beige: {
       bg: 'bg-[#fcf8f2]',
       border: 'border-[#e6d0a7]',
@@ -136,6 +145,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               className={`px-3.5 py-1.5 border rounded-lg text-[11px] font-black uppercase transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
                 theme === 'beige'
                   ? 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900 hover:shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : theme === 'white'
+                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
                   : 'bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30 text-sky-400 hover:shadow-[0_0_12px_rgba(56,189,248,0.35)]'
               }`}
             >

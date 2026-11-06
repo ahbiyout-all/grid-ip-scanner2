@@ -11,7 +11,7 @@ interface IPCellProps {
   onDoubleClick?: (ip: string, device?: DeviceInfo) => void;
   isSelected: boolean;
   isHost?: boolean;
-  theme: 'beige' | 'dark' | 'gray';
+  theme: 'beige' | 'dark' | 'gray' | 'white';
   s: any;
   lang?: 'ko' | 'en';
   index: number;
@@ -65,7 +65,7 @@ const IPCell: React.FC<IPCellProps> = ({
   const isFilteredOut = Boolean(diffFilter && diffFilter !== 'all' && diffFilter !== diffStatus);
 
   const getStatusBase = () => {
-    const isDark = theme !== 'beige';
+    const isDark = theme === 'dark' || theme === 'gray';
     
     // In Diff Mode, highlight diff anomalies with unmistakable, high-contrast color differences
     if (diffStatus) {
@@ -140,6 +140,8 @@ const IPCell: React.FC<IPCellProps> = ({
       // In Diff mode, empty/inactive nodes recede into the background
       return isDark 
         ? 'bg-zinc-950/25 border-zinc-800/20 opacity-20 hover:opacity-60' 
+        : theme === 'white'
+        ? 'bg-slate-200/40 border-slate-300/40 opacity-30 hover:opacity-70'
         : 'bg-[#f7efe3]/30 border-[#e8dacb]/30 opacity-25 hover:opacity-60';
     }
 
@@ -157,10 +159,14 @@ const IPCell: React.FC<IPCellProps> = ({
       case 'inactive': 
         return isDark 
           ? 'bg-slate-900/40 border-slate-700/30 opacity-70 hover:opacity-100'
+          : theme === 'white'
+          ? 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100'
           : 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100';
       default: 
         return isDark 
           ? 'bg-zinc-800/60 border-zinc-700/50'
+          : theme === 'white'
+          ? 'bg-slate-100 border-slate-200'
           : 'bg-slate-200 border-slate-300';
     }
   };
@@ -170,27 +176,29 @@ const IPCell: React.FC<IPCellProps> = ({
 
     // In Diff Mode, give distinct, high-contrast text colors matching the diff status
     if (diffStatus) {
+      const isLight = theme === 'beige' || theme === 'white';
       if (diffStatus === 'new') {
-        return theme === 'beige' ? 'text-emerald-950 font-black' : 'text-emerald-200 font-black';
+        return isLight ? 'text-emerald-950 font-black' : 'text-emerald-200 font-black';
       }
       if (diffStatus === 'offline') {
-        return theme === 'beige' ? 'text-rose-950 font-black' : 'text-rose-200 font-black';
+        return isLight ? 'text-rose-950 font-black' : 'text-rose-200 font-black';
       }
       if (diffStatus === 'changed') {
-        return theme === 'beige' ? 'text-amber-950 font-black' : 'text-amber-200 font-black';
+        return isLight ? 'text-amber-950 font-black' : 'text-amber-200 font-black';
       }
       if (diffStatus === 'same') {
         const bColor = baselineColor || 'sky';
-        if (bColor === 'sky') return theme === 'beige' ? 'text-sky-950 font-black' : 'text-sky-300 font-black';
-        if (bColor === 'indigo') return theme === 'beige' ? 'text-indigo-950 font-black' : 'text-indigo-300 font-black';
-        if (bColor === 'teal') return theme === 'beige' ? 'text-teal-950 font-black' : 'text-teal-300 font-black';
-        return theme === 'beige' ? 'text-[#3d2711] font-black' : 'text-slate-100 font-black';
+        if (bColor === 'sky') return isLight ? 'text-sky-950 font-black' : 'text-sky-300 font-black';
+        if (bColor === 'indigo') return isLight ? 'text-indigo-950 font-black' : 'text-indigo-300 font-black';
+        if (bColor === 'teal') return isLight ? 'text-teal-950 font-black' : 'text-teal-300 font-black';
+        return theme === 'beige' ? 'text-[#3d2711] font-black' : theme === 'white' ? 'text-slate-900 font-black' : 'text-slate-100 font-black';
       }
     }
 
-    if (status === 'active') return theme === 'beige' ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
-    if (status === 'scanning') return 'text-amber-300 font-black';
+    if (status === 'active') return (theme === 'beige' || theme === 'white') ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
+    if (status === 'scanning') return (theme === 'beige' || theme === 'white') ? 'text-amber-800 font-black' : 'text-amber-300 font-black';
     if (theme === 'beige') return 'text-[#3b2a1a] font-bold';
+    if (theme === 'white') return 'text-slate-800 font-bold';
     if (theme === 'dark') return 'text-zinc-200 font-bold';
     return 'text-slate-100 font-bold';
   };
@@ -230,6 +238,7 @@ const IPCell: React.FC<IPCellProps> = ({
 
   const getTooltipTheme = () => {
     switch(theme) {
+      case 'white': return 'bg-white border-slate-300 text-slate-800 shadow-2xl';
       case 'beige': return 'bg-[#f5ebd6] border-[#e6d0a7] text-[#5c4a37] shadow-2xl';
       case 'dark': return 'bg-neutral-900 border-neutral-700 text-neutral-100 shadow-2xl';
       default: return 'bg-zinc-800 border-zinc-700 text-zinc-50 shadow-2xl';
@@ -482,8 +491,8 @@ const IPCell: React.FC<IPCellProps> = ({
             border-l-[6px] border-l-transparent 
             border-r-[6px] border-r-transparent 
             ${isTopHalf 
-              ? (theme === 'beige' ? 'border-b-[#f5ebd6]' : theme === 'dark' ? 'border-b-neutral-900' : 'border-b-zinc-800')
-              : (theme === 'beige' ? 'border-t-[#f5ebd6]' : theme === 'dark' ? 'border-t-neutral-900' : 'border-t-zinc-800')
+              ? (theme === 'white' ? 'border-b-white' : theme === 'beige' ? 'border-b-[#f5ebd6]' : theme === 'dark' ? 'border-b-neutral-900' : 'border-b-zinc-800')
+              : (theme === 'white' ? 'border-t-white' : theme === 'beige' ? 'border-t-[#f5ebd6]' : theme === 'dark' ? 'border-t-neutral-900' : 'border-t-zinc-800')
             }
           `} />
         </div>

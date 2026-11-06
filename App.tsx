@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar } from 'lucide-react';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar, Smartphone, ArrowRight, Move, Maximize2 } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType, ScanSchedule, ScheduledScanRunRecord } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense, getTrialHistory } from './services/licenseManager';
@@ -13,7 +13,7 @@ import { ScheduleModal } from './components/ScheduleModal';
 import { NativeModulesModal } from './components/NativeModulesModal';
 import { fetchNativeModulesStatus, getClientLocalIP } from './services/nativeModulesService';
 import { NativeModulesStatus } from './types';
-import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION } from './services/updateChecker';
+import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
 import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
@@ -433,6 +433,8 @@ const translations = {
     mobileConnect: "모바일 연결",
     mobileConnectDesc: "스마트폰 카메라 QR 코드로 원격 제어 또는 모바일 단독 앱 안내",
     helpTitle: "Grid IP Scanner2 도움말 및 안내",
+    helpTabGuide: "사용 안내 & 라이선스",
+    helpTabUpdate: "GitHub 업데이트 확인",
     helpLicenseTitle: "1. 이중 라이선스 고지 (Dual Licensing Notice)",
     helpLicenseDesc: "Grid IP Scanner2는 오픈소스 라이선스(GPL v3)와 상용 라이선스(Proprietary Commercial License)의 [이중 라이선스 (Dual Licensing)] 정책을 채택하여 배포됩니다.\n\n[1. 이중 라이선스 모델 안내]\n• 커뮤니티 에디션 (무상 사용): 소스코드를 공개 및 기여해야 하는 카피레프트 의무(GPL v3) 하에 무상으로 자유롭게 사용할 수 있습니다.\n• 상업용 에디션 (유료 판매): 소스코드를 독점적으로 유지한 채 독자적인 상용 라이선스를 적용하여 상업적으로 패키징하고, 유료 솔루션으로 재배포 및 판매하고자 하는 경우 상용 라이선스(Commercial License)를 취득하여 법적 제약 없이 완전한 비즈니스 권리를 누릴 수 있습니다.\n\n[2. 법적 안전성 및 오픈소스 준수]\n• 본 프로그램의 독창적인 UI, 자체 고안된 네트워크 탐색 파이프라인 및 코어 기능은 개발자(AhBiYout)에게 독점적 저작권이 귀속됩니다.\n• 앱의 하부 구조를 이루는 오픈소스 라이브러리(React, Lucide React, Go runtime 등)는 허용형 라이선스(MIT License)를 준수합니다. MIT 라이선스는 상업적 재배포, 서브라이선스 발행 및 유료 판매권을 완전히 보장하므로, 향후 이를 패키징하여 상용 소프트웨어로 유료 판매하더라도 법적으로 어떠한 분쟁이나 문제가 발생하지 않는 완전무결한 법적 효력을 갖습니다.\n\n[3. 하드웨어 OUI 데이터베이스 귀속 및 엔진]\n• 하드웨어 제조사 매핑 데이터는 IEEE 공식 OUI 레지스트리(MA-L/M/S), Wireshark Manuf Automated Database 및 Ringmast4r OUI Master Database(MIT)를 기반으로 가공된 최신 90,168개 이상의 엔트리를 탑재하고 있습니다. 다중 비트 마스크(/28, /36) 및 24비트 OUI를 완벽 지원하며, 이중 미러링(Tiered Fallback)을 통해 상업용 패키징 유료 판매 과정에서 특허나 라이선스 충돌 요소가 일체 없습니다.\n\n[4. 보증의 부인 및 책임 제한 (Standard Disclaimer)]\n• 본 소프트웨어는 일체의 명시적 또는 묵시적 보증 없이 '있는 그대로(AS IS)' 제공됩니다. 저작권자는 본 프로그램의 사용 또는 탐색 결과로 인해 발생하는 어떠한 직·간접적 손해에 대해서도 법적 책임을 지지 않습니다.",
     helpUsageTitle: "2. 간단한 사용법 (Quick Guide)",
@@ -698,6 +700,8 @@ const translations = {
     mobileConnect: "Mobile Connect",
     mobileConnectDesc: "Remote control via Smartphone QR Code or Mobile Standalone App Guide",
     helpTitle: "Grid IP Scanner2 Help & Documentation",
+    helpTabGuide: "User Guide & License",
+    helpTabUpdate: "GitHub Updates",
     helpLicenseTitle: "1. Dual Licensing Notice",
     helpLicenseDesc: "Grid IP Scanner2 is distributed under a [Dual Licensing] scheme, offering both an Open Source License (GPL v3) and a Proprietary Commercial License.\n\n[1. Dual Licensing Model]\n• Community Edition (Free Use): If you use, modify, and distribute the software for personal or open-source projects under the copyleft obligation of sharing your derivative source code under the same terms, the GNU GPL v3 license applies, allowing free usage.\n• Commercial Edition (Paid/Proprietary): If you wish to package, rename, distribute, or sell Grid IP Scanner2 as a proprietary commercial solution without any obligation to disclose your source code, you can obtain a \"Proprietary Commercial License.\" This legally guarantees your right to monetize, lease, and sell the software as a paid proprietary solution.\n\n[2. Legal Security & Upstream Compliance]\n• The user interface, proprietary scanning logic, and specialized pipeline are fully owned by the developer (AhBiYout), granting complete legal authority for commercialization.\n• Underlying third-party libraries (such as React, Lucide React, Go runtime, etc.) are licensed under the highly permissive MIT License. The MIT License explicitly and fully permits sublicensing, modification, commercial distribution, and paid resale. Therefore, integrating these components into a commercial package is 100% compliant and legally secure.\n\n[3. OUI Database Compliance & Engine]\n• The hardware vendor OUI database is processed and derived from the official IEEE OUI registry (MA-L/M/S), Wireshark Automated Manuf Database, and Ringmast4r OUI Master Database (MIT License), featuring 90,168+ entries. All multi-bit masks (/28, /36) and 24-bit OUIs are supported with robust tiered fallback mirroring, ensuring total compliance and zero legal conflict.\n\n[4. Standard Disclaimer of Warranty & Liability]\n• THIS SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.",
     helpUsageTitle: "2. Quick Guide",
@@ -898,7 +902,25 @@ const App: React.FC = () => {
     cachePath: '',
     databaseLocation: ''
   });
-  const [theme, setTheme] = useState<'dark' | 'gray' | 'beige'>('gray');
+  const [theme, setTheme] = useState<'dark' | 'gray' | 'white' | 'beige'>(() => {
+    try {
+      const saved = localStorage.getItem('grid_app_theme');
+      if (saved === 'dark' || saved === 'gray' || saved === 'white' || saved === 'beige') return saved;
+    } catch {}
+    return 'gray';
+  });
+
+  const cycleTheme = () => {
+    setTheme(prev => {
+      let next: 'dark' | 'gray' | 'white' | 'beige';
+      if (prev === 'dark') next = 'gray';
+      else if (prev === 'gray') next = 'white';
+      else if (prev === 'white') next = 'beige';
+      else next = 'dark';
+      try { localStorage.setItem('grid_app_theme', next); } catch {}
+      return next;
+    });
+  };
   const [scanningIPs, setScanningIPs] = useState<Set<string>>(new Set());
   const [goEngineAlive, setGoEngineAlive] = useState(false);
   const [localIpInfo, setLocalIpInfo] = useState<{ip: string, subnet: string, computerName?: string} | null>(null);
@@ -909,6 +931,7 @@ const App: React.FC = () => {
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const [showSecurityNotice, setShowSecurityNotice] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const [helpTab, setHelpTab] = useState<'guide' | 'update'>('guide');
   const [deepScan, setDeepScan] = useState(false);
   const [mergeResults, setMergeResults] = useState(false);
   const [scanMode, setScanMode] = useState<'fast' | 'standard' | 'precision'>('fast');
@@ -942,6 +965,14 @@ const App: React.FC = () => {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [sortMode, setSortMode] = useState<'ip' | 'status' | 'name'>('ip');
 
+  const cycleSortMode = () => {
+    setSortMode(prev => {
+      if (prev === 'ip') return 'status';
+      if (prev === 'status') return 'name';
+      return 'ip';
+    });
+  };
+
   // Device Profile Typography Scale ('normal': 100% / 'large': 115%)
   const [profileTextScale, setProfileTextScale] = useState<'normal' | 'large'>(() => {
     try {
@@ -950,6 +981,31 @@ const App: React.FC = () => {
       return 'normal';
     }
   });
+
+  // Grid Canvas Mode: 'fit' (Fit to screen) or 'scroll' (Comfortable min 560px with 2D horizontal/vertical scrollbars)
+  const [gridCanvasMode, setGridCanvasMode] = useState<'fit' | 'scroll'>(() => {
+    try {
+      const saved = localStorage.getItem('grid_canvas_mode');
+      if (saved === 'fit' || saved === 'scroll') return saved;
+      if (typeof window !== 'undefined' && (window.innerHeight <= 520 || window.innerWidth <= 640)) {
+        return 'scroll';
+      }
+    } catch {}
+    return 'fit';
+  });
+
+  const toggleGridCanvasMode = () => {
+    setGridCanvasMode(prev => {
+      const next = prev === 'fit' ? 'scroll' : 'fit';
+      try {
+        localStorage.setItem('grid_canvas_mode', next);
+      } catch {}
+      showToast(next === 'scroll' 
+        ? (lang === 'ko' ? '가로/세로 2D 스크롤 모드 활성화 (고선명 35px+ 셀 크기 보장)' : '2D Scroll Mode Enabled (Optimal Cell Size)')
+        : (lang === 'ko' ? '화면 맞춤 모드 활성화 (전체 한 화면 표시)' : 'Fit Screen Mode Enabled'));
+      return next;
+    });
+  };
 
   // Mobile Top Camera Notch Offset / Safe Area Screen Height Padding (0, 16, 28, 40)
   const [mobileNotchOffset, setMobileNotchOffset] = useState<number>(() => {
@@ -1941,22 +1997,48 @@ const App: React.FC = () => {
     return () => clearTimeout(updateTimer);
   }, []);
 
-  const handleManualCheckUpdate = async () => {
+  const handleManualCheckUpdate = async (openUpdateModal: boolean | unknown = true) => {
+    const shouldOpen = typeof openUpdateModal === 'boolean' ? openUpdateModal : true;
     setIsCheckingUpdate(true);
-    showToast("GitHub Releases 최신 릴리즈 점검 중...");
+    showToast(lang === 'ko' ? "GitHub Releases 최신 릴리즈 점검 중..." : "Checking GitHub Releases...");
     const res = await checkGitHubRelease(true);
     setIsCheckingUpdate(false);
     if (res.updateInfo) {
       setUpdateInfo(res.updateInfo);
-      setShowUpdateModal(true);
+      if (shouldOpen) {
+        setShowUpdateModal(true);
+      }
       if (res.hasUpdate) {
-        showToast(`🎉 새로운 버전(v${res.updateInfo.latestVersion})이 출시되었습니다!`);
+        showToast(lang === 'ko' ? `🎉 새로운 버전(v${res.updateInfo.latestVersion})이 출시되었습니다!` : `🎉 New version v${res.updateInfo.latestVersion} available!`);
       } else {
-        showToast(`현재 최신 버전(v${CURRENT_APP_VERSION})을 사용 중입니다.`);
+        showToast(lang === 'ko' ? `현재 최신 버전(v${CURRENT_APP_VERSION})을 사용 중입니다.` : `You are using the latest version (v${CURRENT_APP_VERSION}).`);
       }
     } else if (res.error) {
-      showToast(`업데이트 확인 실패: ${res.error}`);
-      setShowUpdateModal(true);
+      showToast(lang === 'ko' ? `업데이트 확인 실패: ${res.error}` : `Update check failed: ${res.error}`);
+      if (shouldOpen) {
+        setShowUpdateModal(true);
+      }
+    }
+  };
+
+  const handleSyncPwaNow = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+        }
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      window.location.reload();
     }
   };
 
@@ -2850,8 +2932,32 @@ const App: React.FC = () => {
   const t = {
     dark: { bg: 'bg-zinc-950', sidebar: 'bg-zinc-900 border-zinc-800', main: 'bg-zinc-950', header: 'bg-zinc-900/90 border-zinc-800 backdrop-blur-md', text: 'text-zinc-100', textMuted: 'text-zinc-300', input: 'bg-zinc-950 border-zinc-700 text-zinc-100', panel: 'bg-zinc-900 border-zinc-800', accent: 'text-emerald-400' },
     gray: { bg: 'bg-[#1e1f22]', sidebar: 'bg-[#2b2d31] border-[#18191c]', main: 'bg-[#313338]', header: 'bg-[#2b2d31]/90 border-[#18191c] backdrop-blur-md', text: 'text-[#f2f3f5]', textMuted: 'text-[#c2c7d0]', input: 'bg-[#1e1f22] border-[#383a40] text-[#f2f3f5]', panel: 'bg-[#2b2d31] border-[#18191c]', accent: 'text-[#5865f2]' },
+    white: { bg: 'bg-slate-100', sidebar: 'bg-white border-slate-200 shadow-xs', main: 'bg-slate-50', header: 'bg-white/95 border-slate-200 backdrop-blur-md shadow-xs', text: 'text-slate-900', textMuted: 'text-slate-600', input: 'bg-white border-slate-300 text-slate-900', panel: 'bg-white border-slate-200 shadow-xl', accent: 'text-sky-600' },
     beige: { bg: 'bg-[#faf5eb]', sidebar: 'bg-[#ebdcb9] border-[#d4be9c]', main: 'bg-[#faf5eb]', header: 'bg-[#ebdcb9]/95 border-[#d4be9c] backdrop-blur-md', text: 'text-[#1a0f05]', textMuted: 'text-[#422e1b]', input: 'bg-[#ffffff] border-[#c8ae95] text-[#1a0f05]', panel: 'bg-[#ebdcb9] border-[#d4be9c] shadow-xl backdrop-blur-md', accent: 'text-[#853a03]' }
   }[theme];
+
+  const themeName = {
+    dark: lang === 'ko' ? '다크' : 'Dark',
+    gray: lang === 'ko' ? '그레이' : 'Gray',
+    white: lang === 'ko' ? '화이트' : 'White',
+    beige: lang === 'ko' ? '베이지' : 'Beige',
+  }[theme];
+
+  const themeIcon = {
+    dark: <Moon className="w-3.5 h-3.5 text-sky-400 shrink-0" />,
+    gray: <Square className="w-3.5 h-3.5 text-zinc-300 shrink-0" />,
+    white: <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
+    beige: <Sun className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+  }[theme];
+
+  const themeBtnClass = {
+    dark: 'bg-slate-900 border-white/10 text-zinc-300 hover:bg-slate-800 hover:text-white',
+    gray: 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:text-white',
+    white: 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-950 shadow-xs',
+    beige: 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6] hover:text-[#3d2711]'
+  }[theme];
+
+  const sortModeLabel = sortMode === 'ip' ? (lang === 'ko' ? 'IP순' : 'Sort: IP') : sortMode === 'status' ? (lang === 'ko' ? '상태순' : 'Sort: Status') : (lang === 'ko' ? '이름순' : 'Sort: Name');
 
   return (
     <div 
@@ -2900,10 +3006,10 @@ const App: React.FC = () => {
                 <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-md ring-1 ring-emerald-400/50" title="Core Engine Ready (정상 가동)" />
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <h1 className={`text-sm font-black tracking-tight uppercase leading-snug whitespace-nowrap ${t.text}`}>
+                <h1 className={`text-sm font-black tracking-tight uppercase leading-snug truncate ${t.text}`} title={s.title}>
                   {s.title}
                 </h1>
-                <div className="flex items-center gap-1.5 mt-1.5">
+                <div className="flex items-center justify-between gap-1.5 mt-1.5 flex-wrap">
                   <button
                     onClick={handleManualCheckUpdate}
                     className={`px-2 py-1 rounded text-[9px] font-black flex items-center gap-1 transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
@@ -2911,6 +3017,8 @@ const App: React.FC = () => {
                         ? 'bg-emerald-500/25 text-emerald-500 border border-emerald-500/50 hover:bg-emerald-500/35 shadow-[0_0_12px_rgba(16,185,129,0.35)] hover:shadow-[0_0_16px_rgba(16,185,129,0.55)] animate-pulse'
                         : (theme === 'beige' 
                             ? 'bg-[#ffffff] text-[#422e1b] border border-[#c8ae95] hover:bg-[#faf5eb] hover:border-amber-500/50 hover:text-amber-700' 
+                            : theme === 'white'
+                            ? 'bg-white text-slate-800 border border-slate-300 hover:bg-slate-100 hover:text-sky-600 shadow-xs'
                             : 'bg-white/5 hover:bg-white/10 hover:border-sky-500/30 hover:text-sky-400 text-zinc-300 border border-white/10')
                     }`}
                     title={lang === 'ko' ? "GitHub Releases 기반 실시간 업데이트 점검" : "Check for real-time updates via GitHub Releases"}
@@ -2918,6 +3026,24 @@ const App: React.FC = () => {
                     <RefreshCw className={`w-3 h-3 ${isCheckingUpdate ? 'animate-spin text-sky-400' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
                     <span>{updateInfo?.hasUpdate ? (lang === 'ko' ? `v${updateInfo.latestVersion} 업데이트` : `v${updateInfo.latestVersion} Update`) : s.checkUpdate}</span>
                   </button>
+
+                  {/* KO / EN Toggle Moved Below Title */}
+                  <div className="flex bg-black/15 dark:bg-white/10 rounded-md p-0.5 shrink-0 border border-black/10 dark:border-white/10 shadow-inner">
+                    <button 
+                      onClick={() => setLang('ko')} 
+                      className={`px-1.5 py-0.5 text-[9px] font-black rounded transition-all cursor-pointer ${lang === 'ko' ? 'bg-sky-500 text-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                      title={lang === 'ko' ? '한국어로 전환' : 'Switch to Korean'}
+                    >
+                      KO
+                    </button>
+                    <button 
+                      onClick={() => setLang('en')} 
+                      className={`px-1.5 py-0.5 text-[9px] font-black rounded transition-all cursor-pointer ${lang === 'en' ? 'bg-sky-500 text-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+                      title={lang === 'ko' ? '영문으로 전환 (Switch to English)' : 'Switch to English'}
+                    >
+                      EN
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2975,24 +3101,28 @@ const App: React.FC = () => {
 
           {/* 현재 PC 정보 (Host PC Info) */}
           {localIpInfo && (
-            <div className={`mb-5 p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' : 'bg-white/5 border-white/10 text-slate-100'}`}>
+            <div className={`mb-5 p-3 rounded-xl border ${
+              theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' :
+              theme === 'white' ? 'bg-white border-slate-200 text-slate-900 shadow-sm' :
+              'bg-white/5 border-white/10 text-slate-100'
+            }`}>
               <div className="flex items-center gap-1.5 mb-2 font-black uppercase tracking-wider text-[10px] opacity-90">
                 <div className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-                <span className={theme === 'beige' ? 'text-[#1a0f05] font-black' : 'text-slate-100'}>{s.hostPcInfo}</span>
+                <span className={theme === 'beige' ? 'text-[#1a0f05] font-black' : theme === 'white' ? 'text-slate-900 font-black' : 'text-slate-100'}>{s.hostPcInfo}</span>
               </div>
               <div className="space-y-1.5 text-[10.5px]">
                 {localIpInfo.computerName && (
                   <div className="flex justify-between items-center">
-                    <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.computerName}</span>
+                    <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : theme === 'white' ? 'text-slate-600 font-bold' : 'opacity-70'}>{s.computerName}</span>
                     <span className="font-extrabold text-sky-600 dark:text-sky-400 max-w-[130px] truncate" title={localIpInfo.computerName}>{localIpInfo.computerName}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
-                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.ipAddress}</span>
+                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : theme === 'white' ? 'text-slate-600 font-bold' : 'opacity-70'}>{s.ipAddress}</span>
                   <span className="font-black mono">{localIpInfo.ip}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : 'opacity-70'}>{s.subnetTarget}</span>
+                  <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : theme === 'white' ? 'text-slate-600 font-bold' : 'opacity-70'}>{s.subnetTarget}</span>
                   <span className="font-black mono">{localIpInfo.subnet}.0/24</span>
                 </div>
               </div>
@@ -3000,7 +3130,11 @@ const App: React.FC = () => {
           )}
 
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pr-1">
-            <div className={`space-y-4 p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c]' : 'bg-black/10 border-white/5'}`}>
+            <div className={`space-y-4 p-3.5 rounded-xl border ${
+              theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c]' :
+              theme === 'white' ? 'bg-white border-slate-200 shadow-xs' :
+              'bg-black/10 border-white/5'
+            }`}>
               <div className="flex items-center justify-between relative group">
                 <div className="flex items-center gap-1.5">
                   <label className={`text-[11px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.deepScan}</label>
@@ -3026,7 +3160,7 @@ const App: React.FC = () => {
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'fast' 
                         ? 'bg-sky-500/20 border-sky-500/60 text-sky-600 dark:text-sky-400 font-black shadow-sm' 
-                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Zap className="w-4 h-4 mb-1" />
@@ -3037,7 +3171,7 @@ const App: React.FC = () => {
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'standard' 
                         ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-700 dark:text-emerald-400 font-black shadow-sm' 
-                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Activity className="w-4 h-4 mb-1" />
@@ -3048,7 +3182,7 @@ const App: React.FC = () => {
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'precision' 
                         ? 'bg-amber-500/20 border-amber-500/60 text-amber-700 dark:text-amber-400 font-black shadow-sm' 
-                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
+                        : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
                     <Search className="w-4 h-4 mb-1" />
@@ -3058,11 +3192,16 @@ const App: React.FC = () => {
                 
                 <div className={`p-2.5 rounded-lg border ${
                   theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#1a0f05] shadow-sm' : 
+                  theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 shadow-xs' :
                   scanMode === 'fast' ? 'bg-sky-500/10 border-sky-500/20 text-sky-200' : 
                   scanMode === 'standard' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200' : 
                   'bg-amber-500/10 border-amber-500/20 text-amber-200'
                 }`}>
-                  <p className={`text-[9.5px] leading-relaxed font-bold ${theme === 'beige' ? 'text-[#2c1d11]' : 'opacity-90'}`}>
+                  <p className={`text-[9.5px] leading-relaxed font-bold ${
+                    theme === 'beige' ? 'text-[#2c1d11]' :
+                    theme === 'white' ? 'text-slate-700' :
+                    'opacity-90'
+                  }`}>
                     {scanMode === 'fast' && s.scanFastDesc}
                     {scanMode === 'standard' && s.scanStandardDesc}
                     {scanMode === 'precision' && s.scanPrecisionDesc}
@@ -3090,7 +3229,7 @@ const App: React.FC = () => {
                       className={`py-1 rounded font-black border transition-all cursor-pointer ${
                         mobileNotchOffset === pxVal
                           ? 'bg-amber-500/20 border-amber-500/60 text-amber-400 shadow-xs'
-                          : (theme === 'beige' ? 'bg-white border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb]' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
+                          : (theme === 'beige' ? 'bg-white border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb]' : theme === 'white' ? 'bg-slate-50 border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                       }`}
                       title={lang === 'ko' ? `상단 여백 ${pxVal}px로 설정 (전면 카메라 홀 피함)` : `Set top margin to ${pxVal}px`}
                     >
@@ -3102,7 +3241,11 @@ const App: React.FC = () => {
             </div>
 
             {/* Network Adapter & Filter Selection */}
-            <div className={`p-3 rounded-xl border ${theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' : 'bg-black/10 border-white/5'} space-y-2.5`}>
+            <div className={`p-3 rounded-xl border ${
+              theme === 'beige' ? 'bg-[#ffffff]/80 border-[#d4be9c] text-[#1a0f05] shadow-sm' :
+              theme === 'white' ? 'bg-white border-slate-200 text-slate-900 shadow-xs' :
+              'bg-black/10 border-white/5'
+            } space-y-2.5`}>
               <div className="flex items-center justify-between">
                 <label className={`text-[11px] font-black ${t.textMuted} uppercase tracking-widest flex items-center gap-1.5`}>
                   <Network className="w-3.5 h-3.5 text-sky-400" />
@@ -3136,7 +3279,7 @@ const App: React.FC = () => {
                     className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all ${
                       interfaceFilter === tab.key
                         ? 'bg-sky-600 text-white shadow-sm'
-                        : (theme === 'beige' ? 'bg-[#f0e2be] hover:bg-[#e2ceaa] text-[#1a0f05] font-bold border border-[#d4be9c]' : 'bg-white/5 hover:bg-white/10 text-zinc-300')
+                        : (theme === 'beige' ? 'bg-[#f0e2be] hover:bg-[#e2ceaa] text-[#1a0f05] font-bold border border-[#d4be9c]' : theme === 'white' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-200' : 'bg-white/5 hover:bg-white/10 text-zinc-300')
                     }`}
                   >
                     {tab.label}
@@ -3185,6 +3328,8 @@ const App: React.FC = () => {
                 className={`w-full py-1.5 px-2 rounded-lg border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all ${
                   theme === 'beige' 
                     ? 'bg-[#ffffff] border-[#c8ae95] hover:bg-[#faf5eb] text-[#1a0f05] shadow-sm' 
+                    : theme === 'white'
+                    ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-xs'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
                 }`}
               >
@@ -3226,7 +3371,9 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-3 py-2 bg-black/10 rounded-lg border border-white/5 group relative">
+            <div className={`flex items-center justify-between px-3 py-2 ${
+              theme === 'white' ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-black/10 border-white/5'
+            } rounded-lg border group relative`}>
               <div className="flex items-center gap-1.5">
                 <label className={`text-[11px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.keepResults}</label>
               </div>
@@ -3260,7 +3407,7 @@ const App: React.FC = () => {
               className={`w-full py-2 px-2.5 rounded-lg border text-[11px] font-black uppercase tracking-tight transition-all flex items-center justify-between ${
                 activeScheduleCount > 0
                   ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20'
-                  : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#faf5eb]' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10')
+                  : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#faf5eb]' : theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10')
               }`}
               title={lang === 'ko' ? '정기 자동 스케줄러 열기' : 'Open Recurring Scan Scheduler'}
             >
@@ -3305,7 +3452,11 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              <div className={`p-2.5 rounded-lg border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950/50 border-slate-800'}`}>
+              <div className={`p-2.5 rounded-lg border ${
+                theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' :
+                theme === 'white' ? 'bg-white border-slate-200 text-slate-800 shadow-xs' :
+                'bg-slate-950/50 border-slate-800'
+              }`}>
                 <div className="flex items-center justify-between mb-2">
                    <label className={`text-[10px] font-black ${t.textMuted} uppercase tracking-widest`}>{s.ouiDb}</label>
                    <div className="flex items-center space-x-2">
@@ -3395,6 +3546,8 @@ const App: React.FC = () => {
                       ? 'border-sky-500 bg-sky-500/15 shadow-sky-500/10'
                       : (theme === 'beige'
                           ? 'bg-[#ffffff] border-[#d4be9c] hover:bg-[#faf5eb] text-[#1a0f05]'
+                          : theme === 'white'
+                          ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-xs'
                           : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-100')
                   }`}
                   aria-expanded={isExportDropdownOpen}
@@ -3424,6 +3577,8 @@ const App: React.FC = () => {
                   <div className={`w-full mt-2 p-2.5 rounded-xl border shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-200 space-y-3 ${
                     theme === 'beige'
                       ? 'bg-[#fcf8f2]/98 border-[#d4be9c] text-[#1a0f05]'
+                      : theme === 'white'
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-xl'
                       : 'bg-slate-900/98 border-slate-700/80 text-zinc-100'
                   }`}>
                     {/* Section 1: PDF Reports */}
@@ -3733,34 +3888,8 @@ const App: React.FC = () => {
         <header className={`border-b ${t.header} shrink-0 transition-colors`}>
           {/* ================= DESKTOP HEADER (md and above) ================= */}
           <div className="hidden md:flex min-h-[48px] py-1.5 items-center justify-between px-3 lg:px-6 gap-2 flex-wrap">
-            {/* Left section: Search and Desktop Scanning Progress */}
+            {/* Left section: Desktop Scanning Progress */}
             <div className="flex items-center gap-2 shrink-0 min-w-0 flex-wrap">
-              <div className={`flex items-center ${theme === 'beige' ? 'bg-[#fcf8f2]/80 border-[#e6d0a7]' : 'bg-slate-950/80 border-slate-800'} rounded-lg border px-2 py-1 min-w-0`}>
-                <Search className={`w-3.5 h-3.5 ${t.textMuted} mr-1.5 shrink-0`} />
-                <input 
-                  type="text" 
-                  placeholder={s.searchPlaceholder} 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`bg-transparent border-none outline-none text-xs w-16 lg:w-32 ${t.text} placeholder:opacity-30 truncate`}
-                />
-                {searchTerm && (
-                  <div className="flex items-center space-x-1 ml-1 shrink-0">
-                    <button 
-                      onClick={() => handleExportPdf('search')}
-                      disabled={isExportingPdf}
-                      className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 border border-sky-500/40 text-[9.5px] font-bold transition-all shadow-sm"
-                      title={`"${searchTerm}" 검색 결과 PDF 다운로드 (${filteredIps.length}건)`}
-                    >
-                      <FileDown className="w-3 h-3 text-sky-400" />
-                      <span>PDF({filteredIps.length})</span>
-                    </button>
-                    <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-white shrink-0">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
 
               {/* Desktop Scanning Indicator */}
               {(isScanning || (hasStartedScan && progressPercent > 0)) && (
@@ -3953,89 +4082,92 @@ const App: React.FC = () => {
                 )}
               </button>
 
-              {/* Sort Mode Dropdown */}
-              <div className="relative group shrink-0">
-                <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value as 'ip' | 'status' | 'name')}
-                  className={`appearance-none bg-black/10 hover:bg-black/20 px-3 py-1.5 pr-7 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none transition-colors border border-transparent ${t.text}`}
-                  title={s.sortBy}
-                >
-                  <option value="ip" className={t.bg}>{s.sortByIp}</option>
-                  <option value="status" className={t.bg}>{s.sortByStatus}</option>
-                  <option value="name" className={t.bg}>{s.sortByName}</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none opacity-50">
-                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-
-              {/* Language Switcher */}
-              <div className="flex bg-black/10 rounded-lg p-0.5 shrink-0">
-                <button 
-                  onClick={() => setLang('ko')} 
-                  className={`px-2 py-1 text-[10px] font-black rounded ${lang === 'ko' ? 'bg-sky-500 text-white' : 'opacity-50 hover:opacity-100'}`}
-                >
-                  KO
-                </button>
-                <button 
-                  onClick={() => setLang('en')} 
-                  className={`px-2 py-1 text-[10px] font-black rounded ${lang === 'en' ? 'bg-sky-500 text-white' : 'opacity-50 hover:opacity-100'}`}
-                >
-                  EN
-                </button>
-              </div>
-
-              {/* Desktop Theme Selector Dropdown */}
-              <div className="relative group shrink-0">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all ${
-                  theme === 'beige' 
-                    ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' 
-                    : theme === 'gray'
-                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
-                    : 'bg-slate-900 border-white/10 text-zinc-300'
-                }`}>
-                  {theme === 'beige' ? (
-                    <Sun className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  ) : theme === 'gray' ? (
-                    <Square className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
-                  ) : (
-                    <Moon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  )}
-                  <select
-                    value={theme}
-                    onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
-                    className="bg-transparent border-none outline-none text-[10px] font-black cursor-pointer appearance-none pr-3"
-                    title={lang === 'ko' ? '테마 스타일 선택' : 'Select Theme Style'}
-                  >
-                    <option value="dark" className={t.bg}>{lang === 'ko' ? '다크 테마' : 'Dark Theme'}</option>
-                    <option value="gray" className={t.bg}>{lang === 'ko' ? '그레이 테마' : 'Gray Theme'}</option>
-                    <option value="beige" className={t.bg}>{lang === 'ko' ? '베이지 테마' : 'Beige Theme'}</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none opacity-50">
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Real-time GitHub Update Button */}
+              {/* Sort Mode Single Cycle Button */}
               <button
-                onClick={handleManualCheckUpdate}
-                title={updateInfo?.hasUpdate ? (lang === 'ko' ? `새 버전 v${updateInfo.latestVersion} 업데이트 가능` : `New version v${updateInfo.latestVersion} available`) : (lang === 'ko' ? 'GitHub 최신 릴리즈 점검' : 'Check for GitHub updates')}
-                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
-                  updateInfo?.hasUpdate
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 animate-pulse'
-                    : theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : 'hover:bg-white/10 text-zinc-300'
+                type="button"
+                onClick={cycleSortMode}
+                title={lang === 'ko' ? `정렬 방식: ${sortModeLabel} (클릭 시 순환: IP순 → 상태순 → 이름순)` : `Sort by: ${sortModeLabel} (Click to cycle)`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
+                  theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6]' :
+                  theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' :
+                  'bg-black/20 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <Sparkles className="w-4 h-4" />
+                <Sliders className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span>{sortModeLabel}</span>
+              </button>
+
+              {/* Grid Canvas Mode (Fit vs 2D Scroll) Button */}
+              <button
+                type="button"
+                onClick={toggleGridCanvasMode}
+                title={lang === 'ko' 
+                  ? (gridCanvasMode === 'scroll' 
+                      ? "캔버스 모드: 가로/세로 2D 스크롤 활성 (클릭 시 화면 맞춤으로 전환)" 
+                      : "캔버스 모드: 화면 맞춤 활성 (클릭 시 가로/세로 2D 스크롤로 전환)") 
+                  : (gridCanvasMode === 'scroll' 
+                      ? "Canvas Mode: 2D Scroll Active (Click to Fit Screen)" 
+                      : "Canvas Mode: Fit Screen Active (Click to Enable 2D Scroll)")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
+                  gridCanvasMode === 'scroll'
+                    ? 'bg-sky-500/20 text-sky-400 border-sky-500/50 ring-1 ring-sky-500/40 shadow-xs'
+                    : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6]' :
+                       theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' :
+                       'bg-black/20 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white')
+                }`}
+              >
+                {gridCanvasMode === 'scroll' ? (
+                  <>
+                    <Move className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <span>{lang === 'ko' ? '스크롤 (2D)' : 'Scroll (2D)'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    <span>{lang === 'ko' ? '화면 맞춤' : 'Fit Screen'}</span>
+                  </>
+                )}
+              </button>
+
+              {/* Quick PDF Export Header Button */}
+              <button
+                type="button"
+                onClick={() => setShowPdfExportModal(true)}
+                disabled={isExportingPdf || Object.keys(results).length === 0}
+                title={lang === 'ko' ? `스캔 결과 PDF 즉시 내보내기 (${activeCount}개 활성 노드)` : `Quick PDF Export (${activeCount} active nodes)`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
+                  isExportingPdf ? 'opacity-50 cursor-wait' : ''
+                } ${
+                  theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6]' :
+                  theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' :
+                  'bg-black/20 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <FileDown className={`w-3.5 h-3.5 ${activeCount > 0 ? 'text-rose-400' : 'text-zinc-400'} ${isExportingPdf ? 'animate-bounce' : ''}`} />
+                <span>PDF</span>
+                {activeCount > 0 && (
+                  <span className="text-[8.5px] px-1 py-0.2 rounded font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    {activeCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Desktop Theme Selector Single Button */}
+              <button
+                type="button"
+                onClick={cycleTheme}
+                title={lang === 'ko' ? `테마 변경 (현재: ${themeName} - 클릭 시 순환: 다크 → 그레이 → 화이트 → 베이지)` : `Theme: ${themeName} (Click to cycle)`}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${themeBtnClass}`}
+              >
+                {themeIcon}
+                <span>{themeName}</span>
               </button>
 
               {/* Help Button */}
               <button 
                 onClick={() => setShowHelp(true)} 
                 title={s.help} 
-                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 ${theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : 'hover:bg-white/10 text-zinc-300'}`}
+                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 ${theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : theme === 'white' ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-zinc-300'}`}
               >
                 <HelpCircle className="w-4 h-4" />
               </button>
@@ -4170,7 +4302,11 @@ const App: React.FC = () => {
             {/* Mobile Bottom Row: Search Box, Sort, License, Theme, Language */}
             <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 bg-black/10 overflow-x-auto no-scrollbar">
               {/* Search Box */}
-              <div className={`flex-1 min-w-[120px] max-w-[160px] flex items-center ${theme === 'beige' ? 'bg-white border-[#dfceb0]' : 'bg-black/30 border-white/10'} rounded-lg border px-2 py-1 shrink-0`}>
+              <div className={`flex-1 min-w-[120px] max-w-[160px] flex items-center ${
+                theme === 'beige' ? 'bg-white border-[#dfceb0]' :
+                theme === 'white' ? 'bg-white border-slate-300 text-slate-800' :
+                'bg-black/30 border-white/10'
+              } rounded-lg border px-2 py-1 shrink-0`}>
                 <Search className={`w-3 h-3 ${t.textMuted} mr-1 shrink-0`} />
                 <input 
                   type="text" 
@@ -4199,21 +4335,57 @@ const App: React.FC = () => {
 
               {/* Secondary Controls Group */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {/* Sort Select */}
-                <div className="relative group shrink-0">
-                  <select
-                    value={sortMode}
-                    onChange={(e) => setSortMode(e.target.value as 'ip' | 'status' | 'name')}
-                    className={`appearance-none bg-black/20 border border-white/10 px-2 py-1 pr-4 rounded-lg text-[9.5px] font-black uppercase tracking-wider cursor-pointer outline-none ${t.text}`}
-                  >
-                    <option value="ip" className={t.bg}>{s.sortByIp}</option>
-                    <option value="status" className={t.bg}>{s.sortByStatus}</option>
-                    <option value="name" className={t.bg}>{s.sortByName}</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none opacity-50">
-                    <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
+                {/* Mobile Sort Single Cycle Button */}
+                <button
+                  type="button"
+                  onClick={cycleSortMode}
+                  title={lang === 'ko' ? `정렬: ${sortModeLabel} (순환)` : `Sort: ${sortModeLabel} (cycle)`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 cursor-pointer shrink-0 ${
+                    theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' :
+                    theme === 'white' ? 'bg-white border-slate-300 text-slate-800 shadow-xs' :
+                    'bg-black/20 border-white/10 text-zinc-300'
+                  }`}
+                >
+                  <Sliders className="w-3 h-3 text-sky-400 shrink-0" />
+                  <span>{sortModeLabel}</span>
+                </button>
+
+                {/* Mobile Grid Canvas Mode (Fit vs 2D Scroll) Button */}
+                <button
+                  type="button"
+                  onClick={toggleGridCanvasMode}
+                  title={lang === 'ko' 
+                    ? (gridCanvasMode === 'scroll' ? "2D 스크롤 모드 (화면 맞춤으로 전환)" : "화면 맞춤 모드 (2D 스크롤로 전환)") 
+                    : (gridCanvasMode === 'scroll' ? "Scroll Mode (Switch to Fit)" : "Fit Mode (Switch to Scroll)")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 cursor-pointer shrink-0 ${
+                    gridCanvasMode === 'scroll'
+                      ? 'bg-sky-500/20 text-sky-400 border-sky-500/50 ring-1 ring-sky-500/30'
+                      : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' :
+                         theme === 'white' ? 'bg-white border-slate-300 text-slate-800 shadow-xs' :
+                         'bg-black/20 border-white/10 text-zinc-300')
+                  }`}
+                >
+                  {gridCanvasMode === 'scroll' ? <Move className="w-3 h-3 text-sky-400 shrink-0" /> : <Maximize2 className="w-3 h-3 text-zinc-400 shrink-0" />}
+                  <span>{gridCanvasMode === 'scroll' ? (lang === 'ko' ? '스크롤' : 'Scroll') : (lang === 'ko' ? '맞춤' : 'Fit')}</span>
+                </button>
+
+                {/* Mobile Quick PDF Export Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPdfExportModal(true)}
+                  disabled={isExportingPdf || Object.keys(results).length === 0}
+                  title={lang === 'ko' ? `스캔 결과 PDF 즉시 내보내기 (${activeCount}개 활성)` : `Quick PDF Export (${activeCount} active)`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 cursor-pointer shrink-0 ${
+                    isExportingPdf ? 'opacity-50 cursor-wait' : ''
+                  } ${
+                    theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' :
+                    theme === 'white' ? 'bg-white border-slate-300 text-slate-800 shadow-xs' :
+                    'bg-black/20 border-white/10 text-zinc-300'
+                  }`}
+                >
+                  <FileDown className={`w-3 h-3 ${activeCount > 0 ? 'text-rose-400' : 'text-zinc-400'}`} />
+                  <span>PDF</span>
+                </button>
 
                 {/* License Badge */}
                 <button
@@ -4224,34 +4396,16 @@ const App: React.FC = () => {
                   <span>{license.tier.toUpperCase()}</span>
                 </button>
 
-                {/* Theme Selector */}
-                <div className="relative group shrink-0">
-                  <div className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all ${
-                    theme === 'beige' 
-                      ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' 
-                      : theme === 'gray'
-                      ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
-                      : 'bg-slate-900 border-white/10 text-zinc-300'
-                  }`}>
-                    {theme === 'beige' ? (
-                      <Sun className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                    ) : theme === 'gray' ? (
-                      <Square className="w-2.5 h-2.5 text-zinc-300 shrink-0" />
-                    ) : (
-                      <Moon className="w-2.5 h-2.5 text-sky-400 shrink-0" />
-                    )}
-                    <select
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value as 'dark' | 'gray' | 'beige')}
-                      className="bg-transparent border-none outline-none text-[9px] font-black cursor-pointer appearance-none pr-1"
-                      title={lang === 'ko' ? '테마 선택' : 'Select Theme'}
-                    >
-                      <option value="dark" className={t.bg}>{lang === 'ko' ? '다크' : 'Dark'}</option>
-                      <option value="gray" className={t.bg}>{lang === 'ko' ? '그레이' : 'Gray'}</option>
-                      <option value="beige" className={t.bg}>{lang === 'ko' ? '베이지' : 'Beige'}</option>
-                    </select>
-                  </div>
-                </div>
+                {/* Mobile Theme Selector Single Button */}
+                <button
+                  type="button"
+                  onClick={cycleTheme}
+                  title={lang === 'ko' ? `테마: ${themeName} (순환)` : `Theme: ${themeName} (cycle)`}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all duration-200 transform active:scale-95 cursor-pointer shrink-0 ${themeBtnClass}`}
+                >
+                  {themeIcon}
+                  <span>{themeName}</span>
+                </button>
 
                 {/* KO / EN Toggle */}
                 <div className="flex bg-black/20 rounded-lg p-0.5 border border-white/10 shrink-0">
@@ -4304,6 +4458,8 @@ const App: React.FC = () => {
           <div className={`w-full border-b shrink-0 z-20 transition-all shadow-md ${
             theme === 'beige'
               ? 'bg-[#f8f1e5] border-[#dfcaa7] text-[#4a341e]'
+              : theme === 'white'
+              ? 'bg-white border-slate-200 text-slate-800'
               : 'bg-slate-900/95 backdrop-blur border-indigo-500/30 text-indigo-100'
           }`}>
             <div className="max-w-7xl mx-auto px-3 py-2 flex flex-col gap-2">
@@ -4319,14 +4475,14 @@ const App: React.FC = () => {
                   {/* Unified Baseline Selector */}
                   {snapshots.length > 0 ? (
                     <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1 shrink-0 shadow-sm ${
-                      theme === 'beige' ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]' : 'bg-black/40 border-white/15 text-zinc-100'
+                      theme === 'beige' ? 'bg-white/90 border-[#d8c09a] text-[#4a341e]' : theme === 'white' ? 'bg-slate-50 border-slate-300 text-slate-800' : 'bg-black/40 border-white/15 text-zinc-100'
                     }`}>
                       <span className="text-[10px] font-black opacity-60 uppercase">{lang === 'ko' ? '기준:' : 'Base:'}</span>
                       <select
                         value={baselineSnapshot?.id || ''}
                         onChange={(e) => setBaselineSnapshotId(e.target.value)}
                         className={`bg-transparent text-[11px] font-black outline-none cursor-pointer py-0.5 pr-1 max-w-[170px] sm:max-w-[280px] truncate ${
-                          theme === 'beige' ? 'text-[#3d2711]' : 'text-zinc-100'
+                          theme === 'beige' ? 'text-[#3d2711]' : theme === 'white' ? 'text-slate-900' : 'text-zinc-100'
                         }`}
                         title={lang === 'ko' ? "비교 기준 스냅샷 선택" : "Select baseline snapshot"}
                       >
@@ -4334,7 +4490,7 @@ const App: React.FC = () => {
                           <option 
                             key={snap.id} 
                             value={snap.id} 
-                            className={theme === 'beige' ? 'bg-[#fcf7ee] text-[#3d2711]' : 'bg-zinc-900 text-zinc-100'}
+                            className={theme === 'beige' ? 'bg-[#fcf7ee] text-[#3d2711]' : theme === 'white' ? 'bg-white text-slate-900' : 'bg-zinc-900 text-zinc-100'}
                           >
                             {snap.label} ({snap.activeCount})
                           </option>
@@ -4385,6 +4541,8 @@ const App: React.FC = () => {
                     className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1 transition-all ${
                       theme === 'beige'
                         ? 'bg-[#f0e2ca] hover:bg-[#e7d4b4] border-[#d4be94] text-[#4a341e]'
+                        : theme === 'white'
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
                         : 'bg-indigo-500/20 hover:bg-indigo-500/30 border-indigo-500/40 text-indigo-300'
                     }`}
                     title={s.diffGuideBtn}
@@ -4399,6 +4557,8 @@ const App: React.FC = () => {
                     className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5 transition-all shadow-sm ${
                       theme === 'beige'
                         ? 'bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800'
+                        : theme === 'white'
+                        ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
                         : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'
                     }`}
                     title={lang === 'ko' ? "스냅샷 비교 종료 및 기본 그리드로 복귀" : "Exit diff view and return to grid"}
@@ -4418,7 +4578,7 @@ const App: React.FC = () => {
                     className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'new'
                         ? 'ring-2 ring-emerald-400 bg-emerald-500 text-white border-emerald-300 font-black'
-                        : theme === 'beige'
+                        : (theme === 'beige' || theme === 'white')
                         ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
                         : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
                     }`}
@@ -4434,7 +4594,7 @@ const App: React.FC = () => {
                     className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'offline'
                         ? 'ring-2 ring-rose-400 bg-rose-600 text-white border-rose-300 font-black'
-                        : theme === 'beige'
+                        : (theme === 'beige' || theme === 'white')
                         ? 'bg-rose-100/90 text-rose-900 border-rose-300 hover:bg-rose-200'
                         : 'bg-rose-500/20 text-rose-400 border-rose-500/40 hover:bg-rose-500/30'
                     }`}
@@ -4450,7 +4610,7 @@ const App: React.FC = () => {
                     className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-sm transition-all cursor-pointer ${
                       diffFilter === 'changed'
                         ? 'ring-2 ring-amber-400 bg-amber-500 text-black border-amber-300 font-black'
-                        : theme === 'beige'
+                        : (theme === 'beige' || theme === 'white')
                         ? 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200'
                         : 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
                     }`}
@@ -4564,11 +4724,14 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-3 pb-16 md:pb-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-y-auto min-h-0">
-          <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] w-full aspect-square relative z-10 my-auto transition-all ${
-            viewMode === 'diff' 
-              ? 'max-w-[min(800px,calc(100dvh-180px))]' 
-              : 'max-w-[min(800px,calc(100dvh-140px))] md:max-w-[min(800px,calc(100vh-85px))]'
+        {/* Central Grid Map Viewport with 2D Horizontal and Vertical Scroll Capability */}
+        <div className="flex-1 w-full h-full p-2 md:p-3 pb-16 md:pb-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-auto min-h-0 min-w-0 grid-scroll-canvas flex">
+          <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] relative z-10 transition-all m-auto ${
+            gridCanvasMode === 'scroll'
+              ? 'min-w-[560px] min-h-[560px] w-[560px] h-[560px] sm:min-w-[620px] sm:min-h-[620px] sm:w-[620px] sm:h-[620px] aspect-square my-2'
+              : viewMode === 'diff' 
+                ? 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-180px))]' 
+                : 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-140px))] md:max-w-[min(800px,calc(100vh-85px))]'
           }`}>
             {filteredIps.map((ip, index) => {
               const res = results[ip];
@@ -4613,7 +4776,11 @@ const App: React.FC = () => {
             {/* Header: Title + Font Size Zoom Toggle (100% / 115%) + Close Button */}
             <div className="flex items-center justify-between pb-2 border-b border-current border-opacity-10 shrink-0">
               <div className="flex items-center gap-2">
-                <h2 className={`${profileTextScale === 'large' ? 'text-sm' : 'text-xs'} font-black ${theme === 'beige' ? 'text-[#5c4a37]' : 'text-white'} uppercase tracking-tight`}>
+                <h2 className={`${profileTextScale === 'large' ? 'text-sm' : 'text-xs'} font-black ${
+                  theme === 'beige' ? 'text-[#5c4a37]' :
+                  theme === 'white' ? 'text-slate-900' :
+                  'text-white'
+                } uppercase tracking-tight`}>
                   {s.deviceProfile}
                 </h2>
               </div>
@@ -4630,6 +4797,8 @@ const App: React.FC = () => {
                       ? 'bg-sky-500 text-white border-sky-400 font-black'
                       : theme === 'beige'
                       ? 'bg-black/5 hover:bg-black/10 border-[#dfcaa7] text-[#5c4a37]'
+                      : theme === 'white'
+                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
                       : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300'
                   }`}
                   title={s.profileFontScaleTooltip}
@@ -4668,18 +4837,18 @@ const App: React.FC = () => {
                   {viewMode === 'diff' && selectedDiffStatus && (
                     <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 shadow-lg animate-in fade-in ${
                       selectedDiffStatus === 'new'
-                        ? (theme === 'beige' ? 'bg-emerald-50 border-emerald-400 text-emerald-950' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-emerald-50 border-emerald-400 text-emerald-950' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-100')
                         : selectedDiffStatus === 'offline'
-                        ? (theme === 'beige' ? 'bg-rose-50 border-rose-400 text-rose-950' : 'bg-rose-500/20 border-rose-500/50 text-rose-100')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-rose-50 border-rose-400 text-rose-950' : 'bg-rose-500/20 border-rose-500/50 text-rose-100')
                         : selectedDiffStatus === 'changed'
-                        ? (theme === 'beige' ? 'bg-amber-50 border-amber-400 text-amber-950' : 'bg-amber-500/20 border-amber-500/50 text-amber-100')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-amber-50 border-amber-400 text-amber-950' : 'bg-amber-500/20 border-amber-500/50 text-amber-100')
                         : diffBaselineColor === 'sky'
-                        ? (theme === 'beige' ? 'bg-sky-50 border-sky-400 text-sky-950' : 'bg-sky-500/20 border-sky-500/50 text-sky-100')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-sky-50 border-sky-400 text-sky-950' : 'bg-sky-500/20 border-sky-500/50 text-sky-100')
                         : diffBaselineColor === 'indigo'
-                        ? (theme === 'beige' ? 'bg-indigo-50 border-indigo-400 text-indigo-950' : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-100')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-indigo-50 border-indigo-400 text-indigo-950' : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-100')
                         : diffBaselineColor === 'teal'
-                        ? (theme === 'beige' ? 'bg-teal-50 border-teal-400 text-teal-950' : 'bg-teal-500/20 border-teal-500/50 text-teal-100')
-                        : (theme === 'beige' ? 'bg-[#f0e6d6] border-[#cfbea6] text-[#523d28]' : 'bg-slate-500/15 border-slate-500/30 text-slate-200')
+                        ? ((theme === 'beige' || theme === 'white') ? 'bg-teal-50 border-teal-400 text-teal-950' : 'bg-teal-500/20 border-teal-500/50 text-teal-100')
+                        : (theme === 'beige' ? 'bg-[#f0e6d6] border-[#cfbea6] text-[#523d28]' : theme === 'white' ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-slate-500/15 border-slate-500/30 text-slate-200')
                     }`}>
                       <div className="flex items-center justify-between gap-2 border-b pb-2 border-current border-opacity-15">
                         <div className="flex items-center gap-2">
@@ -5178,7 +5347,7 @@ const App: React.FC = () => {
                   {/* Technical Details */}
                   <section className="space-y-2">
                     <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>{s.technicalDetails}</span>
-                    <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3.5 shadow-sm`}>
+                    <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3.5 shadow-sm`}>
                       <div className="flex justify-between items-center">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.address}</span>
                         <a 
@@ -5299,7 +5468,9 @@ const App: React.FC = () => {
                               ? `탐색된 프로토콜별 이름 목록 (${Object.keys(effectiveDevice.hostnameSources).length}개 채널) - 클릭 시 즉시 적용` 
                               : `Discovered Protocol Names (${Object.keys(effectiveDevice.hostnameSources).length} channels) - Click to apply`}
                           </span>
-                          <div className="space-y-1 bg-black/20 p-2.5 rounded-lg font-mono text-[11px] border border-white/5">
+                          <div className={`space-y-1 p-2.5 rounded-lg font-mono text-[11px] border ${
+                            theme === 'white' ? 'bg-slate-100 border-slate-200' : theme === 'beige' ? 'bg-[#f5ebd6]/60 border-[#e6d0a7]' : 'bg-black/20 border-white/5'
+                          }`}>
                             {Object.entries(effectiveDevice.hostnameSources).map(([src, nm]) => (
                               <button
                                 key={src}
@@ -5376,7 +5547,9 @@ const App: React.FC = () => {
                     </div>
 
                     {portAuditResult && portAuditResult.ip === selectedIp && (
-                      <div className={`p-3.5 rounded-xl border ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : 'bg-black/30 border-white/10'} space-y-2 animate-in fade-in`}>
+                      <div className={`p-3.5 rounded-xl border ${
+                        theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-black/30 border-white/10'
+                      } space-y-2 animate-in fade-in`}>
                         <div className={`flex justify-between items-center ${isLgText ? 'text-[11px]' : 'text-[10px]'} opacity-75`}>
                           <span>{lang === 'ko' ? `점검 포트: ${portAuditResult.totalChecked}개` : `Checked: ${portAuditResult.totalChecked} ports`}</span>
                           <span>{lang === 'ko' ? `탐지: ${portAuditResult.openPorts.length}개` : `Detected: ${portAuditResult.openPorts.length}`}</span>
@@ -5386,7 +5559,9 @@ const App: React.FC = () => {
                             {portAuditResult.openPorts.map((item) => (
                               <div
                                 key={item.port}
-                                className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex flex-col space-y-1"
+                                className={`p-2.5 rounded-lg border flex flex-col space-y-1 ${
+                                  theme === 'white' ? 'bg-white border-slate-200' : theme === 'beige' ? 'bg-white/80 border-[#e6d0a7]' : 'bg-white/5 border-white/5'
+                                }`}
                               >
                                 <div className="flex justify-between items-center">
                                   <span className={`${isLgText ? 'text-xs' : 'text-[11px]'} font-black mono text-sky-400`}>
@@ -5426,7 +5601,7 @@ const App: React.FC = () => {
       {/* Source Info Modal */}
       {showSourceInfo && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6`}>
+           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6`}>
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <Database className="w-5 h-5 text-sky-500" />
@@ -5440,7 +5615,7 @@ const App: React.FC = () => {
               </p>
 
               <div className="space-y-3">
-                 <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-slate-950 border-slate-800'}`}>
+                 <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800'}`}>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{s.activeSource}</span>
                       <span className="text-[10px] font-black text-sky-500">{registryMeta.sourceName}</span>
@@ -5460,28 +5635,28 @@ const App: React.FC = () => {
                  <div className="space-y-2">
                     <label className="text-[9px] font-black uppercase tracking-widest opacity-40">{s.referenceData}</label>
                     <div className="grid grid-cols-1 gap-2">
-                       <a href="https://standards-oui.ieee.org/oui/oui.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : 'bg-white/5'}`}>
+                       <a href="https://standards-oui.ieee.org/oui/oui.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : theme === 'white' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5'}`}>
                           <div>
                             <div className="text-[10px] font-bold">IEEE OUI / MA-L (24-bit Registry)</div>
                             <div className="text-[9px] opacity-50 mono">standards-oui.ieee.org/oui/oui.txt</div>
                           </div>
                           <ExternalLink className="w-3 h-3 opacity-50" />
                        </a>
-                       <a href="https://standards-oui.ieee.org/oui28/mam.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : 'bg-white/5'}`}>
+                       <a href="https://standards-oui.ieee.org/oui28/mam.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : theme === 'white' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5'}`}>
                           <div>
                             <div className="text-[10px] font-bold">IEEE OUI / MA-M (28-bit Registry)</div>
                             <div className="text-[9px] opacity-50 mono">standards-oui.ieee.org/oui28/mam.txt</div>
                           </div>
                           <ExternalLink className="w-3 h-3 opacity-50" />
                        </a>
-                       <a href="https://standards-oui.ieee.org/oui36/oui36.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : 'bg-white/5'}`}>
+                       <a href="https://standards-oui.ieee.org/oui36/oui36.txt" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : theme === 'white' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5'}`}>
                           <div>
                             <div className="text-[10px] font-bold">IEEE OUI / MA-S (36-bit Registry)</div>
                             <div className="text-[9px] opacity-50 mono">standards-oui.ieee.org/oui36/oui36.txt</div>
                           </div>
                           <ExternalLink className="w-3 h-3 opacity-50" />
                        </a>
-                       <a href="https://www.wireshark.org/download/automated/data/manuf" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : 'bg-white/5'}`}>
+                       <a href="https://www.wireshark.org/download/automated/data/manuf" target="_blank" rel="noreferrer" className={`flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-sky-500/30 transition-all ${theme === 'beige' ? 'bg-[#f5ebd6]/50' : theme === 'white' ? 'bg-slate-50 hover:bg-slate-100 border-slate-200' : 'bg-white/5'}`}>
                           <div>
                             <div className="text-[10px] font-bold">Wireshark Manuf Database (Automated)</div>
                             <div className="text-[9px] opacity-50 mono">wireshark.org/.../automated/data/manuf</div>
@@ -5505,7 +5680,7 @@ const App: React.FC = () => {
       {/* Security Notice Modal */}
       {showSecurityNotice && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6 animate-in zoom-in-95 duration-200`}>
+           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6 animate-in zoom-in-95 duration-200`}>
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -5515,7 +5690,7 @@ const App: React.FC = () => {
               </div>
               
               <div className="space-y-4">
-                <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-amber-50/50 border-amber-100 text-amber-900' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-amber-50/50 border-amber-100 text-amber-900' : theme === 'white' ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-amber-500/10 border-amber-500/20'}`}>
                   <div className="flex items-center space-x-2 mb-2">
                     <AlertCircle className="w-4 h-4 text-amber-500" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{s.falsePositiveTitle}</span>
@@ -5562,114 +5737,384 @@ const App: React.FC = () => {
 
       {/* Help Modal */}
       {showHelp && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-           <div className={`w-full max-w-lg ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col`}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+           <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-4 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
+              {/* Modal Top Header */}
               <div className="flex justify-between items-center flex-shrink-0">
                  <div className="flex items-center space-x-2">
                    <HelpCircle className="w-5 h-5 text-sky-500" />
                    <h3 className="font-black text-sm uppercase tracking-tight">{s.helpTitle}</h3>
                  </div>
-                 <button onClick={() => setShowHelp(false)} className="p-1 hover:opacity-50 transition-opacity"><X className="w-5 h-5" /></button>
+                 <button onClick={() => setShowHelp(false)} className="p-1 hover:opacity-50 transition-opacity cursor-pointer">
+                   <X className="w-5 h-5" />
+                 </button>
+              </div>
+
+              {/* Help Modal Tabs */}
+              <div className={`flex border-b shrink-0 gap-2 ${theme === 'white' ? 'border-slate-200' : theme === 'beige' ? 'border-[#e6d0a7]' : 'border-white/10'}`}>
+                <button
+                  onClick={() => setHelpTab('guide')}
+                  className={`pb-2.5 px-3 text-xs font-black flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+                    helpTab === 'guide'
+                      ? 'border-sky-500 text-sky-400'
+                      : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                  <span>{s.helpTabGuide || (lang === 'ko' ? '사용 안내 & 라이선스' : 'User Guide & License')}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setHelpTab('update');
+                    if (!updateInfo) {
+                      handleManualCheckUpdate(false);
+                    }
+                  }}
+                  className={`pb-2.5 px-3 text-xs font-black flex items-center gap-2 border-b-2 transition-all cursor-pointer relative ${
+                    helpTab === 'update'
+                      ? 'border-sky-500 text-sky-400'
+                      : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin text-sky-400' : ''}`} />
+                  <span>{s.helpTabUpdate || (lang === 'ko' ? 'GitHub 업데이트 확인' : 'GitHub Updates')}</span>
+                  {updateInfo?.hasUpdate && (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-500 text-white font-mono">
+                        NEW
+                      </span>
+                    </span>
+                  )}
+                </button>
               </div>
               
-              <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs leading-relaxed no-scrollbar">
-                {/* Hero App Brand Card with Large Icon */}
-                <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left ${
-                  theme === 'beige' ? 'bg-[#f5ebd6]/60 border-[#e6d0a7]' : 'bg-gradient-to-br from-sky-500/10 via-indigo-500/5 to-transparent border-sky-500/20'
-                }`}>
-                  <img 
-                    src="./logo.png" 
-                    alt="Grid IP Scanner2" 
-                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-2xl border-2 border-sky-500/40 shadow-xl shadow-sky-500/20 shrink-0" 
-                  />
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                      <h4 className="text-base sm:text-lg font-black tracking-tight uppercase">Grid IP Scanner2</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 font-mono">v{CURRENT_APP_VERSION}</span>
+              {/* Tab 1: User Guide & License */}
+              {helpTab === 'guide' && (
+                <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs leading-relaxed no-scrollbar">
+                  {/* Hero App Brand Card with Large Icon */}
+                  <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left ${
+                    theme === 'beige' ? 'bg-[#f5ebd6]/60 border-[#e6d0a7]' : theme === 'white' ? 'bg-gradient-to-br from-sky-50 to-indigo-50/50 border-sky-200 text-slate-800' : 'bg-gradient-to-br from-sky-500/10 via-indigo-500/5 to-transparent border-sky-500/20'
+                  }`}>
+                    <img 
+                      src="./logo.png" 
+                      alt="Grid IP Scanner2" 
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-2xl border-2 border-sky-500/40 shadow-xl shadow-sky-500/20 shrink-0" 
+                    />
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                        <h4 className="text-base sm:text-lg font-black tracking-tight uppercase">Grid IP Scanner2</h4>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 font-mono">v{CURRENT_APP_VERSION}</span>
+                      </div>
+                      <p className="text-[11px] opacity-75 leading-snug">
+                         초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
+                      </p>
+                      <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5 flex-wrap">
+                        <span>개발자: AhBiYout</span>
+                        <span>•</span>
+                        <span>GitHub: AhBiYout-all</span>
+                        <span>•</span>
+                        <span>저장소: grid-ip-scanner2</span>
+                      </div>
                     </div>
-                    <p className="text-[11px] opacity-75 leading-snug">
-                       초고속 C-Class 네트워크 비주얼 탐색 및 9만 건 OUI 식별 엔진
+                  </div>
+
+                  {/* 1. License Section */}
+                  <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span className="font-black uppercase tracking-wider">{s.helpLicenseTitle}</span>
+                    </div>
+                    <p className="opacity-90 whitespace-pre-line">
+                      {s.helpLicenseDesc}
                     </p>
-                    <div className="text-[10px] text-zinc-400 flex items-center justify-center sm:justify-start gap-2 font-mono pt-0.5 flex-wrap">
-                      <span>개발자: AhBiYout</span>
-                      <span>•</span>
-                      <span>GitHub: AhBiYout-all</span>
-                      <span>•</span>
-                      <span>저장소: grid-ip-scanner2</span>
+                  </div>
+
+                  {/* 2. Usage Guide Section */}
+                  <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Info className="w-4 h-4 text-sky-500" />
+                      <span className="font-black uppercase tracking-wider">{s.helpUsageTitle}</span>
+                    </div>
+                    <p className="opacity-90 whitespace-pre-line leading-relaxed">
+                      {s.helpUsageDesc}
+                    </p>
+                  </div>
+
+                  {/* 3. Creator Contact & GitHub Section */}
+                  <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <Github className="w-4 h-4 text-sky-400" />
+                        <span className="font-black uppercase tracking-wider">{s.creatorContact}</span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono font-bold">
+                        Open Source & Issues
+                      </span>
+                    </div>
+                    <div className="space-y-2.5 text-[11px] opacity-90">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout</span> <span className="text-[10px] font-mono opacity-60">(@AhBiYout-all)</span></span>
+                        <a 
+                          href="https://github.com/AhBiYout-all/grid-ip-scanner2/issues"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Github className="w-3.5 h-3.5" />
+                          <span>{lang === 'ko' ? 'GitHub 이슈 문의' : 'GitHub Issues'}</span>
+                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                        </a>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                        <span className="opacity-70">{lang === 'ko' ? '저장소 (Repo):' : 'Repository:'}</span>
+                        <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
+                          <span>github.com/AhBiYout-all/grid-ip-scanner2</span>
+                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                        </a>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="opacity-70">{lang === 'ko' ? '구글블로그:' : 'Google Blog:'}</span>
+                        <a href="https://ahbiyoutvibe.blogspot.com/" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold">
+                          ahbiyoutvibe.blogspot.com
+                        </a>
+                      </div>
+                      <div className="pt-2 border-t border-white/5 text-[10px] opacity-60 text-center mono">
+                        Copyright (c) 2025-2026 AhBiYout. All rights reserved.
+                      </div>
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* 1. License Section */}
-                <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/5'}`}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span className="font-black uppercase tracking-wider">{s.helpLicenseTitle}</span>
-                  </div>
-                  <p className="opacity-90 whitespace-pre-line">
-                    {s.helpLicenseDesc}
-                  </p>
-                </div>
-
-                {/* 2. Usage Guide Section */}
-                <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/5'}`}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Info className="w-4 h-4 text-sky-500" />
-                    <span className="font-black uppercase tracking-wider">{s.helpUsageTitle}</span>
-                  </div>
-                  <p className="opacity-90 whitespace-pre-line leading-relaxed">
-                    {s.helpUsageDesc}
-                  </p>
-                </div>
-
-                {/* 3. Creator Contact & GitHub Section */}
-                <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/5'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <Github className="w-4 h-4 text-sky-400" />
-                      <span className="font-black uppercase tracking-wider">{s.creatorContact}</span>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 font-mono font-bold">
-                      Open Source & Issues
-                    </span>
-                  </div>
-                  <div className="space-y-2.5 text-[11px] opacity-90">
+              {/* Tab 2: GitHub Updates Integrated Tab */}
+              {helpTab === 'update' && (
+                <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs leading-relaxed no-scrollbar">
+                  {/* Version Comparison Matrix Card */}
+                  <div className={`p-4 rounded-2xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/60 border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-black/30 border-white/10'} space-y-3`}>
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{lang === 'ko' ? '개발자:' : 'Developer:'} <span className="font-bold">AhBiYout</span> <span className="text-[10px] font-mono opacity-60">(@AhBiYout-all)</span></span>
-                      <a 
-                        href="https://github.com/AhBiYout-all/grid-ip-scanner2/issues"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                      <div className="flex items-center gap-2">
+                        <Github className="w-4 h-4 text-sky-400" />
+                        <span className="font-black text-xs uppercase tracking-tight">{lang === 'ko' ? 'GitHub 릴리스 버전 상태' : 'GitHub Release Status'}</span>
+                      </div>
+                      <button
+                        onClick={() => handleManualCheckUpdate(false)}
+                        disabled={isCheckingUpdate}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 border border-sky-500/30 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                        title={lang === 'ko' ? 'GitHub 최신 릴리스 실시간 조회' : 'Check latest release on GitHub'}
                       >
-                        <Github className="w-3.5 h-3.5" />
-                        <span>{lang === 'ko' ? 'GitHub 이슈 문의' : 'GitHub Issues'}</span>
+                        <RefreshCw className={`w-3 h-3 ${isCheckingUpdate ? 'animate-spin text-sky-400' : ''}`} />
+                        <span>{isCheckingUpdate ? (lang === 'ko' ? '확인 중...' : 'Checking...') : (lang === 'ko' ? '실시간 점검' : 'Check Now')}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className={`p-3 rounded-xl border flex flex-col justify-between ${theme === 'white' ? 'bg-white border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
+                        <span className="text-[10px] opacity-60 font-semibold">{lang === 'ko' ? '현재 실행 버전' : 'Current Installed'}</span>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <span className="text-base font-black font-mono text-sky-400">v{CURRENT_APP_VERSION}</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-300 font-bold">{lang === 'ko' ? '로컬' : 'Local'}</span>
+                        </div>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border flex flex-col justify-between ${
+                        updateInfo?.hasUpdate 
+                          ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
+                          : 'bg-white/5 border-white/5'
+                      }`}>
+                        <span className="text-[10px] opacity-60 font-semibold">{lang === 'ko' ? 'GitHub 최신 릴리스' : 'Latest Release'}</span>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <span className={`text-base font-black font-mono ${updateInfo?.hasUpdate ? 'text-emerald-400' : 'text-zinc-200'}`}>
+                            v{updateInfo?.latestVersion || CURRENT_APP_VERSION}
+                          </span>
+                          {updateInfo?.hasUpdate ? (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold animate-pulse">
+                              {lang === 'ko' ? '업데이트 가능' : 'Update Available'}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-400 font-bold">
+                              {lang === 'ko' ? '최신 상태' : 'Up to Date'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Update Status Banner */}
+                  {updateInfo?.hasUpdate ? (
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/30 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+                          <Sparkles className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <h4 className="font-black text-xs text-emerald-400 flex items-center gap-1.5">
+                            <span>{lang === 'ko' ? `🚀 새 정식 버전 (v${updateInfo.latestVersion}) 사용 가능` : `🚀 New Release (v${updateInfo.latestVersion}) Available`}</span>
+                          </h4>
+                          <p className="text-[11px] opacity-80 leading-snug">
+                            {lang === 'ko' 
+                              ? '네트워크 탐지 엔진 및 보안 감사 기능이 강화되었습니다. 아래 배포 패키지 중 원하는 플랫폼을 선택하여 즉시 다운로드하세요.' 
+                              : 'Latest network engine updates and security improvements are available. Choose your platform below.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Download Buttons Matrix */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {/* Windows Setup Installer */}
+                        <a
+                          href={updateInfo.installerExeUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/download/v${updateInfo.latestVersion}/Grid_IP_Scanner2_v${updateInfo.latestVersion}_Setup.exe`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 flex items-center justify-between group transition-all cursor-pointer shadow-sm"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Download className="w-4 h-4 text-sky-400 group-hover:translate-y-0.5 transition-transform" />
+                            <div className="text-left">
+                              <div className="font-black text-[11px] text-white">Windows Setup</div>
+                              <div className="text-[9px] opacity-60">정식 8단계 인스톨러 (.exe)</div>
+                            </div>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                        </a>
+
+                        {/* Windows Portable */}
+                        <a
+                          href={updateInfo.portableExeUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/download/v${updateInfo.latestVersion}/Grid_IP_Scanner2_v${updateInfo.latestVersion}_Portable.exe`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between group transition-all cursor-pointer shadow-sm"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Package className="w-4 h-4 text-indigo-400 group-hover:translate-y-0.5 transition-transform" />
+                            <div className="text-left">
+                              <div className="font-black text-[11px]">Windows Portable</div>
+                              <div className="text-[9px] opacity-60">단일 무설치 포터블 (.exe)</div>
+                            </div>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                        </a>
+
+                        {/* Android Mobile APK */}
+                        <a
+                          href={updateInfo.androidApkUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/download/v${updateInfo.latestVersion}/Grid_IP_Scanner2_v${updateInfo.latestVersion}.apk`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 flex items-center justify-between group transition-all cursor-pointer shadow-sm"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Smartphone className="w-4 h-4 text-emerald-400 group-hover:translate-y-0.5 transition-transform" />
+                            <div className="text-left">
+                              <div className="font-black text-[11px] text-white">Android Mobile</div>
+                              <div className="text-[9px] opacity-60">스마트폰 정식 APK (.apk)</div>
+                            </div>
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                        </a>
+
+                        {/* PWA / Web Instant Sync */}
+                        <button
+                          onClick={handleSyncPwaNow}
+                          className="p-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 flex items-center justify-between group transition-all cursor-pointer shadow-sm"
+                          title="Service Worker 및 브라우저 캐시를 삭제하고 최신 번들로 즉시 새로고침"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Zap className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+                            <div className="text-left">
+                              <div className="font-black text-[11px] text-white">PWA / Web 즉시 적용</div>
+                              <div className="text-[9px] opacity-60">캐시 초기화 & 실시간 갱신</div>
+                            </div>
+                          </div>
+                          <RefreshCw className="w-3.5 h-3.5 opacity-60 group-hover:rotate-180 transition-transform duration-500" />
+                        </button>
+                      </div>
+
+                      {/* Release Notes Preview */}
+                      {updateInfo.releaseNotes && (
+                        <div className="p-3 rounded-xl bg-black/25 border border-white/5 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-sky-400">
+                            <span>📋 {lang === 'ko' ? '릴리스 변경 사항 및 패치노트' : 'Release Notes & Changelog'}</span>
+                            <span className="font-mono text-zinc-400 font-normal">{updateInfo.publishedAt ? new Date(updateInfo.publishedAt).toLocaleDateString() : ''}</span>
+                          </div>
+                          <pre className="text-[10px] font-mono whitespace-pre-wrap max-h-32 overflow-y-auto opacity-80 leading-relaxed no-scrollbar bg-black/20 p-2 rounded-lg border border-white/5">
+                            {updateInfo.releaseNotes}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+                      <div className="space-y-0.5">
+                        <h4 className="font-black text-xs text-emerald-400">
+                          {lang === 'ko' ? `현재 최신 버전(v${CURRENT_APP_VERSION})을 사용 중입니다.` : `You are using the latest version (v${CURRENT_APP_VERSION}).`}
+                        </h4>
+                        <p className="text-[11px] opacity-75 leading-tight">
+                          {lang === 'ko' 
+                            ? '공식 GitHub Releases 저장소와 일치하며 모든 스캔 엔진 및 9만 건 OUI DB가 최신 상태입니다.' 
+                            : 'Synchronized with the official GitHub release repository.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Official Links & Information */}
+                  <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/5'} space-y-2 text-[11px]`}>
+                    <div className="font-black uppercase tracking-wider text-[10px] text-zinc-400 mb-1">
+                      {lang === 'ko' ? '공식 GitHub 릴리스 배포 채널' : 'Official GitHub Channels'}
+                    </div>
+
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="opacity-70">{lang === 'ko' ? 'GitHub 릴리스 목록:' : 'GitHub Releases:'}</span>
+                      <a 
+                        href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-sky-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>releases/latest</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-white/5">
-                      <span className="opacity-70">{lang === 'ko' ? '저장소 (Repo):' : 'Repository:'}</span>
-                      <a href="https://github.com/AhBiYout-all/grid-ip-scanner2" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold flex items-center gap-1">
-                        <span>github.com/AhBiYout-all/grid-ip-scanner2</span>
+
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="opacity-70">{lang === 'ko' ? '공식 소스 저장소:' : 'Repository:'}</span>
+                      <a 
+                        href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`}
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-sky-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}</span>
                         <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="opacity-70">{lang === 'ko' ? '구글블로그:' : 'Google Blog:'}</span>
-                      <a href="https://ahbiyoutvibe.blogspot.com/" target="_blank" rel="noreferrer" className="text-sky-500 hover:underline font-bold">
-                        ahbiyoutvibe.blogspot.com
+
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="opacity-70">{lang === 'ko' ? '개발자 공식 블로그:' : 'Official Blog:'}</span>
+                      <a 
+                        href="https://ahbiyoutvibe.blogspot.com/" 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-sky-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>ahbiyoutvibe.blogspot.com</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                       </a>
                     </div>
-                    <div className="pt-2 border-t border-white/5 text-[10px] opacity-60 text-center mono">
-                      Copyright (c) 2025-2026 AhBiYout. All rights reserved.
+
+                    <div className="pt-2 text-[10px] opacity-60 text-center mono">
+                      Auto-Update Pipeline Powered by GitHub Releases API
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
+              {/* Close Button */}
               <button 
                 onClick={() => setShowHelp(false)}
-                className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-black text-xs uppercase transition-all shadow-xl flex-shrink-0"
+                className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-black text-xs uppercase transition-all shadow-xl flex-shrink-0 cursor-pointer active:scale-98"
               >
                 {s.done || "Done"}
               </button>
@@ -5993,7 +6438,7 @@ const App: React.FC = () => {
       {/* License Management & Feature Gate Modal */}
       {showLicenseModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
+          <div className={`w-full max-w-lg ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
             <div className="flex justify-between items-center pb-2 border-b border-white/10">
               <div className="flex items-center space-x-3">
                 <img 
@@ -6060,15 +6505,15 @@ const App: React.FC = () => {
                   {lang === 'ko' ? '기능 해금 현황 (Feature Gates)' : 'Feature Gates & Entitlements'}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? '16x16 시각화 그리드 맵' : '16x16 Visual Grid Map'}</span>
                     <Check className="w-4 h-4 text-emerald-400" />
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? '9만 건 OUI 제조사 식별' : '90k OUI Vendor Database'}</span>
                     <Check className="w-4 h-4 text-emerald-400" />
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? '스냅샷 비교 (Diff Engine)' : 'Snapshot Diff Engine'}</span>
                     {license.features.diffCompare ? (
                       <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
@@ -6076,7 +6521,7 @@ const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? '심층 포트 정밀 보안 감사' : 'Deep Port Security Audit'}</span>
                     {license.features.portScanDeep ? (
                       <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
@@ -6084,7 +6529,7 @@ const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? 'A4 보안 감사 보고서 (HTML)' : 'A4 Security Audit Report (HTML)'}</span>
                     {license.features.exportReport ? (
                       <span className="text-[10px] font-bold text-emerald-400">{lang === 'ko' ? '● 활성' : '● Enabled'}</span>
@@ -6092,7 +6537,7 @@ const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span className="flex items-center gap-1.5">
                       <Power className="w-3.5 h-3.5 text-amber-400" />
                       <span>{lang === 'ko' ? '원격 부팅 (Wake-on-LAN)' : 'Remote Boot (Wake-on-LAN)'}</span>
@@ -6103,7 +6548,7 @@ const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span className="flex items-center gap-1.5">
                       <BellRing className="w-3.5 h-3.5 text-purple-400" />
                       <span>{lang === 'ko' ? '낯선 기기 감시 (Soft Trust 침입 탐지)' : 'Intruder & Soft Trust Guard'}</span>
@@ -6114,7 +6559,7 @@ const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-zinc-500">{lang === 'ko' ? '○ 비활성 (잠김)' : '○ Locked'}</span>
                     )}
                   </div>
-                  <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 flex items-center justify-between">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/5'}`}>
                     <span>{lang === 'ko' ? '다중 서브넷 허용 한도' : 'Max Subnets Allowance'}</span>
                     <span className="text-[10px] font-bold mono text-sky-400">
                       {license.maxSubnets === 999 ? (lang === 'ko' ? '무제한' : 'Unlimited') : `${license.maxSubnets}${lang === 'ko' ? '개 대역' : ' subnets'}`}
@@ -6124,7 +6569,7 @@ const App: React.FC = () => {
               </div>
 
               {/* License Activation Form */}
-              <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : 'bg-white/5 border-white/10'} space-y-3`}>
+              <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-amber-50/60 border-amber-200 text-slate-800' : 'bg-white/5 border-white/10'} space-y-3`}>
                 <label className="text-[10px] font-black uppercase tracking-wider opacity-80 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-amber-400" />
                   <span>{lang === 'ko' ? '라이선스 키 입력 및 활성화' : 'Enter License Key & Activate'}</span>
@@ -6135,7 +6580,7 @@ const App: React.FC = () => {
                     value={licenseKeyInput}
                     onChange={(e) => setLicenseKeyInput(e.target.value)}
                     placeholder={s.licenseKeyPlaceholder}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 transition-colors"
+                    className={`flex-1 ${theme === 'white' ? 'bg-white border-slate-300 text-slate-900' : 'bg-black/40 border-white/10 text-white'} rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 transition-colors`}
                   />
                   <button
                     onClick={handleActivateLicense}
@@ -6240,7 +6685,7 @@ const App: React.FC = () => {
       {/* Snapshot Diff 3-Step Interactive Guide Modal */}
       {showDiffGuide && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className={`w-full max-w-2xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
+          <div className={`w-full max-w-2xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
             {/* Header */}
             <div className="flex justify-between items-center pb-3 border-b border-white/10">
               <div className="flex items-center space-x-3">
@@ -6375,7 +6820,7 @@ const App: React.FC = () => {
       {/* PDF Export Hub Modal */}
       {showPdfExportModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
+          <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
             {/* Header */}
             <div className="flex items-center justify-between border-b pb-4 border-white/10 shrink-0">
               <div className="flex items-center space-x-3">

@@ -34,3 +34,33 @@ body {
 input {
   user-select: text !important;
 }
+
+/* 2D Grid Canvas Smooth Scrollbar */
+.grid-scroll-canvas {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.grid-scroll-canvas::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.grid-scroll-canvas::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.grid-scroll-canvas::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
+}
+
+.grid-scroll-canvas::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.grid-scroll-canvas::-webkit-scrollbar-corner {
+  background: transparent;
+}

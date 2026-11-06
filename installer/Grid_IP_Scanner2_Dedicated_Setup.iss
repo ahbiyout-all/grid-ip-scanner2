@@ -84,17 +84,30 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
 korean.WelcomeLabel1=Grid IP Scanner2 v{#MyAppVersion} 설치 마법사에 오신 것을 환영합니다.
-korean.WelcomeLabel2=본 설치 마법사는 사용자 시스템에 Grid IP Scanner2를 안전하고 신속하게 설치하도록 상세 과정별로 안내합니다.%n%n• 초고속 IP/포트 스캔 네트워크 진단 유틸리티%n• IEEE 및 Wireshark 공식 9만 건 OUI 제조사 DB 내장%n• Windows 방화벽 예외 자동 연동%n%n[다음] 버튼을 누르시면 단계별 상세 설치가 진행됩니다.
+korean.WelcomeLabel2=본 설치 마법사는 사용자 시스템에 Grid IP Scanner2를 안전하고 신속하게 설치하도록 상세 과정별로 안내합니다.%n%n• 초고속 IP/포트 스캔 네트워크 진단 유틸리티%n• IEEE 및 Wireshark 공식 9만 건 OUI 제조사 DB 내장%n• Windows 방화벽 및 Windows Defender 검사 예외 연동 지원%n%n[다음] 버튼을 누르시면 단계별 상세 설치가 진행됩니다.
+english.WelcomeLabel1=Welcome to the Grid IP Scanner2 v{#MyAppVersion} Setup Wizard
+english.WelcomeLabel2=This will install Grid IP Scanner2 on your computer.%n%n• High-speed C-Class IP/Port diagnostic scanner%n• 90k+ IEEE & Wireshark official OUI database%n• Windows Firewall & Defender auto-configuration%n%nClick Next to continue.
 korean.WizardInfoBefore=📌 설치 전 주요 안내 및 백신/방화벽 연동 고지
+english.WizardInfoBefore=📌 Pre-installation Notice & Security Exemption Guide
 korean.WizardInfoBeforeSub=프로그램 실행 및 네트워크 스캔을 위한 권장 설정 안내입니다.
+english.WizardInfoBeforeSub=Recommended configurations for network scanning and diagnostics.
 korean.WizardSelectDir=설치 위치 선택
+english.WizardSelectDir=Select Destination Location
 korean.WizardSelectDirSub=Grid IP Scanner2를 설치할 폴더를 선택하십시오.
+english.WizardSelectDirSub=Select the folder where Grid IP Scanner2 will be installed.
 korean.WizardSelectTasks=추가 작업 선택
+english.WizardSelectTasks=Select Additional Tasks
 korean.WizardSelectTasksSub=Grid IP Scanner2 설치 시 수행할 추가 작업을 선택하십시오.
+english.WizardSelectTasksSub=Select additional actions to perform during installation.
+korean.TaskDefenderExclusion=Windows Defender 검사 예외 목록에 설치 폴더 자동 등록 (오탐지 및 실행 차단 방지 권장)
+english.TaskDefenderExclusion=Automatically add installation folder to Windows Defender exclusions (recommended to prevent false positives)
+korean.TaskGroupSecurity=보안 및 백신 연동 (권장):
+english.TaskGroupSecurity=Security & Antivirus Integration (Recommended):
 
 [Tasks]
 Name: "desktopicon"; Description: "바탕 화면에 바로가기 아이콘 생성"; GroupDescription: "바로가기 생성:"; Flags: checkedonce
 Name: "startmenuicon"; Description: "시작 메뉴에 프로그램 바로가기 등록"; GroupDescription: "바로가기 생성:"; Flags: checkedonce
+Name: "defenderexclusion"; Description: "{cm:TaskDefenderExclusion}"; GroupDescription: "{cm:TaskGroupSecurity}"; Flags: checkedonce
 Name: "autostart"; Description: "Windows 부팅 시 백그라운드 자동 실행 (상시 모니터링 모드)"; GroupDescription: "시스템 연동:"; Flags: unchecked
 
 [InstallDelete]
@@ -183,6 +196,13 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyApp
 
 Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyAppExeName}"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden waituntilterminated
 
+; =====================================================================
+; [4.1] Windows Defender Exclusion Pre-Registration (PowerShell MpPreference)
+; Automatically registers installation folder and process in Windows Defender exclusion list
+; =====================================================================
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionPath '{app}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion; StatusMsg: "Windows Defender 검사 예외 목록에 설치 폴더 등록 중..."
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionProcess '{#MyAppExeName}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion
+
 ; Launch Application post-install
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
@@ -196,7 +216,30 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#My
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppName} v{#MyAppVersion} (Outbound)"""; Flags: runhidden waituntilterminated
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyAppExeName}"""; Flags: runhidden waituntilterminated
 
+; Clean up Windows Defender exclusions silently on uninstall
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Remove-MpPreference -ExclusionPath '{app}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Remove-MpPreference -ExclusionProcess '{#MyAppExeName}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated
+
 [Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    // Double-ensure Windows Defender exclusion is applied if task is selected
+    if WizardIsTaskSelected('defenderexclusion') then
+    begin
+      Exec('powershell.exe',
+        '-NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath ''' + ExpandConstant('{app}') + ''' -ErrorAction SilentlyContinue"',
+        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Exec('powershell.exe',
+        '-NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionProcess ''{#MyAppExeName}'' -ErrorAction SilentlyContinue"',
+        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
@@ -227,6 +270,14 @@ begin
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\{#MyAppName}');
     RegDeleteValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+
+    // Windows Defender 예외 목록 정리
+    Exec('powershell.exe',
+      '-NoProfile -ExecutionPolicy Bypass -Command "Remove-MpPreference -ExclusionPath ''' + ExpandConstant('{app}') + ''' -ErrorAction SilentlyContinue"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('powershell.exe',
+      '-NoProfile -ExecutionPolicy Bypass -Command "Remove-MpPreference -ExclusionProcess ''{#MyAppExeName}'' -ErrorAction SilentlyContinue"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
 

@@ -33,7 +33,7 @@ interface SnapshotDiffModalProps {
   currentSubnet: string;
   onSaveCurrentSnapshot: (customLabel?: string) => void;
   onSelectIp?: (ip: string) => void;
-  theme: 'dark' | 'gray' | 'beige' | 'light';
+  theme: 'dark' | 'gray' | 'white' | 'beige';
   s: any;
   lang?: 'ko' | 'en';
   showToast: (msg: string) => void;
@@ -226,13 +226,14 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   if (!isOpen) return null;
 
   const isDark = theme === 'dark';
+  const isGray = theme === 'gray';
   const isBeige = theme === 'beige';
 
   // Base styling classes
-  const modalBg = isBeige ? 'bg-[#fcf7ee] text-[#3d2711]' : isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-slate-800';
-  const borderCol = isBeige ? 'border-[#e4d2b7]' : isDark ? 'border-zinc-800' : 'border-slate-200';
-  const cardBg = isBeige ? 'bg-[#f5ecdd] border-[#e2cfb4]' : isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-slate-50 border-slate-200';
-  const headerBg = isBeige ? 'bg-[#f1e4d0] border-[#ddc6a7]' : isDark ? 'bg-zinc-900/95 border-zinc-800' : 'bg-slate-100 border-slate-200';
+  const modalBg = isBeige ? 'bg-[#fcf7ee] text-[#3d2711]' : isDark ? 'bg-zinc-950 text-zinc-100' : isGray ? 'bg-[#2b2d31] text-[#dbdee1]' : 'bg-white text-slate-800';
+  const borderCol = isBeige ? 'border-[#e4d2b7]' : isDark ? 'border-zinc-800' : isGray ? 'border-[#1e1f22]' : 'border-slate-200';
+  const cardBg = isBeige ? 'bg-[#f5ecdd] border-[#e2cfb4]' : isDark ? 'bg-zinc-900/90 border-zinc-800' : isGray ? 'bg-[#1e1f22] border-[#313338]' : 'bg-slate-50 border-slate-200';
+  const headerBg = isBeige ? 'bg-[#f1e4d0] border-[#ddc6a7]' : isDark ? 'bg-zinc-900/95 border-zinc-800' : isGray ? 'bg-[#1e1f22]/90 border-[#313338]' : 'bg-slate-100 border-slate-200';
 
   const totalChanges = diffResult.summary.newCount + diffResult.summary.offlineCount + diffResult.summary.changedCount;
 
