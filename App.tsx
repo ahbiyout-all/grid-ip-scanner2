@@ -347,6 +347,8 @@ const translations = {
     networkIdentity: "네트워크 식별",
     technicalDetails: "기술 세부 정보",
     address: "주소",
+    copyIpAddress: "IP 주소 복사",
+    ipAddressCopied: "IP 주소가 클립보드에 복사되었습니다.",
     macInfo: "MAC 정보",
     vendor: "제조사",
     os: "운영체제",
@@ -614,6 +616,8 @@ const translations = {
     networkIdentity: "Network Identity",
     technicalDetails: "Technical Details",
     address: "Address",
+    copyIpAddress: "Copy IP Address",
+    ipAddressCopied: "IP address copied to clipboard.",
     macInfo: "MAC Info",
     vendor: "Vendor",
     os: "Operating Sys",
@@ -960,6 +964,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isAdmin, setIsAdmin] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [copiedIp, setCopiedIp] = useState<string | null>(null);
   const [isElevating, setIsElevating] = useState(false);
   const [scanStartTime, setScanStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
@@ -1376,6 +1381,51 @@ const App: React.FC = () => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  const handleCopyIpAddress = useCallback((ip: string) => {
+    if (!ip) return;
+    const onCopiedSuccess = () => {
+      setCopiedIp(ip);
+      setTimeout(() => setCopiedIp(null), 2500);
+      showToast(lang === 'ko' ? `📋 IP 주소 (${ip})가 클립보드에 복사되었습니다.` : `📋 IP Address (${ip}) copied to clipboard.`);
+    };
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(ip)
+        .then(onCopiedSuccess)
+        .catch(() => {
+          try {
+            const textarea = document.createElement('textarea');
+            textarea.value = ip;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            onCopiedSuccess();
+          } catch {
+            showToast(lang === 'ko' ? "클립보드 복사에 실패했습니다." : "Failed to copy to clipboard.");
+          }
+        });
+    } else {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = ip;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        onCopiedSuccess();
+      } catch {
+        showToast(lang === 'ko' ? "클립보드 복사에 실패했습니다." : "Failed to copy to clipboard.");
+      }
+    }
+  }, [lang]);
 
   // 내보내기 및 리포트 메뉴 항목 클릭 시 메뉴를 즉각 닫고 선택한 액션을 즉시 실행
   const handleExportItemClick = (action: () => void | Promise<void>) => {
@@ -5075,6 +5125,35 @@ const App: React.FC = () => {
                                : (lang === 'ko' ? '비활성 / 꺼짐 (Offline)' : 'Offline / Inactive')}
                            </span>
                         </div>
+
+                        {/* Copy IP Address Action Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyIpAddress(selectedIp)}
+                          className={`mt-3.5 w-full py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-sm ${
+                            copiedIp === selectedIp
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                              : (theme === 'beige'
+                                  ? 'bg-[#fcf8f2] hover:bg-[#f5ebd6] border-[#dfcaa7] text-[#5c4a37]'
+                                  : theme === 'white'
+                                  ? 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+                                  : 'bg-black/30 hover:bg-white/10 border-white/10 text-sky-300 hover:text-white')
+                          }`}
+                          title={lang === 'ko' ? `IP 주소 (${selectedIp}) 클립보드에 복사` : `Copy IP address (${selectedIp}) to clipboard`}
+                        >
+                          {copiedIp === selectedIp ? (
+                            <>
+                              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span className="font-mono text-emerald-400">{lang === 'ko' ? 'IP 주소 복사 완료!' : 'IP Address Copied!'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 text-sky-400 shrink-0" />
+                              <span>{s.copyIpAddress || (lang === 'ko' ? 'IP 주소 복사' : 'Copy IP Address')}</span>
+                              <span className="font-mono opacity-65 text-[11px]">({selectedIp})</span>
+                            </>
+                          )}
+                        </button>
                      </div>
                   </section>
 
@@ -5308,15 +5387,33 @@ const App: React.FC = () => {
                     <div className={`p-4 ${theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800'} rounded-xl border space-y-3.5 shadow-sm`}>
                       <div className="flex justify-between items-center">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.address}</span>
-                        <a 
-                          href={`http://${selectedIp}`} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className={`${isLgText ? 'text-sm' : 'text-xs'} font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link`}
-                        >
-                          {selectedIp}
-                          <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
-                        </a>
+                        <div className="flex items-center gap-1.5">
+                          <a 
+                            href={`http://${selectedIp}`} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className={`${isLgText ? 'text-sm' : 'text-xs'} font-black mono text-sky-500 hover:text-sky-400 hover:underline flex items-center gap-1 group/link`}
+                            title={lang === 'ko' ? "새 탭에서 열기" : "Open in new tab"}
+                          >
+                            {selectedIp}
+                            <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover/link:opacity-100 inline transition-opacity" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyIpAddress(selectedIp)}
+                            className={`p-1 px-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                              copiedIp === selectedIp
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 ring-1 ring-emerald-500/30'
+                                : (theme === 'beige' ? 'bg-[#f5ebd6] hover:bg-[#ebdcc0] border-[#dfcaa7] text-[#5c4a37]' :
+                                   theme === 'white' ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800' :
+                                   'bg-white/5 hover:bg-white/15 border-white/10 text-zinc-300 hover:text-white')
+                            }`}
+                            title={lang === 'ko' ? `IP 주소 (${selectedIp}) 복사` : `Copy IP Address (${selectedIp})`}
+                          >
+                            {copiedIp === selectedIp ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-sky-400" />}
+                            <span>{copiedIp === selectedIp ? (lang === 'ko' ? '복사됨' : 'Copied') : (lang === 'ko' ? '복사' : 'Copy')}</span>
+                          </button>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.macInfo}</span>
