@@ -1,4 +1,44 @@
-# Grid IP Scanner2 - Patch Note (v2.4.23)
+# Grid IP Scanner2 - Patch Note (v2.4.24)
+
+## 🚀 [v2.4.24] - 2026-11-07
+
+### 🌟 주요 기능 추가 및 Windows 인스톨러 권한/안정성 개편 (Installer & Profile Enhancements)
+
+1. **장치 상세 프로필 사이드바 내 'IP 주소 복사 (Copy IP Address)' 원클릭 기능 추가 (`App.tsx`)**
+   - **기능 설명**:
+     - 탐색된 노드의 상세 프로필 패널에서 선택한 IP 주소를 한 번의 클릭으로 클립보드에 복사할 수 있는 편리한 전용 버튼을 추가했습니다.
+   - **세부 개선 사항**:
+     - `navigator.clipboard.writeText`를 기본 적용하고, 비보안 컨텍스트 및 모바일/레거시 브라우저를 위한 `document.execCommand('copy')` 자동 폴백(Fallback)을 함께 구현하여 100% 호환 복사를 보장합니다.
+     - 복사 완료 시 하단 토스트 메시지(`📋 IP 주소 (X.X.X.X)가 클립보드에 복사되었습니다.`)와 함께 2.5초간 초록색 `Check` 아이콘 및 피드백 애니메이션이 표시됩니다.
+     - **다중 배치**: 상단 대표 식별 카드(Identity Card) 및 하단 기술 세부 정보(Technical Details) 주소 행 2곳에 각각 직관적이고 디자인적으로 조화로운 복사 버튼을 배치했습니다.
+
+2. **Inno Setup 6 `PrivilegesRequiredOverridesAllowed` 지시어 컴파일 오류 완벽 해결 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/build-installer.js`)**
+   - **원인 분석**:
+     - Inno Setup 6.7.1+ ISCC 빌더 컴파일 시 `PrivilegesRequiredOverridesAllowed=none` 지정 구문이 수용되지 않아 `Value of [Setup] section directive "PrivilegesRequiredOverridesAllowed" is invalid` 에러와 함께 CI/CD 파이프라인이 중단되던 현상을 파악했습니다.
+   - **해결 조치**:
+     - Inno Setup 스크립트 규격에 따라 해당 항목을 생략(Omit) 처리하여, 기본 사양에 따라 관리자 권한(`PrivilegesRequired=admin`)을 엄격히 단독 강제하도록 정제했습니다.
+     - `installer/build-installer.js` 자동 빌드 파이프라인에 구문 소독 가드를 추가하여 GitHub Actions 및 오프라인 환경 모두에서 100% 컴파일 성공을 보장합니다.
+
+3. **Windows 인스톨러 설치 후 자동 실행 시 UAC 권한 부족(CreateProcess Code 740) 오류 차단 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**
+   - **원인 분석**:
+     - Windows 관리자 설치 완료 후 postinstall 단계에서 앱을 자동 기동할 때, 기본 권한 미달로 커널 `CreateProcess` 단계에서 Code 740 ("요청한 작업을 수행하려면 권한 상승이 필요합니다.") 팝업이 발생하던 결함을 해결했습니다.
+   - **해결 조치**:
+     - Inno Setup `[Run]` postinstall 실행 항목에 `runascurrentuser` 플래그를 적용하고, Go 기반 독립 인스톨러(`setup_builder.go`)에 `ShellExecuteW` (`runas`) 상승 동사를 적용하여 관리자 권한 토큰을 승계받아 즉시 정상 실행되도록 조치했습니다.
+
+4. **설치 마법사 기동 시 기존 앱 자동 종료 및 이전 버전 제거 알림 탑재 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**
+   - **개선 조치**:
+     - `InitializeSetup` 단계에서 실행 중인 `Grid_IP_Scanner2.exe` 프로세스를 사전에 정밀 감지하고, 안전 종료 안내 메시지(`ExistingAppTerminatedMsg`) 팝업을 제공합니다.
+     - 시스템에 설치된 기존 버전 감지 시 최신 버전(v2.4.24)으로의 안전한 갱신을 안내하는 이전 버전 삭제 메시지(`ExistingAppRemovalMsg`) 팝업 제공 후 기존 언인스톨러(`unins000.exe`)를 무소음 실행하여 깨끗한 갱신 설치를 보장합니다.
+
+5. **2D 가로/세로 그리드 스크롤바 및 640x480 (VGA) 저해상도 지원 레이아웃 구현 (`App.tsx`, `index.css`)**
+   - **개선 조치**:
+     - 초고밀도 디스플레이 및 low-resolution 화면 대응을 위해 가로/세로 독립 2D 스크롤 모드(`.grid-scroll-canvas`) 및 화면 맞춤 토글 버튼을 추가했습니다.
+
+6. **상단 헤더 UI 컴팩트 정제 및 포커스 인터랙션 적용 (`App.tsx`)**
+   - **개선 조치**:
+     - 상단 헤더 조작바에서 스케줄러 및 PDF 퀵 버튼을 정리하여 고해상도/저해상도 환경 모두에서 더욱 여유롭고 직관적인 UI 구성을 완성했습니다.
+
+---
 
 ## 🚀 [v2.4.15] - 2026-11-01
 

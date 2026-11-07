@@ -1,3 +1,21 @@
+### 47. 장치 프로필 IP 복사 및 Windows 인스톨러 권한상승/Inno Setup 구문 오류 해결 (v2.4.24)
+- **사용자 요청 사항 및 피드백**:
+  - "Add a new 'Copy IP Address' button to the device profile sidebar that uses the Clipboard API to copy the selected IP address, and show a toast confirmation."
+  - "Inno Setup 6 ISCC 컴파일 구문 오류 (PrivilegesRequiredOverridesAllowed=none) 및 UAC 권한상승 (CreateProcess Code 740) 수정. 앱 설치 시작 시 기존앱 종료 및 종료 알림, 기존앱 삭제 알림 추가."
+- **원인 규명 및 해결 조치**:
+  1. **장치 상세 프로필 사이드바 'IP 주소 복사' 기능 탑재 (`App.tsx`)**:
+     - `navigator.clipboard.writeText` 및 `document.execCommand('copy')` 폴백을 조합한 IP 복사 핸들러 구현.
+     - 복사 완료 시 하단 토스트 메시지 및 버튼 체크 아이콘/에메랄드 피드백 제공.
+     - 상단 대표 카드 및 하단 기술 세부 정보 주소 행에 원클릭 복사 버튼 배치.
+  2. **Inno Setup 6 `PrivilegesRequiredOverridesAllowed` 구문 오류 해결 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/build-installer.js`)**:
+     - Inno Setup 6.7.1+에서 허용되지 않는 `=none` 구문을 생략(Omit) 및 파이프라인 자동 정제 조치하여 ISCC 빌드 실패 문제 해결.
+  3. **Windows 인스톨러 설치 후 자동 기동 권한 상승(Code 740) 차단 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**:
+     - Postinstall 항목에 `runascurrentuser` 및 `ShellExecuteW` (`runas`) 상승 동사를 적용하여 설치 완료 후 UAC 토큰을 승계하여 정상 기동되도록 조치.
+  4. **설치 마법사 기동 시 기존 앱 자동 종료 및 이전 버전 삭제 알림 탑재 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**:
+     - `InitializeSetup` 시 기존 프로세스 감지 후 안내 팝업(`ExistingAppTerminatedMsg`) 및 기존 설치본 갱신 삭제 안내(`ExistingAppRemovalMsg`) 후 무소음 재설치 수행.
+  5. **SemVer v2.4.24 패치 버전업 및 공식 문서 일괄 갱신**:
+     - `sync-version.js`로 SSOT v2.4.24 승급 및 기술 문서 일괄 업데이트.
+
 ### 46. 모바일 장치 전자동 업데이트 워크플로우 전면 개편 (v2.4.16)
 - **사용자 요청 사항**:
   - "모바일장치에서 업데이트 전자동 진행 개선."
