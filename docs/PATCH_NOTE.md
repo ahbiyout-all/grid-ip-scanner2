@@ -1,4 +1,25 @@
-# Grid IP Scanner2 - Patch Note (v2.4.25)
+# Grid IP Scanner2 - Patch Note (v2.4.26)
+
+## 🚀 [v2.4.26] - 2026-11-07
+
+### 🌟 앱 실행 시 최초 시스템 트레이 자동 활성화 & 창 닫기[X] 트레이 최소화 핸들러 보강 (System Tray Startup & Close-to-Tray Fix)
+
+1. **앱 시작 시부터 시스템 트레이 아이콘 최초 자동 생성 및 활성화 (`main.js`, `preload.js`, `App.tsx`)**
+   - **개선 조치**:
+     - 앱 실행과 동시에 `app.whenReady()` 단계에서 `createTray()`를 최우선 호출하여 Windows 작업표시줄 알림 영역(시스템 트레이)에 브랜디드 트레이 아이콘을 즉시 생성 및 활성화합니다.
+     - 트레이 생성 시 `Grid IP Scanner2 백그라운드 트레이 가동` 풍선 도움말 알림(Balloon Notification)을 자동 표출하여 24/7 무인 침입 감시 및 스케줄러가 활성화되었음을 시각적으로 명확히 전달합니다.
+
+2. **창 닫기 버튼([X]) 클릭 시 트레이 최소화(Close-to-Tray) 이벤트 인터셉트 (`main.js`, `preload.js`, `App.tsx`)**
+   - **원인 및 해결**:
+     - 이전 릴리즈에서 Electron 데스크톱 창의 `close` 이벤트 가드가 누락되어 [X] 버튼 클릭 시 창 및 프로세스가 파기되면서 트레이 아이콘이 사라지던 현상을 해결했습니다.
+     - `mainWindow.on('close')` 이벤트에 `event.preventDefault()` 및 `mainWindow.hide()` 가드를 적용하여, 창을 닫으면 완전히 종료되지 않고 백그라운드 시스템 트레이로 즉시 최소화되도록 조치했습니다.
+
+3. **Electron ContextBridge IPC 2방향 트레이 통신 구축 (`preload.js`, `main.js`, `App.tsx`)**
+   - **기능 설명**:
+     - `preload.js`에 `minimizeToTray`, `showTrayNotification`, `onToggleIntruder` API를 탑재하여, UI 상단 헤더의 `[📌 트레이 최소화]` 원클릭 버튼 및 설정 모달 내 `[📌 즉시 트레이 영역으로 최소화]` 버튼 클릭 시 즉각 백그라운드 트레이로 격리되도록 지원합니다.
+     - 트레이 우클릭 컨텍스트 메뉴의 `🚨 24/7 백그라운드 침입 감시` 체크박스 변경 시 UI 상태가 실시간 양방향 동기화됩니다.
+
+---
 
 ## 🚀 [v2.4.25] - 2026-11-07
 

@@ -1136,6 +1136,20 @@ const App: React.FC = () => {
 
   const [showWindowsUtilModal, setShowWindowsUtilModal] = useState(false);
   const [isAutoStartEnabled, setIsAutoStartEnabled] = useState(false);
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
+
+  const handleMinimizeToTray = useCallback(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.minimizeToTray) {
+      (window as any).electronAPI.minimizeToTray();
+      showToast(lang === 'ko' ? '📌 백그라운드 시스템 트레이로 최소화되었습니다.' : '📌 Minimized to background system tray.');
+    } else {
+      showToast(lang === 'ko' ? '📌 시스템 트레이 최소화 모드 가동 중 (백그라운드 스캐너 활성화)' : '📌 System Tray minimize active in background');
+    }
+    setShowWindowsUtilModal(false);
+  }, [lang, showToast]);
 
   useEffect(() => {
     if (isWindowsDesktop) {
@@ -1144,8 +1158,20 @@ const App: React.FC = () => {
           setIsAutoStartEnabled(res.enabled);
         }
       }).catch(() => {});
+
+      // Register Electron Tray listeners if running in Electron
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        const api = (window as any).electronAPI;
+        if (api.onToggleIntruder) {
+          api.onToggleIntruder((val: boolean) => {
+            setIntruderWatchMode(val);
+            try { localStorage.setItem('grid_intruder_watch', String(val)); } catch (_) {}
+            showToast(val ? '🚨 트레이 24/7 침입 감시 활성화' : '🚨 트레이 24/7 침입 감시 비활성화');
+          });
+        }
+      }
     }
-  }, [isWindowsDesktop]);
+  }, [isWindowsDesktop, showToast]);
 
   // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
   const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
@@ -1409,10 +1435,7 @@ const App: React.FC = () => {
     }
   }, [isExportDropdownOpen]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+
 
   const handleCopyIpAddress = useCallback((ip: string) => {
     if (!ip) return;
@@ -3179,14 +3202,24 @@ const App: React.FC = () => {
                 <span>{s.dllHub}</span>
               </button>
               {isWindowsDesktop && (
-                <button
-                  onClick={() => setShowWindowsUtilModal(true)}
-                  className="px-2 py-0.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
-                  title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
-                >
-                  <Terminal className="w-2.5 h-2.5 text-cyan-400" />
-                  <span>{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowWindowsUtilModal(true)}
+                    className="px-2 py-0.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
+                    title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
+                  >
+                    <Terminal className="w-2.5 h-2.5 text-cyan-400" />
+                    <span>{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
+                  </button>
+                  <button
+                    onClick={handleMinimizeToTray}
+                    className="px-2 py-0.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-emerald-500/20"
+                    title={lang === 'ko' ? "앱을 시스템 트레이로 최소화 (백그라운드 가동)" : "Minimize app to system tray"}
+                  >
+                    <Monitor className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>{lang === 'ko' ? "📌 트레이 최소화" : "Minimize to Tray"}</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -7163,10 +7196,32 @@ const App: React.FC = () => {
                     <Monitor className="w-4 h-4 text-cyan-400" />
                     <span>📌 시스템 트레이 상주 & 무인 백그라운드</span>
                   </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-400" />
+                    <span>앱 실행 시 트레이 자동 활성화됨</span>
+                  </span>
                 </div>
 
+                {/* Status Indicator Banner */}
+                <div className="p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-500/20 text-[11px] text-cyan-200 flex items-start gap-2">
+                  <Monitor className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-cyan-300">트레이 실행 보장: </span>
+                    앱 기동과 동시에 Windows 작업표시줄 시스템 트레이 아이콘이 생성되어, 창을 닫아도 백그라운드 스캐너 및 24/7 침입 감시가 멈추지 않습니다.
+                  </div>
+                </div>
+
+                {/* Direct Minimize to Tray Action Button */}
+                <button
+                  onClick={handleMinimizeToTray}
+                  className="w-full py-2 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-98 text-cyan-200 font-bold border border-cyan-500/40 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm shadow-cyan-500/10"
+                >
+                  <Monitor className="w-4 h-4 text-cyan-400" />
+                  <span>📌 즉시 시스템 트레이로 최소화 (Minimize to Tray Now)</span>
+                </button>
+
                 {/* Close to Tray Toggle */}
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
                     <div className="font-bold text-zinc-200">창 닫기 시 트레이 최소화 (Close-to-Tray)</div>
                     <div className="text-[10px] text-zinc-400">메인 창 [X] 클릭 시 완전히 종료하지 않고 시스템 트레이로 상주시킵니다.</div>
