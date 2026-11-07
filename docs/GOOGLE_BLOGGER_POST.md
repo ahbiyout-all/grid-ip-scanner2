@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.24)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.25)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.24 | **작성일자**: 2026-11-07
+> **최신 버전**: v2.4.25 | **작성일자**: 2026-11-07
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 장치 프로필 원클릭 IP 주소 복사, Inno Setup 권한상승 UAC 문제 해결, 9만 건 오프라인 OUI 제조사 식별, 4색 스냅샷 Diff 비교, 24시간 침입 감시, 원클릭 A4 보안감사 PDF 리포트와 원격 부팅(WoL)을 지원하는 초고속 차세대 네트워크 진단 도구 Grid IP Scanner2 (v2.4.24)를 소개합니다.
+  > 16x16 시각화 그리드 맵, Windows 시스템 트레이 백그라운드 24/7 침입 감시, 창 닫기[X] 트레이 최소화, 레거시 Windows 네트워크 도구(ipconfig /flushdns, ncpa.cpl, HKCU 레지스트리 부팅 자동실행), 장치 프로필 IP 주소 복사, 4색 스냅샷 Diff 비교, A4 보안감사 PDF 리포트 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.25)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 원클릭 IP 주소 복사기능을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.24)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 Windows 시스템 트레이 24/7 침입 감시 & 레거시 OS 도구를 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.25)**
 
 ---
 
@@ -30,34 +30,31 @@
 
 네트워크 관리자, 시스템 엔지니어, 사내 전산 담당자라면 한 번쯤 **Advanced IP Scanner**나 **Angry IP Scanner** 같은 진단 도구를 사용해 보셨을 것입니다. 하지만 기존 도구들은 수백 개의 IP 주소를 단순한 텍스트 행(Row) 리스트로만 나열하여 전체 네트워크의 유휴 공간과 밀도를 직관적으로 파악하기 어려웠습니다. 또한 어제와 오늘의 네트워크 접속 장비 변화를 비교하거나, 경영진 및 감사 제출용 A4 보고서를 즉시 작성하는 데 큰 번거로움이 있었습니다.
 
-이러한 현장의 갈증을 해소하기 위해 탄생한 **『Grid IP Scanner2』**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**으로 실시간 시각화하며, 장치 상세 프로필 패널 내 원클릭 IP 주소 복사(Clipboard API), 다중 프로토콜 탐색 배지 원클릭 대표 이름 지정, 한글(2byte) 인코딩 깨짐 원천 방지, 9만 건 이상의 내장 하드웨어 제조사(OUI) 데이터베이스, 4색 스냅샷 Diff 비교, 24/7 침입자 백그라운드 감시, 원클릭 A4 규격 보안감사 PDF 출력, 원격 부팅(Wake-on-LAN)을 제공하는 고성능 네트워크 스캐너입니다.
+이러한 현장의 갈증을 해소하기 위해 탄생한 **『Grid IP Scanner2』**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**으로 실시간 시각화하며, Windows 시스템 트레이 백그라운드 24/7 무인 침입 감시 및 스케줄러, 창 닫기([X]) 트레이 최소화(Close-to-Tray), 레거시 Windows 네트워크 도구(ipconfig /flushdns, ncpa.cpl, HKCU 레지스트리 부팅 자동실행 토글), 원클릭 IP 주소 복사, 9만 건 이상의 내장 OUI DB, 4색 스냅샷 Diff 비교, 원클릭 A4 규격 보안감사 PDF 출력을 제공하는 고성능 네트워크 스캐너입니다.
 
 #### 🚀 Grid IP Scanner2 핵심 기능
 * **16x16 시각화 그리드 맵**: 전체 254개 노드의 활성/비활성/경고 상태를 신호등처럼 1초 만에 직관적으로 조망.
-* **📋 원클릭 IP 주소 복사 (Clipboard API)**: 탐색된 노드의 상세 프로필에서 클릭 한 번으로 IP 주소를 클립보드로 완벽 복사 (Clipboard API & Fallback 완비).
-* **🏷️ 다중 프로토콜 뱃지 원클릭 대표 이름 지정**: SMB, NetBIOS, mDNS, UPnP, WSD, SNMP, Web Title 출처 뱃지 및 프로토콜 채널 목록 원클릭 장치 대표 이름 즉시 교체.
-* **🛡️ Windows 인스톨러 권한 상승 & 무소음 교체 설치**: Inno Setup 6 커널 UAC 권한 승계(runascurrentuser)로 설치 후 자동 기동 에러(Code 740)를 원천 차단하고 기존 버전 자동 종료/안내 제공.
-* **🔤 한글(2byte) 멀티바이트 깨짐 원천 차단**: UTF-8 및 CP949 / EUC-KR 네트워크 패킷 유효성 검증과 유니코드 정규식을 통한 한글 호스트명 무결점 디코딩.
-* **90,168건 내장 오프라인 OUI 식별**: 인터넷이 차단된 폐쇄망에서도 1ms 미만의 속도로 삼성, 애플, 시스코, 시놀로지 등 하드웨어 제조사 식별.
-* **과거 vs 현재 4색 스냅샷 Diff**: 기준점 대비 신규 접속(+NEW), 오프라인 전환(-OFF), 장비 식별 변경(!CHG), 정상 유지(=SAME)를 4색으로 정밀 진단.
-* **24시간 무인 백그라운드 침입 감시**: 미등록 낯선 기기 탐지 시 즉각적인 데스크톱 팝업 및 오디오 비프 경보 송출.
-* **경영진 제출용 A4 보안감사 PDF 리포트**: OUI 점유율 통계, 고위험 취약 포트 진단, 인벤토리 상세를 A4 최적화 조판으로 즉시 출력.
+* **🔔 Windows 시스템 트레이 & 24시간 백그라운드 무인 감시**: 창을 닫아도 백그라운드 트레이에서 24/7 낯선 기기 감시 및 정기 자동 스캔 무정지 실행.
+* **📌 창 닫기 버튼([X]) 트레이 최소화(Close-to-Tray)**: 상단 X 버튼 클릭 시 트레이로 최소화되어 무인 네트워크 스캔 상태 지속 보존.
+* **🛠️ Windows 레거시 OS 네트워크 도구 연동**: DNS 캐시 플러시(`ipconfig /flushdns`), 제어판 네트워크 연결 (`ncpa.cpl`), 부팅 시 레지스트리 자동 실행(`HKCU\Run`), 방화벽 예외 자동 재등록.
+* **🌐 Web / 모바일 환경 엄격한 시스템 분리**: Web, PWA, Android, iOS 환경에서는 시스템 트레이 및 OS 도구를 깔끔하게 숨겨 플랫폼 무결성 확보.
+* **📋 원클릭 IP 주소 복사 (Clipboard API)**: 탐색된 노드의 상세 프로필에서 클릭 한 번으로 IP 주소를 클립보드로 완벽 복사.
+* **90,168건 내장 오프라인 OUI 식별**: 인터넷 차단 폐쇄망에서도 1ms 속도로 하드웨어 제조사 식별.
+* **과거 vs 현재 4색 스냅샷 Diff**: 기준점 대비 신규 접속(+NEW), 오프라인 전환(-OFF), 장비 식별 변경(!CHG), 정상 유지(=SAME) 4색 진단.
+* **경영진 제출용 A4 보안감사 PDF 리포트**: OUI 점유율 통계, 고위험 취약 포트 진단, 인벤토리 상세를 A4 최적화 조판으로 출력.
 
 ---
 
-### 3. 업데이트 (v2.4.24 최신 릴리즈 하이라이트)
-* **📋 장치 프로필 사이드바 내 'IP 주소 복사' 원클릭 기능 추가 (`App.tsx`)**:
-  - `navigator.clipboard.writeText` 및 `document.execCommand('copy')` 폴백을 적용한 IP 복사 핸들러 구현.
-  - 복사 완료 시 하단 토스트 메시지 및 버튼 체크 아이콘/에메랄드 피드백 제공.
-  - 대표 식별 카드 및 기술 세부 정보 주소 행 2곳에 원클릭 복사 버튼 배치.
-* **🛡️ Inno Setup 6 `PrivilegesRequiredOverridesAllowed` 구문 오류 해결 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/build-installer.js`)**:
-  - Inno Setup 6.7.1+에서 허용되지 않는 `=none` 구문을 생략(Omit) 및 파이프라인 자동 정제 조치하여 ISCC 빌드 실패 문제 원천 해결.
-* **⚙️ Windows 인스톨러 설치 후 자동 기동 권한 상승(Code 740) 차단 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**:
-  - Postinstall 항목에 `runascurrentuser` 및 `ShellExecuteW` (`runas`) 상승 동사를 적용하여 설치 완료 후 UAC 토큰을 승계하여 정상 기동되도록 조치.
-* **🔔 설치 마법사 기동 시 기존 앱 자동 종료 및 이전 버전 삭제 알림 탑재 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**:
-  - `InitializeSetup` 시 기존 프로세스 감지 후 안내 팝업(`ExistingAppTerminatedMsg`) 및 기존 설치본 갱신 삭제 안내(`ExistingAppRemovalMsg`) 후 무소음 재설치 수행.
-* **🖥️ 2D 가로/세로 그리드 스크롤바 및 640x480 (VGA) 저해상도 지원 레이아웃 구현 (`App.tsx`, `index.css`)**:
-  - 초고밀도 디스플레이 및 low-resolution 화면 대응을 위해 가로/세로 독립 2D 스크롤 모드(`.grid-scroll-canvas`) 및 화면 맞춤 토글 버튼을 추가했습니다.
+### 3. 업데이트 (v2.4.25 최신 릴리즈 하이라이트)
+* **🔔 Windows 시스템 트레이 백그라운드 24/7 침입 감시 & 무인 스케줄러 연동 (`main.go`, `App.tsx`)**:
+  - 창을 닫아도 트레이 영역에서 24시간 낯선 기기 감시(Intruder Watch) 및 스케줄러 무정지 실행.
+  - 트레이 우클릭 컨텍스트 메뉴(앱 열기, 24/7 감시 토글, DNS 플러시, 네트워크 제어판, 자동실행, 종료) 제공.
+* **📌 창 닫기 버튼([X]) 트레이 최소화(Close-to-Tray) 옵션 적용 (`App.tsx`)**:
+  - [X] 버튼 클릭 시 프로그램이 트레이로 최소화되어 스캔 연속성 유지 (`localStorage` 영구 설정).
+* **🛠️ Windows 레거시 OS 네트워크 도구 단축 연동 (`main.go`, `services/nativeModulesService.ts`)**:
+  - DNS 플러시 (`ipconfig /flushdns`), 네트워크 연결 제어판 (`ncpa.cpl`), 방화벽 규칙 재등록, 부팅 자동 실행 레지스트리(`HKCU\Run`) 단축 연동.
+* **🌐 Web / 모바일 (PWA / Android / iOS) 엄격한 기능 격리 (`App.tsx`)**:
+  - Non-Windows Desktop 환경에서는 SysTray 및 레거시 OS 도구 UI를 전면 은닉 처리하여 UI 무결성 유지.
 
 ---
 
@@ -131,6 +128,11 @@
 ### 9. 전체 업데이트 (기능 개선 히스토리)
 패치노트에 기록된 핵심 기능 개선 및 업데이트 전체 히스토리입니다:
 
+* **v2.4.25 (2026-11-07)**:
+  - Windows 시스템 트레이 백그라운드 24/7 침입 감시 및 스케줄러 무정지 실행 연동.
+  - 상단 창 닫기 버튼([X]) 클릭 시 시스템 트레이 최소화(Close-to-Tray) 적용.
+  - Windows 레거시 OS 전용 네트워크 유틸리티(ipconfig /flushdns, ncpa.cpl, 방화벽 재등록, HKCU 레지스트리 부팅 자동실행) 단축 도구 탑재.
+  - Web, PWA, Android, iOS 등 Non-Windows Desktop 환경에서 SysTray 및 레거시 OS 도구 깔끔한 엄격 분리 및 은닉.
 * **v2.4.24 (2026-11-07)**:
   - 장치 프로필 사이드바 내 'IP 주소 복사 (Copy IP Address)' 원클릭 기능 추가 (Clipboard API & Fallback).
   - Inno Setup 6 `PrivilegesRequiredOverridesAllowed` 구문 소독으로 ISCC 컴파일 성공 보장.

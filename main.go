@@ -2578,6 +2578,113 @@ func main() {
 		})
 	})
 
+	http.HandleFunc("/api/windows-util", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		action := r.URL.Query().Get("action")
+		enableStr := r.URL.Query().Get("enable")
+
+		if runtime.GOOS != "windows" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":   true,
+				"action":    action,
+				"message":   "Windows legacy utility action simulated on non-Windows environment.",
+				"supported": false,
+			})
+			return
+		}
+
+		switch action {
+		case "flushdns":
+			cmd := exec.Command("ipconfig", "/flushdns")
+			hideWindow(cmd)
+			err := cmd.Run()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Failed to flush DNS cache: " + err.Error(),
+				})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"action":  "flushdns",
+				"message": "DNS 캐시가 성공적으로 초기화되었습니다 (ipconfig /flushdns).",
+			})
+
+		case "ncpa.cpl":
+			cmd := exec.Command("control.exe", "ncpa.cpl")
+			hideWindow(cmd)
+			_ = cmd.Start()
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"action":  "ncpa.cpl",
+				"message": "Windows 네트워크 어댑터 제어판(ncpa.cpl)을 여는 중입니다.",
+			})
+
+		case "firewall":
+			ensureFirewallRulesSilently()
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"action":  "firewall",
+				"message": "Windows 방화벽 예외 규칙(netsh advfirewall)이 성공적으로 재등록되었습니다.",
+			})
+
+		case "autostart":
+			exePath, err := os.Executable()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Could not locate executable path",
+				})
+				return
+			}
+			appName := "Grid IP Scanner2"
+			if enableStr == "true" {
+				cmd := exec.Command("reg", "add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", appName, "/t", "REG_SZ", "/d", fmt.Sprintf("\"%s\" --tray", exePath), "/f")
+				hideWindow(cmd)
+				if err := cmd.Run(); err != nil {
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"success": false,
+						"error":   "Failed to register startup registry key: " + err.Error(),
+					})
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": true,
+					"enabled": true,
+					"message": "Windows 부팅 시 자동 실행 설정이 활성화되었습니다.",
+				})
+			} else if enableStr == "false" {
+				cmd := exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", appName, "/f")
+				hideWindow(cmd)
+				_ = cmd.Run()
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": true,
+					"enabled": false,
+					"message": "Windows 부팅 시 자동 실행 설정이 해제되었습니다.",
+				})
+			} else {
+				cmd := exec.Command("reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", appName)
+				hideWindow(cmd)
+				err := cmd.Run()
+				isEnabled := (err == nil)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": true,
+					"enabled": isEnabled,
+					"message": fmt.Sprintf("부팅 시 자동 실행 상태: %v", isEnabled),
+				})
+			}
+
+		default:
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Unknown action: " + action,
+			})
+		}
+	})
+
 	http.HandleFunc("/api/exit", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		go func() {

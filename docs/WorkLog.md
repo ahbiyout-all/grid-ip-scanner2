@@ -1,3 +1,19 @@
+### 48. Windows 시스템 트레이 백그라운드 24/7 침입 감시 및 레거시 OS 유틸리티 탑재 (v2.4.25)
+- **사용자 요청 사항 및 피드백**:
+  - "시스템 트레이 필요성, 24/7 낯선 기기 감지 및 스케줄러 백그라운드 무인 실행, 앱을 지원하지 않는 운영체계에서 사용되는 기능이 있는데 시스템 트레이에 포함, web / mobile 에는 시스템 트레이기능 제공 안함. 오래된 윈도우 운영체계에서 사용되는 기능을 시스템 트레이에 기능을 추가."
+- **원인 규명 및 해결 조치**:
+  1. **Windows 시스템 트레이 백그라운드 24/7 침입 감시 & 스케줄러 무정지 실행 (`main.go`, `App.tsx`, `services/nativeModulesService.ts`)**:
+     - 창을 닫아도 백그라운드 시스템 트레이 영역에서 24시간 미등록 낯선 기기 감시(Intruder Watch) 및 자동 정기 스캔 스케줄러가 무인으로 계속 실행되도록 구축.
+     - 트레이 우클릭 컨텍스트 메뉴(앱 열기, 24/7 감시 토글, DNS 플러시, 네트워크 제어판, 자동실행, 종료) 연동.
+  2. **창 닫기 버튼([X]) 트레이 최소화(Close-to-Tray) 적용 (`App.tsx`)**:
+     - 상단 창 닫기 버튼([X]) 클릭 시 완전 종료 대신 시스템 트레이 아이콘으로 최소화되어 무인 네트워크 감시 상태 보존 (`localStorage` 연동).
+  3. **Windows 레거시 운영체제(Win 7/8/10/11) 전용 네트워크 유틸리티 단축 도구 연동 (`main.go`, `App.tsx`)**:
+     - DNS 캐시 플러시(`ipconfig /flushdns`), 제어판 네트워크 연결(`ncpa.cpl`), 방화벽 예외 규칙 재등록, 부팅 시 자동 실행 레지스트리(`HKCU\Run`) 단축 버튼 구현.
+  4. **Web / 모바일 (PWA / Android / iOS) 엄격한 기능 격리 (`App.tsx`)**:
+     - Non-Windows Desktop 환경에서는 SysTray 및 레거시 OS 도구 UI를 전면 은닉 처리하여 Web/모바일 환경 무결성 확보.
+  5. **SemVer v2.4.25 패치 버전업 및 공식 기술 문서 일괄 동기화**:
+     - `sync-version.js`로 SSOT v2.4.25 승급 및 기술 문서 일괄 업데이트 완료.
+
 ### 47. 장치 프로필 IP 복사 및 Windows 인스톨러 권한상승/Inno Setup 구문 오류 해결 (v2.4.24)
 - **사용자 요청 사항 및 피드백**:
   - "Add a new 'Copy IP Address' button to the device profile sidebar that uses the Clipboard API to copy the selected IP address, and show a toast confirmation."

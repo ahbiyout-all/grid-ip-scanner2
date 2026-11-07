@@ -1,4 +1,34 @@
-# Grid IP Scanner2 - Patch Note (v2.4.24)
+# Grid IP Scanner2 - Patch Note (v2.4.25)
+
+## 🚀 [v2.4.25] - 2026-11-07
+
+### 🌟 주요 기능 추가 및 Windows 시스템 트레이 & OS 네트워크 도구 연동 (System Tray & Legacy OS Tools)
+
+1. **Windows 시스템 트레이 백그라운드 24/7 침입 감시 및 무인 스케줄러 연동 (`main.go`, `App.tsx`, `services/nativeModulesService.ts`)**
+   - **기능 설명**:
+     - 창을 닫아도 백그라운드 시스템 트레이 영역에서 24시간 미등록 낯선 기기 감시(Intruder Watch) 및 자동 정기 스캔 스케줄러가 무인으로 멈춤 없이 계속 실행되는 트레이 백그라운드 서비스를 구현했습니다.
+   - **트레이 팝업 메뉴 구성**:
+     - 트레이 우클릭 시 `Grid IP Scanner2 열기`, `24/7 백그라운드 침입 감시 ON/OFF`, `Windows 네트워크 연결 (ncpa.cpl)`, `DNS 캐시 플러시 (ipconfig /flushdns)`, `시스템 시작 시 자동 실행 토글`, `종료` 컨텍스트 메뉴를 제공합니다.
+
+2. **창 닫기 버튼([X]) 트레이 최소화(Close-to-Tray) 옵션 적용 (`App.tsx`, `main.go`)**
+   - **기능 설명**:
+     - 상단 닫기 버튼([X]) 클릭 시 프로그램이 완전 종료되는 대신 시스템 트레이 아이콘으로 최소화되어 백그라운드 스캔 상태를 지속적으로 보존합니다.
+   - **설정 보존**:
+     - Close-to-Tray 활성화 상태는 `localStorage` 및 데스크톱 데몬 상태에 영구 보존되며, 모달 설정 창에서 언제든지 ON/OFF를 제어할 수 있습니다.
+
+3. **Windows 레거시 운영체제(Win 7/8/10/11) 네트워크 유틸리티 원클릭 단축 도구 탑재 (`main.go`, `App.tsx`, `services/nativeModulesService.ts`)**
+   - **제공 유틸리티**:
+     - **DNS 캐시 플러시 (`ipconfig /flushdns`)**: 네트워크 이름 풀이 오류 발생 시 커널 DNS 캐시 즉시 비우기.
+     - **제어판 네트워크 연결 (`ncpa.cpl`)**: Windows 네트워크 어댑터 설정창 원클릭 호출.
+     - **방화벽 규칙 재등록 (`ensureFirewallRulesSilently`)**: 네트워크 패킷 수신 불량 시 방화벽 예외 자동 재등록.
+     - **부팅 시 자동 실행 트레이 기동 (`HKCU\Run` 레지스트리)**: Windows 로그인 시 백그라운드 트레이로 자동 실행 등록/해제.
+     - **UAC 관리자 권한 상승 재실행 (`runas` 커널 승계)**: 고급 네트워크 패킷 캡처용 관리자 권한 자동 승계 기동.
+
+4. **Web / 모바일 (PWA / Android / iOS) 환경 엄격한 시스템 분리 (Strict Environment Isolation)**
+   - **기능 격리**:
+     - Web 브라우저, Standalone PWA, Android/iOS 모바일 앱 환경에서는 시스템 트레이 및 Windows OS 전용 네트워크 유틸리티 버튼이 UI에 일체 노출되지 않도록 `isWindowsDesktop` 환경 감지 훅을 통해 철저히 차단했습니다.
+
+---
 
 ## 🚀 [v2.4.24] - 2026-11-07
 

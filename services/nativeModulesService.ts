@@ -207,3 +207,26 @@ export async function getClientLocalIP(): Promise<{ ip: string; subnet: string }
   });
 }
 
+/**
+ * Triggers legacy Windows OS network utility endpoints (ipconfig /flushdns, ncpa.cpl, firewall, autostart registry).
+ */
+export async function executeWindowsUtility(
+  action: 'flushdns' | 'ncpa.cpl' | 'firewall' | 'autostart',
+  enable?: boolean
+): Promise<{ success: boolean; message: string; enabled?: boolean }> {
+  try {
+    let url = `/api/windows-util?action=${action}`;
+    if (enable !== undefined) {
+      url += `&enable=${enable}`;
+    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Ignore network error
+  }
+  return { success: false, message: 'Windows 유틸리티 실행 중 오류가 발생했습니다.' };
+}
+
+

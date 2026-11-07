@@ -11,7 +11,7 @@ import { UpdateModal } from './components/UpdateModal';
 import { SnapshotDiffModal } from './components/SnapshotDiffModal';
 import { ScheduleModal } from './components/ScheduleModal';
 import { NativeModulesModal } from './components/NativeModulesModal';
-import { fetchNativeModulesStatus, getClientLocalIP } from './services/nativeModulesService';
+import { fetchNativeModulesStatus, getClientLocalIP, executeWindowsUtility } from './services/nativeModulesService';
 import { NativeModulesStatus } from './types';
 import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME } from './services/updateChecker';
 import { executeRemoteAction } from './services/remoteActionService';
@@ -1114,6 +1114,38 @@ const App: React.FC = () => {
   // Native DLL Modules State
   const [showNativeModal, setShowNativeModal] = useState(false);
   const [nativeStatus, setNativeStatus] = useState<NativeModulesStatus | null>(null);
+
+  // Windows Native Desktop Environment Guard (strictly false on Web browser, PWA, Android, iOS)
+  const isWindowsDesktop = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod|windows phone|mobile/i.test(ua);
+    const isWin = ua.includes('win') && !isMobile;
+    const isElectron = !!(window as any).electron || ua.includes('electron');
+    return (isWin || isElectron) && !window.matchMedia('(display-mode: standalone)').matches;
+  }, []);
+
+  const [closeToTray, setCloseToTray] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('grid_close_to_tray');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [showWindowsUtilModal, setShowWindowsUtilModal] = useState(false);
+  const [isAutoStartEnabled, setIsAutoStartEnabled] = useState(false);
+
+  useEffect(() => {
+    if (isWindowsDesktop) {
+      executeWindowsUtility('autostart').then(res => {
+        if (res.enabled !== undefined) {
+          setIsAutoStartEnabled(res.enabled);
+        }
+      }).catch(() => {});
+    }
+  }, [isWindowsDesktop]);
 
   // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
   const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
@@ -3146,6 +3178,16 @@ const App: React.FC = () => {
                 <Cpu className="w-2.5 h-2.5 text-sky-400" />
                 <span>{s.dllHub}</span>
               </button>
+              {isWindowsDesktop && (
+                <button
+                  onClick={() => setShowWindowsUtilModal(true)}
+                  className="px-2 py-0.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
+                  title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
+                >
+                  <Terminal className="w-2.5 h-2.5 text-cyan-400" />
+                  <span>{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -7073,6 +7115,212 @@ const App: React.FC = () => {
               <button
                 onClick={() => setShowPdfExportModal(false)}
                 disabled={isExportingPdf}
+                className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all cursor-pointer"
+              >
+                {lang === 'ko' ? '닫기' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Windows OS Legacy Network Utilities & System Tray Modal (Windows Desktop Only) */}
+      {isWindowsDesktop && showWindowsUtilModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-4 border-white/10 shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  <Terminal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg tracking-tight flex items-center gap-2">
+                    <span>{lang === 'ko' ? 'Windows OS 레거시 유틸리티 & 트레이' : 'Windows Legacy OS Tools & Tray'}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono">
+                      Win 7/8/10/11
+                    </span>
+                  </h3>
+                  <p className={`text-xs ${t.textMuted}`}>
+                    {lang === 'ko' ? '윈도우 백그라운드 트레이 상주, 낯선 기기 24/7 감시 및 레거시 네트워크 툴' : 'Windows Tray background watch, intruder detection & network utilities'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowWindowsUtilModal(false)}
+                className="p-1 rounded-lg hover:bg-white/10 opacity-60 hover:opacity-100 transition-opacity"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs">
+              {/* Section 1: System Tray & Background Controls */}
+              <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-sm text-cyan-300 flex items-center gap-1.5">
+                    <Monitor className="w-4 h-4 text-cyan-400" />
+                    <span>📌 시스템 트레이 상주 & 무인 백그라운드</span>
+                  </span>
+                </div>
+
+                {/* Close to Tray Toggle */}
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <div className="font-bold text-zinc-200">창 닫기 시 트레이 최소화 (Close-to-Tray)</div>
+                    <div className="text-[10px] text-zinc-400">메인 창 [X] 클릭 시 완전히 종료하지 않고 시스템 트레이로 상주시킵니다.</div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const next = !closeToTray;
+                      setCloseToTray(next);
+                      try { localStorage.setItem('grid_close_to_tray', String(next)); } catch (_) {}
+                      showToast(next ? '📌 닫기 시 트레이 최소화 활성화' : '창 닫기 시 즉시 종료 설정');
+                    }}
+                    className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${closeToTray ? 'bg-cyan-500' : 'bg-zinc-700'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${closeToTray ? 'left-5.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Auto Start Registry Toggle */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <div>
+                    <div className="font-bold text-zinc-200">Windows 부팅 시 자동 시작 (Registry)</div>
+                    <div className="text-[10px] text-zinc-400">컴퓨터 부팅 시 자동으로 트레이 최소화 상태로 실행합니다 (HKCU\Run).</div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      const next = !isAutoStartEnabled;
+                      const res = await executeWindowsUtility('autostart', next);
+                      if (res.success && res.enabled !== undefined) {
+                        setIsAutoStartEnabled(res.enabled);
+                      }
+                      showToast(res.message);
+                    }}
+                    className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${isAutoStartEnabled ? 'bg-emerald-500' : 'bg-zinc-700'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isAutoStartEnabled ? 'left-5.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* 24/7 Intruder Watch Toggle */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <div>
+                    <div className="font-bold text-zinc-200">🚨 24/7 낯선 기기 무인 감시 모드</div>
+                    <div className="text-[10px] text-zinc-400">백그라운드 상주 중 미확인 신규 기기 감지 시 Windows OS 알림 및 소리 송출.</div>
+                  </div>
+                  <button 
+                    onClick={handleToggleIntruderWatch}
+                    className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${intruderWatchMode ? 'bg-rose-500' : 'bg-zinc-700'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${intruderWatchMode ? 'left-5.5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 2: Legacy OS Network Tools */}
+              <div className="space-y-2.5">
+                <div className="font-black text-xs uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>🛠️ Windows 레거시 네트워크 유틸리티 퀵 키</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Tool 1: DNS Flush */}
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-amber-400 flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>DNS 캐시 쾌속 초기화</span>
+                      </div>
+                      <p className="text-[10.5px] opacity-70 mt-1">
+                        <code>ipconfig /flushdns</code> 실행. DNS 응답 지연 및 도메인 IP 변경 시 즉시 캐시 갱신.
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const res = await executeWindowsUtility('flushdns');
+                        showToast(res.message);
+                      }}
+                      className="w-full py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/30 transition-all cursor-pointer"
+                    >
+                      ⚡ ipconfig /flushdns 실행
+                    </button>
+                  </div>
+
+                  {/* Tool 2: ncpa.cpl */}
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-sky-400 flex items-center gap-1">
+                        <Network className="w-3.5 h-3.5" />
+                        <span>네트워크 어댑터 제어판</span>
+                      </div>
+                      <p className="text-[10.5px] opacity-70 mt-1">
+                        <code>control ncpa.cpl</code> 실행. 어댑터 사용 안 함/재연결 및 고정 IP/DNS 설정 창 즉시 호출.
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const res = await executeWindowsUtility('ncpa.cpl');
+                        showToast(res.message);
+                      }}
+                      className="w-full py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold border border-sky-500/30 transition-all cursor-pointer"
+                    >
+                      🌐 ncpa.cpl 제어판 열기
+                    </button>
+                  </div>
+
+                  {/* Tool 3: Firewall Re-registration */}
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-emerald-400 flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>방화벽 예외 규칙 재등록</span>
+                      </div>
+                      <p className="text-[10.5px] opacity-70 mt-1">
+                        <code>netsh advfirewall</code> 실행. RAW 소켓 스캔 및 인바운드/아웃바운드 규칙 실시간 복원.
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const res = await executeWindowsUtility('firewall');
+                        showToast(res.message);
+                      }}
+                      className="w-full py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                    >
+                      🛡️ 방화벽 규칙 복원
+                    </button>
+                  </div>
+
+                  {/* Tool 4: Admin Elevation */}
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="font-bold text-purple-400 flex items-center gap-1">
+                        <Key className="w-3.5 h-3.5" />
+                        <span>관리자 권한 재시작</span>
+                      </div>
+                      <p className="text-[10.5px] opacity-70 mt-1">
+                        Windows UAC 승인을 통해 RAW 소켓 L2 SendARP 및 OUI 레지스트리 가속 권한으로 재기동.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleElevateAdmin}
+                      disabled={isElevating}
+                      className="w-full py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold border border-purple-500/30 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      🔑 UAC 승인 재시작
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-white/10 flex items-center justify-end shrink-0">
+              <button
+                onClick={() => setShowWindowsUtilModal(false)}
                 className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all cursor-pointer"
               >
                 {lang === 'ko' ? '닫기' : 'Close'}
