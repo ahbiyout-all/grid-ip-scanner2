@@ -63,7 +63,7 @@ WizardStyle=modern
 WizardSizePercent=110
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=none
+; PrivilegesRequiredOverridesAllowed omitted (defaults to none in Inno Setup, strictly enforcing admin privileges)
 
 ; Unattended / Silent Capabilities
 CloseApplications=yes

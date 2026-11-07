@@ -78,6 +78,7 @@ issFiles.forEach(fileName => {
     issContent = issContent.replace(/#define MyAppExeName "[^"]*"/, `#define MyAppExeName "Grid_IP_Scanner2.exe"`);
     issContent = issContent.replace(/#define MyAppSourceExe .*/, `#define MyAppSourceExe "Grid IP Scanner2 v" + MyAppVersion + ".exe"`);
     issContent = issContent.replace(/^UpdateUninstallRegKey=.*$/gm, '; UpdateUninstallRegKey removed (unrecognized in Inno Setup 6)');
+    issContent = issContent.replace(/^PrivilegesRequiredOverridesAllowed=none.*$/gm, '; PrivilegesRequiredOverridesAllowed omitted (defaults to none in Inno Setup)');
     fs.writeFileSync(filePath, issContent, 'utf8');
     console.log(`✅ Inno Setup script (${fileName}) version and directives sanitized.`);
   }
