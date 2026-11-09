@@ -5,7 +5,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.40"
+#define MyAppVersion "2.4.41"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -288,94 +288,73 @@ begin
   end;
 end;
 
+function GetExistingUninstallExe(): String;
+var
+  S: String;
+  CleanGuid: String;
+begin
+  Result := '';
+  CleanGuid := '{9C2116BA-10DD-4E5F-8DC5-4279D64B8DF3}_is1';
+
+  // 1. 레지스트리 64비트 및 32비트 UninstallString 조회
+  if RegQueryStringValue(HKLM64, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + CleanGuid, 'UninstallString', S) then
+    Result := RemoveQuotes(S)
+  else if RegQueryStringValue(HKLM32, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + CleanGuid, 'UninstallString', S) then
+    Result := RemoveQuotes(S)
+  else if RegQueryStringValue(HKCU64, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + CleanGuid, 'UninstallString', S) then
+    Result := RemoveQuotes(S)
+  else if RegQueryStringValue(HKCU32, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + CleanGuid, 'UninstallString', S) then
+    Result := RemoveQuotes(S);
+
+  // 2. 레지스트리 InstallPath 경로 기반 unins000.exe 확인
+  if (Result = '') or (not FileExists(Result)) then
+  begin
+    if RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'InstallPath', S) or
+       RegQueryStringValue(HKLM32, 'Software\{#MyAppName}', 'InstallPath', S) or
+       RegQueryStringValue(HKLM, 'Software\{#MyAppName}', 'InstallPath', S) or
+       RegQueryStringValue(HKCU, 'Software\{#MyAppName}', 'InstallPath', S) then
+    begin
+      S := RemoveQuotes(S);
+      if FileExists(S + '\unins000.exe') then
+        Result := S + '\unins000.exe'
+      else if FileExists(S + '\unins001.exe') then
+        Result := S + '\unins001.exe';
+    end;
+  end;
+
+  // 3. 기본 Program Files 설치 경로 내 언인스톨러 탐색
+  if (Result = '') or (not FileExists(Result)) then
+  begin
+    if FileExists(ExpandConstant('{autopf}\{#MyAppName}\unins000.exe')) then
+      Result := ExpandConstant('{autopf}\{#MyAppName}\unins000.exe')
+    else if FileExists(ExpandConstant('{autopf}\{#MyAppName}\unins001.exe')) then
+      Result := ExpandConstant('{autopf}\{#MyAppName}\unins001.exe');
+  end;
+end;
+
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
-  FindResult: Integer;
   KillResult1, KillResult2, KillResult3: Integer;
-  UninstallKey: String;
-  ExistingInstallPath: String;
-  ExistingVersion: String;
-  HasExisting: Boolean;
-  WasRunning: Boolean;
-  VerPrompt: String;
+  UninstallExe: String;
 begin
   Result := True;
-  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1';
-  ExistingInstallPath := '';
-  ExistingVersion := '';
-  HasExisting := False;
-  WasRunning := False;
 
-  // 1. 기존 실행 중인 앱 감지 및 강제 종료 (파일 잠금 해제)
-  // tasklist 명령어로 Grid_IP_Scanner2 프로세스 존재 여부 사전 점검
-  if Exec('cmd.exe', '/c tasklist | findstr /I "Grid_IP_Scanner2 Grid IP Scanner2"', '', SW_HIDE, ewWaitUntilTerminated, FindResult) then
-  begin
-    if FindResult = 0 then
-      WasRunning := True;
-  end;
-
-  // 프로세스 강제 종료 수행
+  // 1. 기존 실행 중인 앱 감지 및 무소음 강제 종료 (파일 잠금 해제)
   Exec('taskkill.exe', '/F /T /IM Grid_IP_Scanner2.exe', '', SW_HIDE, ewWaitUntilTerminated, KillResult1);
   Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2.exe"', '', SW_HIDE, ewWaitUntilTerminated, KillResult2);
   Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, KillResult3);
-  if (KillResult1 = 0) or (KillResult2 = 0) or (KillResult3 = 0) then
-    WasRunning := True;
-
   Sleep(400);
 
-  // [기존앱 종료 알림]: 실행 중인 앱을 감지하여 종료한 경우 사용자에게 알림 표시
-  if WasRunning and (not WizardSilent) then
+  // 2. 기존 설치 버전 감지 시 모달 팝업 없이 '100% 자동 백그라운드 언인스톨' 수행
+  // (사용자의 확인 클릭을 요구하지 않고 자동으로 uninstall을 완벽 실행한 후 새 버전 설치 진행)
+  UninstallExe := GetExistingUninstallExe();
+  if (UninstallExe <> '') and FileExists(UninstallExe) then
   begin
-    MsgBox(ExpandConstant('{cm:ExistingAppTerminatedMsg}'), mbInformation, MB_OK);
-  end;
-
-  // 2. 레지스트리 및 디렉토리에서 기존 설치 정보 자동 조회
-  if RegQueryStringValue(HKLM64, UninstallKey, 'InstallLocation', ExistingInstallPath) then
-    HasExisting := True
-  else if RegQueryStringValue(HKLM32, UninstallKey, 'InstallLocation', ExistingInstallPath) then
-    HasExisting := True
-  else if RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
-    HasExisting := True
-  else if RegQueryStringValue(HKCU64, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
-    HasExisting := True
-  else if RegQueryStringValue(HKLM, 'Software\{#MyAppName}', 'InstallPath', ExistingInstallPath) then
-    HasExisting := True;
-
-  if not RegQueryStringValue(HKLM64, UninstallKey, 'DisplayVersion', ExistingVersion) then
-  begin
-    if not RegQueryStringValue(HKLM32, UninstallKey, 'DisplayVersion', ExistingVersion) then
-      RegQueryStringValue(HKLM64, 'Software\{#MyAppName}', 'Version', ExistingVersion);
-  end;
-
-  if not HasExisting then
-  begin
-    if DirExists(ExpandConstant('{autopf}\{#MyAppName}')) then
-    begin
-      HasExisting := True;
-      ExistingInstallPath := ExpandConstant('{autopf}\{#MyAppName}');
-    end;
-  end;
-
-  // 3. [기존앱 삭제 알림] 및 기존 설치 버전 자동 언인스톨/정리 수행
-  if HasExisting then
-  begin
-    // 사용자에게 기존 앱 삭제(제거) 안내 알림 팝업 제공
-    if not WizardSilent then
-    begin
-      if ExistingVersion <> '' then
-        VerPrompt := ' (v' + ExistingVersion + ')'
-      else
-        VerPrompt := '';
-
-      MsgBox(FmtMessage(ExpandConstant('{cm:ExistingAppRemovalMsg}'), [VerPrompt]), mbInformation, MB_OK);
-    end;
-
-    // 기존 버전 언인스톨러 자동 실행
-    if (ExistingInstallPath <> '') and FileExists(ExistingInstallPath + '\unins000.exe') then
-    begin
-      Exec(ExistingInstallPath + '\unins000.exe', '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(500);
-    end;
+    Log('Existing Grid IP Scanner2 uninstaller detected: ' + UninstallExe);
+    Log('Executing silent uninstallation automatically...');
+    // /VERYSILENT /NORESTART /SUPPRESSMSGBOXES 플래그로 팝업 없이 완전 자동 언인스톨
+    Exec(UninstallExe, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(800);
   end;
 end;

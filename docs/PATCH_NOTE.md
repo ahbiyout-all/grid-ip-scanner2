@@ -1,4 +1,25 @@
-# Grid IP Scanner2 - Patch Note (v2.4.40)
+# Grid IP Scanner2 - Patch Note (v2.4.41)
+
+## 🚀 [v2.4.41] - 2026-11-09
+
+### 🌟 인스톨러 업그레이드 모달 팝업 제거 및 기존 버전 100% 자동 백그라운드 언인스톨 파이프라인 (Automated Silent Uninstallation on Upgrade)
+
+1. **기존 앱 삭제(제거) 안내 모달 팝업(`MsgBox`) 완전 제거 및 무중단 자동 언인스톨 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)**
+   - **기능 설명**:
+     - 기존 버전(예: v2.4.23 등)이 설치된 환경에서 새 버전 인스톨러 실행 시 나타나던 `【기존 앱 삭제(제거) 알림】` 모달 메시지 박스를 완전히 제거했습니다.
+     - 사용자가 `[확인]` 버튼을 수동으로 누르지 않아도, 인스톨러가 기존 버전을 감지하는 즉시 백그라운드에서 `/VERYSILENT /NORESTART /SUPPRESSMSGBOXES` 플래그로 언인스톨러를 자동 실행하고 구버전 삭제를 완벽히 수행한 후 새 버전 설치로 끊김 없이 진입합니다.
+
+2. **레지스트리 및 디렉토리 기반 언인스톨러 다계층 안전 탐색 엔진 탑재 (`GetExistingUninstallExe`)**
+   - **기능 설명**:
+     - Inno Setup preprocessor 치환 오류로 인해 발생할 수 있는 중복 중괄호(`{{`) 이슈를 방지하는 정규 GUID(`{9C2116BA-10DD-4E5F-8DC5-4279D64B8DF3}_is1`) 조회를 신설했습니다.
+     - 64비트 및 32비트 레지스트리(`UninstallString`), 소프트웨어 설치 경로(`InstallPath`), Program Files 기본 경로 내의 `unins000.exe` 및 `unins001.exe`를 다계층으로 자동 추적하여 무결한 언인스톨을 보장합니다.
+
+3. **실행 중 프로세스 종료 알림 팝업 무소음 자동화 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**
+   - **기능 설명**:
+     - 실행 중이던 기존 `Grid IP Scanner2` 프로세스 종료 시 나타나던 안내 팝업을 제거하여 백그라운드에서 안전하게 파일 잠금을 해제하도록 개선했습니다.
+     - Go 기반 독립형 빌더(`setup_builder.go`)에서도 `showMsgBox`를 제거하고 상태 표시줄을 통해 "기존 버전 감지: 자동 삭제 및 언인스톨 진행 중..." 메시지를 실시간 갱신하도록 일원화했습니다.
+
+---
 
 ## 🚀 [v2.4.40] - 2026-11-09
 

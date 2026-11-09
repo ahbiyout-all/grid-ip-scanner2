@@ -23,7 +23,7 @@ var embeddedPayload []byte
 var embeddedIcon []byte
 
 const (
-	AppVersion = "2.4.40"
+	AppVersion = "2.4.41"
 	AppName    = "Grid IP Scanner2"
 )
 
@@ -509,9 +509,7 @@ func performInstallationGUI() {
 	isInstalling = true
 
 	postStatus("기존 실행 프로세스 확인 및 정리 중...")
-	if killExistingProcesses() && !isSilent() {
-		showMsgBox("기존 앱 종료 알림", "현재 실행 중인 기존 Grid IP Scanner2 애플리케이션을 감지하여 안전하게 종료하였습니다.\n\n(원활한 설치 및 파일 잠금 해제를 위해 프로세스를 종료했습니다.)")
-	}
+	killExistingProcesses()
 
 	progFiles := os.Getenv("ProgramFiles")
 	if progFiles == "" {
@@ -519,9 +517,19 @@ func performInstallationGUI() {
 	}
 	targetDir := filepath.Join(progFiles, "Grid IP Scanner2")
 
-	// 기존 설치 감지 시 기존 앱 삭제(제거) 알림
-	if fileExists(filepath.Join(targetDir, "Grid_IP_Scanner2.exe")) && !isSilent() {
-		showMsgBox("기존 앱 삭제(제거) 알림", fmt.Sprintf("시스템에 이미 설치된 기존 Grid IP Scanner2가 감지되었습니다.\n\n새로운 버전(v%s)의 안정적이고 깨끗한 설치를 위해 기존 버전을 삭제 및 갱신한 후 설치를 진행합니다.", AppVersion))
+	// 기존 설치 감지 시 모달 팝업 없이 '자동 언인스톨(Silent Uninstall)' 즉각 수행
+	if fileExists(filepath.Join(targetDir, "Grid_IP_Scanner2.exe")) {
+		postStatus("기존 버전 감지: 자동 삭제 및 언인스톨 진행 중...")
+		uninsBat := filepath.Join(targetDir, "uninstall.bat")
+		uninsExe := filepath.Join(targetDir, "unins000.exe")
+		if fileExists(uninsExe) {
+			cmd := exec.Command(uninsExe, "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES")
+			_ = cmd.Run()
+		} else if fileExists(uninsBat) {
+			cmd := exec.Command("cmd.exe", "/c", uninsBat, "/SILENT")
+			_ = cmd.Run()
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	err := os.MkdirAll(targetDir, 0755)
