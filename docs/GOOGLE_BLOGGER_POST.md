@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.26)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.38)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.26 | **작성일자**: 2026-11-07
+> **최신 버전**: v2.4.38 | **작성일자**: 2026-11-09
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 앱 시작 시 최초 트레이 자동 활성화, 창 닫기[X] 트레이 최소화, 레거시 Windows 네트워크 도구(ipconfig /flushdns, ncpa.cpl, HKCU 레지스트리 부팅 자동실행), 24시간 무인 침입 감시, A4 보안감사 PDF 리포트 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.26)를 소개합니다.
+  > 16x16 시각화 그리드 맵, Close-to-Tray 사용자 설정 Electron 완벽 동기화, 전면 다국어(i18n) 정밀 보강, Electron IPC 리스너 Teardown 누수 방지 및 윈도우 파괴 크래시 방어 가드, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.38)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 앱 실행 시 트레이 최초 활성화 & 창 닫기[X] 트레이 최소화가 적용된 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.26)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 트레이 메뉴 4대 앱 테마(Dark/Gray/White/Beige) 연동 시스템이 탑재된 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.38)**
 
 ---
 
@@ -30,11 +30,14 @@
 
 네트워크 관리자, 시스템 엔지니어, 사내 전산 담당자라면 한 번쯤 **Advanced IP Scanner**나 **Angry IP Scanner** 같은 진단 도구를 사용해 보셨을 것입니다. 하지만 기존 도구들은 수백 개의 IP 주소를 단순한 텍스트 행(Row) 리스트로만 나열하여 전체 네트워크의 유휴 공간과 밀도를 직관적으로 파악하기 어려웠습니다. 또한 어제와 오늘의 네트워크 접속 장비 변화를 비교하거나, 경영진 및 감사 제출용 A4 보고서를 즉시 작성하는 데 큰 번거로움이 있었습니다.
 
-이러한 현장의 갈증을 해소하기 위해 탄생한 **『Grid IP Scanner2』**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**으로 실시간 시각화하며, 앱 실행 시부터 시스템 트레이 최초 자동 활성화, 창 닫기([X]) 트레이 최소화(Close-to-Tray), 24/7 무인 침입 감시, 레거시 Windows 네트워크 도구(ipconfig /flushdns, ncpa.cpl, HKCU 레지스트리 부팅 자동실행 토글), 원클릭 IP 주소 복사, 9만 건 이상의 내장 OUI DB, 4색 스냅샷 Diff 비교, 원클릭 A4 규격 보안감사 PDF 출력을 제공하는 고성능 네트워크 스캐너입니다.
+이러한 현장의 갈증을 해소하기 위해 탄생한 **『Grid IP Scanner2』**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**으로 실시간 시각화하며, **트레이 우클릭 메뉴 'Show Intruder Log' 및 24/7 백그라운드 서비스 침입 기록 전용 모달(`IntruderLogModal`)**, **트레이 메뉴 실시간 스캔 진행률(%) 및 최신 낯선 기기 감지 타임스탬프 툴팁(`TrayStatusIndicator`)**, **24시간 Windows 무인 백그라운드 서비스(`GridIPScannerService`) + 사용자 세션 트레이 에이전트 이중 아키텍처**, 인스톨러 설치 직후 `--tray` 백그라운드 모드 기동, 창 닫기([X]) 트레이 최소화(Close-to-Tray), 24/7 무인 침입 감시, 레거시 Windows 네트워크 도구(ipconfig /flushdns, ncpa.cpl, HKCU 레지스트리 부팅 자동실행), 원클릭 IP 주소 복사, 9만 건 이상의 내장 OUI DB, 4색 스냅샷 Diff 비교, 원클릭 A4 규격 보안감사 PDF 출력을 제공하는 고성능 네트워크 스캐너입니다.
 
 #### 🚀 Grid IP Scanner2 핵심 기능
 * **16x16 시각화 그리드 맵**: 전체 254개 노드의 활성/비활성/경고 상태를 신호등처럼 1초 만에 직관적으로 조망.
-* **📌 앱 기동 시 최초 트레이 자동 활성화**: 프로그램 실행과 동시에 작업표시줄 시스템 트레이 아이콘이 자동 생성 및 상주.
+* **📜 트레이 메뉴 'Show Intruder Log' & 침입 기록 모달**: 트레이 우클릭 메뉴 또는 상태 배지에서 24/7 무인 서비스가 기록한 낯선 기기 탐지 전체 이력(KPI, 검색, 신뢰 등록, CSV 내보내기) 원클릭 열람.
+* **🚨 트레이 메뉴 실시간 스캔 진척도 & 침입 타임스탬프 툴팁**: 트레이 아이콘 hover 및 팝오버 메뉴 내 스캔 진행률(%)과 최신 감지 시각(`HH:MM:SS`)을 실시간 표출.
+* **🛡️ 24/7 Windows 무인 서비스 & 트레이 이중 아키텍처**: Session 0 커널 무인 서비스와 Session 1 트레이 에이전트 분리로 로그아웃 시에도 24시간 연속 스캐닝.
+* **📌 인스톨러 postinstall `--tray` 및 부팅 레지스트리 기동**: 설치 즉시 및 컴퓨터 로그인 시 작업표시줄 트레이 아이콘으로 자동 상주.
 * **🔔 창 닫기 버튼([X]) 트레이 최소화(Close-to-Tray)**: 상단 X 버튼 클릭 시 완전 종료되지 않고 백그라운드 트레이로 즉시 최소화.
 * **🛠️ Windows 레거시 OS 네트워크 도구 연동**: DNS 캐시 플러시(`ipconfig /flushdns`), 제어판 네트워크 연결 (`ncpa.cpl`), 부팅 시 레지스트리 자동 실행(`HKCU\Run`), 방화벽 예외 자동 재등록.
 * **🌐 Web / 모바일 환경 엄격한 시스템 분리**: Web, PWA, Android, iOS 환경에서는 시스템 트레이 및 OS 도구를 깔끔하게 숨겨 플랫폼 무결성 확보.

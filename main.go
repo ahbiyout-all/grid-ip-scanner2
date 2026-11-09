@@ -2677,6 +2677,54 @@ func main() {
 				})
 			}
 
+		case "service-status":
+			cmd := exec.Command("sc.exe", "query", "GridIPScannerService")
+			hideWindow(cmd)
+			err := cmd.Run()
+			isInstalled := (err == nil)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":   true,
+				"installed": isInstalled,
+				"message":   fmt.Sprintf("24/7 윈도우 백그라운드 서비스 설치 상태: %v", isInstalled),
+			})
+
+		case "service-install":
+			exePath, err := os.Executable()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Could not locate executable path",
+				})
+				return
+			}
+			cmd := exec.Command("sc.exe", "create", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto", "DisplayName=", "Grid IP Scanner2 24/7 Background Service")
+			hideWindow(cmd)
+			err = cmd.Run()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "윈도우 서비스 등록 실패: " + err.Error(),
+				})
+				return
+			}
+			startCmd := exec.Command("sc.exe", "start", "GridIPScannerService")
+			hideWindow(startCmd)
+			_ = startCmd.Run()
+
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"message": "Grid IP Scanner2 24시간 백그라운드 윈도우 서비스가 성공적으로 등록 및 시작되었습니다.",
+			})
+
+		case "service-stop":
+			stopCmd := exec.Command("sc.exe", "stop", "GridIPScannerService")
+			hideWindow(stopCmd)
+			_ = stopCmd.Run()
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"message": "윈도우 백그라운드 서비스가 정지되었습니다.",
+			})
+
 		default:
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,

@@ -1,4 +1,229 @@
-# Grid IP Scanner2 - Patch Note (v2.4.26)
+# Grid IP Scanner2 - Patch Note (v2.4.38)
+
+## 🚀 [v2.4.38] - 2026-11-09
+
+### 🌟 자아성찰 심화 및 오류 수정: Close-to-Tray 사용자 설정 무시 결함 해결 & 전면 다국어(i18n) 정밀 보강 (Close-to-Tray IPC Sync & Comprehensive i18n Hardening)
+
+1. **'창 닫기 시 트레이 최소화(Close-to-Tray)' 사용자 설정 불일치 결함 전면 해결 (`preload.js`, `env.d.ts`, `main.js`, `App.tsx`)**
+   - **기능 설명**:
+     - 사용자가 UI 설정 패널에서 '창 닫기 시 트레이 최소화 (Close-to-Tray)'를 끄더라도(`false`), Electron 메인 프로세스가 이 설정을 전달받지 못해 항상 트레이로 최소화되던 사용자 설정 무시 버그를 발견하여 해결했습니다.
+     - `preload.js`에 `setCloseToTray: (enabled) => ipcRenderer.send('set-close-to-tray', enabled)` IPC 채널을 신설하고 `env.d.ts`에 타입을 정의했습니다.
+     - `main.js`에 `closeToTrayEnabled` 상태를 동기화하여, 사용자가 설정을 끈 상태에서 창의 [X] 닫기 버튼을 누르면 트레이로 숨겨지지 않고 `terminateApplicationCleanly()`가 정상 호출되어 완전히 종료되도록 완벽히 수정했습니다.
+     - `App.tsx`에서 `closeToTray` 상태 변경 시 Electron 메인 프로세스로 실시간 동기화하는 전용 `useEffect`를 탑재했습니다.
+
+2. **사용자 설정 패널 및 핵심 액션 토스트 전면 다국어(i18n) 정밀화 (`App.tsx`)**
+   - **기능 설명**:
+     - 창 닫기 시 트레이 최소화 토글 제목, 서브텍스트 및 토스트 문구(`📌 닫기 시 트레이 최소화 활성화` / `창 닫기 시 즉시 종료 설정`)에 영문(`en`) 로케일 분기 지원을 완벽히 구축했습니다.
+     - 스냅샷 삭제, 무료 라이선스 초기화, 낯선 기기 감시 모드 활성화/비활성화, 정상 기기 신뢰 등록, 신뢰 목록 초기화, 정밀 포트 감사 권한 안내 등 한국어로 고정되어 있던 핵심 토스트 메시지들을 영문/한국어 다국어로 일괄 개선했습니다.
+
+3. **시스템 유틸리티 초기화 훅 관심사 분리(Separation of Concerns) 최적화 (`App.tsx`)**
+   - **기능 설명**:
+     - 언어(`lang`)나 토스트 핸들러 변경 시 불필요하게 Windows 레지스트리 및 서비스 상태를 재조회하던 결함을 분리하여, 데스크톱 기동 시 1회만 안전하게 실행되도록 성능과 안정성을 향상시켰습니다.
+
+---
+
+## 🚀 [v2.4.37] - 2026-11-09
+
+### 🌟 자아성찰 및 안정성 강화: Electron IPC 리스너 Teardown 메모리 누수 방지 & Destroyed Window 크래시 방어 가드 (Self-Reflection & Robustness Hardening)
+
+1. **Electron IPC 이벤트 리스너 Teardown 구독 해제 함수 반환 및 누수 원천 차단 (`preload.js`, `env.d.ts`, `App.tsx`)**
+   - **기능 설명**:
+     - `onToggleIntruder`, `onOpenIntruderLog`, `onToggleScan`, `onWindowHiddenToTray` 리스너 등록 시 고유 핸들러에 대해 `() => ipcRenderer.removeListener(...)`를 반환하도록 `preload.js`를 전면 개편했습니다.
+     - `App.tsx`의 `useEffect` 훅에서 언어(`lang`) 변경이나 컴포넌트 라이프사이클 재실행 시 기존 리스너를 말끔히 정리(Cleanup)하여, 리스너 중복 누적 등록 및 토스트 중복 발화 버그를 원천적으로 해결했습니다.
+     - `env.d.ts` 내 `ElectronAPI` 리스너 반환 타입을 `(() => void) | void`로 정밀 보강했습니다.
+
+2. **메인 프로세스 파괴된 윈도우 방어 가드(`sendToMainWindow`) 탑재 (`main.js`)**
+   - **기능 설명**:
+     - 윈도우 파괴(Destroyed) 과정 또는 파괴된 이후 IPC 메시지를 전송하려 할 때 발생할 수 있는 Electron 치명적 크래시(`Object has been destroyed`)를 완벽하게 차단하는 안전 전송 헬퍼 `sendToMainWindow`를 신설했습니다.
+     - 메인 윈도우의 `close` 이벤트, 트레이 컨텍스트 메뉴 클릭(`intruder-watch-item`, `toggle-scan-item`, `show-intruder-log-item`), 트레이 최소화(`minimize-to-tray`) 전체에 무결성 가드를 적용했습니다.
+
+3. **트레이 24/7 침입 감시 토글 토스트 영문화 다국어 지원 보강 (`App.tsx`)**
+   - **기능 설명**:
+     - 트레이 우클릭 메뉴를 통해 침입 감시를 켜거나 끌 때 출력되는 토스트 안내에 영문(`en`) 로케일 지원(`🚨 Tray 24/7 Intruder Watch Enabled / Disabled`)을 추가하여 전 세계 사용자 환경에 일관된 UX를 제공합니다.
+
+---
+
+## 🚀 [v2.4.36] - 2026-11-07
+
+### 🌟 메인 윈도우 트레이 최소화 감지 IPC 파이프라인 및 'Minimized to Tray' 토스트 알림 탑재 (Window Hidden-to-Tray Detection & Toast Notification System)
+
+1. **Electron 메인 및 렌더러 IPC 숨김 이벤트 전송 지원 (`main.js`, `preload.js`, `env.d.ts`)**
+   - **기능 설명**:
+     - 사용자가 메인 앱 창의 닫기(X) 버튼을 눌러 트레이로 숨겨질 때(`mainWindow.on('close')`) 및 렌더러 창에서 최소화 요청이 발생할 때(`ipcMain.on('minimize-to-tray')`), `mainWindow.hide()` 호출 직전 `window-hidden-to-tray` IPC 이벤트를 렌더러 웹 콘텐츠로 신속히 전송하도록 파이프라인을 구축했습니다.
+     - `preload.js`에 `onWindowHiddenToTray` 구독 함수를 노출하고 `env.d.ts` 타입 정의를 추가했습니다.
+
+2. **React 앱 백그라운드 24/7 침입 감시 안내 토스트 자동 발화 (`App.tsx`)**
+   - **기능 설명**:
+     - 메인 앱 컴포넌트(`App.tsx`)에 `onWindowHiddenToTray` 리스너 훅을 등록하여 애플리케이션이 트레이 아이콘으로 최소화되는 순간 `showToast` 유틸리티를 호출합니다.
+     - `📌 애플리케이션이 시스템 트레이로 최소화되었습니다. 백그라운드 24/7 침입 감시가 가동 중입니다.` (영문: `📌 Application minimized to System Tray. Background 24/7 Intruder Watch remains active.`) 안내 문구를 발화하여 사용자가 트레이 최소화 상태와 침입 감지 작동 여부를 직관적으로 인지할 수 있도록 개선했습니다.
+
+---
+
+## 🚀 [v2.4.35] - 2026-11-07
+
+### 🌟 TrayStatusIndicator 트레이 메뉴 및 호버 툴팁 테마(Dark/Gray/White/Beige) 동적 연동 (Theme-Aware Tray Menu & Tooltip System)
+
+1. **`TrayStatusIndicator` 테마 속성 연동 및 테마별 맞춤 팔레트 파이프라인 (`components/TrayStatusIndicator.tsx`, `App.tsx`)**
+   - **기능 설명**:
+     - `TrayStatusIndicatorProps`에 `theme?: 'dark' | 'gray' | 'white' | 'beige'` 속성을 전달하고, 앱에서 선택된 테마 설정에 따라 트레이 팝오버 컨텍스트 메뉴 및 플로팅 호버 툴팁의 배경색, 카드 영역, 테두리, 텍스트 색상을 완벽하게 동기화했습니다.
+     - **🌙 다크 테마 (Dark)**: 고대비 딥 아연 디스플레이 (`bg-zinc-900`, `text-zinc-100`, `border-zinc-700/80`).
+     - **🔘 그레이 테마 (Gray)**: 모던 슬레이트 패널 디스플레이 (`bg-slate-900`, `text-slate-100`, `border-slate-700/80`).
+     - **☀️ 화이트 테마 (White)**: 라이트 클린 디스플레이 (`bg-white`, `text-slate-900`, `border-slate-300`, `bg-slate-50`).
+     - **📜 베이지 테마 (Beige)**: 클래식 페이퍼 스타일 디스플레이 (`bg-[#fcf8f2]`, `text-[#5c4a37]`, `border-[#e6d0a7]`).
+
+---
+
+## 🚀 [v2.4.34] - 2026-11-07
+
+### 🌟 TrayStatusIndicator 동적 컬러 애니메이션 인디케이터 아이콘 탑재 (Dynamic Color-Changing Pulsing Indicator Icon)
+
+1. **Intruder Watch 활동 상태 및 statusMessage 기반 4단 동적 컬러 파이프라인 (`components/TrayStatusIndicator.tsx`)**
+   - **기능 설명**:
+     - `TrayStatusIndicator` 배지 및 인디케이터 아이콘에 24/7 침입 감시(Intruder Watch) 상태 및 `statusMessage`를 기반으로 색상이 동적으로 전환되는 **애니메이션 펄싱 인디케이터(Pulsing Color-Changing Indicator)**를 구현했습니다.
+     - **🟢 정상 대기 감시 (Idle Watch - Green)**: 24/7 침입 감시 모드가 가동 중이고 미확인 기기 위협이 없을 때 에메랄드 그린 펄싱 링(`animate-ping bg-emerald-400`, `BellRing animate-pulse`)을 표출합니다.
+     - **🚨 실시간 침입 위협 (Active Threats - Pulsing Red)**: `intruderCount > 0` 또는 `statusMessage` 내 침입 감지 메시지 수신 시 강렬한 레드 바운스 아이콘(`ShieldAlert animate-bounce`)과 핑 링(`animate-ping bg-rose-500`), 글로우 펄스 애니메이션 배지로 전환하여 긴급 상황을 시각적으로 알립니다.
+     - **⚡ 네트워크 스캔 가동 (Scan Active - Amber)**: 그리드 네트워크 스캔 중일 경우 호박색 스피너(`RefreshCw animate-spin`)와 핑 링(`animate-ping bg-amber-400`)을 표출합니다.
+     - **⚪ 감시 비활성화 (Watch Off - Zinc/Gray)**: 감시 모드가 꺼져 있을 때 정적 아연색 닷(`Bell`, `bg-zinc-500`)을 표시합니다.
+
+---
+
+## 🚀 [v2.4.33] - 2026-11-07
+
+### 🌟 트레이 메뉴 내 클릭 가능한 '침입 감시(Enable Intruder Watch)' & '스캔 시작/중지(Toggle Scan Mode)' 토글 스위치 탑재
+
+1. **`TrayStatusIndicator` 트레이 인터랙티브 토글 제어 카드 구현 (`components/TrayStatusIndicator.tsx`)**
+   - **기능 설명**:
+     - 메인 UI 화면을 열지 않고도 트레이 팝오버 메뉴에서 직접 네트워크 스캔과 24/7 침입 감시 모드를 원클릭 제어할 수 있도록 퀵 토글 스위치를 추가했습니다.
+     - **🚨 24/7 침입 감시 (Enable Intruder Watch)**: 실시간 감시 모드 활성화/비활성화 스위치 및 가동 상태 서브라벨 제공.
+     - **⚡ 그리드 스캔 시작/중지 (Toggle Scan Mode)**: 현재 스캔 진행 여부(`isScanning`)에 따라 스캔 시작(`⚡ 시작`) 또는 진행 중인 스캔 즉시 중단(`⏹️ 중지`)을 원클릭으로 토글할 수 있는 인터랙티브 토글 스위치 제공 (`onToggleScan`).
+
+2. **Windows 트레이 컨텍스트 메뉴 IPC 직접 연동 (`main.js`, `preload.js`, `env.d.ts`, `App.tsx`)**
+   - **컨텍스트 메뉴 토글 항목 추가**:
+     - Windows 시스템 트레이 우클릭 컨텍스트 메뉴에 `⚡ 그리드 네트워크 스캔 시작/중지 (Toggle Scan Mode)` 항목(`id: 'toggle-scan-item'`)을 신설하고, 스캔 상태에 따라 라벨을 동적 변경하도록 연동했습니다.
+     - `preload.js` 및 `env.d.ts`에 `onToggleScan` IPC 브리지를 구축하고 `App.tsx`에서 트레이 스캔 토글 이벤트를 수신하여 메인 창 최소화 상태에서도 즉시 네트워크 탐색을 개시/중단할 수 있도록 조치했습니다.
+
+---
+
+## 🚀 [v2.4.32] - 2026-11-07
+
+### 🌟 TrayStatusIndicator statusMessage 툴팁 강화 및 트레이 메뉴 직접 표시 (Scan Progress & Intruder Detection Timestamp Live Tooltip)
+
+1. **`TrayStatusIndicator` 컴포넌트 `statusMessage` 호버 툴팁 및 트레이 메뉴 배너 고도화 (`components/TrayStatusIndicator.tsx`)**
+   - **기능 설명**:
+     - `TrayStatusIndicator` 컴포넌트에 `statusMessage?: string` prop을 연동하여, 인디케이터 배지 마우스 호버 시 실시간 스캔 진행률 또는 최신 낯선 기기 감시 타임스탬프를 보여주는 **플로팅 호버 툴팁(Floating Hover Tooltip)** 카드를 추가했습니다.
+     - 트레이 팝오버 메뉴 내부 상단에 `💬 트레이 메뉴 실시간 툴팁` 전용 배너 카드를 배치하여, 현재 스캔 진행률(미니 애니메이션 프로그레스 바 포함) 또는 낯선 기기 감지 타임스탬프(`HH:MM:SS`)를 직관적으로 확인할 수 있도록 구현했습니다.
+     - 과거 감지 로그가 존재하는 경우 앱 초기 시작 시에도 저장된 최근 감지 타임스탬프를 즉시 복원하여 툴팁과 메뉴에 표시합니다.
+
+2. **Windows 트레이 컨텍스트 메뉴 직접 연동 (`main.js`)**
+   - **트레이 메뉴 실시간 상태 항목 탑재**:
+     - Windows 시스템 트레이 우클릭 컨텍스트 메뉴에 `💬 툴팁: [실시간 상태 메시지]` 메뉴 항목(`id: 'tray-status-tooltip-item'`)을 추가했습니다.
+     - `update-tray-status` IPC 이벤트 수신 시 `tray.setToolTip()` 시스템 툴팁뿐만 아니라 컨텍스트 메뉴의 툴팁 라벨도 함께 실시간 갱신하여, 트레이 메뉴를 열었을 때 스캔 진척도나 침입 감시 타임스탬프를 바로 확인할 수 있습니다.
+
+---
+
+## 🚀 [v2.4.31] - 2026-11-07
+
+### 🌟 시스템 트레이 컨텍스트 메뉴 '애플리케이션 완전 종료 (Exit Application)' 및 백그라운드 서비스 동시 종료 파이프라인 탑재
+
+1. **트레이 컨텍스트 메뉴 내 완전 종료 메뉴 및 시스템 종료 루틴 (`main.js`, `preload.js`, `env.d.ts`)**
+   - **기능 설명**:
+     - Windows 시스템 트레이 우클릭 컨텍스트 메뉴에 `🛑 애플리케이션 완전 종료 (Exit Application)` 항목(`id: 'exit-application-item'`)을 추가했습니다.
+     - 단순 창 닫기(Close-to-Tray)와 구분하여, 사용자가 의도적으로 애플리케이션을 완전히 종료할 수 있도록 전용 클린 종료 핸들러 `terminateApplicationCleanly()`를 구현했습니다.
+     - 백그라운드 Windows 서비스(`GridIPScannerService`)를 자식 프로세스(`sc.exe stop GridIPScannerService`)로 안전하게 정지시키고, 활성화된 시스템 트레이 객체 소멸, 메인 윈도우 리스너 해제 및 안전 닫기, 임시 세션 캐시 및 임시 파일 디렉터리를 정리한 후 `app.quit()` 및 `process.exit(0)`을 수행합니다.
+     - `preload.js`와 `env.d.ts`에 `exitApplication` IPC 메서드를 바인딩했습니다.
+
+2. **프론트엔드 연동 및 UI 접근성 확장 (`App.tsx`, `components/TrayStatusIndicator.tsx`)**
+   - **원클릭 종료 컨트롤 제공**:
+     - `TrayStatusIndicator` 팝오버 메뉴 하단에 눈에 띄는 빨간색 전원(`Power`) 아이콘과 함께 `🛑 애플리케이션 완전 종료 (Exit Application)` 버튼을 배치했습니다.
+     - `WindowsUtilModal` (트레이 & OS 툴 모달) 섹션 1에도 전용 완전 종료 버튼을 배치하여, 트레이 우클릭 메뉴뿐만 아니라 메인 화면 및 유틸리티 설정창에서도 즉시 안전하게 백그라운드 서비스와 GUI를 한 번에 종료할 수 있도록 편의성을 강화했습니다.
+     - 웹 브라우저 환경에서는 서비스 정지 토스트 알림을 안전하게 제공하는 폴백을 마련했습니다.
+
+---
+
+## 🚀 [v2.4.30] - 2026-11-07
+
+### 🌟 트레이 메뉴 내 '낯선 기기 감시 로그 열기 (Show Intruder Log)' 및 전용 모달 탑재 (Intruder Detection History Modal)
+
+1. **트레이 컨텍스트 메뉴 'Show Intruder Log' 메뉴 아이템 및 IPC 연동 (`main.js`, `preload.js`, `env.d.ts`)**
+   - **기능 설명**:
+     - Windows 시스템 트레이 우클릭 컨텍스트 메뉴에 `📜 낯선 기기 감시 로그 열기 (Show Intruder Log)` 항목을 추가했습니다.
+     - 트레이 메뉴 클릭 시 메인 윈도우를 즉시 복원 및 포커스하며, `tray-open-intruder-log` IPC 이벤트를 통해 전용 감시 로그 모달을 즉시 호출합니다.
+     - `preload.js` 및 `env.d.ts`에 `onOpenIntruderLog` 이벤트 브리지를 구축했습니다.
+
+2. **24/7 침입 감시 로그 관리 서비스 (`services/intruderLogService.ts`)**
+   - **아키텍처**:
+     - 24/7 백그라운드 서비스 및 트레이 에이전트가 탐지한 낯선 기기(IP, MAC, OUI 제조사, 호스트명, 열린 포트, 감지 시각)를 영구 로컬 스토리지에 자동 보관합니다.
+     - 중복 감지 방지(5분 디바운스), 상태 변경(신규/조사중/신뢰승인/차단), CSV 내보내기, 전체 초기화 기능을 지원합니다.
+
+3. **낯선 기기 감시 로그 전용 모달 컴포넌트 개발 (`components/IntruderLogModal.tsx`, `App.tsx`)**
+   - **UI 구성**:
+     - 상단 핵심 KPI 요약 카드 (총 감지 수, 신규 미조치, 신뢰 승인, 최근 감지 시각).
+     - 실시간 검색(IP, MAC, 제조사) 및 상태별 필터 탭 (전체/신규/신뢰/차단).
+     - 각 감지 기록별 원클릭 IP 복사, 감지 주체(24/7 서비스, 트레이 에이전트, 수동 스캔) 식별 배지 및 `신뢰 기기 등록 (Trust)` 원클릭 연동.
+     - CSV 다운로드 및 전체 로그 관리 지원.
+   - **트레이 팝오버 메뉴 및 OS 유틸리티 모달 연동**:
+     - `TrayStatusIndicator` 팝오버 메뉴와 `WindowsUtilModal` 섹션 1에 `[📜 낯선 기기 감시 로그 열기]` 단축 버튼을 탑재했습니다.
+
+---
+
+## 🚀 [v2.4.29] - 2026-11-07
+
+### 🌟 TrayStatusIndicator statusMessage 툴팁 및 실시간 침입 타임스탬프/스캔 진척도 메뉴 연동 (Tray Tooltip & Progress/Timestamp Display)
+
+1. **`TrayStatusIndicator` 컴포넌트 `statusMessage` 속성 및 트레이 메뉴 툴팁 배너 탑재 (`components/TrayStatusIndicator.tsx`)**
+   - **기능 설명**:
+     - `TrayStatusIndicator` 컴포넌트에 `statusMessage?: string` prop을 추가하여, 버튼 hover title 툴팁 및 트레이 팝오버 메뉴 내부 상단에 실시간 진행 상태 배너(`Activity` 펄스 아이콘 + 진척도/타임스탬프 라벨)를 표시하도록 구현했습니다.
+     - 팝오버 메뉴 내 상태 요약 항목에 실시간 스캔 진척률 또는 최신 침입 감시 타임스탬프 행을 추가로 제공하여 직관적인 정보 확인이 가능합니다.
+
+2. **실시간 낯선 기기 감지 타임스탬프 및 스캔 진척률 동적 연동 (`App.tsx`, `main.js`)**
+   - **진척도 및 타임스탬프 계산**:
+     - 스캔 중(`isScanning`): `스캔 진행 중: XX% (완료/전체 IP)` 형식으로 실시간 스캔 진척도를 트레이 툴팁 및 메뉴에 표시.
+     - 낯선 기기 감지 시(`detectedIntruders > 0`): `낯선 기기 N대 감지 (최근 감지: HH:MM:SS)` 형식으로 최근 감지된 정확한 시각을 타임스탬프로 표출.
+     - 24시간 감시 대기 중: 이전 감지 기록 타임스탬프 또는 무인 감시 정상 가동 상태를 표시.
+   - **Electron IPC 트레이 툴팁 동기화**:
+     - `update-tray-status` 핸들러에서 `statusMessage`를 Windows 작업표시줄 트레이 아이콘의 시스템 툴팁(`tray.setToolTip`)에 실시간 반영하도록 연결했습니다.
+
+---
+
+## 🚀 [v2.4.28] - 2026-11-07
+
+### 🌟 트레이 메뉴 동적 상태 아이콘 및 실시간 낯선 기기/스캔 인디케이터 탑재 (System Tray Status Indicator Component)
+
+1. **실시간 트레이 상태 아이콘 컴포넌트 개발 (`components/TrayStatusIndicator.tsx`)**
+   - **기능 설명**:
+     - `TrayStatusIndicator` React 컴포넌트를 신설하여 24/7 침입 감시(Intruder Watch) 상태, 그리드 스캔 동작 여부(`isScanning`), 감지된 낯선 기기 수(`intruderCount`)를 실시간 애니메이션 애니메이티드 핑 닷(Pulsing Ping Dot) 및 색상별(Rose/Amber/Emerald/Zinc) 아이콘으로 시각화했습니다.
+   - **인터랙티브 팝오버 툴팁**:
+     - 클릭 시 트레이 상태 팝오버 메뉴를 확장하여 Electron 트레이 연결 상태, 24/7 침입 감시 토글, 즉시 트레이 최소화 버튼을 직관적으로 제공합니다.
+
+2. **Electron IPC 2방향 동적 트레이 툴팁 & 메뉴 동기화 (`preload.js`, `main.js`, `App.tsx`)**
+   - **IPC 파이프라인**:
+     - `preload.js`에 `updateTrayStatus` API를 신설하여 상태 변경 시 Renderer ➔ Main IPC 통신으로 `tray.setToolTip()` 및 ContextMenu 체크박스를 양방향 갱신합니다.
+     - 메인 헤더바 및 Windows 유틸리티 모달 2곳에 `TrayStatusIndicator`를 완벽 배치했습니다.
+
+---
+
+## 🚀 [v2.4.27] - 2026-11-07
+
+### 🌟 24/7 Windows 백그라운드 서비스 & 무인 트레이 이중 아키텍처 구축 (Windows Service & System Tray Dual Architecture)
+
+1. **24/7 Windows 무인 백그라운드 서비스 (`GridIPScannerService`) 제어 및 상태 연동 (`main.go`, `services/nativeModulesService.ts`, `App.tsx`)**
+   - **아키텍처 설계**:
+     - Windows 커널 Session 0 무인 백그라운드 서비스 (`GridIPScannerService`)와 Session 1 사용자 세션 트레이 에이전트 (`Grid_IP_Scanner2.exe --tray`) 이중 구조를 구축했습니다.
+     - 사용자가 로그아웃하거나 데스크톱 창을 닫아도 Session 0 백그라운드 서비스가 24시간 끊김 없이 네트워크 스케줄러 스캔 및 낯선 기기 감시를 수행합니다.
+   - **UI 및 서비스 제어 모달 연동**:
+     - `Windows OS 레거시 유틸리티 & 트레이` 모달 내에 `24/7 Windows 무인 백그라운드 서비스` 제어 카드를 추가하여, `sc.exe query/create/start/stop` 제어로 실시간 서비스 등록 및 상태 조회가 가능합니다.
+
+2. **인스톨러 설치 완료 후 즉시 `--tray` 기동 및 부팅 시 자동 시작 레지스트리 강화 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**
+   - **Inno Setup & Go 독립 인스톨러 postinstall 개선**:
+     - 설치 완료 후 앱 자동 기동 시 `--tray` 매개변수를 전달하여 부팅 또는 설치 직후 사용자 인터럽트 없이 즉시 시스템 트레이 백그라운드 모드로 기동하도록 구현했습니다.
+     - Windows 부팅 시 레지스트리 (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`)에 `"Grid_IP_Scanner2.exe" --tray`를 등록하여 컴퓨터 기동 시 작업표시줄 알림 영역으로 부드럽게 최소화 기동됩니다.
+
+3. **앱 시작 시부터 시스템 트레이 아이콘 최초 자동 생성 및 창 닫기[X] 인터셉트 보강 (`main.js`, `preload.js`, `App.tsx`)**
+   - **트레이 최초 생성 보장**:
+     - `app.whenReady()` 단계에서 `createTray()`를 즉시 호출하여 최초 실행 시점부터 작업표시줄 알림 영역 트레이 아이콘을 활성화합니다.
+     - `mainWindow.on('close')` 이벤트 가드로 창 [X] 클릭 시 앱이 파기되지 않고 트레이 백그라운드로 안전하게 은닉됩니다.
+
+---
 
 ## 🚀 [v2.4.26] - 2026-11-07
 

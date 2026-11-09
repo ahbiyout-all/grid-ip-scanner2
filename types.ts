@@ -298,3 +298,17 @@ export interface NativeFingerprintResult {
   recommendation: string;
 }
 
+export interface IntruderLogRecord {
+  id: string;
+  timestamp: number;
+  dateStr: string;
+  ip: string;
+  mac?: string;
+  vendor?: string;
+  hostname?: string;
+  detectedBy: 'background_service' | 'tray_agent' | 'manual_scan';
+  openPorts?: number[];
+  status: 'new' | 'investigating' | 'trusted' | 'blocked';
+  notes?: string;
+}
+

@@ -208,12 +208,12 @@ export async function getClientLocalIP(): Promise<{ ip: string; subnet: string }
 }
 
 /**
- * Triggers legacy Windows OS network utility endpoints (ipconfig /flushdns, ncpa.cpl, firewall, autostart registry).
+ * Triggers legacy Windows OS network utility endpoints (ipconfig /flushdns, ncpa.cpl, firewall, autostart registry, windows service).
  */
 export async function executeWindowsUtility(
-  action: 'flushdns' | 'ncpa.cpl' | 'firewall' | 'autostart',
+  action: 'flushdns' | 'ncpa.cpl' | 'firewall' | 'autostart' | 'service-status' | 'service-install' | 'service-stop',
   enable?: boolean
-): Promise<{ success: boolean; message: string; enabled?: boolean }> {
+): Promise<{ success: boolean; message: string; enabled?: boolean; installed?: boolean }> {
   try {
     let url = `/api/windows-util?action=${action}`;
     if (enable !== undefined) {

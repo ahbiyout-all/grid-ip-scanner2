@@ -19,6 +19,9 @@ import { sendWakeOnLanPacket } from './services/wolService';
 import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
 import { analyzeNetworkConflicts, findNewIntruderDevices, ConflictInfo } from './services/conflictDetector';
 import { getSchedules, recordScheduleRunCompletion, addHistoryRecord } from './services/schedulerService';
+import { TrayStatusIndicator } from './components/TrayStatusIndicator';
+import { IntruderLogModal } from './components/IntruderLogModal';
+import { recordIntrudersFromDetection, getIntruderLogs } from './services/intruderLogService';
 
 export interface DeviceClassificationContext {
   hostname?: string;
@@ -1101,6 +1104,18 @@ const App: React.FC = () => {
   const [isExecutingRemote, setIsExecutingRemote] = useState(false);
   const [isSendingWol, setIsSendingWol] = useState(false);
 
+  // Feature 5: Real-time Intruder Detection Timestamp & Intruder Log Modal
+  const [latestIntruderTimestamp, setLatestIntruderTimestamp] = useState<string | null>(() => {
+    try {
+      const logs = getIntruderLogs();
+      if (logs.length > 0 && logs[0].timestamp) {
+        return new Date(logs[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+    } catch (_) {}
+    return null;
+  });
+  const [showIntruderLogModal, setShowIntruderLogModal] = useState(false);
+
   // Automated Recurring Scan Scheduler State
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [activeScheduleCount, setActiveScheduleCount] = useState<number>(() => {
@@ -1134,8 +1149,17 @@ const App: React.FC = () => {
     }
   });
 
+  // Synchronize close-to-tray setting with Electron main process
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.setCloseToTray) {
+      (window as any).electronAPI.setCloseToTray(closeToTray);
+    }
+  }, [closeToTray]);
+
   const [showWindowsUtilModal, setShowWindowsUtilModal] = useState(false);
   const [isAutoStartEnabled, setIsAutoStartEnabled] = useState(false);
+  const [isWindowsServiceInstalled, setIsWindowsServiceInstalled] = useState(false);
+
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
@@ -1151,6 +1175,20 @@ const App: React.FC = () => {
     setShowWindowsUtilModal(false);
   }, [lang, showToast]);
 
+  const handleExitApplication = useCallback(async () => {
+    if (isWindowsDesktop) {
+      try {
+        await executeWindowsUtility('service-stop');
+      } catch (_) {}
+    }
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.exitApplication) {
+      (window as any).electronAPI.exitApplication();
+    } else {
+      showToast(lang === 'ko' ? '🛑 백그라운드 서비스가 정지되었습니다.' : '🛑 Background service stopped.');
+    }
+  }, [isWindowsDesktop, lang, showToast]);
+
+  // Initialize Windows-specific service & autostart status on startup
   useEffect(() => {
     if (isWindowsDesktop) {
       executeWindowsUtility('autostart').then(res => {
@@ -1159,19 +1197,42 @@ const App: React.FC = () => {
         }
       }).catch(() => {});
 
-      // Register Electron Tray listeners if running in Electron
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        const api = (window as any).electronAPI;
-        if (api.onToggleIntruder) {
-          api.onToggleIntruder((val: boolean) => {
-            setIntruderWatchMode(val);
-            try { localStorage.setItem('grid_intruder_watch', String(val)); } catch (_) {}
-            showToast(val ? '🚨 트레이 24/7 침입 감시 활성화' : '🚨 트레이 24/7 침입 감시 비활성화');
-          });
+      executeWindowsUtility('service-status').then(res => {
+        if (res.installed !== undefined) {
+          setIsWindowsServiceInstalled(res.installed);
         }
-      }
+      }).catch(() => {});
     }
-  }, [isWindowsDesktop, showToast]);
+  }, [isWindowsDesktop]);
+
+  // Register Electron Tray listeners (Intruder toggle & Intruder log modal) with Teardown
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      const api = (window as any).electronAPI;
+      const unsubs: Array<() => void> = [];
+      if (api.onToggleIntruder) {
+        const unsub = api.onToggleIntruder((val: boolean) => {
+          setIntruderWatchMode(val);
+          try { localStorage.setItem('grid_intruder_watch', String(val)); } catch (_) {}
+          showToast(
+            val
+              ? (lang === 'ko' ? '🚨 트레이 24/7 침입 감시 활성화' : '🚨 Tray 24/7 Intruder Watch Enabled')
+              : (lang === 'ko' ? '🚨 트레이 24/7 침입 감시 비활성화' : '🚨 Tray 24/7 Intruder Watch Disabled')
+          );
+        });
+        if (typeof unsub === 'function') unsubs.push(unsub);
+      }
+      if (api.onOpenIntruderLog) {
+        const unsub = api.onOpenIntruderLog(() => {
+          setShowIntruderLogModal(true);
+        });
+        if (typeof unsub === 'function') unsubs.push(unsub);
+      }
+      return () => {
+        unsubs.forEach(fn => fn());
+      };
+    }
+  }, [lang, showToast]);
 
   // Quick Filter Tabs (all / active / conflict / intruder / soft_trust / alias)
   const [customFilterMode, setCustomFilterMode] = useState<'all' | 'active' | 'conflict' | 'intruder' | 'soft_trust' | 'alias'>('all');
@@ -1511,7 +1572,7 @@ const App: React.FC = () => {
     if (baselineSnapshotId === id) {
       setBaselineSnapshotId(updated.length > 0 ? updated[0].id : null);
     }
-    showToast("스냅샷이 삭제되었습니다.");
+    showToast(lang === 'ko' ? "스냅샷이 삭제되었습니다." : "Snapshot deleted.");
   };
 
   const handleActivateLicense = async () => {
@@ -1538,7 +1599,7 @@ const App: React.FC = () => {
   const handleResetLicense = async () => {
     const free = clearLicense();
     setLicense(free);
-    showToast("라이선스가 커뮤니티 에디션(무료)으로 초기화되었습니다.");
+    showToast(lang === 'ko' ? "라이선스가 커뮤니티 에디션(무료)으로 초기화되었습니다." : "License reset to Community Edition (Free).");
     setShowLicenseModal(false);
     try {
       await fetch(getApiUrl('/api/license'), {
@@ -1673,9 +1734,9 @@ const App: React.FC = () => {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
-      showToast("🔔 낯선 기기 감시 모드가 활성화되었습니다. 신규 미확인 기기 접속 시 알림을 보냅니다.");
+      showToast(lang === 'ko' ? "🔔 낯선 기기 감시 모드가 활성화되었습니다. 신규 미확인 기기 접속 시 알림을 보냅니다." : "🔔 Intruder Watch mode enabled. You will be alerted upon new unidentified device access.");
     } else {
-      showToast("낯선 기기 감시 모드가 비활성화되었습니다.");
+      showToast(lang === 'ko' ? "낯선 기기 감시 모드가 비활성화되었습니다." : "Intruder Watch mode disabled.");
     }
   };
 
@@ -1687,7 +1748,7 @@ const App: React.FC = () => {
     const arr = Array.from(updated);
     localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
     localStorage.setItem('grid_known_devices', JSON.stringify(arr));
-    showToast(`신뢰하는 정상 기기 목록에 등록되었습니다 (${ip || mac}).`);
+    showToast(lang === 'ko' ? `신뢰하는 정상 기기 목록에 등록되었습니다 (${ip || mac}).` : `Registered to trusted devices list (${ip || mac}).`);
   };
 
   const handleTrustAllCurrentDevices = () => {
@@ -1704,19 +1765,19 @@ const App: React.FC = () => {
     const arr = Array.from(updated);
     localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
     localStorage.setItem('grid_known_devices', JSON.stringify(arr));
-    showToast(`현재 탐색된 ${count}개 활성 장치가 모두 신뢰/정상 기기로 등록되었습니다.`);
+    showToast(lang === 'ko' ? `현재 탐색된 ${count}개 활성 장치가 모두 신뢰/정상 기기로 등록되었습니다.` : `All ${count} active devices have been marked as trusted.`);
   };
 
   const handleResetTrustedDevices = () => {
     setTrustedDevices(new Set());
     localStorage.removeItem('grid_trusted_devices');
     localStorage.removeItem('grid_known_devices');
-    showToast("신뢰 기기 목록이 초기화되었습니다.");
+    showToast(lang === 'ko' ? "신뢰 기기 목록이 초기화되었습니다." : "Trusted devices list has been reset.");
   };
 
   const handleRunDeepPortAudit = async (ip: string) => {
     if (!license.features.portScanDeep) {
-      showToast("심층 포트 정밀 보안 감사 기능은 PRO 이상에서 제공됩니다.");
+      showToast(lang === 'ko' ? "심층 포트 정밀 보안 감사 기능은 PRO 이상에서 제공됩니다." : "Deep port security audit is available in PRO or higher.");
       setShowLicenseModal(true);
       return;
     }
@@ -2477,6 +2538,46 @@ const App: React.FC = () => {
     }
   };
 
+  const handleToggleScan = useCallback(() => {
+    if (isScanning) {
+      handleStopScan();
+      showToast(lang === 'ko' ? '⏹️ 트레이에서 스캔 중지됨' : '⏹️ Scan stopped');
+    } else {
+      startScan();
+      showToast(lang === 'ko' ? '⚡ 그리드 네트워크 스캔 시작됨' : '⚡ Grid Scan started');
+    }
+  }, [isScanning, handleStopScan, lang, showToast]);
+
+  // Register Electron Tray Scan Toggle Listener
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.onToggleScan) {
+      const api = (window as any).electronAPI;
+      const unsub = api.onToggleScan(() => {
+        handleToggleScan();
+      });
+      return () => {
+        if (typeof unsub === 'function') unsub();
+      };
+    }
+  }, [handleToggleScan]);
+
+  // Register Listener to detect when main window is hidden to tray and trigger toast message
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.onWindowHiddenToTray) {
+      const api = (window as any).electronAPI;
+      const unsub = api.onWindowHiddenToTray(() => {
+        showToast(
+          lang === 'ko'
+            ? '📌 애플리케이션이 시스템 트레이로 최소화되었습니다. 백그라운드 24/7 침입 감시가 가동 중입니다.'
+            : '📌 Application minimized to System Tray. Background 24/7 Intruder Watch remains active.'
+        );
+      });
+      return () => {
+        if (typeof unsub === 'function') unsub();
+      };
+    }
+  }, [lang, showToast]);
+
   // Feature: Background Recurring Scan Scheduler Engine
   useEffect(() => {
     const scheduleTicker = setInterval(() => {
@@ -2518,7 +2619,10 @@ const App: React.FC = () => {
       playAlertChime();
       const newItems = detectedIntruders.slice(prevIntrudersCountRef.current);
       if (newItems.length > 0) {
+        recordIntrudersFromDetection(newItems, 'background_service');
         const latest = newItems[0];
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLatestIntruderTimestamp(nowStr);
         const bodyText = `새로운 낯선 기기 감지: ${latest.ip} (${latest.device?.vendor || '알 수 없음'})`;
         showToast(`🚨 ${bodyText}`);
         if ('Notification' in window && Notification.permission === 'granted') {
@@ -2531,10 +2635,17 @@ const App: React.FC = () => {
         }
       }
     }
+    if (detectedIntruders.length > 0) {
+      recordIntrudersFromDetection(detectedIntruders, 'background_service');
+      if (!latestIntruderTimestamp) {
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLatestIntruderTimestamp(nowStr);
+      }
+    }
     if (!isScanning) {
       prevIntrudersCountRef.current = detectedIntruders.length;
     }
-  }, [intruderWatchMode, isScanning, detectedIntruders]);
+  }, [intruderWatchMode, isScanning, detectedIntruders, latestIntruderTimestamp]);
 
   const handleExportCSV = (mode: 'active' | 'all' = 'active') => {
     const allResults = Object.values(results) as ScanResult[];
@@ -2982,6 +3093,27 @@ const App: React.FC = () => {
   const completedCount = useMemo(() => processedIPs.size, [processedIPs]);
   const totalCount = useMemo(() => config.end - config.start + 1, [config.start, config.end]);
   const progressPercent = useMemo(() => totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0, [completedCount, totalCount]);
+
+  // Real-time Tray Status Message: Displays scan progress or latest intruder detection timestamp directly in tray
+  const trayStatusMessage = useMemo(() => {
+    if (isScanning) {
+      return lang === 'ko'
+        ? `스캔 진행 중: ${progressPercent}% (${completedCount}/${totalCount} IP)`
+        : `Scan progress: ${progressPercent}% (${completedCount}/${totalCount} IPs)`;
+    }
+    if (detectedIntruders.length > 0) {
+      return lang === 'ko'
+        ? `낯선 기기 ${detectedIntruders.length}대 감지${latestIntruderTimestamp ? ` (최근 감지: ${latestIntruderTimestamp})` : ''}`
+        : `${detectedIntruders.length} intruder(s) detected${latestIntruderTimestamp ? ` (Detected at: ${latestIntruderTimestamp})` : ''}`;
+    }
+    if (intruderWatchMode) {
+      return lang === 'ko'
+        ? `24/7 낯선 기기 무인 감시 가동 중${latestIntruderTimestamp ? ` (이전 감지: ${latestIntruderTimestamp})` : ' (정상)'}`
+        : `24/7 Intruder Watch active${latestIntruderTimestamp ? ` (Last: ${latestIntruderTimestamp})` : ' (Clear)'}`;
+    }
+    return lang === 'ko' ? '시스템 트레이 대기 중 (정상)' : 'System Tray Standby (Ready)';
+  }, [isScanning, progressPercent, completedCount, totalCount, detectedIntruders.length, latestIntruderTimestamp, intruderWatchMode, lang]);
+
   const allIps = useMemo(() => Object.keys(results).sort((a, b) => parseInt(a.split('.').pop()!) - parseInt(b.split('.').pop()!)), [results]);
   const filteredIps = useMemo(() => {
     let ips = allIps.filter(ip => {
@@ -3203,6 +3335,20 @@ const App: React.FC = () => {
               </button>
               {isWindowsDesktop && (
                 <>
+                  <TrayStatusIndicator
+                    intruderWatchMode={intruderWatchMode}
+                    onToggleIntruderWatch={handleToggleIntruderWatch}
+                    isScanning={isScanning}
+                    onToggleScan={handleToggleScan}
+                    intruderCount={detectedIntruders?.length || 0}
+                    statusMessage={trayStatusMessage}
+                    lang={lang as 'ko' | 'en'}
+                    theme={theme}
+                    isWindowsDesktop={isWindowsDesktop}
+                    onMinimizeToTray={handleMinimizeToTray}
+                    onOpenIntruderLog={() => setShowIntruderLogModal(true)}
+                    onExitApplication={handleExitApplication}
+                  />
                   <button
                     onClick={() => setShowWindowsUtilModal(true)}
                     className="px-2 py-0.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
@@ -7196,10 +7342,27 @@ const App: React.FC = () => {
                     <Monitor className="w-4 h-4 text-cyan-400" />
                     <span>📌 시스템 트레이 상주 & 무인 백그라운드</span>
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                    <Check className="w-3 h-3 text-emerald-400" />
-                    <span>앱 실행 시 트레이 자동 활성화됨</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <TrayStatusIndicator
+                      intruderWatchMode={intruderWatchMode}
+                      onToggleIntruderWatch={handleToggleIntruderWatch}
+                      isScanning={isScanning}
+                      onToggleScan={handleToggleScan}
+                      intruderCount={detectedIntruders?.length || 0}
+                      statusMessage={trayStatusMessage}
+                      lang={lang as 'ko' | 'en'}
+                      theme={theme}
+                      isWindowsDesktop={isWindowsDesktop}
+                      onMinimizeToTray={handleMinimizeToTray}
+                      onOpenIntruderLog={() => setShowIntruderLogModal(true)}
+                      onExitApplication={handleExitApplication}
+                      compact={false}
+                    />
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>트레이 자동 활성화됨</span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Status Indicator Banner */}
@@ -7223,15 +7386,25 @@ const App: React.FC = () => {
                 {/* Close to Tray Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
-                    <div className="font-bold text-zinc-200">창 닫기 시 트레이 최소화 (Close-to-Tray)</div>
-                    <div className="text-[10px] text-zinc-400">메인 창 [X] 클릭 시 완전히 종료하지 않고 시스템 트레이로 상주시킵니다.</div>
+                    <div className="font-bold text-zinc-200">
+                      {lang === 'ko' ? '창 닫기 시 트레이 최소화 (Close-to-Tray)' : 'Close to Tray'}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {lang === 'ko' 
+                        ? '메인 창 [X] 클릭 시 완전히 종료하지 않고 시스템 트레이로 상주시킵니다.' 
+                        : 'Minimize to system tray instead of quitting when clicking [X].'}
+                    </div>
                   </div>
                   <button 
                     onClick={() => {
                       const next = !closeToTray;
                       setCloseToTray(next);
                       try { localStorage.setItem('grid_close_to_tray', String(next)); } catch (_) {}
-                      showToast(next ? '📌 닫기 시 트레이 최소화 활성화' : '창 닫기 시 즉시 종료 설정');
+                      showToast(
+                        next
+                          ? (lang === 'ko' ? '📌 닫기 시 트레이 최소화 활성화' : '📌 Close-to-Tray enabled')
+                          : (lang === 'ko' ? '창 닫기 시 즉시 종료 설정' : 'Quit immediately on window close')
+                      );
                     }}
                     className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${closeToTray ? 'bg-cyan-500' : 'bg-zinc-700'}`}
                   >
@@ -7260,6 +7433,36 @@ const App: React.FC = () => {
                   </button>
                 </div>
 
+                {/* 24/7 Windows Background Service Control */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <div>
+                    <div className="font-bold text-zinc-200 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>24/7 Windows 무인 백그라운드 서비스 (GridIPScannerService)</span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      로그아웃 상태에서도 Session 0 무인 서비스로 24시간 네트워크 스케줄러 및 낯선 기기 감지 수행
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      const action = isWindowsServiceInstalled ? 'service-stop' : 'service-install';
+                      const res = await executeWindowsUtility(action);
+                      if (res.installed !== undefined) {
+                        setIsWindowsServiceInstalled(res.installed);
+                      }
+                      showToast(res.message);
+                    }}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all shrink-0 cursor-pointer border ${
+                      isWindowsServiceInstalled 
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30' 
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
+                    }`}
+                  >
+                    {isWindowsServiceInstalled ? '🟢 서비스 가동 중 (클릭 시 중지)' : '⚙️ 서비스 등록/시작'}
+                  </button>
+                </div>
+
                 {/* 24/7 Intruder Watch Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
@@ -7273,6 +7476,28 @@ const App: React.FC = () => {
                     <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${intruderWatchMode ? 'left-5.5' : 'left-0.5'}`} />
                   </button>
                 </div>
+
+                {/* Show Intruder Log Dedicated Button */}
+                <button
+                  onClick={() => {
+                    setShowWindowsUtilModal(false);
+                    setShowIntruderLogModal(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 active:scale-98 text-rose-300 font-bold border border-rose-500/30 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm shadow-rose-500/10"
+                >
+                  <ShieldAlert className="w-4 h-4 text-rose-400" />
+                  <span>{lang === 'ko' ? '📜 낯선 기기 감시 로그 전체 기록 열기' : '📜 Open Full Intruder Detection Log'}</span>
+                </button>
+
+                {/* Clean Exit Application Button */}
+                <button
+                  onClick={handleExitApplication}
+                  className="w-full py-2 px-3 rounded-lg bg-red-500/15 hover:bg-red-500/25 active:scale-98 text-red-300 font-bold border border-red-500/30 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm shadow-red-500/10"
+                  title={lang === 'ko' ? '백그라운드 서비스 및 앱 완전 종료' : 'Exit Application & Terminate Background Service'}
+                >
+                  <Power className="w-4 h-4 text-red-400" />
+                  <span>{lang === 'ko' ? '🛑 애플리케이션 완전 종료 (Exit Application)' : '🛑 Exit Application'}</span>
+                </button>
               </div>
 
               {/* Section 2: Legacy OS Network Tools */}
@@ -7393,6 +7618,20 @@ const App: React.FC = () => {
         lang={lang}
         currentSelectedIp={selectedIp || undefined}
         currentSelectedMac={selectedIp ? results[selectedIp]?.device?.mac : undefined}
+      />
+
+      {/* 24/7 Background Service Intruder Detection History Modal */}
+      <IntruderLogModal
+        isOpen={showIntruderLogModal}
+        onClose={() => setShowIntruderLogModal(false)}
+        lang={lang as 'ko' | 'en'}
+        theme={theme}
+        onTrustDevice={(macOrIp) => {
+          handleTrustDevice(
+            macOrIp.includes(':') || macOrIp.includes('-') ? macOrIp : undefined,
+            macOrIp.includes('.') ? macOrIp : undefined
+          );
+        }}
       />
     </div>
   );

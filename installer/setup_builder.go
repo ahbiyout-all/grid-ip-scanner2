@@ -23,7 +23,7 @@ var embeddedPayload []byte
 var embeddedIcon []byte
 
 const (
-	AppVersion = "2.4.26"
+	AppVersion = "2.4.38"
 	AppName    = "Grid IP Scanner2"
 )
 
@@ -720,12 +720,13 @@ func wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 				if launchPath != "" && fileExists(launchPath) {
 					verbPtr, _ := syscall.UTF16PtrFromString("runas")
 					exePtr, _ := syscall.UTF16PtrFromString(launchPath)
+					argsPtr, _ := syscall.UTF16PtrFromString("--tray")
 					dirPtr, _ := syscall.UTF16PtrFromString(filepath.Dir(launchPath))
 					procShellExecuteW.Call(
 						0,
 						uintptr(unsafe.Pointer(verbPtr)),
 						uintptr(unsafe.Pointer(exePtr)),
-						0,
+						uintptr(unsafe.Pointer(argsPtr)),
 						uintptr(unsafe.Pointer(dirPtr)),
 						1, // SW_SHOWNORMAL
 					)

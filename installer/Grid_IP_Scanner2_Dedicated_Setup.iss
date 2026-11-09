@@ -5,7 +5,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.26"
+#define MyAppVersion "2.4.38"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -185,6 +185,7 @@ Root: HKLM; Subkey: "Software\{#MyAppName}"; ValueType: string; ValueName: "Exec
 
 ; Auto-start on Windows Boot
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName} v{#MyAppVersion}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; Flags: uninsdeletevalue
 
 [Run]
 ; =====================================================================
@@ -207,8 +208,8 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#MyApp
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionPath '{app}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion; StatusMsg: "Windows Defender 검사 예외 목록에 설치 폴더 등록 중..."
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Add-MpPreference -ExclusionProcess '{#MyAppExeName}' -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated; Tasks: defenderexclusion
 
-; Launch Application post-install (runascurrentuser executes elevated to prevent CreateProcess error 740)
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
+; Launch Application post-install in Tray Mode (runascurrentuser executes elevated with --tray)
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallRun]
 ; Clean up firewall rules silently on uninstall
