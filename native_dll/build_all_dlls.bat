@@ -34,31 +34,31 @@ echo [*] Compiler: MinGW-w64 GCC detected.
 echo.
 
 echo [1/6] Compiling grid_probe_engine.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_PROBE_ENGINE -o grid_probe_engine.dll grid_probe_engine.c -lws2_32 -liphlpapi -Wl,--out-implib,libgrid_probe_engine.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_PROBE_ENGINE -o grid_probe_engine.dll grid_probe_engine.c -lws2_32 -liphlpapi -Wl,--out-implib,libgrid_probe_engine.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_probe_engine.dll
 
 echo [2/6] Compiling grid_port_iocp.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_PORT_IOCP -o grid_port_iocp.dll grid_port_iocp.c -lws2_32 -Wl,--out-implib,libgrid_port_iocp.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_PORT_IOCP -o grid_port_iocp.dll grid_port_iocp.c -lws2_32 -Wl,--out-implib,libgrid_port_iocp.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_port_iocp.dll
 
 echo [3/6] Compiling grid_discovery.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_DISCOVERY -o grid_discovery.dll grid_discovery.c -lws2_32 -Wl,--out-implib,libgrid_discovery.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_DISCOVERY -o grid_discovery.dll grid_discovery.c -lws2_32 -Wl,--out-implib,libgrid_discovery.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_discovery.dll
 
 echo [4/6] Compiling grid_oui_trie.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_OUI_TRIE -o grid_oui_trie.dll grid_oui_trie.c -Wl,--out-implib,libgrid_oui_trie.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_OUI_TRIE -o grid_oui_trie.dll grid_oui_trie.c -Wl,--out-implib,libgrid_oui_trie.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_oui_trie.dll
 
 echo [5/6] Compiling grid_banner_grabber.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_BANNER_GRABBER -o grid_banner_grabber.dll grid_banner_grabber.c -lws2_32 -Wl,--out-implib,libgrid_banner_grabber.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_BANNER_GRABBER -o grid_banner_grabber.dll grid_banner_grabber.c -lws2_32 -Wl,--out-implib,libgrid_banner_grabber.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_banner_grabber.dll
 
 echo [6/7] Compiling grid_pcap_analyzer.dll...
-gcc -O3 -shared -Wall -DBUILDING_GRID_PCAP_ANALYZER -o grid_pcap_analyzer.dll grid_pcap_analyzer.c -lws2_32 -liphlpapi -Wl,--out-implib,libgrid_pcap_analyzer.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_PCAP_ANALYZER -o grid_pcap_analyzer.dll grid_pcap_analyzer.c -lws2_32 -liphlpapi -Wl,--out-implib,libgrid_pcap_analyzer.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_pcap_analyzer.dll
 
 echo [7/7] Compiling grid_fingerprint_engine.dll (Pure Creative Native Heuristic Engine)...
-gcc -O3 -shared -Wall -DBUILDING_GRID_FINGERPRINT_ENGINE -o grid_fingerprint_engine.dll grid_fingerprint_engine.c -Wl,--out-implib,libgrid_fingerprint_engine.a
+gcc -O3 -s -shared -Wall -DBUILDING_GRID_FINGERPRINT_ENGINE -o grid_fingerprint_engine.dll grid_fingerprint_engine.c -Wl,--out-implib,libgrid_fingerprint_engine.a
 if %ERRORLEVEL% NEQ 0 echo [X] Failed to compile grid_fingerprint_engine.dll
 
 goto COPY_AND_FINISH
