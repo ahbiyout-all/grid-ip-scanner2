@@ -3403,20 +3403,23 @@ const App: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex flex-col mb-6">
-            <div className="flex items-center gap-2 mt-1.5">
-              <div className="relative group w-fit">
+          <div className="flex flex-col mb-4 space-y-2">
+            {/* Row 1: Admin Mode Elevation Badge + Reset Button */}
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="relative group shrink-0">
                 {!isAdmin ? (
                   <button
                     onClick={handleElevateAdmin}
                     disabled={isElevating}
-                    className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit cursor-pointer bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50"
+                    className="px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap cursor-pointer bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1 shadow-xs"
                   >
-                    {s.standardMode}
+                    <Key className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>{s.standardMode}</span>
                   </button>
                 ) : (
-                  <div className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-block w-fit bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-                    {s.adminMode}
+                  <div className="px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shadow-xs">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span>{s.adminMode}</span>
                   </div>
                 )}
                 {!isAdmin && (
@@ -3426,56 +3429,68 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+
               <button
                 onClick={resetScanState}
-                className="px-2 py-0.5 border border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 rounded text-[9px] font-black uppercase tracking-tighter hover:bg-red-500/20 transition-colors"
+                className="px-2.5 py-1 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1 shrink-0"
                 title={s.resetState}
               >
-                {s.resetBtn}
+                <RotateCcw className="w-3 h-3 shrink-0" />
+                <span>{s.resetBtn}</span>
               </button>
+            </div>
+
+            {/* Row 2: Grid Palette for DLL Hub & Tray Tools */}
+            <div className="grid grid-cols-2 gap-1.5 pt-0.5">
               <button
                 onClick={() => setShowNativeModal(true)}
-                className={`px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 ${
+                className={`px-2 py-1.5 border rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 ${
                   nativeStatus?.probeEngine
-                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25 shadow-sm shadow-sky-500/20'
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25 shadow-xs'
                     : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                 }`}
                 title={lang === 'ko' ? "6대 전용 C/Win32 네이티브 가속 DLL 진단 허브 열기" : "Open 6 dedicated C/Win32 native accelerated DLL diagnostic hub"}
               >
-                <Cpu className="w-2.5 h-2.5 text-sky-400" />
-                <span>{s.dllHub}</span>
+                <Cpu className="w-3 h-3 text-sky-400 shrink-0" />
+                <span className="truncate">{s.dllHub}</span>
               </button>
+
+              {isWindowsDesktop && (
+                <TrayStatusIndicator
+                  intruderWatchMode={intruderWatchMode}
+                  onToggleIntruderWatch={handleToggleIntruderWatch}
+                  isScanning={isScanning}
+                  onToggleScan={handleToggleScan}
+                  intruderCount={detectedIntruders?.length || 0}
+                  statusMessage={trayStatusMessage}
+                  lang={lang as 'ko' | 'en'}
+                  theme={theme}
+                  isWindowsDesktop={isWindowsDesktop}
+                  onMinimizeToTray={handleMinimizeToTray}
+                  onOpenIntruderLog={() => setShowIntruderLogModal(true)}
+                  onExitApplication={handleExitApplication}
+                  compact={false}
+                />
+              )}
+
               {isWindowsDesktop && (
                 <>
-                  <TrayStatusIndicator
-                    intruderWatchMode={intruderWatchMode}
-                    onToggleIntruderWatch={handleToggleIntruderWatch}
-                    isScanning={isScanning}
-                    onToggleScan={handleToggleScan}
-                    intruderCount={detectedIntruders?.length || 0}
-                    statusMessage={trayStatusMessage}
-                    lang={lang as 'ko' | 'en'}
-                    theme={theme}
-                    isWindowsDesktop={isWindowsDesktop}
-                    onMinimizeToTray={handleMinimizeToTray}
-                    onOpenIntruderLog={() => setShowIntruderLogModal(true)}
-                    onExitApplication={handleExitApplication}
-                  />
                   <button
                     onClick={() => setShowWindowsUtilModal(true)}
-                    className="px-2 py-0.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
+                    className="px-2 py-1.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
                     title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
                   >
-                    <Terminal className="w-2.5 h-2.5 text-cyan-400" />
-                    <span>{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
+                    <Terminal className="w-3 h-3 text-cyan-400 shrink-0" />
+                    <span className="truncate">{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
                   </button>
+
                   <button
                     onClick={handleMinimizeToTray}
-                    className="px-2 py-0.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded text-[9px] font-black uppercase tracking-tighter inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm shadow-emerald-500/20"
+                    className="px-2 py-1.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
                     title={lang === 'ko' ? "앱을 시스템 트레이로 최소화 (백그라운드 가동)" : "Minimize app to system tray"}
                   >
-                    <Monitor className="w-2.5 h-2.5 text-emerald-400" />
-                    <span>{lang === 'ko' ? "📌 트레이 최소화" : "Minimize to Tray"}</span>
+                    <Monitor className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="truncate">{lang === 'ko' ? "📌 최소화" : "Minimize"}</span>
                   </button>
                 </>
               )}

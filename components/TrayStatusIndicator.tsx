@@ -204,7 +204,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
           setIsOpen(!isOpen);
           setIsHovered(false);
         }}
-        className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] tracking-tight transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95 ${config.bg}`}
+        className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] tracking-tight transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95 whitespace-nowrap shrink-0 ${config.bg}`}
         title={
           statusMessage
             ? `${statusMessage} • ${lang === 'ko' ? '클릭 시 트레이 메뉴' : 'Click for Tray Menu'}`
