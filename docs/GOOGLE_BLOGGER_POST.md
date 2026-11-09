@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.41)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.42)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.41 | **작성일자**: 2026-11-09
+> **최신 버전**: v2.4.42 | **작성일자**: 2026-11-09
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 구버전 감지 시 팝업 없이 100% 자동 백그라운드 무소음 언인스톨, 7대 네이티브 가속 DLL 및 AI 핑거프린팅 실시간 진단, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.41)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 구버전 감지 시 수동 클릭 없이 포그라운드 100% 무클릭 자동 언인스톨, 7대 네이티브 가속 DLL 및 AI 핑거프린팅 실시간 진단, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.42)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 구버전 자동 무소음 언인스톨 및 7대 네이티브 가속 DLL 탑재 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.41)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 구버전 포그라운드 100% 무클릭 자동 언인스톨 및 7대 네이티브 가속 DLL 탑재 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.42)**
 
 ---
 

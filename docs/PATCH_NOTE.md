@@ -1,4 +1,15 @@
-# Grid IP Scanner2 - Patch Note (v2.4.41)
+# Grid IP Scanner2 - Patch Note (v2.4.42)
+
+## 🚀 [v2.4.42] - 2026-11-09
+
+### 🌟 포그라운드 100% 무클릭 자동 언인스톨 파이프라인 개편 (100% Automated Visible Uninstallation Pipeline)
+
+1. **포그라운드(Foreground) 무클릭 100% 자동 언인스톨 개편 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/setup_builder.go`)**
+   - **기능 설명**:
+     - 사용자가 기존 버전 감지 시 [확인] 버튼을 매번 수동으로 누르던 불편을 개선하고, 구버전 감지 시 사용자의 추가 클릭 입력 없이 **포그라운드(Foreground) 화면에 언인스톨 진행률 창이 즉각 자동으로 표출되며 100% 무클릭으로 구버전이 자동 제거**되도록 인스톨러 파이프라인을 전면 개편했습니다.
+     - `Exec(UninstallExe, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode)` 구성을 적용하여 화면상에서 시각적으로 진행 상황을 확인할 수 있음과 동시에, 사용자 개입(버튼 클릭) 없이 완벽하게 기존 버전을 지우고 최신 버전 설치로 직행합니다.
+
+---
 
 ## 🚀 [v2.4.41] - 2026-11-09
 

@@ -23,7 +23,7 @@ var embeddedPayload []byte
 var embeddedIcon []byte
 
 const (
-	AppVersion = "2.4.41"
+	AppVersion = "2.4.42"
 	AppName    = "Grid IP Scanner2"
 )
 
@@ -517,13 +517,13 @@ func performInstallationGUI() {
 	}
 	targetDir := filepath.Join(progFiles, "Grid IP Scanner2")
 
-	// 기존 설치 감지 시 모달 팝업 없이 '자동 언인스톨(Silent Uninstall)' 즉각 수행
+	// 기존 설치 감지 시 사용자의 [확인] 클릭 요구 없이 '포그라운드 100% 자동 언인스톨(Auto Uninstaller)' 수행
 	if fileExists(filepath.Join(targetDir, "Grid_IP_Scanner2.exe")) {
-		postStatus("기존 버전 감지: 자동 삭제 및 언인스톨 진행 중...")
+		postStatus("기존 버전 감지: 포그라운드 100% 자동 삭제 및 언인스톨 진행 중...")
 		uninsBat := filepath.Join(targetDir, "uninstall.bat")
 		uninsExe := filepath.Join(targetDir, "unins000.exe")
 		if fileExists(uninsExe) {
-			cmd := exec.Command(uninsExe, "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES")
+			cmd := exec.Command(uninsExe, "/SILENT", "/NORESTART", "/SUPPRESSMSGBOXES")
 			_ = cmd.Run()
 		} else if fileExists(uninsBat) {
 			cmd := exec.Command("cmd.exe", "/c", uninsBat, "/SILENT")

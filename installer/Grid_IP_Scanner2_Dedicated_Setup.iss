@@ -5,7 +5,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.41"
+#define MyAppVersion "2.4.42"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -346,15 +346,15 @@ begin
   Exec('taskkill.exe', '/F /T /IM "Grid IP Scanner2*.exe"', '', SW_HIDE, ewWaitUntilTerminated, KillResult3);
   Sleep(400);
 
-  // 2. 기존 설치 버전 감지 시 모달 팝업 없이 '100% 자동 백그라운드 언인스톨' 수행
-  // (사용자의 확인 클릭을 요구하지 않고 자동으로 uninstall을 완벽 실행한 후 새 버전 설치 진행)
+  // 2. 기존 설치 버전 감지 시 사용자의 수동 [확인] 클릭 요구 없이 '포그라운드 100% 자동 언인스톨' 수행
+  // (/SILENT /NORESTART /SUPPRESSMSGBOXES 및 SW_SHOWNORMAL로 포그라운드에서 진행률 창이 자동 표출되어 수동 클릭 없이 완료 후 설치 진입)
   UninstallExe := GetExistingUninstallExe();
   if (UninstallExe <> '') and FileExists(UninstallExe) then
   begin
     Log('Existing Grid IP Scanner2 uninstaller detected: ' + UninstallExe);
-    Log('Executing silent uninstallation automatically...');
-    // /VERYSILENT /NORESTART /SUPPRESSMSGBOXES 플래그로 팝업 없이 완전 자동 언인스톨
-    Exec(UninstallExe, '/VERYSILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Log('Executing 100% automatic foreground uninstallation...');
+    // /SILENT /NORESTART /SUPPRESSMSGBOXES 및 SW_SHOWNORMAL로 포그라운드에서 팝업 클릭 없이 자동 언인스톨
+    Exec(UninstallExe, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode);
     Sleep(800);
   end;
 end;
