@@ -5,7 +5,7 @@
 ; =====================================================================
 
 #define MyAppName "Grid IP Scanner2"
-#define MyAppVersion "2.4.38"
+#define MyAppVersion "2.4.40"
 #define MyAppPublisher "AhBiYout"
 #define MyAppURL "https://github.com/AhBiYout-all/grid-ip-scanner2"
 #define MyAppBlogURL "https://ahbiyoutvibe.blogspot.com/"
@@ -144,7 +144,6 @@ Source: "..\{#MyAppSourceExe}"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; F
 
 ; 2. OUI Database & Runtime Metadata
 Source: "..\master_oui.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\winres.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\package.json"; DestDir: "{app}"; Flags: ignoreversion
 
 ; 3. Native Acceleration DLL Modules
@@ -154,8 +153,11 @@ Source: "..\grid_discovery.dll"; DestDir: "{app}"; Flags: ignoreversion skipifso
 Source: "..\grid_oui_trie.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_banner_grabber.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_pcap_analyzer.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_fingerprint_engine.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_net_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_vault_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\oui_validator.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\secure_vault.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 ; 4. Icons & Brand Assets
 Source: "..\icon.ico"; DestDir: "{app}"; Flags: ignoreversion

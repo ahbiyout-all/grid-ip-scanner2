@@ -2,13 +2,14 @@
 chcp 65001 >nul
 REM ==============================================================================
 REM Grid IP Scanner2 - Master Native DLLs Automated Multi-Target Builder
-REM Compiles all 6 Specialized Native DLL Modules:
+REM Compiles all 7 Specialized Native DLL Modules:
 REM   1. grid_probe_engine.dll  - Async ICMP SendEcho2 and L2 SendARP
 REM   2. grid_port_iocp.dll     - IOCP High-Concurrency Port Scanner
 REM   3. grid_discovery.dll     - mDNS, SSDP, LLMNR, NetBIOS Multicast
 REM   4. grid_oui_trie.dll      - In-Memory Radix-Trie IEEE OUI Engine
 REM   5. grid_banner_grabber.dll- HTTP, SSH, RTSP, TLS Banner Grabber
 REM   6. grid_pcap_analyzer.dll - Npcap/WinPcap Kernel Packet Analyzer
+REM   7. grid_fingerprint_engine.dll - AI Heuristic Device Fingerprinting & Risk Engine
 REM Copyright (c) 2025-2026 AhBiYout. All rights reserved.
 REM ==============================================================================
 

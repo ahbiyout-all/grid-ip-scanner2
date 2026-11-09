@@ -1,4 +1,49 @@
-# Grid IP Scanner2 - Patch Note (v2.4.38)
+# Grid IP Scanner2 - Patch Note (v2.4.40)
+
+## 🚀 [v2.4.40] - 2026-11-09
+
+### 🌟 네이티브 DLL 라이브러리 전수 점검 & FFI 바인딩·인스톨러·진단 콘솔 무결성 감사 (Native DLL Comprehensive Audit & Zero-Fault Integration)
+
+1. **네이티브 가속 DLL 7종 전체 무결성 검증 및 진단 모달 누락 해소 (`components/NativeModulesModal.tsx`)**
+   - **기능 설명**:
+     - 기존 네이티브 가속 엔진 진단 모달에 6종만 등록되어 있던 상태에서, 7번째 혁신 엔진인 `grid_fingerprint_engine.dll` (AI 휴리스틱 기기 핑거프린팅 & 리스크 평가 엔진)을 정식 등록하였습니다.
+     - 모달 안내 문구를 '7대 전용 가속 DLL 모듈'로 동기화하고, `handleTestFingerprint` 실시간 진단 버튼을 라이브 콘솔에 추가하여 사용자가 포트·TTL·배너 서명을 기반으로 기기 분류, 취약점 점수, 보안 권고안을 즉각 테스트할 수 있도록 지원했습니다.
+
+2. **Inno Setup 전용 인스톨러 스크립트 DLL 누락 방지 동기화 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)**
+   - **기능 설명**:
+     - `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`의 `[Files]` 섹션에 `grid_fingerprint_engine.dll`을 추가하여, 전체 11개 네이티브 바이너리(`grid_probe_engine.dll`, `grid_port_iocp.dll`, `grid_discovery.dll`, `grid_oui_trie.dll`, `grid_banner_grabber.dll`, `grid_pcap_analyzer.dll`, `grid_fingerprint_engine.dll`, `grid_net_driver.dll`, `grid_vault_driver.dll`, `oui_validator.dll`, `secure_vault.dll`)가 인스톨러 배포 시 완벽하게 포함되도록 조치했습니다.
+
+3. **빌드 자동화 스크립트 및 FFI 브릿지 주석 일원화 (`native_dll/build_all_dlls.bat`, `services/nativeModulesService.ts`)**
+   - **기능 설명**:
+     - `build_all_dlls.bat`의 컴파일 대상 헤더 설명을 7대 엔진 체계로 일관되게 정비했습니다.
+     - `services/nativeModulesService.ts`의 인터페이스 명세 및 주석을 7대 엔진 명세로 최신화했습니다.
+
+4. **FFI C-Go-TypeScript 타입 안전성 및 메모리 안정성 감사 통과**
+   - **기능 설명**:
+     - Go의 Windows FFI 바인딩(`native_modules_bridge.go`)에서 모든 `proc.Find() == nil` 검사가 선행되어 DLL/함수 누락 시에도 패닉 없이 안전 폴백되는 것을 확인했습니다.
+     - 문자열 버퍼 크기 제약 및 널 종료 문자 처리(`byteSliceToString`)에 버퍼 오버플로우 위험이 없음을 입증했습니다.
+
+---
+
+## 🚀 [v2.4.39] - 2026-11-09
+
+### 🌟 앱 인스톨러 패키징 파일 전수 점검 및 불필요 파일/폴더 정밀 다이어트 (Installer Packaging Audit & Clean Payload Architecture)
+
+1. **인스톨러 페이로드 압축 필터링 전면 강화 (`installer/zip_helper.go`)**
+   - **기능 설명**:
+     - Go 기반 인스톨러 빌더(`setup_builder.go`)용 `payload.zip` 생성 시 불필요한 개발용/빌드용 디렉토리(`.github`, `.aistudio`, `android`, `dist_android`, `installer`, `winres`, `src`, `go/`)와 소스코드 파일(`.go`, `.ts`, `.tsx`, `.c`, `.h`, `.bat`, `.sh`, `.iss`, `.isl`, `.map`, `.lock`), 빌드 설정 파일(`tsconfig.json`, `vite.config.ts`, `capacitor.config.json`, `metadata.json`, `package-lock.json`, `wizard_*.bmp`)이 패키징되지 않도록 제외(Exclusion) 필터를 대폭 강화했습니다.
+     - 최종 사용자가 설치하는 패키지 용량을 최적화하고 순수 프로덕션 런타임 파일만 배포되도록 무결성을 보장했습니다.
+
+2. **Inno Setup 스크립트 설치 파일 목록 정밀 최적화 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)**
+   - **기능 설명**:
+     - 개발 전용 PE 리소스 주입 설정 파일인 `winres.json`을 최종 사용자 설치 파일 목록에서 깔끔히 제거했습니다.
+     - 누락되었던 2대 보안 가속 DLL(`oui_validator.dll`, `secure_vault.dll`)을 `[Files]` 섹션에 추가하여 10대 네이티브 DLL 전체가 정상 패키징되도록 동기화했습니다.
+
+3. **불필요한 빈 디렉토리 및 중복 에셋 정리 (`public/assets/aistudio`)**
+   - **기능 설명**:
+     - 정적 에셋 폴더 내 비어 있던 `public/assets/aistudio` 디렉토리를 제거하여 인스톨 시 빈 폴더가 생성되지 않도록 클린업했습니다.
+
+---
 
 ## 🚀 [v2.4.38] - 2026-11-09
 

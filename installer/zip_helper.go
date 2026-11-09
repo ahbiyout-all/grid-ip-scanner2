@@ -40,18 +40,53 @@ func main() {
 		relSlash := filepath.ToSlash(rel)
 		lowerRel := strings.ToLower(relSlash)
 
-		// Exclude build artifacts, git, modules, portable, installer folders
+		// Exclude development, source, build artifacts, git, modules, mobile, and installer folders
 		if strings.HasPrefix(lowerRel, "node_modules") ||
 			strings.HasPrefix(lowerRel, ".git") ||
+			strings.HasPrefix(lowerRel, ".github") ||
 			strings.HasPrefix(lowerRel, ".vscode") ||
+			strings.HasPrefix(lowerRel, ".aistudio") ||
+			strings.HasPrefix(lowerRel, "android") ||
+			strings.HasPrefix(lowerRel, "dist_android") ||
+			strings.HasPrefix(lowerRel, "installer") ||
+			strings.HasPrefix(lowerRel, "winres") ||
+			strings.HasPrefix(lowerRel, "src") ||
 			strings.HasPrefix(lowerRel, "dist_releases") ||
 			strings.HasPrefix(lowerRel, "dist_installer") ||
 			strings.HasPrefix(lowerRel, "scripts") ||
 			strings.HasPrefix(lowerRel, "portable") ||
+			strings.HasPrefix(lowerRel, "go/") ||
 			strings.Contains(lowerRel, "/portable/") {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+
+		// Exclude source code files (.go, .ts, .tsx, .c, .h, .bat, .sh, .iss, .isl, .map, .lock)
+		if strings.HasSuffix(lowerRel, ".go") ||
+			strings.HasSuffix(lowerRel, ".ts") ||
+			strings.HasSuffix(lowerRel, ".tsx") ||
+			strings.HasSuffix(lowerRel, ".c") ||
+			strings.HasSuffix(lowerRel, ".h") ||
+			strings.HasSuffix(lowerRel, ".bat") ||
+			strings.HasSuffix(lowerRel, ".sh") ||
+			strings.HasSuffix(lowerRel, ".iss") ||
+			strings.HasSuffix(lowerRel, ".isl") ||
+			strings.HasSuffix(lowerRel, ".map") ||
+			strings.HasSuffix(lowerRel, ".lock") {
+			return nil
+		}
+
+		// Exclude build configuration files not needed in production installer
+		if strings.EqualFold(filepath.Base(lowerRel), "tsconfig.json") ||
+			strings.EqualFold(filepath.Base(lowerRel), "vite.config.ts") ||
+			strings.EqualFold(filepath.Base(lowerRel), "capacitor.config.json") ||
+			strings.EqualFold(filepath.Base(lowerRel), "metadata.json") ||
+			strings.EqualFold(filepath.Base(lowerRel), ".gitignore") ||
+			strings.EqualFold(filepath.Base(lowerRel), "package-lock.json") ||
+			strings.EqualFold(filepath.Base(lowerRel), "wizard_large.bmp") ||
+			strings.EqualFold(filepath.Base(lowerRel), "wizard_small.bmp") {
 			return nil
 		}
 

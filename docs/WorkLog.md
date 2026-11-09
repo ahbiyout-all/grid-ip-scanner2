@@ -1,3 +1,34 @@
+### 63. 네이티브 DLL 라이브러리 전수 점검 & FFI 바인딩·인스톨러·진단 콘솔 무결성 감사 (v2.4.40)
+- **사용자 요청 사항 및 피드백**:
+  - "dll 라이브러리 점검 및 오류 검사"
+- **원인 규명 및 해결 조치**:
+  1. **[네이티브 가속 엔진 진단 모달 누락 해소] `components/NativeModulesModal.tsx`**:
+     - 기존 진단 모달의 `modules` 배열에 누락되어 있던 7번째 혁신 엔진 `grid_fingerprint_engine.dll` (AI 휴리스틱 기기 핑거프린팅 & 리스크 평가 엔진)을 정식 등록.
+     - 헤더 안내 문구를 '7대 전용 가속 DLL 모듈'로 최신화하고, `handleTestFingerprint` 실시간 진단 버튼을 라이브 콘솔에 추가하여 실시간 포트·TTL·배너 벡터 분석 기반 기기 분류 및 보안 권고안 테스트 기능 제공.
+  2. **[Inno Setup 전용 인스톨러 배포 동기화] `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`**:
+     - `[Files]` 섹션에 `grid_fingerprint_engine.dll`을 추가하여 11대 네이티브 바이너리 전체가 설치 배포판에 안정적으로 포함되도록 무결성 확보.
+  3. **[빌드 스크립트 및 FFI 명세 일원화] `native_dll/build_all_dlls.bat`, `services/nativeModulesService.ts`**:
+     - `build_all_dlls.bat` 빌더 주석 및 `services/nativeModulesService.ts`의 인터페이스 명세를 7대 네이티브 엔진 체계로 일원화.
+  4. **[C / Go FFI / TypeScript 전 구간 메모리 안전성 및 예외 검사 통과]**:
+     - `native_modules_bridge.go` 내 모든 FFI 프로시저 호출 시 `proc.Find() == nil` 검증 선행 확인 (DLL 부재 시 패닉 방지 및 Go 순수 런타임 자동 폴백).
+     - C 라이브러리 내부 `safe_strcpy`, `snprintf`, 버퍼 크기 제약 준수 확인.
+  5. **SemVer v2.4.40 패치 버전업 및 기술 문서 일괄 업데이트**:
+     - `sync-version.js` 파이프라인으로 10대 파일의 버전을 v2.4.40으로 일괄 동기화 완료.
+
+### 62. 앱 인스톨러 패키징 파일 전수 점검 및 불필요 파일/폴더 정밀 다이어트 (v2.4.39)
+- **사용자 요청 사항 및 피드백**:
+  - "앱 인스톨 파일 중에 불필요한 폴더나 파일이 포함되어 있는지 점검."
+- **원인 규명 및 해결 조치**:
+  1. **[인스톨러 페이로드 필터링 전면 강화] `installer/zip_helper.go` 제외 규칙 개편**:
+     - Standalone Go 인스톨러 빌더(`setup_builder.go`)용 `payload.zip` 생성 시 불필요한 개발용 디렉토리(`.github`, `.aistudio`, `android`, `dist_android`, `installer`, `winres`, `src`, `go/`)와 소스코드 파일(`.go`, `.ts`, `.tsx`, `.c`, `.h`, `.bat`, `.sh`, `.iss`, `.isl`, `.map`, `.lock`), 빌드 설정 파일(`tsconfig.json`, `vite.config.ts`, `capacitor.config.json`, `metadata.json`, `package-lock.json`, `wizard_*.bmp`)이 패키징되지 않도록 제외 필터 대폭 보강.
+  2. **[Inno Setup 스크립트 설치 목록 최적화] `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`**:
+     - 개발 전용 PE 리소스 설정 파일 `winres.json`을 사용자 설치 목록에서 제거.
+     - 10대 네이티브 DLL 중 누락되었던 `oui_validator.dll`과 `secure_vault.dll`을 `[Files]` 섹션에 추가하여 완전무결한 DLL 세트 구축.
+  3. **[불필요 빈 디렉토리 제거] `public/assets/aistudio`**:
+     - 내부 파일이 삭제되어 비어 있던 `public/assets/aistudio` 디렉토리를 완전히 삭제하여 인스톨 시 빈 폴더가 설치 경로에 생성되지 않도록 조치.
+  4. **SemVer v2.4.39 패치 버전업 및 기술 문서 일괄 업데이트**:
+     - `sync-version.js` 파이프라인으로 10대 파일의 버전을 v2.4.39로 일괄 동기화 완료.
+
 ### 61. 자아성찰 심화 및 오류 수정: Close-to-Tray 사용자 설정 무시 결함 해결 & 전면 다국어화 (v2.4.38)
 - **사용자 요청 사항 및 피드백**:
   - "자아성찰과 오류 수정"

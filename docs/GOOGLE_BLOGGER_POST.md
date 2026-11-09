@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.38)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.40)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.38 | **작성일자**: 2026-11-09
+> **최신 버전**: v2.4.40 | **작성일자**: 2026-11-09
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, Close-to-Tray 사용자 설정 Electron 완벽 동기화, 전면 다국어(i18n) 정밀 보강, Electron IPC 리스너 Teardown 누수 방지 및 윈도우 파괴 크래시 방어 가드, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.38)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 네이티브 가속 DLL 7종 전수 점검 및 AI 휴리스틱 기기 핑거프린팅 실시간 진단 콘솔, Inno Setup 인스톨러 배포 동기화, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.40)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 트레이 메뉴 4대 앱 테마(Dark/Gray/White/Beige) 연동 시스템이 탑재된 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.38)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 7대 네이티브 가속 DLL 및 AI 핑거프린팅 진단 시스템이 탑재된 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.40)**
 
 ---
 

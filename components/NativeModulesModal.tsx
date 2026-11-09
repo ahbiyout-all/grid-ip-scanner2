@@ -12,6 +12,7 @@ import {
   fetchDeepDiscovery,
   detectHostOS,
   checkArpSpoofing,
+  fetchDeviceFingerprint,
 } from '../services/nativeModulesService';
 
 interface NativeModulesModalProps {
@@ -123,6 +124,17 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
       features: isEn ? ['TTL/Window OS Detection', 'ARP Spoofing Protection', 'Npcap Dynamic Loading'] : ['TTL/Window OS 식별', 'ARP 스푸핑 공격 감지', 'Npcap 동적 로딩'],
       tag: 'Phase 4 Security',
     },
+    {
+      id: 'fingerprint',
+      name: 'grid_fingerprint_engine.dll',
+      title: isEn ? 'AI Heuristic Device Fingerprinting Engine' : 'AI 휴리스틱 기기 핑거프린팅 엔진',
+      active: status?.fingerprintEngine ?? false,
+      desc: isEn
+        ? 'Native heuristic rules engine analyzing open ports, TTL, and banner signatures to accurately classify device models and security vulnerabilities.'
+        : '열린 포트, TTL, 배너 서명을 통합 분석하여 기기 모델명과 보안 취약점을 정확하게 식별하는 네이티브 휴리스틱 룰 엔진입니다.',
+      features: isEn ? ['Heuristic Risk Scoring', 'Multi-Port Vector Classifier', 'Zero-Latency Pattern Engine'] : ['휴리스틱 리스크 스코어링', '다중 포트 벡터 분류기', 'Zero-Latency 패턴 엔진'],
+      tag: 'Phase 4 AI/Rule',
+    },
   ];
 
   const handleTestDiscovery = async () => {
@@ -180,6 +192,32 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
     setIsTesting(false);
   };
 
+  const handleTestFingerprint = async () => {
+    setIsTesting(true);
+    setTestOutput(`[*] ${testIp} 대상 AI 휴리스틱 기기 핑거프린팅 & 취약점 분석 중...`);
+    const res = await fetchDeviceFingerprint({
+      ip: testIp,
+      mac: testMac || undefined,
+      openPorts: [80, 443],
+    });
+    if (res) {
+      setTestOutput(
+        `[OK] AI 핑거프린팅 진단 완료:\n` +
+        `• 기기 분류: ${res.categoryName} (Code: ${res.categoryCode})\n` +
+        `• 감지 OS: ${res.detectedOS}\n` +
+        `• 모델명: ${res.hardwareModel}\n` +
+        `• 신뢰도: ${res.confidencePercent}%\n` +
+        `• 리스크 레벨: ${res.riskLevel} (점수: ${res.riskScore}/100)\n` +
+        `• 취약점 수: ${res.vulnerabilityCount}개\n` +
+        `• 취약점 상세: ${res.vulnerabilities || '없음'}\n` +
+        `• 보안 권장조치: ${res.recommendation || '정상 상태 유지'}`
+      );
+    } else {
+      setTestOutput(`[-] ${testIp}: 핑거프린팅 분석 응답 시간 초과`);
+    }
+    setIsTesting(false);
+  };
+
   return (
     <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className={`w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${
@@ -202,8 +240,8 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
               </div>
               <p className="text-xs opacity-70 mt-0.5">
                 {isEn 
-                  ? 'Runtime health status and direct kernel diagnostics for 6 specialized acceleration DLL modules'
-                  : '로드맵에 정의된 6대 전용 가속 DLL 모듈의 런타임 상태 및 다이렉트 커널 진단'}
+                  ? 'Runtime health status and direct kernel diagnostics for 7 specialized acceleration DLL modules'
+                  : '로드맵에 정의된 7대 전용 가속 DLL 모듈의 런타임 상태 및 다이렉트 커널 진단'}
               </p>
             </div>
           </div>
@@ -338,6 +376,14 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
               >
                 <Shield className="w-3.5 h-3.5" />
                 <span>{isEn ? 'ARP Spoof Verification' : 'ARP 스푸핑 검증'}</span>
+              </button>
+              <button
+                onClick={handleTestFingerprint}
+                disabled={isTesting || !testIp}
+                className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>{isEn ? 'AI Heuristic Fingerprint' : 'AI 휴리스틱 핑거프린트'}</span>
               </button>
             </div>
 
