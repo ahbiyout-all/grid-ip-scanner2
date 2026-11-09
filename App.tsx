@@ -2392,7 +2392,10 @@ const App: React.FC = () => {
               let finalDevice: DeviceInfo | undefined = res.alive ? {
                 ip: res.ip,
                 mac: res.mac || "Unknown",
-                vendor: isSelf ? s.deviceTypes.hostMachine : vendorName,
+                vendor: isSelf ? s.deviceTypes.hostMachine : (res.vendor || vendorName),
+                chipsetVendor: res.chipsetVendor || (isSelf ? s.deviceTypes.hostMachine : vendorName),
+                realVendor: res.realVendor,
+                vendorSource: res.vendorSource || (res.realVendor ? (res.upnp ? 'UPNP' : res.mdns ? 'MDNS' : 'OUI') : undefined),
                 latency: res.latency,
                 hostname: finalName,
                 nameSource: res.nameSource || (res.mdns ? 'MDNS' : res.upnp ? 'UPNP' : res.snmp ? 'SNMP' : res.webTitle ? 'WEB' : res.hostname ? 'DNS' : 'UNKNOWN'),
@@ -2404,7 +2407,7 @@ const App: React.FC = () => {
                 upnp: res.upnp,
                 snmp: res.snmp,
                 deviceType: classification.type,
-                deviceModel: classification.model
+                deviceModel: res.deviceModel || classification.model
               } : undefined;
 
               if (!res.alive && prevResult && prevResult.status === 'active') {
@@ -2660,7 +2663,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const headers = ["IP Address", "Status", "MAC Address", "Vendor", "Hostname", "Name Source", "Latency (ms)", "Open Ports", "Device Type", "Model", "OS"];
+    const headers = ["IP Address", "Status", "MAC Address", "Real Brand", "Chipset (OUI)", "Hostname", "Name Source", "Latency (ms)", "Open Ports", "Device Type", "Model", "OS"];
     const rows = exportData.map(r => {
       const classification = classifyDevice(r.device?.vendor || "", r.device?.openPorts || [], s, {
         hostname: r.device?.hostname,
@@ -2675,13 +2678,14 @@ const App: React.FC = () => {
         escape(r.ip),
         escape(r.status),
         escape(r.device?.mac || ""),
-        escape(r.device?.vendor || ""),
+        escape(r.device?.realVendor || r.device?.vendor || ""),
+        escape(r.device?.chipsetVendor || r.device?.vendor || ""),
         escape(r.device?.hostname || ""),
         escape(r.device?.nameSource || "UNKNOWN"),
         escape(r.device?.latency || 0),
         escape((r.device?.openPorts || []).join(', ')),
         escape(classification.type),
-        escape(classification.model || r.device?.deviceModel || ""),
+        escape(r.device?.deviceModel || classification.model || ""),
         escape(classification.os)
       ];
     });
@@ -3138,6 +3142,8 @@ const App: React.FC = () => {
       });
       return ip.includes(s_term) || 
              item.device?.vendor?.toLowerCase().includes(s_term) || 
+             (item.device?.realVendor && item.device.realVendor.toLowerCase().includes(s_term)) ||
+             (item.device?.chipsetVendor && item.device.chipsetVendor.toLowerCase().includes(s_term)) ||
              item.device?.hostname?.toLowerCase().includes(s_term) ||
              item.device?.mac?.toLowerCase().includes(s_term) ||
              classification.type.toLowerCase().includes(s_term) ||
@@ -5642,12 +5648,53 @@ const App: React.FC = () => {
                           {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.vendor}</span>
-                        <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right`}>
-                          {effectiveDevice?.vendor || 'Unknown'}
-                        </span>
-                      </div>
+                      {effectiveDevice?.realVendor && effectiveDevice.realVendor !== (effectiveDevice.chipsetVendor || effectiveDevice.vendor) ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-black`}>
+                                {lang === 'ko' ? '실제 제조사' : 'Real Brand'}
+                              </span>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 font-bold shrink-0">
+                                {effectiveDevice.vendorSource || 'UPnP'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 min-w-0 ml-3">
+                              <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate text-right`}>
+                                {effectiveDevice.realVendor}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.realVendor)}
+                                className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 shrink-0 transition-colors cursor-pointer"
+                                title={lang === 'ko' ? `실제 제조사 '${effectiveDevice.realVendor}'를 이 장치 이름으로 설정` : `Set brand '${effectiveDevice.realVendor}' as device name`}
+                              >
+                                {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>
+                                {lang === 'ko' ? '칩셋 OUI' : 'Chipset OUI'}
+                              </span>
+                              <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 shrink-0">
+                                OUI
+                              </span>
+                            </div>
+                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold opacity-80 truncate ml-4 text-right`}>
+                              {effectiveDevice.chipsetVendor || effectiveDevice.vendor || 'Unknown'}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.vendor}</span>
+                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right`}>
+                            {effectiveDevice?.vendor || 'Unknown'}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.os}</span>
                         <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold`}>{effectiveDevice?.os || 'Unknown'}</span>
@@ -5655,9 +5702,21 @@ const App: React.FC = () => {
                       {(effectiveDevice?.deviceModel || effectiveDevice?.deviceType) && (
                         <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                           <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{lang === 'ko' ? '기기 모델/분류' : 'Device Model / Type'}</span>
-                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate ml-4 text-right`}>
-                            {effectiveDevice.deviceModel ? `${effectiveDevice.deviceModel} (${effectiveDevice.deviceType})` : effectiveDevice.deviceType}
-                          </span>
+                          <div className="flex items-center gap-1.5 min-w-0 ml-4">
+                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate text-right`}>
+                              {effectiveDevice.deviceModel ? `${effectiveDevice.deviceModel} (${effectiveDevice.deviceType})` : effectiveDevice.deviceType}
+                            </span>
+                            {effectiveDevice.deviceModel && (
+                              <button
+                                type="button"
+                                onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.deviceModel)}
+                                className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 shrink-0 transition-colors cursor-pointer"
+                                title={lang === 'ko' ? `기기 모델 '${effectiveDevice.deviceModel}'을 이 장치 이름으로 설정` : `Set model '${effectiveDevice.deviceModel}' as device name`}
+                              >
+                                {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                       {effectiveDevice?.mdns && (

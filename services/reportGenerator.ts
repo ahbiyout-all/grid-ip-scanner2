@@ -378,7 +378,7 @@ export async function exportSecurityAuditReportToPDF(
                     <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; line-height: 1.3;">${dev?.mac || '-'}</td>
                     <td style="padding: 4px 8px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 24px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.vendor || 'Unknown'}</div>
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
                         ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
@@ -442,7 +442,7 @@ export async function exportSecurityAuditReportToPDF(
                     <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
                     <td style="padding: 3.5px 7px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.vendor || 'Unknown'}</div>
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
                         ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.2px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
@@ -640,7 +640,7 @@ export async function exportDeviceListToPDF(
                     <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
                     <td style="padding: 2.2px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-'))}</div>
                         ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
@@ -715,7 +715,7 @@ export async function exportDeviceListToPDF(
                     <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
                     <td style="padding: 2.5px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.vendor || (isActive ? 'Unknown' : '-')}</div>
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-'))}</div>
                         ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
                       </div>
                     </td>
@@ -1256,7 +1256,7 @@ export const generateProfessionalAuditReport = (
             <td class="mono" style="color: #059669;">${dev?.mac || 'N/A'}</td>
             <td>
               <div style="display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-weight: 700; line-height: 1.3;">${dev?.vendor || 'Unknown'}</div>
+                <div style="font-weight: 700; line-height: 1.3;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
                 <div style="font-size: 9.5px; color: #64748b; line-height: 1.25; margin-top: 2px;">${dev?.hostname || '-'} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>
               </div>
             </td>

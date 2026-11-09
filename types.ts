@@ -27,6 +27,9 @@ export interface DeviceInfo {
   ip: string;
   mac?: string;
   vendor?: string;
+  chipsetVendor?: string;
+  realVendor?: string;
+  vendorSource?: 'UPNP' | 'MDNS' | 'OUI' | 'HTTP' | 'SNMP' | string;
   hostname?: string;
   nameSource?: NameSourceType;
   hostnameSources?: Record<string, string>;

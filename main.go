@@ -37,6 +37,10 @@ type ScanResult struct {
 	Latency         int               `json:"latency"`
 	MAC             string            `json:"mac"`
 	Vendor          string            `json:"vendor"`
+	ChipsetVendor   string            `json:"chipsetVendor,omitempty"`
+	RealVendor      string            `json:"realVendor,omitempty"`
+	DeviceModel     string            `json:"deviceModel,omitempty"`
+	VendorSource    string            `json:"vendorSource,omitempty"`
 	Hostname        string            `json:"hostname"`
 	WebTitle        string            `json:"webTitle"`
 	OpenPorts       []int             `json:"openPorts"`
@@ -968,12 +972,50 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 		snmpName := hostnameSources[NameSourceSNMP]
 		webTitle := hostnameSources[NameSourceWeb]
 		
+		chipsetVendor := vendor
+		realVendor := nameRes.RealVendor
+		deviceModel := nameRes.DeviceModel
+		vendorSource := nameRes.VendorSource
+
+		if realVendor == "" {
+			combined := strings.ToLower(hostname + " " + mdnsName + " " + webTitle + " " + upnpName)
+			if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "macbook") || strings.Contains(combined, "imac") || strings.Contains(combined, "apple") {
+				realVendor = "Apple Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "synology") || strings.Contains(combined, "diskstation") {
+				realVendor = "Synology Inc."
+				vendorSource = NameSourceWeb
+			} else if strings.Contains(combined, "samsung") {
+				realVendor = "Samsung Electronics"
+				vendorSource = NameSourceUPnP
+			} else if strings.Contains(combined, "lg") && (strings.Contains(combined, "tv") || strings.Contains(combined, "webos") || strings.Contains(combined, "electronics")) {
+				realVendor = "LG Electronics"
+				vendorSource = NameSourceUPnP
+			} else if strings.Contains(combined, "canon") {
+				realVendor = "Canon Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "epson") {
+				realVendor = "Seiko Epson Corp."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "iptime") {
+				realVendor = "EFM Networks (ipTIME)"
+				vendorSource = NameSourceWeb
+			} else if strings.Contains(combined, "asus") {
+				realVendor = "ASUSTeK Computer Inc."
+				vendorSource = NameSourceWeb
+			}
+		}
+
 		return ScanResult{
 			IP:              ip,
 			Alive:           true,
 			Latency:         int(time.Since(start).Milliseconds()),
 			MAC:             mac,
 			Vendor:          vendor,
+			ChipsetVendor:   chipsetVendor,
+			RealVendor:      realVendor,
+			DeviceModel:     deviceModel,
+			VendorSource:    vendorSource,
 			Hostname:        hostname,
 			WebTitle:        webTitle,
 			OpenPorts:       []int{},
@@ -1087,12 +1129,50 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 			}
 		}
 
+		chipsetVendor := vendor
+		realVendor := nameRes.RealVendor
+		deviceModel := nameRes.DeviceModel
+		vendorSource := nameRes.VendorSource
+
+		if realVendor == "" {
+			combined := strings.ToLower(hostname + " " + mdnsName + " " + webTitle + " " + upnpName)
+			if strings.Contains(combined, "iphone") || strings.Contains(combined, "ipad") || strings.Contains(combined, "macbook") || strings.Contains(combined, "imac") || strings.Contains(combined, "apple") {
+				realVendor = "Apple Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "synology") || strings.Contains(combined, "diskstation") {
+				realVendor = "Synology Inc."
+				vendorSource = NameSourceWeb
+			} else if strings.Contains(combined, "samsung") {
+				realVendor = "Samsung Electronics"
+				vendorSource = NameSourceUPnP
+			} else if strings.Contains(combined, "lg") && (strings.Contains(combined, "tv") || strings.Contains(combined, "webos") || strings.Contains(combined, "electronics")) {
+				realVendor = "LG Electronics"
+				vendorSource = NameSourceUPnP
+			} else if strings.Contains(combined, "canon") {
+				realVendor = "Canon Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "epson") {
+				realVendor = "Seiko Epson Corp."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(combined, "iptime") {
+				realVendor = "EFM Networks (ipTIME)"
+				vendorSource = NameSourceWeb
+			} else if strings.Contains(combined, "asus") {
+				realVendor = "ASUSTeK Computer Inc."
+				vendorSource = NameSourceWeb
+			}
+		}
+
 		return ScanResult{
 			IP:              ip,
 			Alive:           true,
 			Latency:         int(time.Since(start).Milliseconds()),
 			MAC:             mac,
 			Vendor:          vendor,
+			ChipsetVendor:   chipsetVendor,
+			RealVendor:      realVendor,
+			DeviceModel:     deviceModel,
+			VendorSource:    vendorSource,
 			Hostname:        hostname,
 			WebTitle:        webTitle,
 			OpenPorts:       openPorts,

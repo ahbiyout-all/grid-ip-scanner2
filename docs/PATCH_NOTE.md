@@ -1,4 +1,29 @@
-# Grid IP Scanner2 - Patch Note (v2.4.44)
+# Grid IP Scanner2 - Patch Note (v2.4.45)
+
+## 🚀 [v2.4.45] - 2026-11-09
+
+### 🌟 UPnP/SSDP XML & mDNS 기반 실제 제조사 정밀 판별 및 칩셋 OUI 동시 병기 표기 (Real Manufacturer Discovery & Dual OUI Architecture)
+
+1. **UPnP/SSDP XML 디바이스 디스크립션 심층 파싱 엔진 탑재 (`name_resolver.go`)**
+   - **기능 설명**:
+     - SSDP M-SEARCH 응답에서 `LOCATION: http://IP:PORT/desc.xml` URL을 자동 추적하고, 기기 디바이스 XML을 경량 비동기 HTTP GET으로 수신하여 `<manufacturer>`, `<modelName>`, `<friendlyName>`을 100% 정밀 추출합니다.
+     - 단순 칩셋 제조사(예: Murata, Realtek, Intel, Hon Hai)로만 표시되던 가전·스마트폰·IoT 기기의 실제 완제품 브랜드(Samsung Electronics, LG Electronics, Apple Inc., Synology Inc., Canon Inc., ASUSTeK, EFM Networks)를 정확하게 식별합니다.
+
+2. **mDNS 기기 식별자 및 휴리스틱 모델 매핑 엔진 강화 (`name_resolver.go`, `main.go`)**
+   - **기능 설명**:
+     - mDNS `.local` 질의 응답에서 Apple 생태계 장비(iPhone, iPad, MacBook, iMac, AppleTV), Synology NAS, Canon/Epson 네트워크 프린터 등의 기기 명칭을 분석하여 실제 완제품 제조사(`realVendor`) 및 기기 모델(`deviceModel`)을 자동으로 매핑합니다.
+
+3. **장치 상세 프로필 패널 내 실제 제조사 & 칩셋 OUI 2-Tier 병기 UI 구축 (`App.tsx`, `types.ts`)**
+   - **기능 설명**:
+     - 네트워크 카드 칩셋 제조사와 완제품 브랜드가 다를 경우, 장치 프로필 패널에 **실제 제조사 (Real Brand)**와 **칩셋 OUI (Chipset OUI)**를 각각의 출처 뱃지(`[UPnP]`, `[mDNS]`, `[OUI]`)와 함께 나란히 병기 표기합니다.
+     - 감지된 실제 제조사 또는 모델명을 원클릭으로 해당 장치의 대표 닉네임으로 저장할 수 있는 `적용 ↵` 단축 버튼을 제공합니다.
+
+4. **검색 필터 및 인벤토리 리포트 완벽 연동 (`App.tsx`, `services/reportGenerator.ts`)**
+   - **기능 설명**:
+     - 상단 실시간 검색창에서 칩셋 제조사뿐만 아니라 실제 제조사(`realVendor`) 및 기기 모델명(`deviceModel`)으로도 노드를 즉시 필터링할 수 있도록 검색 인덱스를 확장했습니다.
+     - A4 보안감사 PDF 리포트, 대화형 HTML 보고서, CSV 인벤토리 파일 내보내기 시 실제 브랜드와 칩셋 OUI 정보를 모두 분리 반영하여 자산 관리의 정확도를 극대화했습니다.
+
+---
 
 ## 🚀 [v2.4.44] - 2026-11-09
 

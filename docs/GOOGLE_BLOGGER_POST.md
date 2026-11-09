@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.44)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.45)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.44 | **작성일자**: 2026-11-09
+> **최신 버전**: v2.4.45 | **작성일자**: 2026-11-09
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, MSYS2 GCC 16.1 완벽 호환 11대 C/C++ 네이티브 DLL 분리 추출 및 오탐지 예방, 포그라운드 100% 무클릭 자동 언인스톨, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.44)를 소개합니다.
+  > 16x16 시각화 그리드 맵, UPnP/SSDP 장치 XML 및 mDNS 기반 실제 완제품 제조사(삼성, LG, 애플 등) 정밀 판별 및 칩셋 OUI 병기 표기, MSYS2 GCC 16.1 완벽 호환 11대 C/C++ 네이티브 DLL 분리 추출 및 오탐지 예방, 포그라운드 100% 무클릭 자동 언인스톨, 24시간 Windows 서비스 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.45)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 11대 네이티브 DLL 분리 설치 및 오탐지 원천 예방 아키텍처 탑재 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.44)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 UPnP/mDNS 실제 제조사 정밀 판별 및 11대 네이티브 DLL 분리 설치 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.45)**
 
 ---
 
@@ -48,15 +48,15 @@
 
 ---
 
-### 3. 업데이트 (v2.4.44 최신 릴리즈 하이라이트)
-* **⚙️ MSYS2 GCC 16.1.0 완벽 호환 11대 C/C++ 네이티브 DLL 자동 빌드 & 정적 링크 (`build_all_dlls.bat`)**:
-  - 최신 MSYS2 GCC 16.1.0 컴파일러를 자동 인식하여 11종의 가속 모듈 전체를 최적화 플래그(`-O3 -s -shared`) 및 필수 정적 링크(`-static-libgcc`, `-static-libstdc++`)로 정밀 컴파일.
-* **🔨 빌드 스크립트 GCC 자동 감지 및 11대 DLL 루트/언팩 자동 동기화 (`build-win.js`, `build.bat`)**:
-  - 빌드 명령어 실행 시 GCC를 자동 감지하여 누락된 네이티브 DLL을 즉시 빌드 및 프로젝트 루트로 미러링.
-* **📦 공식 인스톨러 3중 소스 탐색으로 11대 DLL 분리 설치 100% 보장 (`Grid_IP_Scanner2_Dedicated_Setup.iss`)**:
-  - 루트, `native_dll`, `dist_releases/unpacked` 3중 경로 탐색으로 `C:\Program Files\Grid IP Scanner2\` 내 11개 가속 DLL 분리 배치를 보장하여 VirusTotal 머신러닝 오탐지(4/71)를 원천 차단.
-* **🔄 포그라운드 100% 무클릭 자동 언인스톨 파이프라인 탑재**:
-  - 기존 구버전 감지 시 사용자의 수동 [확인] 클릭 요구 없이 화면상에서 언인스톨 진행률을 직관적으로 보여주며 100% 무클릭 자동 제거 완료 후 최신 버전 설치 진행.
+### 3. 업데이트 (v2.4.45 최신 릴리즈 하이라이트)
+* **📡 UPnP/SSDP XML 디바이스 디스크립션 심층 파싱 엔진 탑재 (`name_resolver.go`)**:
+  - `LOCATION: http://IP:PORT/desc.xml` 자동 추적 및 XML 내 `<manufacturer>`, `<modelName>`, `<friendlyName>`을 100% 추출하여 단순 칩셋 제조사가 아닌 실제 완제품 브랜드(Samsung, LG, Apple, Synology, Canon, EFM 등)를 정확하게 식별.
+* **🏷️ 장치 상세 프로필 패널 내 실제 제조사 & 칩셋 OUI 2-Tier 병기 UI 구축 (`App.tsx`)**:
+  - 네트워크 칩셋과 완제품 브랜드가 다를 경우 **실제 제조사 (Real Brand)**와 **칩셋 OUI (Chipset OUI)**를 각각의 출처 뱃지(`[UPnP]`, `[mDNS]`, `[OUI]`)와 함께 나란히 표기하고 원클릭 닉네임 `적용 ↵` 지원.
+* **🔍 실시간 검색창 및 보안감사 리포트 연동 (`App.tsx`, `reportGenerator.ts`)**:
+  - 상단 검색창에서 `realVendor` 및 `deviceModel` 검색 필터링 지원, A4 보안감사 PDF 및 CSV/HTML 인벤토리 내보내기 시 실제 브랜드와 칩셋 OUI 분리 반영.
+* **⚙️ MSYS2 GCC 16.1.0 완벽 호환 11대 C/C++ 네이티브 DLL 자동 빌드 & 인스톨러 분리 설치 보장**:
+  - 최적화 플래그(`-O3 -s -shared`) 및 정적 링크(`-static-libgcc`, `-static-libstdc++`) 적용, `C:\Program Files\Grid IP Scanner2\` 11대 DLL 분리 배치로 바이러스토탈 머신러닝 오탐지(4/71) 원천 예방.
 
 ---
 

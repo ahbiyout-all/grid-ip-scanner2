@@ -38,6 +38,9 @@ type NameResolutionResult struct {
 	BestName        string            `json:"bestName"`
 	PrimarySource   string            `json:"primarySource"`
 	HostnameSources map[string]string `json:"hostnameSources"`
+	RealVendor      string            `json:"realVendor,omitempty"`
+	DeviceModel     string            `json:"deviceModel,omitempty"`
+	VendorSource    string            `json:"vendorSource,omitempty"`
 }
 
 // decodeNetworkBytes converts raw network bytes into valid UTF-8, handling both UTF-8 and ANSI multi-byte Korean characters
@@ -431,11 +434,20 @@ func resolveWSDNameFast(ctx context.Context, ip string, timeoutMs int) string {
 // Resolves Smart TVs, Media Renderers, Routers, Home Appliances
 // ============================================================================
 
-func resolveUPnPNameFast(ctx context.Context, ip string, timeoutMs int) string {
+type UPnPProbeDetails struct {
+	BestName     string
+	Manufacturer string
+	ModelName    string
+	FriendlyName string
+	ServerHeader string
+}
+
+func resolveUPnPExtended(ctx context.Context, ip string, timeoutMs int) UPnPProbeDetails {
+	var details UPnPProbeDetails
 	dialer := &net.Dialer{Timeout: time.Duration(timeoutMs) * time.Millisecond}
 	conn, err := dialer.DialContext(ctx, "udp", fmt.Sprintf("%s:1900", ip))
 	if err != nil {
-		return ""
+		return details
 	}
 	defer conn.Close()
 
@@ -448,52 +460,86 @@ func resolveUPnPNameFast(ctx context.Context, ip string, timeoutMs int) string {
 		"ST: ssdp:all\r\n\r\n"
 
 	if _, err := conn.Write([]byte(msg)); err != nil {
-		return ""
+		return details
 	}
 
 	buf := make([]byte, 2048)
 	n, err := conn.Read(buf)
 	if err != nil || n == 0 {
-		return ""
+		return details
 	}
 
 	resp := string(buf[:n])
 	lines := strings.Split(resp, "\r\n")
 	var locationURL string
-	var serverHeader string
 
 	for _, l := range lines {
 		lower := strings.ToLower(l)
 		if strings.HasPrefix(lower, "location:") {
 			locationURL = strings.TrimSpace(l[9:])
 		} else if strings.HasPrefix(lower, "server:") {
-			serverHeader = strings.TrimSpace(l[7:])
+			details.ServerHeader = strings.TrimSpace(l[7:])
 		}
 	}
 
-	// If location URL is provided on local subnet, try fast XML description fetch (up to 4KB)
+	// If location URL is provided on local subnet, try fast XML description fetch (up to 8KB)
 	if locationURL != "" && strings.Contains(locationURL, ip) {
 		httpCli := &http.Client{Timeout: 350 * time.Millisecond}
 		req, _ := http.NewRequestWithContext(ctx, "GET", locationURL, nil)
 		if respXml, err := httpCli.Do(req); err == nil {
 			defer respXml.Body.Close()
-			body, _ := io.ReadAll(io.LimitReader(respXml.Body, 4096))
-			reFn := regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
-			if m := reFn.FindStringSubmatch(decodeNetworkBytes(body)); len(m) > 1 {
-				return sanitizeDeviceName(m[1])
+			body, _ := io.ReadAll(io.LimitReader(respXml.Body, 8192))
+			bodyStr := decodeNetworkBytes(body)
+
+			reMfr := regexp.MustCompile(`(?i)<manufacturer[^>]*>(.*?)</manufacturer>`)
+			if m := reMfr.FindStringSubmatch(bodyStr); len(m) > 1 {
+				details.Manufacturer = sanitizeDeviceName(m[1])
 			}
 			reModel := regexp.MustCompile(`(?i)<modelName[^>]*>(.*?)</modelName>`)
-			if m := reModel.FindStringSubmatch(decodeNetworkBytes(body)); len(m) > 1 {
-				return sanitizeDeviceName(m[1])
+			if m := reModel.FindStringSubmatch(bodyStr); len(m) > 1 {
+				details.ModelName = sanitizeDeviceName(m[1])
+			}
+			reFn := regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
+			if m := reFn.FindStringSubmatch(bodyStr); len(m) > 1 {
+				details.FriendlyName = sanitizeDeviceName(m[1])
 			}
 		}
 	}
 
-	if serverHeader != "" && !strings.Contains(strings.ToLower(serverHeader), "upnp/1.0") {
-		return sanitizeDeviceName(serverHeader)
+	// Fallback to Server header vendor extraction if manufacturer is empty
+	if details.Manufacturer == "" && details.ServerHeader != "" {
+		srvLower := strings.ToLower(details.ServerHeader)
+		if strings.Contains(srvLower, "synology") {
+			details.Manufacturer = "Synology Inc."
+		} else if strings.Contains(srvLower, "iptime") || strings.Contains(srvLower, "efm") {
+			details.Manufacturer = "EFM Networks (ipTIME)"
+		} else if strings.Contains(srvLower, "samsung") {
+			details.Manufacturer = "Samsung Electronics"
+		} else if strings.Contains(srvLower, "lg") {
+			details.Manufacturer = "LG Electronics"
+		} else if strings.Contains(srvLower, "asus") {
+			details.Manufacturer = "ASUSTeK Computer Inc."
+		} else if strings.Contains(srvLower, "qnap") {
+			details.Manufacturer = "QNAP Systems, Inc."
+		} else if strings.Contains(srvLower, "canon") {
+			details.Manufacturer = "Canon Inc."
+		}
 	}
 
-	return ""
+	if details.FriendlyName != "" {
+		details.BestName = details.FriendlyName
+	} else if details.ModelName != "" {
+		details.BestName = details.ModelName
+	} else if details.ServerHeader != "" && !strings.Contains(strings.ToLower(details.ServerHeader), "upnp/1.0") {
+		details.BestName = sanitizeDeviceName(details.ServerHeader)
+	}
+
+	return details
+}
+
+func resolveUPnPNameFast(ctx context.Context, ip string, timeoutMs int) string {
+	d := resolveUPnPExtended(ctx, ip, timeoutMs)
+	return d.BestName
 }
 
 // ============================================================================
@@ -717,12 +763,22 @@ func ResolveDeviceNamesParallel(ctx context.Context, ip string, openPorts []int,
 	}()
 
 	// 5. SSDP / UPnP (UDP 1900)
+	var upnpMfr, upnpModel string
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if name := resolveUPnPNameFast(resCtx, ip, timeoutMs); name != "" {
-			recordResult(NameSourceUPnP, name)
+		upnpDet := resolveUPnPExtended(resCtx, ip, timeoutMs)
+		if upnpDet.BestName != "" {
+			recordResult(NameSourceUPnP, upnpDet.BestName)
 		}
+		mu.Lock()
+		if upnpDet.Manufacturer != "" {
+			upnpMfr = upnpDet.Manufacturer
+		}
+		if upnpDet.ModelName != "" {
+			upnpModel = upnpDet.ModelName
+		}
+		mu.Unlock()
 	}()
 
 	// 6. SNMP sysName (UDP 161)
@@ -778,9 +834,45 @@ func ResolveDeviceNamesParallel(ctx context.Context, ip string, openPorts []int,
 		}
 	}
 
+	var realVendor, deviceModel, vendorSource string
+	if upnpMfr != "" {
+		realVendor = upnpMfr
+		vendorSource = NameSourceUPnP
+		deviceModel = upnpModel
+	}
+
+	// mDNS manufacturer heuristic fallback
+	if realVendor == "" {
+		if mdnsName, exists := sources[NameSourceMDNS]; exists && mdnsName != "" {
+			lowerMdns := strings.ToLower(mdnsName)
+			if strings.Contains(lowerMdns, "iphone") || strings.Contains(lowerMdns, "ipad") || strings.Contains(lowerMdns, "macbook") || strings.Contains(lowerMdns, "imac") || strings.Contains(lowerMdns, "apple") {
+				realVendor = "Apple Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(lowerMdns, "synology") || strings.Contains(lowerMdns, "diskstation") {
+				realVendor = "Synology Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(lowerMdns, "canon") {
+				realVendor = "Canon Inc."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(lowerMdns, "epson") {
+				realVendor = "Seiko Epson Corp."
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(lowerMdns, "samsung") {
+				realVendor = "Samsung Electronics"
+				vendorSource = NameSourceMDNS
+			} else if strings.Contains(lowerMdns, "lg") {
+				realVendor = "LG Electronics"
+				vendorSource = NameSourceMDNS
+			}
+		}
+	}
+
 	return NameResolutionResult{
 		BestName:        bestName,
 		PrimarySource:   primarySource,
 		HostnameSources: sources,
+		RealVendor:      realVendor,
+		DeviceModel:     deviceModel,
+		VendorSource:    vendorSource,
 	}
 }

@@ -1,3 +1,22 @@
+### 68. UPnP/SSDP XML & mDNS 기반 실제 제조사 정밀 판별 및 칩셋 OUI 동시 병기 표기 (v2.4.45)
+- **사용자 요청 사항 및 피드백**:
+  - "정확한 제조사를 판별하기 위한 추가 방법이 무엇이 있을까요?"
+  - Q: MAC OUI 외에 정확한 장비 제조사를 판별하기 위해 어떤 추가 프로토콜 방식을 우선 적용할까요? -> A: UPnP/SSDP 및 mDNS 상세정보(XML/TXT) 연동
+  - Q: 제조사 식별 결과가 여러 프로토콜에서 다르게 감지될 경우 UI에 어떻게 표시할까요? -> A: 장치 상세 패널에 칩셋 OUI와 실제 제조사 병기 표기
+- **원인 규명 및 해결 조치**:
+  1. **[UPnP/SSDP XML 디바이스 디스크립션 심층 파싱 엔진 탑재] `name_resolver.go`**:
+     - SSDP M-SEARCH 응답에서 `LOCATION: http://IP:PORT/desc.xml` URL을 감지하여 비동기 HTTP GET(최대 8KB)으로 `<manufacturer>`, `<modelName>`, `<friendlyName>`을 100% 정밀 추출.
+     - 삼성, LG, 애플, 시놀로지, 캐논, ipTIME, ASUS 등 완제품 브랜드를 실제 제조사(`realVendor`) 및 모델(`deviceModel`)로 바인딩.
+  2. **[mDNS 기기 식별자 및 휴리스틱 모델 매핑 엔진 강화] `name_resolver.go`, `main.go`**:
+     - Apple 생태계 장비(iPhone, iPad, MacBook, iMac, AppleTV) 및 네트워크 프린터의 mDNS 기기 문자열을 분석하여 완제품 제조사로 매핑.
+  3. **[장치 상세 프로필 패널 내 실제 제조사 & 칩셋 OUI 2-Tier 병기 UI 구축] `App.tsx`, `types.ts`**:
+     - 칩셋 제조사와 실제 완제품 브랜드가 다를 경우, 장치 상세 패널에 **실제 제조사 (Real Brand)**와 **칩셋 OUI (Chipset OUI)**를 각각의 출처 태그(`[UPnP]`, `[mDNS]`, `[OUI]`)와 함께 나란히 표기하고 원클릭 `적용 ↵` 단축 버튼 제공.
+  4. **[검색 인덱스 및 자산 리포트 연동] `App.tsx`, `services/reportGenerator.ts`**:
+     - 상단 실시간 검색창에서 `realVendor` 및 `deviceModel` 검색 필터링 지원.
+     - A4 보안감사 PDF 및 CSV/HTML 내보내기 시 실제 브랜드와 칩셋 OUI 정보 분리 반영.
+  5. **SemVer v2.4.45 패치 버전업 및 기술 문서 일괄 업데이트**:
+     - `sync-version.js` 파이프라인으로 전 대상 버전을 v2.4.45로 일괄 동기화 완료.
+
 ### 67. MSYS2 GCC 16.1.0 완벽 호환 11대 네이티브 DLL 자동 빌드 & 인스톨러 분리 설치 3중 보장 (v2.4.44)
 - **사용자 요청 사항 및 피드백**:
   - "4곳에서 바이러스라고 하는데?" (VirusTotal 결과: Grid IP Scanner2 v2.4.40.exe 단일 포터블 파일 4/71 오탐 캡처 첨부)
