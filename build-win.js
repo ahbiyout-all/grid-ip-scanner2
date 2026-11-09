@@ -278,18 +278,64 @@ async function startBuild() {
     console.warn(`   - Notice: Direct patch skipped (standard syso was embedded): ${patchErr.message}`);
   }
 
-  // 4.8. Mirror Native DLLs to root directory if compiled
+  // 4.7. Automatic Native Acceleration DLL Compiler Check & Execution
+  console.log('\n⚙️ Step 4.7: Verifying & compiling Native Acceleration DLLs (All 11 modules)...');
   const nativeDllDir = path.join(process.cwd(), 'native_dll');
-  if (fs.existsSync(nativeDllDir)) {
-    const dllFiles = fs.readdirSync(nativeDllDir).filter(f => f.endsWith('.dll'));
-    dllFiles.forEach(dll => {
+  const allDllNames = [
+    'grid_probe_engine.dll',
+    'grid_port_iocp.dll',
+    'grid_discovery.dll',
+    'grid_oui_trie.dll',
+    'grid_banner_grabber.dll',
+    'grid_pcap_analyzer.dll',
+    'grid_fingerprint_engine.dll',
+    'grid_net_driver.dll',
+    'grid_vault_driver.dll',
+    'oui_validator.dll',
+    'secure_vault.dll'
+  ];
+
+  let hasGccOrCl = false;
+  try {
+    execSync('gcc --version', { stdio: 'ignore' });
+    hasGccOrCl = true;
+    console.log('   - MinGW/MSYS2 GCC detected.');
+  } catch (e) {
+    try {
+      execSync('cl', { stdio: 'ignore' });
+      hasGccOrCl = true;
+      console.log('   - MSVC (cl.exe) detected.');
+    } catch (e2) {}
+  }
+
+  if (hasGccOrCl && fs.existsSync(nativeDllDir)) {
+    const buildBat = path.join(nativeDllDir, 'build_all_dlls.bat');
+    if (fs.existsSync(buildBat) && process.platform === 'win32') {
       try {
-        fs.copyFileSync(path.join(nativeDllDir, dll), path.join(process.cwd(), dll));
-      } catch (e) {}
-    });
-    if (dllFiles.length > 0) {
-      console.log(`   - [OK] Mirrored ${dllFiles.length} Native Acceleration DLLs to application root.`);
+        console.log('   - Executing native_dll/build_all_dlls.bat to compile all 11 native DLLs...');
+        execSync(`cmd.exe /c "cd /d "${nativeDllDir}" && call build_all_dlls.bat"`, { stdio: 'inherit' });
+      } catch (batErr) {
+        console.warn(`   - Warning during build_all_dlls.bat: ${batErr.message}`);
+      }
     }
+  }
+
+  // 4.8. Mirror Native DLLs to root directory
+  if (fs.existsSync(nativeDllDir)) {
+    let copiedCount = 0;
+    allDllNames.forEach(dll => {
+      const srcInNative = path.join(nativeDllDir, dll);
+      const destInRoot = path.join(process.cwd(), dll);
+      if (fs.existsSync(srcInNative)) {
+        try {
+          fs.copyFileSync(srcInNative, destInRoot);
+          copiedCount++;
+        } catch (e) {}
+      } else if (fs.existsSync(destInRoot)) {
+        copiedCount++;
+      }
+    });
+    console.log(`   - [OK] ${copiedCount}/${allDllNames.length} Native Acceleration DLLs synchronized to root directory.`);
   }
 
   console.log(`\n✅ Build Successful! ${exeName} is ready.`);

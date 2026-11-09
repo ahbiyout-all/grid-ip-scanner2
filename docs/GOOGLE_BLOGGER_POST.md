@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.42)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.4.44)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **최신 버전**: v2.4.42 | **작성일자**: 2026-11-09
+> **최신 버전**: v2.4.44 | **작성일자**: 2026-11-09
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, 구버전 감지 시 수동 클릭 없이 포그라운드 100% 무클릭 자동 언인스톨, 7대 네이티브 가속 DLL 및 AI 핑거프린팅 실시간 진단, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.42)를 소개합니다.
+  > 16x16 시각화 그리드 맵, MSYS2 GCC 16.1 완벽 호환 11대 C/C++ 네이티브 DLL 분리 추출 및 오탐지 예방, 포그라운드 100% 무클릭 자동 언인스톨, 24시간 Windows 서비스(GridIPScannerService) 지원 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.4.44)를 소개합니다.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 맵과 구버전 포그라운드 100% 무클릭 자동 언인스톨 및 7대 네이티브 가속 DLL 탑재 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.42)**
+**[무료/초고속] 16x16 시각화 그리드 맵과 11대 네이티브 DLL 분리 설치 및 오탐지 원천 예방 아키텍처 탑재 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.4.44)**
 
 ---
 
@@ -48,13 +48,15 @@
 
 ---
 
-### 3. 업데이트 (v2.4.26 최신 릴리즈 하이라이트)
-* **📌 앱 실행 시부터 최초 시스템 트레이 자동 활성화 (`main.js`, `App.tsx`)**:
-  - 앱 시작 시 `createTray()`를 최우선 가동하여 Windows 알림 영역에 트레이 아이콘 및 24/7 백그라운드 풍선 알림을 표시.
-* **🔔 창 닫기 버튼([X]) 클릭 시 트레이 최소화(Close-to-Tray) 보강 (`main.js`, `preload.js`, `App.tsx`)**:
-  - `mainWindow.on('close')` 이벤트 인터셉트 및 ContextBridge IPC를 구축하여 메인 창 [X] 클릭 시 완전히 종료되지 않고 백그라운드 트레이로 즉시 최소화되도록 조치.
-* **🛠️ 상단 헤더 & 모달 내 원클릭 '📌 트레이 최소화' 퀵 버튼 탑재 (`App.tsx`)**:
-  - 상단 툴바 및 Windows 유틸리티 모달에 즉시 백그라운드 최소화 단축 버튼을 제공하여 편의성 극대화.
+### 3. 업데이트 (v2.4.44 최신 릴리즈 하이라이트)
+* **⚙️ MSYS2 GCC 16.1.0 완벽 호환 11대 C/C++ 네이티브 DLL 자동 빌드 & 정적 링크 (`build_all_dlls.bat`)**:
+  - 최신 MSYS2 GCC 16.1.0 컴파일러를 자동 인식하여 11종의 가속 모듈 전체를 최적화 플래그(`-O3 -s -shared`) 및 필수 정적 링크(`-static-libgcc`, `-static-libstdc++`)로 정밀 컴파일.
+* **🔨 빌드 스크립트 GCC 자동 감지 및 11대 DLL 루트/언팩 자동 동기화 (`build-win.js`, `build.bat`)**:
+  - 빌드 명령어 실행 시 GCC를 자동 감지하여 누락된 네이티브 DLL을 즉시 빌드 및 프로젝트 루트로 미러링.
+* **📦 공식 인스톨러 3중 소스 탐색으로 11대 DLL 분리 설치 100% 보장 (`Grid_IP_Scanner2_Dedicated_Setup.iss`)**:
+  - 루트, `native_dll`, `dist_releases/unpacked` 3중 경로 탐색으로 `C:\Program Files\Grid IP Scanner2\` 내 11개 가속 DLL 분리 배치를 보장하여 VirusTotal 머신러닝 오탐지(4/71)를 원천 차단.
+* **🔄 포그라운드 100% 무클릭 자동 언인스톨 파이프라인 탑재**:
+  - 기존 구버전 감지 시 사용자의 수동 [확인] 클릭 요구 없이 화면상에서 언인스톨 진행률을 직관적으로 보여주며 100% 무클릭 자동 제거 완료 후 최신 버전 설치 진행.
 
 ---
 

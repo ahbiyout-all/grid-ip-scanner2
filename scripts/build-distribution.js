@@ -192,6 +192,7 @@ targetFolders.forEach(folder => {
     'grid_oui_trie.dll',
     'grid_banner_grabber.dll',
     'grid_pcap_analyzer.dll',
+    'grid_fingerprint_engine.dll',
     'grid_net_driver.dll',
     'grid_vault_driver.dll',
     'oui_validator.dll',
@@ -270,6 +271,19 @@ const manifest = {
   repository: 'https://github.com/AhBiYout-all/grid-ip-scanner2',
   unpackedStructure: {
     rootExecutables: ['Grid_IP_Scanner2.exe'],
+    nativeDlls: [
+      'grid_probe_engine.dll',
+      'grid_port_iocp.dll',
+      'grid_discovery.dll',
+      'grid_oui_trie.dll',
+      'grid_banner_grabber.dll',
+      'grid_pcap_analyzer.dll',
+      'grid_fingerprint_engine.dll',
+      'grid_net_driver.dll',
+      'grid_vault_driver.dll',
+      'oui_validator.dll',
+      'secure_vault.dll'
+    ],
     dataFiles: ['master_oui.txt', 'winres.json', 'package.json', 'LICENSE.md'],
     assetFiles: ['icon.ico', 'icon.png', 'logo.png'],
     directories: ['dist/', 'public/']

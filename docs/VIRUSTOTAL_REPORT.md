@@ -63,6 +63,12 @@ Grid IP Scanner2는 초고속 ICMP 핑 sweep, L2 ARP 해소, IOCP 포트 스캔 
 ### 5. 인가된 네트워크 인터페이스 및 개인정보 무수집 (Zero Telemetry)
 - 키로거, 백도어, 외부 데이터 무단 전송 코드가 포함되어 있지 않으며, 100% 로컬 네트워크 디바이스 탐지 및 정적 IEEE OUI 오프라인 데이터베이스 기반으로 동작합니다.
 
+### 6. 독립 DLL 분리 설치 아키텍처 (Unpacked Multi-File Architecture)
+- 단일 포터블 바이너리(.exe 하나에 모든 C 드라이버를 임베딩 후 메모리 언팩) 방식은 AI 머신러닝 백신(CrowdStrike, Trapmine, AhnLab-V3)이 패커/트로이목마 오탐 점수(`Malicious ML Score`)를 부여하는 원인이 됩니다.
+- 인스톨러 설치판(`Grid_IP_Scanner2_v2.4.42_Setup.exe`)은 11대 C/C++ 가속 드라이버(`grid_probe_engine.dll`, `grid_port_iocp.dll`, `grid_discovery.dll`, `grid_oui_trie.dll`, `grid_banner_grabber.dll`, `grid_pcap_analyzer.dll`, `grid_fingerprint_engine.dll`, `oui_validator.dll`, `secure_vault.dll` 등)를 **설치 폴더(`C:\Program Files\Grid IP Scanner2\`) 내 개별 독립된 DLL 파일로 분리 배치**합니다.
+- 이에 따라 각 백신 정적 분석기가 DLL 바이너리의 섹션 헤더 및 내보내기 표(Export Table)를 정직하고 투명하게 검사할 수 있어 오탐률이 현저히 낮아집니다.
+- *참고*: 빌드 환경(MinGW-w64 GCC)에서 사전 DLL 컴파일이 완료된 상태로 인스톨러가 패키징되어야 설치 폴더 내에 11개 DLL이 복사됩니다. GCC 컴파일 환경이 준비되지 않은 상태에서 빌드된 경우, 앱은 Go 고속 소켓 스택 폴백 모드로 가동됩니다.
+
 ---
 
 ## 📋 해시 검증 정보 (SHA-256 Hashes)
