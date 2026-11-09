@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Shield, ShieldAlert, Activity, Monitor, ChevronDown, Check, Power, Bell, BellRing, RefreshCw } from 'lucide-react';
 
 export interface TrayStatusIndicatorProps {
@@ -15,6 +16,7 @@ export interface TrayStatusIndicatorProps {
   onOpenIntruderLog?: () => void;
   onExitApplication?: () => void;
   compact?: boolean;
+  align?: 'left' | 'right' | 'auto';
 }
 
 export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
@@ -30,17 +32,57 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
   onMinimizeToTray,
   onOpenIntruderLog,
   onExitApplication,
-  compact = false
+  compact = false,
+  align = 'left'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [hasElectron, setHasElectron] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuCoords, setMenuCoords] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
       setHasElectron(true);
     }
   }, []);
+
+  const calculateCoords = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const menuWidth = 280;
+      let left = rect.left;
+      if (align === 'right' || left + menuWidth > window.innerWidth - 12) {
+        left = Math.max(12, rect.right - menuWidth);
+      }
+      const topPos = rect.bottom + 6;
+      const maxTop = window.innerHeight - 420;
+      return {
+        top: Math.max(12, Math.min(topPos, maxTop > 50 ? maxTop : topPos)),
+        left: Math.max(12, left)
+      };
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      const coords = calculateCoords();
+      if (coords) setMenuCoords(coords);
+
+      const handleResizeOrScroll = () => {
+        const updated = calculateCoords();
+        if (updated) setMenuCoords(updated);
+      };
+
+      window.addEventListener('resize', handleResizeOrScroll);
+      window.addEventListener('scroll', handleResizeOrScroll, true);
+      return () => {
+        window.removeEventListener('resize', handleResizeOrScroll);
+        window.removeEventListener('scroll', handleResizeOrScroll, true);
+      };
+    }
+  }, [isOpen, align]);
 
   // Synchronize real-time status to Electron tray tooltips whenever props change
   useEffect(() => {
@@ -200,6 +242,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
     >
       {/* Visual Status Indicator Badge */}
       <button
+        ref={buttonRef}
         onClick={() => {
           setIsOpen(!isOpen);
           setIsHovered(false);
@@ -224,7 +267,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
 
       {/* Floating Hover Tooltip: Displays Scan Progress or Intruder Timestamp on Badge Hover */}
       {isHovered && !isOpen && statusMessage && (
-        <div className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 p-2.5 rounded-xl backdrop-blur-md border text-xs pointer-events-none animate-in fade-in zoom-in-95 duration-150 z-50 ${tm.tooltipBg}`}>
+        <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 w-64 max-w-[calc(100vw-2rem)] p-2.5 rounded-xl backdrop-blur-md border text-xs pointer-events-none animate-in fade-in zoom-in-95 duration-150 z-50 ${tm.tooltipBg}`}>
           <div className={`flex items-center justify-between pb-1.5 border-b text-[10px] uppercase font-black tracking-wider text-cyan-500 dark:text-cyan-400 ${tm.divider}`}>
             <span className="flex items-center gap-1">
               <Activity className="w-3 h-3 animate-pulse" />
@@ -262,15 +305,18 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
             <span className="text-cyan-500 dark:text-cyan-400 font-mono text-[9px]">{hasElectron ? 'OS Tray Sync' : 'App Tray'}</span>
           </div>
           {/* Arrow pointing up towards the badge */}
-          <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px] border-4 border-transparent ${tm.tooltipArrow}`} />
+          <div className={`absolute bottom-full ${align === 'right' ? 'right-4' : 'left-4'} mb-[-1px] border-4 border-transparent ${tm.tooltipArrow}`} />
         </div>
       )}
 
-      {/* Popover Context Menu */}
-      {isOpen && (
+      {/* Popover Context Menu - Fixed Portal Overlay appended directly to document.body */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className={`absolute right-0 mt-2 w-72 rounded-xl border backdrop-blur-md z-50 p-3.5 space-y-3 animate-in zoom-in-95 duration-150 text-xs ${tm.menuBg}`}>
+          <div className="fixed inset-0 z-[9990]" onClick={() => setIsOpen(false)} />
+          <div 
+            style={menuCoords ? { top: `${menuCoords.top}px`, left: `${menuCoords.left}px` } : { top: '60px', left: '16px' }}
+            className={`fixed w-[280px] max-w-[calc(100vw-1.5rem)] rounded-xl border backdrop-blur-md z-[9999] p-3.5 space-y-3 animate-in zoom-in-95 duration-150 text-xs shadow-2xl ${tm.menuBg}`}
+          >
             {/* Header Status Bar */}
             <div className={`flex items-center justify-between pb-2.5 border-b ${tm.divider}`}>
               <div className="flex items-center gap-2">
@@ -486,7 +532,8 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
               <span>{lang === 'ko' ? '🛑 애플리케이션 완전 종료 (Exit Application)' : '🛑 Exit Application'}</span>
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

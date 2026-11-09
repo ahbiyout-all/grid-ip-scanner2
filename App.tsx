@@ -3456,6 +3456,7 @@ const App: React.FC = () => {
               </button>
 
               <TrayStatusIndicator
+                align="left"
                 intruderWatchMode={intruderWatchMode}
                 onToggleIntruderWatch={handleToggleIntruderWatch}
                 isScanning={isScanning}
@@ -4435,6 +4436,24 @@ const App: React.FC = () => {
                   <span className={`w-1.5 h-1.5 rounded-full ${intruderWatchMode ? 'bg-purple-400 animate-ping' : 'bg-zinc-600'}`} />
                 )}
               </button>
+
+              {/* System Tray Live Status Icon Badge */}
+              <TrayStatusIndicator
+                align="right"
+                intruderWatchMode={intruderWatchMode}
+                onToggleIntruderWatch={handleToggleIntruderWatch}
+                isScanning={isScanning}
+                onToggleScan={handleToggleScan}
+                intruderCount={detectedIntruders?.length || 0}
+                statusMessage={trayStatusMessage}
+                lang={lang as 'ko' | 'en'}
+                theme={theme}
+                isWindowsDesktop={isWindowsDesktop}
+                onMinimizeToTray={handleMinimizeToTray}
+                onOpenIntruderLog={() => setShowIntruderLogModal(true)}
+                onExitApplication={handleExitApplication}
+                compact={false}
+              />
 
               {/* License Tier Badge */}
               <button
@@ -7692,24 +7711,9 @@ const App: React.FC = () => {
                     <span>📌 시스템 트레이 상주 & 무인 백그라운드</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <TrayStatusIndicator
-                      intruderWatchMode={intruderWatchMode}
-                      onToggleIntruderWatch={handleToggleIntruderWatch}
-                      isScanning={isScanning}
-                      onToggleScan={handleToggleScan}
-                      intruderCount={detectedIntruders?.length || 0}
-                      statusMessage={trayStatusMessage}
-                      lang={lang as 'ko' | 'en'}
-                      theme={theme}
-                      isWindowsDesktop={isWindowsDesktop}
-                      onMinimizeToTray={handleMinimizeToTray}
-                      onOpenIntruderLog={() => setShowIntruderLogModal(true)}
-                      onExitApplication={handleExitApplication}
-                      compact={false}
-                    />
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>트레이 자동 활성화됨</span>
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{lang === 'ko' ? '트레이 상주 엔진 활성화됨' : 'Tray Engine Active'}</span>
                     </span>
                   </div>
                 </div>
