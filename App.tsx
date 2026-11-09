@@ -3455,45 +3455,39 @@ const App: React.FC = () => {
                 <span className="truncate">{s.dllHub}</span>
               </button>
 
-              {isWindowsDesktop && (
-                <TrayStatusIndicator
-                  intruderWatchMode={intruderWatchMode}
-                  onToggleIntruderWatch={handleToggleIntruderWatch}
-                  isScanning={isScanning}
-                  onToggleScan={handleToggleScan}
-                  intruderCount={detectedIntruders?.length || 0}
-                  statusMessage={trayStatusMessage}
-                  lang={lang as 'ko' | 'en'}
-                  theme={theme}
-                  isWindowsDesktop={isWindowsDesktop}
-                  onMinimizeToTray={handleMinimizeToTray}
-                  onOpenIntruderLog={() => setShowIntruderLogModal(true)}
-                  onExitApplication={handleExitApplication}
-                  compact={false}
-                />
-              )}
+              <TrayStatusIndicator
+                intruderWatchMode={intruderWatchMode}
+                onToggleIntruderWatch={handleToggleIntruderWatch}
+                isScanning={isScanning}
+                onToggleScan={handleToggleScan}
+                intruderCount={detectedIntruders?.length || 0}
+                statusMessage={trayStatusMessage}
+                lang={lang as 'ko' | 'en'}
+                theme={theme}
+                isWindowsDesktop={isWindowsDesktop}
+                onMinimizeToTray={handleMinimizeToTray}
+                onOpenIntruderLog={() => setShowIntruderLogModal(true)}
+                onExitApplication={handleExitApplication}
+                compact={false}
+              />
 
-              {isWindowsDesktop && (
-                <>
-                  <button
-                    onClick={() => setShowWindowsUtilModal(true)}
-                    className="px-2 py-1.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
-                    title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
-                  >
-                    <Terminal className="w-3 h-3 text-cyan-400 shrink-0" />
-                    <span className="truncate">{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
-                  </button>
+              <button
+                onClick={() => setShowWindowsUtilModal(true)}
+                className="px-2 py-1.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
+                title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
+              >
+                <Terminal className="w-3 h-3 text-cyan-400 shrink-0" />
+                <span className="truncate">{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
+              </button>
 
-                  <button
-                    onClick={handleMinimizeToTray}
-                    className="px-2 py-1.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
-                    title={lang === 'ko' ? "앱을 시스템 트레이로 최소화 (백그라운드 가동)" : "Minimize app to system tray"}
-                  >
-                    <Monitor className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="truncate">{lang === 'ko' ? "📌 최소화" : "Minimize"}</span>
-                  </button>
-                </>
-              )}
+              <button
+                onClick={handleMinimizeToTray}
+                className="px-2 py-1.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
+                title={lang === 'ko' ? "앱을 시스템 트레이로 최소화 (백그라운드 가동)" : "Minimize app to system tray"}
+              >
+                <Monitor className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate">{lang === 'ko' ? "📌 최소화" : "Minimize"}</span>
+              </button>
             </div>
           </div>
 
@@ -7658,8 +7652,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Windows OS Legacy Network Utilities & System Tray Modal (Windows Desktop Only) */}
-      {isWindowsDesktop && showWindowsUtilModal && (
+      {/* Windows OS Legacy Network Utilities & System Tray Modal */}
+      {showWindowsUtilModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className={`w-full max-w-xl ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col`}>
             {/* Header */}
