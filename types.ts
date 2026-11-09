@@ -30,6 +30,10 @@ export interface DeviceInfo {
   chipsetVendor?: string;
   realVendor?: string;
   vendorSource?: 'UPNP' | 'MDNS' | 'OUI' | 'HTTP' | 'SNMP' | string;
+  realVendorConfidence?: number;
+  chipsetConfidence?: number;
+  confidenceScore?: number;
+  priorityRank?: number;
   hostname?: string;
   nameSource?: NameSourceType;
   hostnameSources?: Record<string, string>;
@@ -38,7 +42,6 @@ export interface DeviceInfo {
   latency?: number;
   openPorts?: number[];
   lastSeen?: string;
-  confidenceScore?: number;
   mdns?: string;
   upnp?: string;
   snmp?: string;

@@ -30,12 +30,22 @@ export interface DeviceClassificationContext {
   upnp?: string;
   mac?: string;
   httpHeaders?: string;
+  realVendor?: string;
+  chipsetVendor?: string;
+  vendorSource?: string;
 }
 
 export interface DeviceClassification {
   type: string;
   os: string;
   model?: string;
+  realVendor?: string;
+  chipsetVendor?: string;
+  vendorSource?: string;
+  realVendorConfidence?: number;
+  chipsetConfidence?: number;
+  confidenceScore?: number;
+  priorityRank?: number;
 }
 
 const classifyDevice = (
@@ -50,9 +60,104 @@ const classifyDevice = (
   const webTitle = (context?.webTitle || "").toLowerCase();
   const upnp = (context?.upnp || "").toLowerCase();
   const httpHeaders = (context?.httpHeaders || "").toLowerCase();
-  
+  const contextRealVendor = context?.realVendor || "";
+  const contextChipsetVendor = context?.chipsetVendor || "";
+  const contextVendorSource = context?.vendorSource || "";
+
   // Combined text corpus for deep pattern matching
-  const corpus = `${hostname} ${mdns} ${webTitle} ${upnp} ${httpHeaders} ${v}`;
+  const corpus = `${hostname} ${mdns} ${webTitle} ${upnp} ${httpHeaders} ${v} ${contextRealVendor}`;
+
+  // ==========================================
+  // Priority Hierarchy & Confidence Scoring Logic
+  // Priority 1: UPnP / SSDP XML Parsing (Confidence: 99%, Rank 1)
+  // Priority 2: mDNS TXT / Service Records (Confidence: 95%, Rank 2)
+  // Priority 3: SMB / NetBIOS / WSD Payloads (Confidence: 90%, Rank 3)
+  // Priority 4: HTTP Server / Web Title (Confidence: 85%, Rank 4)
+  // Priority 5: IEEE OUI Hardware DB Match (Confidence: 80%, Rank 5)
+  // ==========================================
+
+  let determinedRealVendor: string | undefined = contextRealVendor || undefined;
+  let determinedVendorSource: string | undefined = contextVendorSource || undefined;
+  let realVendorConfidence = 80;
+  let chipsetConfidence = 80;
+  let priorityRank = 5;
+
+  const hasUpnpXml = Boolean(
+    upnp || 
+    contextVendorSource === 'UPNP' || 
+    contextVendorSource === 'UPNP_XML' || 
+    upnp.includes("<manufacturer>") || 
+    upnp.includes("<friendlyname>") || 
+    upnp.includes("server: ssdp") ||
+    upnp.includes("devicetype")
+  );
+  const hasMdns = Boolean(
+    mdns || 
+    contextVendorSource === 'MDNS' || 
+    mdns.includes("_airplay._tcp") || 
+    mdns.includes("_googlecast._tcp") || 
+    mdns.includes("_raop._tcp") || 
+    mdns.includes("_spotify-connect._tcp") ||
+    mdns.includes("model=")
+  );
+  const hasSmb = Boolean(
+    hostname.includes("workgroup") || 
+    hostname.includes("smb") || 
+    contextVendorSource === 'SMB' || 
+    contextVendorSource === 'NETBIOS'
+  );
+  const hasWeb = Boolean(
+    webTitle || 
+    httpHeaders || 
+    contextVendorSource === 'WEB' || 
+    contextVendorSource === 'HTTP'
+  );
+
+  if (hasUpnpXml) {
+    priorityRank = 1;
+    realVendorConfidence = 99;
+    determinedVendorSource = "UPnP XML";
+    if (!determinedRealVendor && upnp) {
+      const xmlMfrMatch = upnp.match(/<manufacturer>(.*?)<\/manufacturer>/i);
+      if (xmlMfrMatch && xmlMfrMatch[1]) {
+        determinedRealVendor = xmlMfrMatch[1].trim();
+      }
+    }
+  } else if (hasMdns) {
+    priorityRank = 2;
+    realVendorConfidence = 95;
+    determinedVendorSource = "mDNS TXT";
+  } else if (hasSmb) {
+    priorityRank = 3;
+    realVendorConfidence = 90;
+    determinedVendorSource = "SMB/NetBIOS";
+  } else if (hasWeb) {
+    priorityRank = 4;
+    realVendorConfidence = 85;
+    determinedVendorSource = "HTTP Web";
+  } else {
+    priorityRank = 5;
+    realVendorConfidence = 80;
+    determinedVendorSource = "IEEE OUI";
+  }
+
+  // Calculate Chipset OUI Confidence Score
+  if (context?.mac && context.mac.length >= 8 && context.mac !== "Unknown") {
+    chipsetConfidence = 85;
+  }
+
+  const confidenceScore = Math.max(realVendorConfidence, chipsetConfidence);
+
+  const buildResult = (base: { type: string; os: string; model?: string }): DeviceClassification => ({
+    ...base,
+    realVendor: determinedRealVendor,
+    chipsetVendor: contextChipsetVendor || vendor,
+    vendorSource: determinedVendorSource,
+    realVendorConfidence,
+    chipsetConfidence,
+    confidenceScore,
+    priorityRank
+  });
 
   // ==========================================
   // 1. Apple Ecosystem Deep Model Mapping
@@ -63,8 +168,6 @@ const classifyDevice = (
   const isAppleEntity = isAppleVendor || hasApplePort || hasAppleMdns || corpus.includes("apple") || corpus.includes("iphone") || corpus.includes("ipad");
 
   if (isAppleEntity) {
-    // 1-A. iPhone Model Mapping (via Hostname, mDNS Model IDs, UPnP, or WebTitle)
-    // Apple internal IDs (e.g., iPhone17,1 -> iPhone 16 Pro, iPhone16,2 -> iPhone 15 Pro Max)
     const iphoneModelMatch = corpus.match(/iphone(\d+),(\d+)/i);
     if (iphoneModelMatch) {
       const major = parseInt(iphoneModelMatch[1], 10);
@@ -79,7 +182,7 @@ const classifyDevice = (
       else if (major === 10) mappedModel = "iPhone X/8";
       else if (major <= 9) mappedModel = "iPhone (Legacy)";
 
-      return { type: "iPhone", os: "Apple iOS", model: mappedModel };
+      return buildResult({ type: "iPhone", os: "Apple iOS", model: mappedModel });
     }
 
     if (corpus.includes("iphone")) {
@@ -106,115 +209,105 @@ const classifyDevice = (
       else if (corpus.includes("pro")) iphoneLabel = "iPhone Pro";
       else if (corpus.includes("mini")) iphoneLabel = "iPhone mini";
 
-      return { type: "iPhone", os: "Apple iOS", model: iphoneLabel };
+      return buildResult({ type: "iPhone", os: "Apple iOS", model: iphoneLabel });
     }
 
-    // 1-B. iPad Model Mapping
     const ipadModelMatch = corpus.match(/ipad(\d+),(\d+)/i);
     if (ipadModelMatch || corpus.includes("ipad")) {
       let ipadLabel = "iPad";
       if (corpus.includes("ipad pro") || corpus.includes("ipadpro")) ipadLabel = "iPad Pro";
       else if (corpus.includes("ipad air") || corpus.includes("ipadair")) ipadLabel = "iPad Air";
       else if (corpus.includes("ipad mini") || corpus.includes("ipadmini")) ipadLabel = "iPad mini";
-      return { type: "iPad", os: "Apple iPadOS", model: ipadLabel };
+      return buildResult({ type: "iPad", os: "Apple iPadOS", model: ipadLabel });
     }
 
-    // 1-C. Apple Watch, Apple TV, Mac
     if (corpus.includes("watch") || corpus.includes("applewatch")) {
-      return { type: "Apple Watch", os: "watchOS", model: "Apple Watch" };
+      return buildResult({ type: "Apple Watch", os: "watchOS", model: "Apple Watch" });
     }
     if (corpus.includes("appletv") || corpus.includes("apple tv")) {
-      return { type: "Apple TV", os: "tvOS", model: "Apple TV" };
+      return buildResult({ type: "Apple TV", os: "tvOS", model: "Apple TV" });
     }
     if (corpus.includes("macbook")) {
       const macType = corpus.includes("pro") ? "MacBook Pro" : corpus.includes("air") ? "MacBook Air" : "MacBook";
-      return { type: macType, os: "macOS", model: macType };
+      return buildResult({ type: macType, os: "macOS", model: macType });
     }
-    if (corpus.includes("imac")) return { type: "iMac", os: "macOS", model: "iMac" };
-    if (corpus.includes("mac mini") || corpus.includes("macmini")) return { type: "Mac mini", os: "macOS", model: "Mac mini" };
-    if (corpus.includes("mac studio") || corpus.includes("macstudio")) return { type: "Mac Studio", os: "macOS", model: "Mac Studio" };
+    if (corpus.includes("imac")) return buildResult({ type: "iMac", os: "macOS", model: "iMac" });
+    if (corpus.includes("mac mini") || corpus.includes("macmini")) return buildResult({ type: "Mac mini", os: "macOS", model: "Mac mini" });
+    if (corpus.includes("mac studio") || corpus.includes("macstudio")) return buildResult({ type: "Mac Studio", os: "macOS", model: "Mac Studio" });
     if (hasApplePort || hasAppleMdns) {
-      return { type: "iPhone / iPad", os: "Apple iOS", model: "Apple Mobile Device" };
+      return buildResult({ type: "iPhone / iPad", os: "Apple iOS", model: "Apple Mobile Device" });
     }
     if (isAppleVendor) {
-      return { type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" };
+      return buildResult({ type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" });
     }
   }
 
   // ==========================================
   // 2. Android Ecosystem Deep Model Mapping
   // ==========================================
-
-  // 2-A. Samsung Galaxy S-Series / Z-Series / A-Series / Tab
   const isSamsungVendor = v.includes("samsung");
   const hasSamsungIndicator = isSamsungVendor || corpus.includes("samsung") || corpus.includes("galaxy") || corpus.includes("sec_product");
 
   if (hasSamsungIndicator) {
-    // 2-A-1. Galaxy S-Series (Flagship: SM-S9xx, SM-G9xx, Galaxy S2x)
-    // Match SM-S93x (S25), SM-S92x (S24), SM-S91x (S23), SM-S90x (S22), SM-G99x (S21), SM-G98x (S20), SM-G97x (S10)
     if (/sm-s93[0-9]/i.test(corpus) || corpus.includes("galaxy s25") || corpus.includes("galaxys25")) {
       const model = corpus.includes("ultra") ? "Galaxy S25 Ultra" : (corpus.includes("+") || corpus.includes("plus")) ? "Galaxy S25+" : "Galaxy S25";
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model });
     }
     if (/sm-s928/i.test(corpus) || corpus.includes("galaxy s24 ultra") || corpus.includes("s24 ultra")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24 Ultra" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24 Ultra" });
     }
     if (/sm-s926/i.test(corpus) || corpus.includes("galaxy s24+") || corpus.includes("s24 plus") || corpus.includes("s24+")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24+" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24+" });
     }
     if (/sm-s921/i.test(corpus) || /sm-s92[0-9]/i.test(corpus) || corpus.includes("galaxy s24") || corpus.includes("galaxys24")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S24" });
     }
     if (/sm-s918/i.test(corpus) || corpus.includes("galaxy s23 ultra") || corpus.includes("s23 ultra")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23 Ultra" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23 Ultra" });
     }
     if (/sm-s916/i.test(corpus) || corpus.includes("galaxy s23+") || corpus.includes("s23+")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23+" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23+" });
     }
     if (/sm-s911/i.test(corpus) || /sm-s91[0-9]/i.test(corpus) || corpus.includes("galaxy s23") || corpus.includes("galaxys23")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S23" });
     }
     if (/sm-s90[0-9]/i.test(corpus) || corpus.includes("galaxy s22") || corpus.includes("galaxys22")) {
       const model = corpus.includes("ultra") ? "Galaxy S22 Ultra" : "Galaxy S22";
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model });
     }
     if (/sm-g99[0-9]/i.test(corpus) || corpus.includes("galaxy s21") || corpus.includes("galaxys21")) {
       const model = corpus.includes("ultra") ? "Galaxy S21 Ultra" : "Galaxy S21";
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model });
     }
     if (/sm-g98[0-9]/i.test(corpus) || corpus.includes("galaxy s20") || corpus.includes("galaxys20")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S20 Series" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S20 Series" });
     }
     if (/sm-g97[0-9]/i.test(corpus) || corpus.includes("galaxy s10") || corpus.includes("galaxys10")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S10 Series" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S10 Series" });
     }
     if (/galaxy[-_ ]?s\b/i.test(corpus) || corpus.includes("galaxy-s")) {
-      return { type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S-Series" };
+      return buildResult({ type: "Galaxy S-Series", os: "Android (One UI)", model: "Galaxy S-Series" });
     }
 
-    // 2-A-2. Galaxy Z-Series (Fold / Flip)
     if (/sm-f9[0-9]{2}/i.test(corpus) || corpus.includes("z fold") || corpus.includes("zfold") || corpus.includes("galaxy fold")) {
-      return { type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Fold" };
+      return buildResult({ type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Fold" });
     }
     if (/sm-f7[0-9]{2}/i.test(corpus) || corpus.includes("z flip") || corpus.includes("zflip") || corpus.includes("galaxy flip")) {
-      return { type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Flip" };
+      return buildResult({ type: "Galaxy Z-Series", os: "Android (One UI)", model: "Galaxy Z Flip" });
     }
 
-    // 2-A-3. Galaxy Tab
     if (/sm-x[0-9]{3}/i.test(corpus) || /sm-t[0-9]{3}/i.test(corpus) || corpus.includes("galaxy tab") || corpus.includes("galaxytab")) {
-      return { type: "Galaxy Tab", os: "Android (One UI)", model: "Galaxy Tab" };
+      return buildResult({ type: "Galaxy Tab", os: "Android (One UI)", model: "Galaxy Tab" });
     }
 
-    // 2-A-4. Galaxy A-Series / M-Series
     if (/sm-a[0-9]{3}/i.test(corpus) || corpus.includes("galaxy a") || corpus.includes("galaxya")) {
       const aMatch = corpus.match(/sm-a(\d{2,3})/i);
       const model = aMatch ? `Galaxy A${aMatch[1].slice(0, 2)}` : "Galaxy A-Series";
-      return { type: "Galaxy A-Series", os: "Android (One UI)", model };
+      return buildResult({ type: "Galaxy A-Series", os: "Android (One UI)", model });
     }
 
-    // General Samsung Galaxy
     if (corpus.includes("galaxy")) {
-      return { type: "Galaxy", os: "Android (One UI)", model: "Samsung Galaxy" };
+      return buildResult({ type: "Galaxy", os: "Android (One UI)", model: "Samsung Galaxy" });
     }
   }
 
@@ -238,70 +331,69 @@ const classifyDevice = (
     else if (corpus.includes("pixel fold")) pixelModel = "Pixel Fold";
     else if (corpus.includes("pixel tablet")) pixelModel = "Pixel Tablet";
 
-    return { type: "Pixel", os: "Android", model: pixelModel };
+    return buildResult({ type: "Pixel", os: "Android", model: pixelModel });
   }
 
-  // Google Cast / Nest Smart Home Devices
   if (corpus.includes("_googlecast._tcp") || corpus.includes("google cast") || corpus.includes("google home") || corpus.includes("nest hub")) {
-    return { type: "Google Nest / Cast", os: "CastOS / Android", model: "Google Cast Device" };
+    return buildResult({ type: "Google Nest / Cast", os: "CastOS / Android", model: "Google Cast Device" });
   }
 
   // 2-C. Xiaomi / Redmi / POCO
   if (v.includes("xiaomi") || corpus.includes("xiaomi") || corpus.includes("redmi") || corpus.includes("poco") || corpus.includes("hyperos") || corpus.includes("miui")) {
     const brand = corpus.includes("poco") ? "POCO (Xiaomi)" : corpus.includes("redmi") ? "Redmi (Xiaomi)" : "Xiaomi Phone";
-    return { type: "Xiaomi / Redmi", os: "Android (HyperOS/MIUI)", model: brand };
+    return buildResult({ type: "Xiaomi / Redmi", os: "Android (HyperOS/MIUI)", model: brand });
   }
 
   // 2-D. Other Mobile Devices (OnePlus, Sony Xperia, Motorola, Huawei)
   if (corpus.includes("oneplus") || v.includes("oneplus")) {
-    return { type: "OnePlus", os: "Android (OxygenOS)", model: "OnePlus Smartphone" };
+    return buildResult({ type: "OnePlus", os: "Android (OxygenOS)", model: "OnePlus Smartphone" });
   }
   if (corpus.includes("xperia") || (v.includes("sony") && corpus.includes("phone"))) {
-    return { type: "Sony Xperia", os: "Android", model: "Sony Xperia" };
+    return buildResult({ type: "Sony Xperia", os: "Android", model: "Sony Xperia" });
   }
   if (corpus.includes("motorola") || corpus.includes("moto g") || corpus.includes("moto edge")) {
-    return { type: "Motorola", os: "Android", model: "Motorola Smartphone" };
+    return buildResult({ type: "Motorola", os: "Android", model: "Motorola Smartphone" });
   }
   if (v.includes("huawei") || corpus.includes("huawei") || corpus.includes("honor")) {
-    return { type: "Huawei / Honor", os: "HarmonyOS / Android", model: "Huawei Device" };
+    return buildResult({ type: "Huawei / Honor", os: "HarmonyOS / Android", model: "Huawei Device" });
   }
 
   // 2-E. Generic Android Detection (mDNS, Hostname prefix android-, DHCP)
   if (corpus.includes("android") || corpus.includes("_android._tcp") || /^android-[a-f0-9]+/i.test(hostname)) {
-    return { type: s.deviceTypes?.mobile || "모바일 장치", os: "Android", model: "Android Smartphone" };
+    return buildResult({ type: s.deviceTypes?.mobile || "모바일 장치", os: "Android", model: "Android Smartphone" });
   }
 
   // ==========================================
   // 3. Peripheral, Server & Network Equipment
   // ==========================================
   if (openPorts.includes(9100) || openPorts.includes(631) || corpus.includes("printer") || v.includes("epson") || v.includes("canon") || v.includes("brother") || v.includes("fuji xerox") || v.includes("hp inc")) {
-    return { type: s.deviceTypes?.printer || "네트워크 프린터", os: "Embedded" };
+    return buildResult({ type: s.deviceTypes?.printer || "네트워크 프린터", os: "Embedded" });
   }
   if (openPorts.includes(445) || openPorts.includes(135)) {
-    return { type: s.deviceTypes?.windows || "Windows PC", os: "Windows" };
+    return buildResult({ type: s.deviceTypes?.windows || "Windows PC", os: "Windows" });
   }
   if (openPorts.includes(3389)) {
-    return { type: s.deviceTypes?.rdp || "원격 데스크톱", os: "Windows" };
+    return buildResult({ type: s.deviceTypes?.rdp || "원격 데스크톱", os: "Windows" });
   }
   if (openPorts.includes(22)) {
-    return { type: s.deviceTypes?.linux || "리눅스/서버", os: "Linux" };
+    return buildResult({ type: s.deviceTypes?.linux || "리눅스/서버", os: "Linux" });
   }
 
   // Network infrastructure
   if (v.includes("cisco") || v.includes("tp-link") || v.includes("asus") || v.includes("netgear") || v.includes("iptime") || v.includes("ubiquiti") || v.includes("d-link") || v.includes("zyxel") || corpus.includes("router") || corpus.includes("openwrt")) {
-    return { type: s.deviceTypes?.network || "네트워크 장비", os: "RTOS / Linux" };
+    return buildResult({ type: s.deviceTypes?.network || "네트워크 장비", os: "RTOS / Linux" });
   }
 
   // NAS
   if (v.includes("synology") || v.includes("qnap") || v.includes("asustor") || corpus.includes("diskstation")) {
-    return { type: s.deviceTypes?.nas || "NAS 서버", os: "Linux (NAS)" };
+    return buildResult({ type: s.deviceTypes?.nas || "NAS 서버", os: "Linux (NAS)" });
   }
 
   // Fallbacks by vendor
-  if (v.includes("samsung")) return { type: s.deviceTypes?.mobile || "모바일 장치", os: "Android" };
-  if (v.includes("apple")) return { type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" };
+  if (v.includes("samsung")) return buildResult({ type: s.deviceTypes?.mobile || "모바일 장치", os: "Android" });
+  if (v.includes("apple")) return buildResult({ type: s.deviceTypes?.apple || "Apple 장치", os: "iOS/macOS" });
 
-  return { type: s.deviceTypes?.generic || "네트워크 노드", os: "Generic" };
+  return buildResult({ type: s.deviceTypes?.generic || "네트워크 노드", os: "Generic" });
 };
 
 const translations = {
@@ -966,6 +1058,7 @@ const App: React.FC = () => {
   }, [lang]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [vendorPriorityMode, setVendorPriorityMode] = useState<'real' | 'oui' | 'auto'>('auto');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedIp, setCopiedIp] = useState<string | null>(null);
   const [isElevating, setIsElevating] = useState(false);
@@ -2368,7 +2461,10 @@ const App: React.FC = () => {
                 mdns: res.mdns,
                 webTitle: res.webTitle,
                 upnp: res.upnp,
-                mac: res.mac
+                mac: res.mac,
+                realVendor: res.realVendor,
+                chipsetVendor: res.chipsetVendor,
+                vendorSource: res.vendorSource
               });
               
               let finalName = res.hostname;
@@ -2393,9 +2489,13 @@ const App: React.FC = () => {
                 ip: res.ip,
                 mac: res.mac || "Unknown",
                 vendor: isSelf ? s.deviceTypes.hostMachine : (res.vendor || vendorName),
-                chipsetVendor: res.chipsetVendor || (isSelf ? s.deviceTypes.hostMachine : vendorName),
-                realVendor: res.realVendor,
-                vendorSource: res.vendorSource || (res.realVendor ? (res.upnp ? 'UPNP' : res.mdns ? 'MDNS' : 'OUI') : undefined),
+                chipsetVendor: res.chipsetVendor || classification.chipsetVendor || (isSelf ? s.deviceTypes.hostMachine : vendorName),
+                realVendor: res.realVendor || classification.realVendor,
+                vendorSource: res.vendorSource || classification.vendorSource || (res.realVendor ? (res.upnp ? 'UPnP XML' : res.mdns ? 'mDNS TXT' : 'IEEE OUI') : undefined),
+                realVendorConfidence: classification.realVendorConfidence,
+                chipsetConfidence: classification.chipsetConfidence,
+                confidenceScore: classification.confidenceScore,
+                priorityRank: classification.priorityRank,
                 latency: res.latency,
                 hostname: finalName,
                 nameSource: res.nameSource || (res.mdns ? 'MDNS' : res.upnp ? 'UPNP' : res.snmp ? 'SNMP' : res.webTitle ? 'WEB' : res.hostname ? 'DNS' : 'UNKNOWN'),
@@ -2670,7 +2770,10 @@ const App: React.FC = () => {
         mdns: r.device?.mdns,
         webTitle: r.device?.webTitle,
         upnp: r.device?.upnp,
-        mac: r.device?.mac
+        mac: r.device?.mac,
+        realVendor: r.device?.realVendor,
+        chipsetVendor: r.device?.chipsetVendor,
+        vendorSource: r.device?.vendorSource
       });
       const escape = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
       
@@ -3138,7 +3241,10 @@ const App: React.FC = () => {
         mdns: item.device?.mdns,
         webTitle: item.device?.webTitle,
         upnp: item.device?.upnp,
-        mac: item.device?.mac
+        mac: item.device?.mac,
+        realVendor: item.device?.realVendor,
+        chipsetVendor: item.device?.chipsetVendor,
+        vendorSource: item.device?.vendorSource
       });
       return ip.includes(s_term) || 
              item.device?.vendor?.toLowerCase().includes(s_term) || 
@@ -5068,6 +5174,76 @@ const App: React.FC = () => {
 
               return (
                 <div className="space-y-5">
+                  {/* Top Header Control: Data Source Confidence Priority Toggle Switch */}
+                  <div className={`p-2.5 rounded-xl border ${
+                    theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7]' :
+                    theme === 'white' ? 'bg-slate-100 border-slate-300 text-slate-800' :
+                    'bg-slate-900/90 border-slate-800 text-slate-200'
+                  } space-y-2 shadow-sm`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Sliders className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                        <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider truncate`}>
+                          {lang === 'ko' ? '데이터 소스 신뢰도 강조' : 'Data Source Confidence Focus'}
+                        </span>
+                      </div>
+                      <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                        vendorPriorityMode === 'auto' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                        vendorPriorityMode === 'real' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' :
+                        'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      }`}>
+                        {vendorPriorityMode === 'auto' ? (lang === 'ko' ? '⭐ 자동 최적' : '⭐ Auto Smart') :
+                         vendorPriorityMode === 'real' ? (lang === 'ko' ? '완제품 98%' : 'Real Brand') :
+                         (lang === 'ko' ? '칩셋 85%' : 'OUI Hardware')}
+                      </span>
+                    </div>
+
+                    {/* 3-Way Segmented Control Switch */}
+                    <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-black/30 dark:bg-black/50 border border-white/5 text-[10px] font-black">
+                      <button
+                        type="button"
+                        onClick={() => setVendorPriorityMode('auto')}
+                        className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          vendorPriorityMode === 'auto'
+                            ? 'bg-emerald-500 text-black shadow-md font-black ring-1 ring-emerald-300'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        title={lang === 'ko' ? '신뢰도 점수 기반 자동 최적 강조 (추천)' : 'Auto-select highest confidence source'}
+                      >
+                        <Sparkles className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{lang === 'ko' ? '자동 최적' : 'Auto'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setVendorPriorityMode('real')}
+                        className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          vendorPriorityMode === 'real'
+                            ? 'bg-sky-500 text-black shadow-md font-black ring-1 ring-sky-300'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        title={lang === 'ko' ? 'SSDP/mDNS 기반 실제 완제품 브랜드 강조 (신뢰도 98%)' : 'Focus on SSDP/mDNS real product brand (98% confidence)'}
+                      >
+                        <Globe className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{lang === 'ko' ? '완제품 98%' : 'Brand 98%'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setVendorPriorityMode('oui')}
+                        className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          vendorPriorityMode === 'oui'
+                            ? 'bg-amber-500 text-black shadow-md font-black ring-1 ring-amber-300'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        title={lang === 'ko' ? 'IEEE OUI 기반 하드웨어 칩셋 제조사 강조 (신뢰도 85%)' : 'Focus on IEEE OUI hardware chipset (85% confidence)'}
+                      >
+                        <Cpu className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{lang === 'ko' ? '칩셋 85%' : 'OUI 85%'}</span>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Snapshot Diff Diagnostic Card (When in Diff Mode) */}
                   {viewMode === 'diff' && selectedDiffStatus && (
                     <div className={`p-3.5 rounded-xl border flex flex-col gap-2.5 shadow-lg animate-in fade-in ${
@@ -5648,53 +5824,158 @@ const App: React.FC = () => {
                           {effectiveMac || 'Unknown'} {selectedDiffStatus === 'offline' && effectiveMac && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
                         </span>
                       </div>
-                      {effectiveDevice?.realVendor && effectiveDevice.realVendor !== (effectiveDevice.chipsetVendor || effectiveDevice.vendor) ? (
-                        <>
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-black`}>
-                                {lang === 'ko' ? '실제 제조사' : 'Real Brand'}
-                              </span>
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 font-bold shrink-0">
-                                {effectiveDevice.vendorSource || 'UPnP'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 min-w-0 ml-3">
-                              <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-black text-sky-400 truncate text-right`}>
-                                {effectiveDevice.realVendor}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice.realVendor)}
-                                className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 shrink-0 transition-colors cursor-pointer"
-                                title={lang === 'ko' ? `실제 제조사 '${effectiveDevice.realVendor}'를 이 장치 이름으로 설정` : `Set brand '${effectiveDevice.realVendor}' as device name`}
-                              >
-                                {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>
-                                {lang === 'ko' ? '칩셋 OUI' : 'Chipset OUI'}
-                              </span>
-                              <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 shrink-0">
-                                OUI
-                              </span>
-                            </div>
-                            <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold opacity-80 truncate ml-4 text-right`}>
-                              {effectiveDevice.chipsetVendor || effectiveDevice.vendor || 'Unknown'}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-center">
-                          <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.vendor}</span>
-                          <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold truncate ml-4 text-right`}>
-                            {effectiveDevice?.vendor || 'Unknown'}
-                          </span>
-                        </div>
-                      )}
+                      {/* Manufacturer Profile: Real Brand vs Chipset OUI */}
+                      <div className="border-t border-current border-opacity-5 pt-3 space-y-2">
+                        {(() => {
+                          const hasRealBrand = Boolean(effectiveDevice?.realVendor && effectiveDevice.realVendor !== (effectiveDevice.chipsetVendor || effectiveDevice.vendor));
+                          const isRealPrimary = vendorPriorityMode === 'real' || (vendorPriorityMode === 'auto' && hasRealBrand);
+                          
+                          return (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-black tracking-wider flex items-center gap-1`}>
+                                  <Cpu className="w-3.5 h-3.5 text-sky-400" />
+                                  <span>{lang === 'ko' ? '제조사 및 칩셋 프로필' : 'Vendor & Chipset Profile'}</span>
+                                </span>
+                                <span className={`text-[8.5px] font-mono px-1.5 py-0.2 rounded font-bold ${
+                                  hasRealBrand 
+                                    ? (isRealPrimary ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                }`}>
+                                  {hasRealBrand 
+                                    ? (isRealPrimary 
+                                        ? (lang === 'ko' ? `⭐ 완제품 브랜드 강조 (${effectiveDevice?.realVendorConfidence || 99}%)` : `⭐ Real Brand Priority (${effectiveDevice?.realVendorConfidence || 99}%)`) 
+                                        : (lang === 'ko' ? `⭐ 하드웨어 칩셋 강조 (${effectiveDevice?.chipsetConfidence || 85}%)` : `⭐ Hardware OUI Priority (${effectiveDevice?.chipsetConfidence || 85}%)`))
+                                    : (lang === 'ko' ? `IEEE OUI 식별 (${effectiveDevice?.chipsetConfidence || 85}%)` : `IEEE OUI Matched (${effectiveDevice?.chipsetConfidence || 85}%)`)}
+                                </span>
+                              </div>
+
+                              {hasRealBrand ? (
+                                <div className="space-y-2">
+                                  {/* Card 1: Real Manufacturer (SSDP / mDNS) */}
+                                  <div className={`p-3 rounded-xl transition-all duration-200 relative ${
+                                    isRealPrimary
+                                      ? 'bg-sky-500/15 border-2 border-sky-400 dark:border-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.25)] ring-2 ring-sky-500/30'
+                                      : 'bg-sky-950/20 border border-sky-500/20 opacity-75 hover:opacity-100'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${isRealPrimary ? 'bg-sky-400 animate-pulse' : 'bg-sky-600'}`} />
+                                        <span className={`text-[10px] font-black uppercase tracking-wide ${isRealPrimary ? 'text-sky-300' : 'text-sky-400/80'}`}>
+                                          {lang === 'ko' ? '실제 완제품 제조사' : 'Real Brand'}
+                                        </span>
+                                        <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold shrink-0">
+                                          {effectiveDevice?.vendorSource || 'UPnP XML'}
+                                        </span>
+                                        {isRealPrimary && (
+                                          <span className="text-[7.5px] font-black px-1.5 py-0.2 rounded bg-sky-500 text-black shadow-sm shrink-0">
+                                            {lang === 'ko' ? '⭐ 주 강조' : '⭐ Focused'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCopyIpAddress(effectiveDevice?.realVendor!)}
+                                          className="p-1 rounded text-[9px] font-bold bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 border border-sky-500/30 transition-all cursor-pointer flex items-center gap-0.5"
+                                          title={lang === 'ko' ? `실제 제조사명 '${effectiveDevice?.realVendor}' 복사` : `Copy brand name`}
+                                        >
+                                          <Copy className="w-2.5 h-2.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveNickname(effectiveMac, selectedIp, effectiveDevice?.realVendor)}
+                                          className="px-1.5 py-0.5 rounded text-[9px] font-black bg-sky-500 hover:bg-sky-400 text-black border border-sky-400 transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                                          title={lang === 'ko' ? `실제 제조사 '${effectiveDevice?.realVendor}'를 이 장치 이름으로 설정` : `Set '${effectiveDevice?.realVendor}' as device name`}
+                                        >
+                                          {lang === 'ko' ? '적용 ↵' : 'Apply ↵'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className={`${isLgText ? 'text-base' : 'text-sm'} font-black ${isRealPrimary ? 'text-sky-300 dark:text-sky-100' : 'text-sky-400/90'} truncate`}>
+                                      {effectiveDevice?.realVendor}
+                                    </div>
+                                    <div className="flex items-center justify-between text-[8.5px] opacity-75 mt-1 border-t border-sky-500/15 pt-1">
+                                      <span>• {lang === 'ko' ? 'UPnP/mDNS 프로토콜 분석 기반' : 'Identified via UPnP/mDNS payloads'}</span>
+                                      <span className="font-mono text-sky-300 font-bold">
+                                        {lang === 'ko' ? `신뢰도 ${effectiveDevice?.realVendorConfidence || 99}% (High)` : `${effectiveDevice?.realVendorConfidence || 99}% Confidence`}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Card 2: Chipset Vendor (IEEE OUI) */}
+                                  <div className={`p-3 rounded-xl transition-all duration-200 relative ${
+                                    !isRealPrimary
+                                      ? 'bg-amber-500/15 border-2 border-amber-400 dark:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-2 ring-amber-500/30'
+                                      : 'bg-zinc-900/50 border border-zinc-800 opacity-75 hover:opacity-100'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${!isRealPrimary ? 'bg-amber-400 animate-pulse' : 'bg-zinc-500'}`} />
+                                        <span className={`text-[10px] font-black uppercase tracking-wide ${!isRealPrimary ? 'text-amber-300' : 'text-zinc-400'}`}>
+                                          {lang === 'ko' ? '칩셋 제조사 (OUI)' : 'Chipset Vendor (OUI)'}
+                                        </span>
+                                        <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                                          {effectiveMac && effectiveMac.length >= 8 ? effectiveMac.substring(0, 8).toUpperCase() : 'OUI DB'}
+                                        </span>
+                                        {!isRealPrimary && (
+                                          <span className="text-[7.5px] font-black px-1.5 py-0.2 rounded bg-amber-500 text-black shadow-sm shrink-0">
+                                            {lang === 'ko' ? '⭐ 주 강조' : '⭐ Focused'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyIpAddress(effectiveDevice?.chipsetVendor || effectiveDevice?.vendor || '')}
+                                        className="p-1 rounded text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer flex items-center gap-0.5 shrink-0"
+                                        title={lang === 'ko' ? '칩셋 제조사명 복사' : 'Copy chipset vendor'}
+                                      >
+                                        <Copy className="w-2.5 h-2.5" />
+                                      </button>
+                                    </div>
+                                    <div className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold ${!isRealPrimary ? 'text-amber-200 dark:text-amber-100' : 'text-zinc-300'} truncate`}>
+                                      {effectiveDevice?.chipsetVendor || effectiveDevice?.vendor || 'Unknown Hardware Vendor'}
+                                    </div>
+                                    <div className="flex items-center justify-between text-[8.5px] opacity-75 mt-1 border-t border-zinc-800 pt-1">
+                                      <span>• {lang === 'ko' ? 'MAC 주소 OUI DB 칩셋 공급사' : 'Hardware NIC chip from IEEE OUI DB'}</span>
+                                      <span className="font-mono text-amber-300 font-bold">
+                                        {lang === 'ko' ? `신뢰도 ${effectiveDevice?.chipsetConfidence || 85}% (OUI)` : `${effectiveDevice?.chipsetConfidence || 85}% Confidence`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Single Unified Vendor Card */
+                                <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800 relative space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                                      <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>
+                                        {lang === 'ko' ? '통합 제조사 (IEEE OUI)' : 'Vendor (IEEE OUI Verified)'}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopyIpAddress(effectiveDevice?.vendor || 'Unknown')}
+                                      className="p-1 rounded text-[9px] font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-all cursor-pointer flex items-center gap-0.5 shrink-0"
+                                      title={lang === 'ko' ? '제조사명 복사' : 'Copy vendor name'}
+                                    >
+                                      <Copy className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                  <div className={`${isLgText ? 'text-base' : 'text-sm'} font-bold text-zinc-100 truncate`}>
+                                    {effectiveDevice?.vendor || 'Unknown Vendor'}
+                                  </div>
+                                  <div className="flex items-center justify-between text-[8.5px] opacity-60 border-t border-zinc-800/80 pt-1">
+                                    <span>• {lang === 'ko' ? 'IEEE 9만건 OUI DB 기반 식별' : 'Matched via 90k IEEE OUI DB'}</span>
+                                    <span className="font-mono text-emerald-400 font-bold">{lang === 'ko' ? '신뢰도 85%' : '85% Confidence'}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                       <div className="flex justify-between items-center border-t border-current border-opacity-5 pt-3">
                         <span className={`${t.textMuted} ${isLgText ? 'text-[11px]' : 'text-[10px]'} uppercase font-bold`}>{s.os}</span>
                         <span className={`${isLgText ? 'text-sm' : 'text-xs'} font-bold`}>{effectiveDevice?.os || 'Unknown'}</span>

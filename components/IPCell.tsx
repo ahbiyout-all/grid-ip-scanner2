@@ -461,11 +461,26 @@ const IPCell: React.FC<IPCellProps> = ({
               </div>
             </div>
             
-            <div className="flex flex-col">
+            <div className="flex flex-col space-y-1">
               <span className="text-[8px] uppercase font-black opacity-40 tracking-wider">
-                {diffStatus === 'offline' ? (currentLang === 'ko' ? '이전 제조사 및 MAC' : 'Baseline Vendor & MAC') : s.macInfo}
+                {diffStatus === 'offline' ? (currentLang === 'ko' ? '이전 제조사 정보' : 'Baseline Vendor Info') : (currentLang === 'ko' ? '제조사 및 MAC' : 'Vendor & MAC')}
               </span>
-              <span className="text-[9px] font-bold truncate">{displayDevice.vendor || 'Unknown'}</span>
+              {displayDevice.realVendor && displayDevice.realVendor !== (displayDevice.chipsetVendor || displayDevice.vendor) ? (
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[9px] font-black text-sky-400">
+                    <span className="truncate">{displayDevice.realVendor}</span>
+                    <span className="text-[7.5px] px-1 py-0.2 rounded bg-sky-500/20 border border-sky-500/30 text-sky-300 font-mono ml-1 shrink-0">
+                      {displayDevice.vendorSource || 'UPnP'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[8px] font-bold opacity-75">
+                    <span className="truncate">OUI: {displayDevice.chipsetVendor || displayDevice.vendor}</span>
+                    <span className="text-[7px] font-mono opacity-60 shrink-0">OUI</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-[9px] font-bold truncate">{displayDevice.vendor || 'Unknown'}</span>
+              )}
               {displayDevice.mac && (
                 <span className="text-[8px] font-mono opacity-60 truncate">{displayDevice.mac}</span>
               )}
