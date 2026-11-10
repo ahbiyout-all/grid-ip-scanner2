@@ -111,3 +111,7 @@ type OUISanitizerStats struct {
 func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats, bool) {
 	return "", OUISanitizerStats{}, false
 }
+
+func initNativeSystemTray(port string) {
+	// Stub for non-Windows platforms
+}

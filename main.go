@@ -2898,6 +2898,9 @@ func main() {
 	}
 	
 	if !isPreview {
+		// Initialize Windows Taskbar Native System Tray Icon (Shell_NotifyIconW)
+		initNativeSystemTray(port)
+
 		go func() {
 			time.Sleep(500 * time.Millisecond) 
 			openAppWindow("http://127.0.0.1:" + port)

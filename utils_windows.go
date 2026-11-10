@@ -513,3 +513,271 @@ func decodeANSI(b []byte) string {
 	}
 	return syscall.UTF16ToString(utf16Buf)
 }
+
+// =====================================================================
+// Win32 Native System Tray (NotifyIcon) Engine
+// Integrates standard Shell_NotifyIconW into standalone Grid_IP_Scanner2.exe
+// =====================================================================
+
+const (
+	NIM_ADD        = 0x00000000
+	NIM_MODIFY     = 0x00000001
+	NIM_DELETE     = 0x00000002
+	NIF_MESSAGE    = 0x00000001
+	NIF_ICON       = 0x00000002
+	NIF_TIP        = 0x00000004
+	NIF_INFO       = 0x00000010
+
+	WM_TRAY_CALLBACK = 0x8000 + 101 // WM_APP + 101
+	WM_LBUTTONUP     = 0x0202
+	WM_LBUTTONDBLCLK = 0x0203
+	WM_RBUTTONUP     = 0x0205
+
+	IMAGE_ICON     = 1
+	LR_LOADFROMFILE = 0x00000010
+	LR_DEFAULTSIZE  = 0x00000040
+
+	MF_STRING    = 0x00000000
+	MF_SEPARATOR = 0x00000800
+	MF_CHECKED   = 0x00000008
+	MF_UNCHECKED = 0x00000000
+
+	TPM_RIGHTALIGN  = 0x0008
+	TPM_BOTTOMALIGN = 0x0020
+	TPM_RETURNCMD   = 0x0100
+
+	IDM_TRAY_OPEN    = 2001
+	IDM_TRAY_STATUS  = 2002
+	IDM_TRAY_INTRUDER= 2003
+	IDM_TRAY_SCAN    = 2004
+	IDM_TRAY_EXIT    = 2005
+)
+
+type NOTIFYICONDATAW struct {
+	CbSize           uint32
+	HWnd             uintptr
+	UID              uint32
+	UFlags           uint32
+	UCallbackMessage uint32
+	HIcon            uintptr
+	SzTip            [128]uint16
+	DwState          uint32
+	DwStateMask      uint32
+	SzInfo           [256]uint16
+	UTimeoutOrVersion uint32
+	SzInfoTitle      [64]uint16
+	DwInfoFlags      uint32
+	GuidItem         [16]byte
+	HBalloonIcon     uintptr
+}
+
+type WNDCLASSEXW struct {
+	CbSize        uint32
+	Style         uint32
+	LpfnWndProc   uintptr
+	CbClsExtra    int32
+	CbWndExtra    int32
+	HInstance     uintptr
+	HIcon         uintptr
+	HCursor       uintptr
+	HbrBackground uintptr
+	LpszMenuName  *uint16
+	LpszClassName *uint16
+	HIconSm       uintptr
+}
+
+type POINT struct {
+	X int32
+	Y int32
+}
+
+type MSG struct {
+	HWnd    uintptr
+	Message uint32
+	WParam  uintptr
+	LParam  uintptr
+	Time    uint32
+	Pt      POINT
+}
+
+var (
+	procShellNotifyIconW = modshell32.NewProc("Shell_NotifyIconW")
+	procRegisterClassExW = moduser32.NewProc("RegisterClassExW")
+	procCreateWindowExW  = moduser32.NewProc("CreateWindowExW")
+	procDefWindowProcW   = moduser32.NewProc("DefWindowProcW")
+	procDestroyWindow    = moduser32.NewProc("DestroyWindow")
+	procGetMessageW      = moduser32.NewProc("GetMessageW")
+	procTranslateMessage = moduser32.NewProc("TranslateMessage")
+	procDispatchMessageW = moduser32.NewProc("DispatchMessageW")
+	procPostQuitMessage  = moduser32.NewProc("PostQuitMessage")
+	procGetCursorPos     = moduser32.NewProc("GetCursorPos")
+	procSetForegroundWindow = moduser32.NewProc("SetForegroundWindow")
+	procCreatePopupMenu  = moduser32.NewProc("CreatePopupMenu")
+	procAppendMenuW      = moduser32.NewProc("AppendMenuW")
+	procTrackPopupMenu   = moduser32.NewProc("TrackPopupMenu")
+	procDestroyMenu      = moduser32.NewProc("DestroyMenu")
+	procLoadImageW       = moduser32.NewProc("LoadImageW")
+	procGetModuleHandleW = modkernel32.NewProc("GetModuleHandleW")
+
+	nativeTrayHWnd   uintptr
+	nativeTrayIcon   uintptr
+	nativeTrayPort   string
+	nativeTrayActive bool
+)
+
+func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
+	switch msg {
+	case WM_TRAY_CALLBACK:
+		switch lparam {
+		case WM_LBUTTONUP, WM_LBUTTONDBLCLK:
+			// Left click or double click: Open UI Window
+			if nativeTrayPort != "" {
+				go openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+			}
+			return 0
+
+		case WM_RBUTTONUP:
+			// Right click: Display Native Context Menu
+			var pt POINT
+			procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+			procSetForegroundWindow.Call(hwnd)
+
+			hMenu, _, _ := procCreatePopupMenu.Call()
+			if hMenu != 0 {
+				titlePtr, _ := syscall.UTF16PtrFromString("🌐 Grid IP Scanner2 열기")
+				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_OPEN, uintptr(unsafe.Pointer(titlePtr)))
+
+				statusPtr, _ := syscall.UTF16PtrFromString("🟢 24/7 백그라운드 침입 감시 가동 중")
+				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_STATUS, uintptr(unsafe.Pointer(statusPtr)))
+
+				procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+
+				scanPtr, _ := syscall.UTF16PtrFromString("⚡ 네트워크 스캔 화면 열기")
+				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_SCAN, uintptr(unsafe.Pointer(scanPtr)))
+
+				exitPtr, _ := syscall.UTF16PtrFromString("🛑 프로그램 완전 종료")
+				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_EXIT, uintptr(unsafe.Pointer(exitPtr)))
+
+				cmd, _, _ := procTrackPopupMenu.Call(
+					hMenu,
+					TPM_RIGHTALIGN|TPM_BOTTOMALIGN|TPM_RETURNCMD,
+					uintptr(pt.X),
+					uintptr(pt.Y),
+					0,
+					hwnd,
+					0,
+				)
+
+				procDestroyMenu.Call(hMenu)
+
+				switch cmd {
+				case IDM_TRAY_OPEN, IDM_TRAY_SCAN:
+					if nativeTrayPort != "" {
+						go openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+					}
+				case IDM_TRAY_EXIT:
+					go cleanupAndExit()
+				}
+			}
+			return 0
+		}
+	}
+
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wparam, lparam)
+	return ret
+}
+
+func initNativeSystemTray(port string) {
+	if nativeTrayActive {
+		return
+	}
+	nativeTrayPort = port
+	nativeTrayActive = true
+
+	go func() {
+		hInst, _, _ := procGetModuleHandleW.Call(0)
+		className, _ := syscall.UTF16PtrFromString("GridIPScanner2_TrayClass")
+
+		var wcx WNDCLASSEXW
+		wcx.CbSize = uint32(unsafe.Sizeof(wcx))
+		wcx.LpfnWndProc = syscall.NewCallback(trayWndProc)
+		wcx.HInstance = hInst
+		wcx.LpszClassName = className
+
+		procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wcx)))
+
+		hwnd, _, _ := procCreateWindowExW.Call(
+			0,
+			uintptr(unsafe.Pointer(className)),
+			0,
+			0,
+			0, 0, 0, 0,
+			0, 0,
+			hInst,
+			0,
+		)
+		if hwnd == 0 {
+			return
+		}
+		nativeTrayHWnd = hwnd
+
+		// Resolve Application Icon
+		exePath, err := os.Executable()
+		var iconPath string
+		if err == nil {
+			appDir := filepath.Dir(exePath)
+			candidates := []string{
+				filepath.Join(appDir, "icon.ico"),
+				filepath.Join(appDir, "Grid IP Scanner2.ico"),
+				filepath.Join(appDir, "public", "logo.png"),
+			}
+			for _, c := range candidates {
+				if _, statErr := os.Stat(c); statErr == nil {
+					iconPath = c
+					break
+				}
+			}
+		}
+
+		if iconPath != "" {
+			iconPathPtr, _ := syscall.UTF16PtrFromString(iconPath)
+			hIcon, _, _ := procLoadImageW.Call(
+				0,
+				uintptr(unsafe.Pointer(iconPathPtr)),
+				IMAGE_ICON,
+				0, 0,
+				LR_LOADFROMFILE|LR_DEFAULTSIZE,
+			)
+			nativeTrayIcon = hIcon
+		}
+
+		// Register Tray Icon to Windows Taskbar System Tray
+		var nid NOTIFYICONDATAW
+		nid.CbSize = uint32(unsafe.Sizeof(nid))
+		nid.HWnd = hwnd
+		nid.UID = 1001
+		nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
+		nid.UCallbackMessage = WM_TRAY_CALLBACK
+		nid.HIcon = nativeTrayIcon
+
+		tipStr := "Grid IP Scanner2 - 24/7 침입 감시 & 스캐너 가동 중"
+		tipU16, _ := syscall.UTF16FromString(tipStr)
+		copy(nid.SzTip[:], tipU16)
+
+		procShellNotifyIconW.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
+
+		// Keep Native Windows Message Loop Running in Background
+		var msg MSG
+		for {
+			res, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+			if int32(res) <= 0 {
+				break
+			}
+			procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
+		}
+
+		// Cleanup on exit
+		procShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
+	}()
+}
