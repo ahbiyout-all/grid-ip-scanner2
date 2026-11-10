@@ -5,7 +5,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Shield, Search, Terminal, Globe, Server } from 'lucide-react';
+import { 
+  X, Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Shield, Search, 
+  Terminal, Globe, Server, ChevronDown, ChevronUp, ChevronsUpDown, Layers 
+} from 'lucide-react';
 import { NativeModulesStatus, NativeDiscoveryResult, NativeOsDetectResult, NativeArpSpoofResult } from '../types';
 import {
   fetchNativeModulesStatus,
@@ -39,6 +42,8 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
   const [testMac, setTestMac] = useState(currentSelectedMac);
   const [testOutput, setTestOutput] = useState<string>('');
   const [isTesting, setIsTesting] = useState(false);
+  // Collapsible DLL modules state: by default collapsed, users can click to expand
+  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
   const loadStatus = async () => {
     setLoading(true);
@@ -218,6 +223,27 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
     setIsTesting(false);
   };
 
+  const toggleModule = (id: string) => {
+    setExpandedModules((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    modules.forEach((m) => {
+      next[m.id] = true;
+    });
+    setExpandedModules(next);
+  };
+
+  const collapseAll = () => {
+    setExpandedModules({});
+  };
+
+  const areAllExpanded = modules.length > 0 && modules.every((m) => expandedModules[m.id]);
+
   return (
     <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className={`w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${
@@ -265,56 +291,150 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
 
         {/* Content Body */}
         <div className="p-5 overflow-y-auto space-y-5 flex-1">
-          {/* Modules Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {modules.map((m) => (
-              <div
-                key={m.id}
-                className={`p-4 rounded-xl border transition-all ${
-                  m.active
-                    ? 'border-emerald-500/40 bg-emerald-500/5 shadow-md shadow-emerald-500/5'
-                    : 'border-white/10 bg-white/5'
+          {/* Modules Section Header & Expand/Collapse Toggle */}
+          <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Dedicated Acceleration Modules (7)' : '전용 네이티브 가속 DLL (7대 모듈)'}</span>
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                {status ? `${Object.values(status).filter(Boolean).length}/7 ${isEn ? 'Loaded' : '정상 로드'}` : 'Checking...'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={areAllExpanded ? collapseAll : expandAll}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  theme === 'beige' ? 'bg-[#f5ebd6] hover:bg-[#ebdcc0] text-[#5c4a37] border-[#d4be9c]' :
+                  theme === 'white' ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' :
+                  'bg-white/5 hover:bg-white/10 text-sky-300 border-white/10'
                 }`}
+                title={areAllExpanded ? (isEn ? 'Collapse all modules' : '모든 DLL 내용 접기') : (isEn ? 'Expand all modules' : '모든 DLL 내용 펼치기')}
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-xs font-black text-sky-400">{m.name}</span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/10 opacity-80">
-                        {m.tag}
-                      </span>
+                <ChevronsUpDown className="w-3.5 h-3.5 text-sky-400" />
+                <span>
+                  {areAllExpanded
+                    ? (isEn ? 'Collapse All' : '모두 접기')
+                    : (isEn ? 'Expand All' : '모두 펼치기')}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsible Modules Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {modules.map((m) => {
+              const isExpanded = !!expandedModules[m.id];
+              return (
+                <div
+                  key={m.id}
+                  className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                    m.active
+                      ? theme === 'beige' 
+                        ? 'border-emerald-600/40 bg-emerald-500/10 shadow-xs' 
+                        : theme === 'white' 
+                        ? 'border-emerald-500/40 bg-emerald-50/70 shadow-xs' 
+                        : 'border-emerald-500/40 bg-emerald-500/5 shadow-md shadow-emerald-500/5'
+                      : theme === 'beige'
+                        ? 'border-[#d4be9c] bg-[#fcf8f2]'
+                        : theme === 'white'
+                        ? 'border-slate-200 bg-white'
+                        : 'border-white/10 bg-white/5'
+                  }`}
+                >
+                  {/* Card Header (Click to toggle expansion) */}
+                  <div
+                    onClick={() => toggleModule(m.id)}
+                    className={`p-3.5 flex items-start justify-between gap-2 cursor-pointer select-none transition-colors group ${
+                      theme === 'beige' ? 'hover:bg-[#f5ebd6]/60' : theme === 'white' ? 'hover:bg-slate-50' : 'hover:bg-white/5'
+                    }`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleModule(m.id);
+                      }
+                    }}
+                    aria-expanded={isExpanded}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-xs font-black text-sky-400 group-hover:text-sky-300 transition-colors">
+                          {m.name}
+                        </span>
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                          theme === 'beige' ? 'bg-[#5c4a37]/10 text-[#5c4a37]' : theme === 'white' ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                        }`}>
+                          {m.tag}
+                        </span>
+                      </div>
+                      <h4 className="font-black text-xs sm:text-sm mt-1 tracking-tight">
+                        {m.title}
+                      </h4>
                     </div>
-                    <h4 className="font-black text-sm mt-1">{m.title}</h4>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-1">
-                    {m.active ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {isEn ? 'Loaded' : '로드됨'}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-zinc-700 text-zinc-300 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {isEn ? 'Fallback' : '폴백 가동'}
-                      </span>
-                    )}
-                  </div>
-                </div>
 
-                <p className="text-xs opacity-75 leading-relaxed mb-3">{m.desc}</p>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {m.active ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white flex items-center gap-1 shadow-xs">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>{isEn ? 'Loaded' : '로드됨'}</span>
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 ${
+                          theme === 'beige' || theme === 'white' ? 'bg-zinc-200 text-zinc-700' : 'bg-zinc-700 text-zinc-300'
+                        }`}>
+                          <AlertCircle className="w-3 h-3" />
+                          <span>{isEn ? 'Fallback' : '폴백 가동'}</span>
+                        </span>
+                      )}
 
-                <div className="flex flex-wrap gap-1.5">
-                  {m.features.map((f, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/30 border border-white/5 opacity-85"
-                    >
-                      • {f}
-                    </span>
-                  ))}
+                      {/* Expand / Collapse Indicator */}
+                      <div 
+                        className={`p-1 rounded-md transition-all ${
+                          isExpanded 
+                            ? 'bg-sky-500/20 text-sky-400' 
+                            : 'text-zinc-400 group-hover:text-zinc-200 group-hover:bg-white/5'
+                        }`}
+                        title={isExpanded ? (isEn ? 'Collapse details' : '접기') : (isEn ? 'Expand details' : '펼치기')}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 transition-transform" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Details Body */}
+                  {isExpanded && (
+                    <div className={`px-3.5 pb-3.5 pt-1 border-t space-y-2.5 animate-in fade-in duration-150 ${
+                      theme === 'beige' ? 'border-[#d4be9c]/40' : theme === 'white' ? 'border-slate-200' : 'border-white/10'
+                    }`}>
+                      <p className="text-xs opacity-80 leading-relaxed pt-1">{m.desc}</p>
+
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {m.features.map((f, i) => (
+                          <span
+                            key={i}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+                              theme === 'beige' ? 'bg-[#ffffff]/80 text-[#5c4a37] border-[#d4be9c]' :
+                              theme === 'white' ? 'bg-white text-slate-700 border-slate-200' :
+                              'bg-black/30 text-zinc-300 border-white/5'
+                            }`}
+                          >
+                            • {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Interactive Native Diagnostics Console */}

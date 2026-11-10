@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar, Smartphone, ArrowRight, Move, Maximize2 } from 'lucide-react';
+import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar, Smartphone, ArrowRight, Move, Maximize2, Settings } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType, ScanSchedule, ScheduledScanRunRecord } from './types';
 import IPCell from './components/IPCell';
 import { getStoredLicense, activateLicenseKey, clearLicense, getTrialHistory } from './services/licenseManager';
@@ -3440,54 +3440,15 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Row 2: Grid Palette for DLL Hub & Tray Tools */}
-            <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-              <button
-                onClick={() => setShowNativeModal(true)}
-                className={`px-2 py-1.5 border rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 ${
-                  nativeStatus?.probeEngine
-                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25 shadow-xs'
-                    : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
-                }`}
-                title={lang === 'ko' ? "6대 전용 C/Win32 네이티브 가속 DLL 진단 허브 열기" : "Open 6 dedicated C/Win32 native accelerated DLL diagnostic hub"}
-              >
-                <Cpu className="w-3 h-3 text-sky-400 shrink-0" />
-                <span className="truncate">{s.dllHub}</span>
-              </button>
-
-              <TrayStatusIndicator
-                align="left"
-                intruderWatchMode={intruderWatchMode}
-                onToggleIntruderWatch={handleToggleIntruderWatch}
-                isScanning={isScanning}
-                onToggleScan={handleToggleScan}
-                intruderCount={detectedIntruders?.length || 0}
-                statusMessage={trayStatusMessage}
-                lang={lang as 'ko' | 'en'}
-                theme={theme}
-                isWindowsDesktop={isWindowsDesktop}
-                onMinimizeToTray={handleMinimizeToTray}
-                onOpenIntruderLog={() => setShowIntruderLogModal(true)}
-                onExitApplication={handleExitApplication}
-                compact={false}
-              />
-
+            {/* Row 2: Preferences & System Tray Setting Button */}
+            <div className="pt-0.5">
               <button
                 onClick={() => setShowWindowsUtilModal(true)}
-                className="px-2 py-1.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
-                title={lang === 'ko' ? "Windows OS 레거시 네트워크 유틸리티 & 시스템 트레이 설정" : "Windows Legacy OS Network Utilities & System Tray Settings"}
+                className="w-full px-2.5 py-1.5 border border-cyan-500/40 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-xs"
+                title={lang === 'ko' ? "환경설정 및 시스템 트레이 제어 창 열기" : "Open Preferences & System Tray Settings"}
               >
-                <Terminal className="w-3 h-3 text-cyan-400 shrink-0" />
-                <span className="truncate">{lang === 'ko' ? "트레이 & OS 툴" : "Tray & Tools"}</span>
-              </button>
-
-              <button
-                onClick={handleMinimizeToTray}
-                className="px-2 py-1.5 border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 rounded-lg text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs"
-                title={lang === 'ko' ? "앱을 시스템 트레이로 최소화 (백그라운드 가동)" : "Minimize app to system tray"}
-              >
-                <Monitor className="w-3 h-3 text-emerald-400 shrink-0" />
-                <span className="truncate">{lang === 'ko' ? "📌 최소화" : "Minimize"}</span>
+                <Settings className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span>{lang === 'ko' ? "환경설정 및 시스템 트레이" : "Preferences & Tray"}</span>
               </button>
             </div>
           </div>
@@ -4437,24 +4398,6 @@ const App: React.FC = () => {
                 )}
               </button>
 
-              {/* System Tray Live Status Icon Badge */}
-              <TrayStatusIndicator
-                align="right"
-                intruderWatchMode={intruderWatchMode}
-                onToggleIntruderWatch={handleToggleIntruderWatch}
-                isScanning={isScanning}
-                onToggleScan={handleToggleScan}
-                intruderCount={detectedIntruders?.length || 0}
-                statusMessage={trayStatusMessage}
-                lang={lang as 'ko' | 'en'}
-                theme={theme}
-                isWindowsDesktop={isWindowsDesktop}
-                onMinimizeToTray={handleMinimizeToTray}
-                onOpenIntruderLog={() => setShowIntruderLogModal(true)}
-                onExitApplication={handleExitApplication}
-                compact={false}
-              />
-
               {/* License Tier Badge */}
               <button
                 onClick={() => setShowLicenseModal(true)}
@@ -4532,11 +4475,21 @@ const App: React.FC = () => {
                 <span>{themeName}</span>
               </button>
 
+              {/* Preferences & System Tray Settings Button */}
+              <button
+                type="button"
+                onClick={() => setShowWindowsUtilModal(true)}
+                title={lang === 'ko' ? "환경설정 및 시스템 트레이 제어" : "Preferences & System Tray Settings"}
+                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 cursor-pointer ${theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : theme === 'white' ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-zinc-300'}`}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
               {/* Help Button */}
               <button 
                 onClick={() => setShowHelp(true)} 
                 title={s.help} 
-                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 ${theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : theme === 'white' ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-zinc-300'}`}
+                className={`p-1.5 rounded-lg flex items-center justify-center transition-all shrink-0 cursor-pointer ${theme === 'beige' ? 'hover:bg-[#f5ebd6] text-[#5c4a37]' : theme === 'white' ? 'hover:bg-slate-100 text-slate-800' : 'hover:bg-white/10 text-zinc-300'}`}
               >
                 <HelpCircle className="w-4 h-4" />
               </button>
@@ -7679,17 +7632,17 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between border-b pb-4 border-white/10 shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                  <Terminal className="w-5 h-5" />
+                  <Settings className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-black text-lg tracking-tight flex items-center gap-2">
-                    <span>{lang === 'ko' ? 'Windows OS 레거시 유틸리티 & 트레이' : 'Windows Legacy OS Tools & Tray'}</span>
+                    <span>{lang === 'ko' ? '환경설정 및 시스템 트레이' : 'Preferences & System Tray'}</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono">
-                      Win 7/8/10/11
+                      Settings
                     </span>
                   </h3>
                   <p className={`text-xs ${t.textMuted}`}>
-                    {lang === 'ko' ? '윈도우 백그라운드 트레이 상주, 낯선 기기 24/7 감시 및 레거시 네트워크 툴' : 'Windows Tray background watch, intruder detection & network utilities'}
+                    {lang === 'ko' ? '시스템 트레이 상주, 24/7 침입 감시, 부팅 자동 실행 및 Windows 네트워크 설정' : 'System tray background watch, 24/7 intruder detection, auto-start & OS tools'}
                   </p>
                 </div>
               </div>
@@ -7951,7 +7904,19 @@ const App: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="pt-3 border-t border-white/10 flex items-center justify-end shrink-0">
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWindowsUtilModal(false);
+                  setShowNativeModal(true);
+                }}
+                className="text-[11px] opacity-60 hover:opacity-100 text-sky-400 hover:text-sky-300 flex items-center gap-1.5 transition-all cursor-pointer font-medium"
+                title={lang === 'ko' ? 'C/Win32 가속 DLL 및 실시간 커널 진단 콘솔 열기' : 'Open C/Win32 DLL & Kernel Diagnostics'}
+              >
+                <Cpu className="w-3.5 h-3.5 shrink-0" />
+                <span>{lang === 'ko' ? '고급: C/Win32 엔진 진단' : 'Advanced: Native Diagnostics'}</span>
+              </button>
               <button
                 onClick={() => setShowWindowsUtilModal(false)}
                 className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl font-bold text-xs uppercase transition-all cursor-pointer"

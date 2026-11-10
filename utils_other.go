@@ -115,3 +115,7 @@ func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats,
 func initNativeSystemTray(port string) {
 	// Stub for non-Windows platforms
 }
+
+func showTrayBalloonNotification(title, message string) {
+	// Stub for non-Windows platforms
+}

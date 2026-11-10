@@ -501,6 +501,11 @@ func runEmergencyScanAndReport(port string) {
 		_ = os.WriteFile(reportPath, []byte(report.String()), 0644)
 	}
 
+	showTrayBalloonNotification(
+		"긴급 IP 스캔 완료",
+		fmt.Sprintf("서브넷 %s.0/24 분석 완료! 총 %d대 감지. 바탕화면에 보고서가 생성되었습니다.", targetSubnet, len(results)),
+	)
+
 	summaryText := strings.Join(summaryLines, "\n")
 	if len(results) > 8 {
 		summaryText += fmt.Sprintf("\n... 외 %d대 추가 감지됨", len(results)-8)

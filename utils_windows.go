@@ -538,6 +538,7 @@ const (
 	LR_DEFAULTSIZE  = 0x00000040
 
 	MF_STRING    = 0x00000000
+	MF_POPUP     = 0x00000010
 	MF_SEPARATOR = 0x00000800
 	MF_CHECKED   = 0x00000008
 	MF_UNCHECKED = 0x00000000
@@ -546,11 +547,20 @@ const (
 	TPM_BOTTOMALIGN = 0x0020
 	TPM_RETURNCMD   = 0x0100
 
-	IDM_TRAY_OPEN    = 2001
-	IDM_TRAY_STATUS  = 2002
-	IDM_TRAY_INTRUDER= 2003
-	IDM_TRAY_SCAN    = 2004
-	IDM_TRAY_EXIT    = 2005
+	NIIF_NONE    = 0x00000000
+	NIIF_INFO    = 0x00000001
+	NIIF_WARNING = 0x00000002
+	NIIF_ERROR   = 0x00000003
+
+	IDM_TRAY_OPEN           = 2001
+	IDM_TRAY_STATUS         = 2002
+	IDM_TRAY_INTRUDER       = 2003
+	IDM_TRAY_SCAN           = 2004
+	IDM_TRAY_EXIT           = 2005
+	IDM_TRAY_EMERGENCY_SCAN = 2010
+	IDM_TRAY_FLUSH_DNS      = 2011
+	IDM_TRAY_NCPA           = 2012
+	IDM_TRAY_FIREWALL       = 2013
 )
 
 type NOTIFYICONDATAW struct {
@@ -625,6 +635,35 @@ var (
 	nativeTrayActive bool
 )
 
+// showTrayBalloonNotification displays a native Windows Tray Balloon Tooltip (Shell_NotifyIconW with NIF_INFO)
+func showTrayBalloonNotification(title, message string) {
+	if nativeTrayHWnd == 0 {
+		return
+	}
+	var nid NOTIFYICONDATAW
+	nid.CbSize = uint32(unsafe.Sizeof(nid))
+	nid.HWnd = nativeTrayHWnd
+	nid.UID = 1
+	nid.UFlags = NIF_INFO
+	nid.DwInfoFlags = NIIF_INFO
+
+	titleUTF16, err := syscall.UTF16FromString(title)
+	if err == nil {
+		for i := 0; i < len(titleUTF16) && i < len(nid.SzInfoTitle)-1; i++ {
+			nid.SzInfoTitle[i] = titleUTF16[i]
+		}
+	}
+
+	msgUTF16, err := syscall.UTF16FromString(message)
+	if err == nil {
+		for i := 0; i < len(msgUTF16) && i < len(nid.SzInfo)-1; i++ {
+			nid.SzInfo[i] = msgUTF16[i]
+		}
+	}
+
+	procShellNotifyIconW.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
+}
+
 func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 	switch msg {
 	case WM_TRAY_CALLBACK:
@@ -655,6 +694,29 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 				scanPtr, _ := syscall.UTF16PtrFromString("⚡ 네트워크 스캔 화면 열기")
 				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_SCAN, uintptr(unsafe.Pointer(scanPtr)))
 
+				// Build Submenu: 🛠️ Windows OS 레거시 대응 도구
+				hSubMenu, _, _ := procCreatePopupMenu.Call()
+				if hSubMenu != 0 {
+					emgScanPtr, _ := syscall.UTF16PtrFromString("📄 구형 OS 긴급 IP 스캔 & 보고서 생성")
+					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_EMERGENCY_SCAN, uintptr(unsafe.Pointer(emgScanPtr)))
+
+					procAppendMenuW.Call(hSubMenu, MF_SEPARATOR, 0, 0)
+
+					dnsPtr, _ := syscall.UTF16PtrFromString("⚡ DNS 캐시 즉시 초기화 (flushdns)")
+					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_FLUSH_DNS, uintptr(unsafe.Pointer(dnsPtr)))
+
+					ncpaPtr, _ := syscall.UTF16PtrFromString("🌐 네트워크 어댑터 제어판 (ncpa.cpl)")
+					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_NCPA, uintptr(unsafe.Pointer(ncpaPtr)))
+
+					fwPtr, _ := syscall.UTF16PtrFromString("🛡️ Windows 방화벽 기본 복원 (reset)")
+					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_FIREWALL, uintptr(unsafe.Pointer(fwPtr)))
+
+					subTitlePtr, _ := syscall.UTF16PtrFromString("🛠️ Windows OS 레거시 대응 도구")
+					procAppendMenuW.Call(hMenu, MF_POPUP, hSubMenu, uintptr(unsafe.Pointer(subTitlePtr)))
+				}
+
+				procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+
 				exitPtr, _ := syscall.UTF16PtrFromString("🛑 프로그램 완전 종료")
 				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_EXIT, uintptr(unsafe.Pointer(exitPtr)))
 
@@ -668,6 +730,9 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					0,
 				)
 
+				if hSubMenu != 0 {
+					procDestroyMenu.Call(hSubMenu)
+				}
 				procDestroyMenu.Call(hMenu)
 
 				switch cmd {
@@ -675,6 +740,30 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					if nativeTrayPort != "" {
 						go openAppWindow("http://127.0.0.1:" + nativeTrayPort)
 					}
+				case IDM_TRAY_EMERGENCY_SCAN:
+					go func() {
+						showTrayBalloonNotification("긴급 IP 스캔 시작", "브라우저 없이 고속 백그라운드 IP 스캔 및 보고서 작성을 진행합니다...")
+						runEmergencyScanAndReport(nativeTrayPort)
+					}()
+				case IDM_TRAY_FLUSH_DNS:
+					go func() {
+						cmd := exec.Command("ipconfig", "/flushdns")
+						hideWindow(cmd)
+						_ = cmd.Run()
+						showTrayBalloonNotification("DNS 캐시 초기화 완료", "Windows DNS 리졸버 캐시가 성공적으로 초기화되었습니다.")
+					}()
+				case IDM_TRAY_NCPA:
+					go func() {
+						shellExecute("open", "ncpa.cpl", "", "", SW_SHOWNORMAL)
+						showTrayBalloonNotification("네트워크 제어판 실행", "Windows 네트워크 어댑터 제어판(ncpa.cpl)을 열었습니다.")
+					}()
+				case IDM_TRAY_FIREWALL:
+					go func() {
+						cmd := exec.Command("netsh", "advfirewall", "reset")
+						hideWindow(cmd)
+						_ = cmd.Run()
+						showTrayBalloonNotification("방화벽 규칙 복원 완료", "Windows 방화벽 기본 규칙이 성공적으로 초기화 및 복원되었습니다.")
+					}()
 				case IDM_TRAY_EXIT:
 					go cleanupAndExit()
 				}
