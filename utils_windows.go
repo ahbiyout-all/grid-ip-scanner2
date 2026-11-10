@@ -643,9 +643,15 @@ func showTrayBalloonNotification(title, message string) {
 	var nid NOTIFYICONDATAW
 	nid.CbSize = uint32(unsafe.Sizeof(nid))
 	nid.HWnd = nativeTrayHWnd
-	nid.UID = 1
-	nid.UFlags = NIF_INFO
+	nid.UID = 1001
+	nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO
+	nid.UCallbackMessage = WM_TRAY_CALLBACK
+	nid.HIcon = nativeTrayIcon
 	nid.DwInfoFlags = NIIF_INFO
+
+	tipStr := "Grid IP Scanner2 - 24/7 침입 감시 & 스캐너 가동 중"
+	tipU16, _ := syscall.UTF16FromString(tipStr)
+	copy(nid.SzTip[:], tipU16)
 
 	titleUTF16, err := syscall.UTF16FromString(title)
 	if err == nil {

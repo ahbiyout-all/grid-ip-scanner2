@@ -3352,7 +3352,22 @@ const App: React.FC = () => {
                     referrerPolicy="no-referrer" 
                   />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-md ring-1 ring-emerald-400/50" title="Core Engine Ready (정상 가동)" />
+                {/* 24/7 Unattended Background Service & Radar Status Indicator Badge */}
+                {isWindowsServiceInstalled ? (
+                  <div className="absolute -bottom-1 -right-1 flex items-center justify-center" title={lang === 'ko' ? "24/7 Windows 무인 백그라운드 서비스 가동 중 (Session 0)" : "24/7 Windows Unattended Background Service Active (Session 0)"}>
+                    <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-cyan-500 border-2 border-zinc-900 shadow-md ring-1 ring-cyan-300/80 items-center justify-center text-[7px] font-black text-black">
+                      S
+                    </span>
+                  </div>
+                ) : intruderWatchMode ? (
+                  <div className="absolute -bottom-1 -right-1 flex items-center justify-center" title={lang === 'ko' ? "24/7 낯선 기기 무인 감시 모드 활성화됨" : "24/7 Intruder Watch Active"}>
+                    <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-zinc-900 shadow-md ring-1 ring-rose-300/80" />
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow-md ring-1 ring-emerald-400/50" title={lang === 'ko' ? "Core Engine Ready (정상 가동)" : "Core Engine Ready"} />
+                )}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
                 <h1 className={`text-sm font-black tracking-tight uppercase leading-snug truncate ${t.text}`} title={s.title}>
@@ -7661,7 +7676,7 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="font-black text-sm text-cyan-300 flex items-center gap-1.5">
                     <Monitor className="w-4 h-4 text-cyan-400" />
-                    <span>📌 시스템 트레이 상주 & 무인 백그라운드</span>
+                    <span>{lang === 'ko' ? '📌 시스템 트레이 상주 & 무인 백그라운드' : '📌 System Tray Resident & Background Watch'}</span>
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
@@ -7675,8 +7690,12 @@ const App: React.FC = () => {
                 <div className="p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-500/20 text-[11px] text-cyan-200 flex items-start gap-2">
                   <Monitor className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-cyan-300">트레이 실행 보장: </span>
-                    앱 기동과 동시에 Windows 작업표시줄 시스템 트레이 아이콘이 생성되어, 창을 닫아도 백그라운드 스캐너 및 24/7 침입 감시가 멈추지 않습니다.
+                    <span className="font-bold text-cyan-300">
+                      {lang === 'ko' ? '트레이 실행 보장: ' : 'Tray Execution Guaranteed: '}
+                    </span>
+                    {lang === 'ko' 
+                      ? '앱 기동과 동시에 Windows 작업표시줄 시스템 트레이 아이콘이 생성되어, 창을 닫아도 백그라운드 스캐너 및 24/7 침입 감시가 멈추지 않습니다.' 
+                      : 'System tray icon is created on startup. Background scanner and 24/7 intruder watch remain active even if the main window is closed.'}
                   </div>
                 </div>
 
@@ -7686,14 +7705,16 @@ const App: React.FC = () => {
                   className="w-full py-2 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 active:scale-98 text-cyan-200 font-bold border border-cyan-500/40 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm shadow-cyan-500/10"
                 >
                   <Monitor className="w-4 h-4 text-cyan-400" />
-                  <span>📌 즉시 시스템 트레이로 최소화 (Minimize to Tray Now)</span>
+                  <span>
+                    {lang === 'ko' ? '📌 즉시 시스템 트레이로 최소화 (Minimize to Tray)' : '📌 Minimize to System Tray Now'}
+                  </span>
                 </button>
 
                 {/* Close to Tray Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
                     <div className="font-bold text-zinc-200">
-                      {lang === 'ko' ? '창 닫기 시 트레이 최소화 (Close-to-Tray)' : 'Close to Tray'}
+                      {lang === 'ko' ? '창 닫기 시 트레이 최소화 (Close-to-Tray)' : 'Close to System Tray'}
                     </div>
                     <div className="text-[10px] text-zinc-400">
                       {lang === 'ko' 
@@ -7721,8 +7742,14 @@ const App: React.FC = () => {
                 {/* Auto Start Registry Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
-                    <div className="font-bold text-zinc-200">Windows 부팅 시 자동 시작 (Registry)</div>
-                    <div className="text-[10px] text-zinc-400">컴퓨터 부팅 시 자동으로 트레이 최소화 상태로 실행합니다 (HKCU\Run).</div>
+                    <div className="font-bold text-zinc-200">
+                      {lang === 'ko' ? 'Windows 부팅 시 자동 시작 (Registry)' : 'Auto Start on Windows Boot (Registry)'}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {lang === 'ko' 
+                        ? '컴퓨터 부팅 시 자동으로 트레이 최소화 상태로 실행합니다 (HKCU\\Run).' 
+                        : 'Automatically run minimized in system tray when Windows boots (HKCU\\Run).'}
+                    </div>
                   </div>
                   <button 
                     onClick={async () => {
@@ -7743,11 +7770,15 @@ const App: React.FC = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
                     <div className="font-bold text-zinc-200 flex items-center gap-1.5">
-                      <Shield className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>24/7 Windows 무인 백그라운드 서비스 (GridIPScannerService)</span>
+                      <Shield className={`w-3.5 h-3.5 ${isWindowsServiceInstalled ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'}`} />
+                      <span>
+                        {lang === 'ko' ? '24/7 Windows 무인 백그라운드 서비스 (GridIPScannerService)' : '24/7 Windows Background Service (GridIPScannerService)'}
+                      </span>
                     </div>
                     <div className="text-[10px] text-zinc-400">
-                      로그아웃 상태에서도 Session 0 무인 서비스로 24시간 네트워크 스케줄러 및 낯선 기기 감지 수행
+                      {lang === 'ko' 
+                        ? '로그아웃 상태에서도 Session 0 무인 서비스로 24시간 네트워크 스케줄러 및 낯선 기기 감지 수행' 
+                        : 'Runs as Session 0 background service for 24/7 network monitoring even when logged out'}
                     </div>
                   </div>
                   <button 
@@ -7759,21 +7790,37 @@ const App: React.FC = () => {
                       }
                       showToast(res.message);
                     }}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all shrink-0 cursor-pointer border ${
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all shrink-0 cursor-pointer border flex items-center gap-1.5 ${
                       isWindowsServiceInstalled 
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30' 
+                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 hover:bg-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.25)]' 
                         : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700'
                     }`}
                   >
-                    {isWindowsServiceInstalled ? '🟢 서비스 가동 중 (클릭 시 중지)' : '⚙️ 서비스 등록/시작'}
+                    {isWindowsServiceInstalled ? (
+                      <>
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+                        </span>
+                        <span>{lang === 'ko' ? 'Session 0 가동 중 (클릭 시 중지)' : 'Session 0 Active (Click to Stop)'}</span>
+                      </>
+                    ) : (
+                      <span>{lang === 'ko' ? '⚙️ 서비스 등록/시작' : '⚙️ Register/Start Service'}</span>
+                    )}
                   </button>
                 </div>
 
                 {/* 24/7 Intruder Watch Toggle */}
                 <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <div>
-                    <div className="font-bold text-zinc-200">🚨 24/7 낯선 기기 무인 감시 모드</div>
-                    <div className="text-[10px] text-zinc-400">백그라운드 상주 중 미확인 신규 기기 감지 시 Windows OS 알림 및 소리 송출.</div>
+                    <div className="font-bold text-zinc-200">
+                      {lang === 'ko' ? '🚨 24/7 낯선 기기 무인 감시 모드' : '🚨 24/7 Intruder Watch Mode'}
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {lang === 'ko' 
+                        ? '백그라운드 상주 중 미확인 신규 기기 감지 시 Windows OS 알림 및 소리 송출.' 
+                        : 'Emits Windows OS notification and audio alert when an unknown device is detected.'}
+                    </div>
                   </div>
                   <button 
                     onClick={handleToggleIntruderWatch}
@@ -7802,7 +7849,7 @@ const App: React.FC = () => {
                   title={lang === 'ko' ? '백그라운드 서비스 및 앱 완전 종료' : 'Exit Application & Terminate Background Service'}
                 >
                   <Power className="w-4 h-4 text-red-400" />
-                  <span>{lang === 'ko' ? '🛑 애플리케이션 완전 종료 (Exit Application)' : '🛑 Exit Application'}</span>
+                  <span>{lang === 'ko' ? '🛑 애플리케이션 완전 종료 (Exit Application)' : '🛑 Exit Application Completely'}</span>
                 </button>
               </div>
 
@@ -7810,7 +7857,7 @@ const App: React.FC = () => {
               <div className="space-y-2.5">
                 <div className="font-black text-xs uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>🛠️ Windows 레거시 네트워크 유틸리티 퀵 키</span>
+                  <span>{lang === 'ko' ? '🛠️ Windows 레거시 네트워크 유틸리티 퀵 키' : '🛠️ Windows Legacy Network Utilities'}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -7819,10 +7866,10 @@ const App: React.FC = () => {
                     <div>
                       <div className="font-bold text-amber-400 flex items-center gap-1">
                         <Zap className="w-3.5 h-3.5" />
-                        <span>DNS 캐시 쾌속 초기화</span>
+                        <span>{lang === 'ko' ? 'DNS 캐시 쾌속 초기화' : 'Flush DNS Resolver Cache'}</span>
                       </div>
                       <p className="text-[10.5px] opacity-70 mt-1">
-                        <code>ipconfig /flushdns</code> 실행. DNS 응답 지연 및 도메인 IP 변경 시 즉시 캐시 갱신.
+                        <code>ipconfig /flushdns</code>. {lang === 'ko' ? 'DNS 응답 지연 및 도메인 IP 변경 시 즉시 캐시 갱신.' : 'Refreshes DNS cache on domain latency or IP change.'}
                       </p>
                     </div>
                     <button
@@ -7830,9 +7877,9 @@ const App: React.FC = () => {
                         const res = await executeWindowsUtility('flushdns');
                         showToast(res.message);
                       }}
-                      className="w-full py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/30 transition-all cursor-pointer"
+                      className="w-full py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/30 transition-all cursor-pointer text-xs"
                     >
-                      ⚡ ipconfig /flushdns 실행
+                      ⚡ {lang === 'ko' ? 'ipconfig /flushdns 실행' : 'Execute ipconfig /flushdns'}
                     </button>
                   </div>
 
@@ -7841,10 +7888,10 @@ const App: React.FC = () => {
                     <div>
                       <div className="font-bold text-sky-400 flex items-center gap-1">
                         <Network className="w-3.5 h-3.5" />
-                        <span>네트워크 어댑터 제어판</span>
+                        <span>{lang === 'ko' ? '네트워크 어댑터 제어판' : 'Network Connections Panel'}</span>
                       </div>
                       <p className="text-[10.5px] opacity-70 mt-1">
-                        <code>control ncpa.cpl</code> 실행. 어댑터 사용 안 함/재연결 및 고정 IP/DNS 설정 창 즉시 호출.
+                        <code>control ncpa.cpl</code>. {lang === 'ko' ? '어댑터 사용 안 함/재연결 및 고정 IP/DNS 설정 창 즉시 호출.' : 'Opens classic network adapter control panel (ncpa.cpl).'}
                       </p>
                     </div>
                     <button
@@ -7852,9 +7899,9 @@ const App: React.FC = () => {
                         const res = await executeWindowsUtility('ncpa.cpl');
                         showToast(res.message);
                       }}
-                      className="w-full py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold border border-sky-500/30 transition-all cursor-pointer"
+                      className="w-full py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-bold border border-sky-500/30 transition-all cursor-pointer text-xs"
                     >
-                      🌐 ncpa.cpl 제어판 열기
+                      🌐 {lang === 'ko' ? 'ncpa.cpl 제어판 열기' : 'Open ncpa.cpl Panel'}
                     </button>
                   </div>
 
@@ -7863,10 +7910,10 @@ const App: React.FC = () => {
                     <div>
                       <div className="font-bold text-emerald-400 flex items-center gap-1">
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>방화벽 예외 규칙 재등록</span>
+                        <span>{lang === 'ko' ? '방화벽 예외 규칙 재등록' : 'Reset Firewall Rules'}</span>
                       </div>
                       <p className="text-[10.5px] opacity-70 mt-1">
-                        <code>netsh advfirewall</code> 실행. RAW 소켓 스캔 및 인바운드/아웃바운드 규칙 실시간 복원.
+                        <code>netsh advfirewall</code>. {lang === 'ko' ? 'RAW 소켓 스캔 및 인바운드/아웃바운드 규칙 실시간 복원.' : 'Restores default firewall rules for scanner & RAW sockets.'}
                       </p>
                     </div>
                     <button
@@ -7874,9 +7921,9 @@ const App: React.FC = () => {
                         const res = await executeWindowsUtility('firewall');
                         showToast(res.message);
                       }}
-                      className="w-full py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                      className="w-full py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/30 transition-all cursor-pointer text-xs"
                     >
-                      🛡️ 방화벽 규칙 복원
+                      🛡️ {lang === 'ko' ? '방화벽 규칙 복원' : 'Restore Firewall Rules'}
                     </button>
                   </div>
 
@@ -7885,18 +7932,18 @@ const App: React.FC = () => {
                     <div>
                       <div className="font-bold text-purple-400 flex items-center gap-1">
                         <Key className="w-3.5 h-3.5" />
-                        <span>관리자 권한 재시작</span>
+                        <span>{lang === 'ko' ? '관리자 권한 재시작' : 'Relaunch as Admin (UAC)'}</span>
                       </div>
                       <p className="text-[10.5px] opacity-70 mt-1">
-                        Windows UAC 승인을 통해 RAW 소켓 L2 SendARP 및 OUI 레지스트리 가속 권한으로 재기동.
+                        {lang === 'ko' ? 'Windows UAC 승인을 통해 RAW 소켓 L2 SendARP 및 OUI 레지스트리 가속 권한으로 재기동.' : 'Relaunch with UAC elevated privileges for RAW sockets & SendARP.'}
                       </p>
                     </div>
                     <button
                       onClick={handleElevateAdmin}
                       disabled={isElevating}
-                      className="w-full py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold border border-purple-500/30 transition-all cursor-pointer disabled:opacity-50"
+                      className="w-full py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold border border-purple-500/30 transition-all cursor-pointer disabled:opacity-50 text-xs"
                     >
-                      🔑 UAC 승인 재시작
+                      🔑 {lang === 'ko' ? 'UAC 승인 재시작' : 'Relaunch with UAC Admin'}
                     </button>
                   </div>
                 </div>
