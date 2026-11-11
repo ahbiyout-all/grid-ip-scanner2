@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.4.45)
+# 🌐 Grid IP Scanner2 (v2.4.46)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**

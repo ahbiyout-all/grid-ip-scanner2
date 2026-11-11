@@ -1,6 +1,6 @@
 # 🛡️ Grid IP Scanner2 - 보안 점검 보고서 (Security Audit Report)
 
-> **보안 검증 대상**: Grid IP Scanner2 v2.4.4  
+> **보안 검증 대상**: Grid IP Scanner2 v2.4.45  
 > **점검 항목**: 암호화, 데이터 무결성, 네트워크 격리, DLL 보안, A4 PDF 생성 무결성, 백신 오진 대응  
 > **최종 판정**: ✅ PASS (보안 수준 최우수)
 

@@ -1,6 +1,39 @@
-# Grid IP Scanner2 - Patch Note (v2.4.45)
+# Grid IP Scanner2 - Patch Note (v2.4.46)
 
-## 🚀 [v2.4.45] - 2026-11-09
+## 🚀 [v2.4.46] - 2026-11-10
+
+### 🌟 시스템 트레이 레거시 대응 서브메뉴, Win32 풍선 도움말 및 24/7 서비스 시각 레이더 애니메이션 구축 (Win32 System Tray Legacy Submenu, Balloon Notifications & Service Radar)
+
+1. **시스템 트레이 계층형 서브메뉴 구축 (`utils_windows.go`)**
+   - **기능 설명**:
+     - Win32 `Shell_NotifyIconW` 및 `CreatePopupMenu` 기반 트레이 컨텍스트 메뉴에 `🛠️ Windows OS 레거시 대응 도구 ▶` 서브메뉴를 신설했습니다.
+     - 서브메뉴 내 `📄 구형 OS 긴급 IP 스캔 & 보고서 생성`, `⚡ DNS 캐시 즉시 초기화 (flushdns)`, `🌐 네트워크 어댑터 제어판 (ncpa.cpl)`, `🛡️ Windows 방화벽 기본 복원 (reset)` 4대 핵심 액션을 내장했습니다.
+
+2. **Zero-Browser 긴급 IP 스캔 및 바탕화면 보고서 연동 (`main.go`, `utils_windows.go`)**
+   - **기능 설명**:
+     - 웹 브라우저나 WebView2가 미설치된 구형 윈도우 환경에서도 트레이 우클릭 한 번으로 64개 병렬 고루틴 스캔을 가동하고 바탕화면에 `Grid_IP_Scan_Result.txt` 생성 및 메모장(`notepad.exe`) 자동 열람을 보장합니다.
+
+3. **Win32 표준 풍선 도움말(Balloon Notification) 피드백 연동 (`utils_windows.go`, `utils_other.go`)**
+   - **기능 설명**:
+     - `showTrayBalloonNotification` 함수를 신설하여 긴급 스캔 시작/완료, DNS 플러시, 어댑터 실행, 방화벽 리셋 완료 시 작업표시줄 우측 하단에 `NIF_INFO` 기반 풍선 알림을 송출합니다.
+     - Deep Audit을 통해 최초 등록 UID(`1001`)와 풍선 수정 UID(`1001`)를 일치시켜 풍선 도움말 수신 안정성을 높이고, 비-Windows용 no-op 스텁을 동기화했습니다.
+
+4. **통합 [환경설정 및 시스템 트레이] 모달 정돈 및 KO/EN 다국어화 (`App.tsx`)**
+   - **기능 설명**:
+     - 사이드바 및 헤더에 분산되어 있던 트레이 조작 버튼들을 정돈하고 unified `[환경설정 및 시스템 트레이]` 대화상자로 통합했습니다.
+     - 모달 내 모든 설정 항목, 토글 라벨, 4대 네트워크 툴 카드에 한국어(`ko`)/영어(`en`) 조건부 i18n 렌더링을 적용했습니다.
+     - DLL 허브 버튼은 메인 UI에서 제거하고 모달 최하단 `고급: C/Win32 엔진 진단` 링크로 깔끔하게 숨김 전환했습니다.
+
+5. **DLL 모듈 7종 아코디언(Collapsible Accordion) 인터랙션 구축 (`components/NativeModulesModal.tsx`)**
+   - **기능 설명**:
+     - 7대 네이티브 DLL 모듈 카드를 기본 접힘(Collapsed) 상태로 컴팩트하게 배치하고, 원클릭 아코디언 상세 열람 및 `[모두 펼치기 / 모두 접기]` 일괄 토글을 적용했습니다.
+
+6. **24/7 무인 백그라운드 서비스(Session 0) 시각 레이더 애니메이션 탑재 (`App.tsx`)**
+   - **기능 설명**:
+     - 윈도우 무인 백그라운드 서비스(`GridIPScannerService`) 가동 시 앱 로고 배지에 Cyan 레이더 핑(`animate-ping`)과 `S` (Session 0) 식별 뱃지를 렌더링합니다.
+     - 환경설정 모달 내 서비스 버튼에 글로우 효과(`shadow-[0_0_12px_rgba(6,182,212,0.25)]`) 및 실시간 동기화 비콘 핑 링을 배치했습니다.
+
+---
 
 ### 🌟 UPnP/SSDP XML & mDNS 기반 실제 제조사 정밀 판별 및 칩셋 OUI 동시 병기 표기 (Real Manufacturer Discovery & Dual OUI Architecture)
 
