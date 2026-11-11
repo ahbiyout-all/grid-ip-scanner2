@@ -23,6 +23,7 @@ interface ElectronAPI {
   onToggleScan?: (callback: () => void) => (() => void) | void;
   onWindowHiddenToTray?: (callback: () => void) => (() => void) | void;
   setCloseToTray?: (enabled: boolean) => void;
+  getCloseToTray?: () => Promise<boolean>;
   exitApplication?: () => void;
 }
 

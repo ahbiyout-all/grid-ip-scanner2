@@ -1,3 +1,24 @@
+### 70. 창 닫기 시 트레이 최소화(Close-to-Tray) 정상화 및 하이브리드 수명주기 동기화 (v2.4.47)
+- **사용자 요청 사항 및 피드백**:
+  - "창닫기시 트레이 최소화 기능 안됨."
+- **원인 규명 및 해결 조치**:
+  1. **[Go 단독 실행 파일(Grid_IP_Scanner2.exe) 하트비트 종료 결함 해결] `main.go`**:
+     - 기존 단독 실행 파일 환경에서 창을 닫을 경우, 브라우저가 종료되면서 `/api/heartbeat` 호출이 단절되었고, 백그라운드 고루틴이 10초 후 무조건 `cleanupAndExit()`를 호출하여 트레이 아이콘과 프로세스가 함께 죽던 버그를 규명.
+     - `closeToTrayEnabled` 변수 및 뮤텍스를 신설하여, 트레이 최소화가 켜져 있으면 창 연결이 끊겨도 프로세스를 유지하고 24/7 침입 감시와 백그라운드 스케줄러를 트레이 상주 모드로 지속하도록 수정.
+     - 창 닫힘 시 윈도우 네이티브 풍선 도움말(`showTrayBalloonNotification`)을 송출하여 트레이 상주 상태를 사용자에게 안내.
+     - 사용자가 환경설정에서 '창 닫기 시 트레이 최소화'를 끌 때만 10초 후 정상 종료되도록 수정.
+  2. **[단독 엔진 수명주기 제어 API 신설] `main.go`**:
+     - `/api/close-to-tray` (GET/POST): 트레이 최소화 설정값 동기화.
+     - `/api/window-closed` (POST): 창 닫힘 시 비콘(`sendBeacon` / `keepalive`)으로 수신하여 풍선 알림 송출 및 백그라운드 유지.
+     - `/api/tray-minimize` (POST): UI 버튼을 통한 트레이 최소화 요청 처리.
+  3. **[Electron 창 닫기 가로채기 버그 해결] `main.js`, `preload.js`**:
+     - `app.on('before-quit')`이 `mainWindow.on('close')`보다 먼저 실행되면서 `isQuitting = true`를 세팅해 `event.preventDefault()`가 무력화되던 버그 수정.
+     - `isExplicitExit` 플래그를 도입하여 명시적 종료 메뉴 클릭 시에만 완전 종료되도록 분리.
+     - 시작 시 `session.defaultSession.clearStorageData()`로 인해 `grid_close_to_tray` 로컬스토리지 설정이 초기화되던 문제 수정.
+  4. **[프론트엔드 동기화 및 원클릭 트레이 최소화 버튼 탑재] `App.tsx`, `env.d.ts`**:
+     - 상단 데스크톱 네비게이션 헤더에 `[📌 트레이 최소화]` 버튼을 신설하여 즉각적인 트레이 격리 지원.
+     - `beforeunload` / `pagehide` 시 `navigator.sendBeacon('/api/window-closed')`를 호출하여 백그라운드 엔진과 실시간 동기화.
+
 ### 69. 시스템 트레이 레거시 대응 서브메뉴, Win32 풍선 도움말 및 24/7 서비스 시각 레이더 애니메이션 구축 (v2.4.46)
 - **사용자 요청 사항 및 피드백**:
   - "인스톨 앱에서는 시스템 트레이를 사용할 방법이 있지 않나요?"

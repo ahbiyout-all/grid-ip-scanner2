@@ -122,14 +122,18 @@ func (p *MapOUIProvider) EntryCount() int {
 }
 
 var (
-	currentOUIProvider OUIProvider
-	currentOUISource   string
-	ouiMutex           sync.RWMutex
-	lastHeartbeat      = time.Now()
-	heartbeatMutex     sync.Mutex
-	tempDir            string
-	emergencyMode      bool
-	emergencyModeMutex sync.Mutex
+	currentOUIProvider   OUIProvider
+	currentOUISource     string
+	ouiMutex             sync.RWMutex
+	lastHeartbeat        = time.Now()
+	heartbeatMutex       sync.Mutex
+	tempDir              string
+	emergencyMode        bool
+	emergencyModeMutex   sync.Mutex
+	closeToTrayEnabled   = true
+	closeToTrayMutex     sync.RWMutex
+	windowConnected      = true
+	windowConnectedMutex sync.Mutex
 )
 
 func getOUICachePath() string {
@@ -1609,7 +1613,122 @@ func main() {
 		heartbeatMutex.Lock()
 		lastHeartbeat = time.Now()
 		heartbeatMutex.Unlock()
+		windowConnectedMutex.Lock()
+		windowConnected = true
+		windowConnectedMutex.Unlock()
 		w.WriteHeader(http.StatusOK)
+	})
+
+	// Close to Tray configuration endpoint
+	http.HandleFunc("/api/close-to-tray", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			enableStr := r.URL.Query().Get("enabled")
+			if enableStr == "" {
+				var body struct {
+					Enabled bool `json:"enabled"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+					enableStr = strconv.FormatBool(body.Enabled)
+				}
+			}
+
+			closeToTrayMutex.Lock()
+			if enableStr == "false" || enableStr == "0" {
+				closeToTrayEnabled = false
+			} else {
+				closeToTrayEnabled = true
+			}
+			val := closeToTrayEnabled
+			closeToTrayMutex.Unlock()
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"enabled": val,
+			})
+			return
+		}
+
+		closeToTrayMutex.RLock()
+		val := closeToTrayEnabled
+		closeToTrayMutex.RUnlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"enabled": val,
+		})
+	})
+
+	// Window closed notification endpoint (called on pagehide / beforeunload beacon)
+	http.HandleFunc("/api/window-closed", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		closeToTrayMutex.RLock()
+		ctt := closeToTrayEnabled
+		closeToTrayMutex.RUnlock()
+
+		windowConnectedMutex.Lock()
+		windowConnected = false
+		windowConnectedMutex.Unlock()
+
+		if ctt {
+			fmt.Println("[Tray] UI Window closed. Close-to-tray is enabled: keeping 24/7 background engine active in system tray.")
+			if runtime.GOOS == "windows" {
+				go showTrayBalloonNotification(
+					"Grid IP Scanner2 트레이 상주 중",
+					"메인 창이 닫혔지만 24/7 백그라운드 침입 감시 및 스케줄러가 시스템 트레이에서 계속 실행 중입니다. 트레이 아이콘을 클릭하여 언제든 다시 열 수 있습니다.",
+				)
+			}
+		} else {
+			fmt.Println("[Tray] UI Window closed and close-to-tray is disabled. Auto-exiting...")
+			go func() {
+				time.Sleep(300 * time.Millisecond)
+				cleanupAndExit()
+			}()
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Direct minimize to tray endpoint
+	http.HandleFunc("/api/tray-minimize", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		windowConnectedMutex.Lock()
+		windowConnected = false
+		windowConnectedMutex.Unlock()
+
+		if runtime.GOOS == "windows" {
+			go showTrayBalloonNotification(
+				"Grid IP Scanner2 시스템 트레이 최소화",
+				"시스템 트레이 영역으로 안전하게 최소화되었습니다. 24/7 침입 감시 및 스케줄러가 백그라운드에서 대기 중입니다.",
+			)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":   true,
+			"minimized": true,
+		})
 	})
 
 	http.HandleFunc("/api/oui/update", func(w http.ResponseWriter, r *http.Request) {
@@ -2911,7 +3030,7 @@ func main() {
 			openAppWindow("http://127.0.0.1:" + port)
 		}()
 
-		// Heartbeat checker: Exit if no heartbeat for 10 seconds (unless in emergency dialog/scan mode or mobile/Android)
+		// Heartbeat checker: Keep engine alive in system tray when close-to-tray is enabled
 		go func() {
 			if runtime.GOOS == "android" || os.Getenv("GRIDSCAN_MODE") == "mobile" {
 				return
@@ -2929,10 +3048,38 @@ func main() {
 				heartbeatMutex.Lock()
 				elapsed := time.Since(lastHeartbeat)
 				heartbeatMutex.Unlock()
-				
+
+				closeToTrayMutex.RLock()
+				ctt := closeToTrayEnabled
+				closeToTrayMutex.RUnlock()
+
 				if elapsed > 10*time.Second {
-					fmt.Println("No heartbeat detected for 10s. Auto-exiting...")
-					cleanupAndExit()
+					if ctt {
+						// Close-to-tray is enabled: DO NOT TERMINATE!
+						// Keep 24/7 intruder watch and scheduler alive in background system tray.
+						windowConnectedMutex.Lock()
+						wasConnected := windowConnected
+						windowConnected = false
+						windowConnectedMutex.Unlock()
+
+						if wasConnected {
+							fmt.Println("UI window disconnected. Close-to-tray enabled: 24/7 background engine remains active in system tray.")
+							if runtime.GOOS == "windows" {
+								showTrayBalloonNotification(
+									"Grid IP Scanner2 트레이 상주 중",
+									"창이 닫혔지만 24/7 백그라운드 침입 감시 및 스케줄러가 시스템 트레이에서 계속 실행 중입니다. 트레이 아이콘을 클릭하여 언제든 다시 열 수 있습니다.",
+								)
+							}
+						}
+					} else {
+						// User explicitly disabled close-to-tray: exit cleanly
+						fmt.Println("Close-to-tray is disabled and no heartbeat for 10s. Auto-exiting...")
+						cleanupAndExit()
+					}
+				} else {
+					windowConnectedMutex.Lock()
+					windowConnected = true
+					windowConnectedMutex.Unlock()
 				}
 			}
 		}()

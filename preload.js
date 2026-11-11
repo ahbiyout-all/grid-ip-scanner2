@@ -86,6 +86,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.warn('Failed to send set-close-to-tray IPC:', e);
     }
   },
+  getCloseToTray: () => {
+    try {
+      return ipcRenderer.invoke('get-close-to-tray');
+    } catch (e) {
+      return Promise.resolve(true);
+    }
+  },
   exitApplication: () => {
     try {
       ipcRenderer.send('exit-application');

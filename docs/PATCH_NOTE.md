@@ -1,4 +1,36 @@
-# Grid IP Scanner2 - Patch Note (v2.4.46)
+# Grid IP Scanner2 - Patch Note (v2.4.47)
+
+## 🚀 [v2.4.47] - 2026-11-11
+
+### 🛠️ 창 닫기 시 트레이 최소화(Close-to-Tray) 정상화 및 하이브리드 수명주기 동기화 (Close-to-Tray Lifecycle Normalization & Process Keep-Alive)
+
+1. **Go 단독 실행 파일(Grid_IP_Scanner2.exe) 하트비트 종료 로직 개선 (`main.go`)**
+   - **원인 분석**:
+     - 기존 단독 실행 파일 환경에서 창을 닫을 경우, 브라우저 프로세스가 닫히면서 `/api/heartbeat` 호출이 중단되었습니다.
+     - 백그라운드 하트비트 감시 루프가 10초 후 `cleanupAndExit()`를 무조건 호출하여, 트레이 최소화 설정(`closeToTray = true`) 상태임에도 트레이 아이콘과 프로세스가 함께 강제 종료되는 결함이 있었습니다.
+   - **수정 내용**:
+     - `closeToTrayEnabled` 상태 변수 및 뮤텍스를 신설했습니다.
+     - 하트비트 단절 시 `closeToTrayEnabled`가 활성화되어 있으면 프로세스를 종료하지 않고 시스템 트레이 상주 모드로 즉시 전환하여 24/7 침입 감시와 백그라운드 스케줄러를 지속 가동합니다.
+     - 윈도우 네이티브 풍선 도움말(`showTrayBalloonNotification`)을 즉시 호출하여 사용자가 창을 닫아도 트레이에서 안전하게 감시 중임을 직관적으로 인지할 수 있도록 개선했습니다.
+     - 사용자가 환경설정에서 '창 닫기 시 트레이 최소화'를 명시적으로 해제했을 때만 10초 후 정상 종료되도록 수정했습니다.
+
+2. **단독 엔진 및 웹 수명주기 제어 API 3종 신설 (`main.go`)**
+   - `/api/close-to-tray` (GET/POST): 트레이 최소화 사용 여부를 실시간 동기화.
+   - `/api/window-closed` (POST): 프론트엔드 창 닫힘 시 비콘(`sendBeacon` / `keepalive`)으로 수신하여 즉시 트레이 상주 풍선 알림 송출 및 백그라운드 모드 전환.
+   - `/api/tray-minimize` (POST): 메인 UI 및 모달의 트레이 최소화 버튼 클릭 시 즉각적인 트레이 격리 및 알림 송출.
+
+3. **Electron 프로세스 수명주기 결함 수정 (`main.js`, `preload.js`)**
+   - **원인 분석**:
+     - Electron 윈도우 환경에서 단일 창이 닫힐 때 `app.on('before-quit')`이 `mainWindow.on('close')`보다 앞서 발생하며 `isQuitting = true`를 세팅하여 `close` 이벤트 가로채기(`event.preventDefault()`)가 무력화되던 버그를 해결했습니다.
+     - `isExplicitExit` 플래그를 도입하여 사용자가 트레이 메뉴의 '애플리케이션 완전 종료'나 명시적 종료 IPC를 눌렀을 때만 종료 절차를 밟도록 격리했습니다.
+     - 기동 시 무조건 호출되던 `session.defaultSession.clearStorageData()`를 제거하여 사용자의 `grid_close_to_tray` 로컬스토리지 설정이 리셋되지 않도록 방지했습니다.
+
+4. **프론트엔드 동기화 및 원클릭 트레이 최소화 버튼 탑재 (`App.tsx`, `env.d.ts`)**
+   - 상단 데스크톱 네비게이션 헤더에 `[📌 트레이 최소화]` 버튼을 신설하여 언제든 한 번의 클릭으로 창을 트레이로 격리할 수 있도록 지원합니다.
+   - `window.addEventListener('pagehide')` 및 `beforeunload` 이벤트 핸들러에서 창 닫힘 감지 시 `navigator.sendBeacon('/api/window-closed')`를 호출하여 백그라운드 엔진과 즉각 동기화합니다.
+   - 환경설정 모달 및 시작 시 `closeToTray` 상태를 Electron IPC와 Go 백엔드 양쪽으로 모두 실시간 동기화합니다.
+
+---
 
 ## 🚀 [v2.4.46] - 2026-11-10
 

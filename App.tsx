@@ -1242,11 +1242,12 @@ const App: React.FC = () => {
     }
   });
 
-  // Synchronize close-to-tray setting with Electron main process
+  // Synchronize close-to-tray setting with Electron main process and Go backend
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).electronAPI?.setCloseToTray) {
       (window as any).electronAPI.setCloseToTray(closeToTray);
     }
+    fetch(`/api/close-to-tray?enabled=${closeToTray}`, { method: 'POST' }).catch(() => {});
   }, [closeToTray]);
 
   const [showWindowsUtilModal, setShowWindowsUtilModal] = useState(false);
@@ -1263,7 +1264,18 @@ const App: React.FC = () => {
       (window as any).electronAPI.minimizeToTray();
       showToast(lang === 'ko' ? '📌 백그라운드 시스템 트레이로 최소화되었습니다.' : '📌 Minimized to background system tray.');
     } else {
-      showToast(lang === 'ko' ? '📌 시스템 트레이 최소화 모드 가동 중 (백그라운드 스캐너 활성화)' : '📌 System Tray minimize active in background');
+      // Standalone Win32 / Webview mode: notify Go engine
+      fetch('/api/tray-minimize', { method: 'POST' }).catch(() => {});
+      showToast(
+        lang === 'ko' 
+          ? '📌 시스템 트레이로 최소화되었습니다. 창을 닫아도 24/7 침입 감시가 백그라운드에서 계속 상주 가동됩니다.' 
+          : '📌 Minimized to system tray. 24/7 intruder watch remains active in background.'
+      );
+      try {
+        if (window.opener || window.name === 'GridIPScannerApp' || window.history.length === 1) {
+          window.close();
+        }
+      } catch (_) {}
     }
     setShowWindowsUtilModal(false);
   }, [lang, showToast]);
@@ -1493,6 +1505,17 @@ const App: React.FC = () => {
     };
 
     const handlePageHideOrUnload = () => {
+      // If closeToTray is enabled, notify backend so it triggers tray balloon and keeps engine alive
+      if (closeToTray) {
+        try {
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/window-closed');
+          } else {
+            fetch('/api/window-closed', { method: 'POST', keepalive: true }).catch(() => {});
+          }
+        } catch (_) {}
+      }
+
       if (isScanningRef.current) {
         stopScanRef.current = true;
         if (abortControllerRef.current) {
@@ -1516,7 +1539,7 @@ const App: React.FC = () => {
       window.removeEventListener('pagehide', handlePageHideOrUnload);
       window.removeEventListener('unload', handlePageHideOrUnload);
     };
-  }, [lang]);
+  }, [lang, closeToTray]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -4488,6 +4511,17 @@ const App: React.FC = () => {
               >
                 {themeIcon}
                 <span>{themeName}</span>
+              </button>
+
+              {/* Quick Tray Minimize Button */}
+              <button
+                type="button"
+                onClick={handleMinimizeToTray}
+                title={lang === 'ko' ? "창을 시스템 트레이로 최소화 (24/7 침입 감시 백그라운드 상주)" : "Minimize window to system tray (keep 24/7 watch active)"}
+                className="px-2 py-1 rounded-lg border border-cyan-500/40 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 text-[10px] font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer active:scale-95 shadow-xs"
+              >
+                <Monitor className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden lg:inline">{lang === 'ko' ? "트레이 최소화" : "To Tray"}</span>
               </button>
 
               {/* Preferences & System Tray Settings Button */}

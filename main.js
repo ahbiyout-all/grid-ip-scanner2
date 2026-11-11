@@ -6,7 +6,21 @@ let mainWindow = null;
 let tray = null;
 let currentContextMenu = null;
 let isQuitting = false;
+let isExplicitExit = false;
 let closeToTrayEnabled = true;
+
+function showTrayBalloon(title, content) {
+  try {
+    if (tray && tray.displayBalloon) {
+      tray.displayBalloon({
+        title: title || 'Grid IP Scanner2',
+        content: content || '24/7 백그라운드 침입 감시 가동 중'
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to display tray balloon:', e);
+  }
+}
 
 // Set userData to a temporary directory to leave no traces
 const tempUserData = path.join(app.getPath('temp'), `grid_ip_scanner_electron_${Date.now()}`);
@@ -178,9 +192,6 @@ function createWindow() {
     }
   });
 
-  // Clear all storage data on startup
-  session.defaultSession.clearStorageData();
-
   const indexPath = path.join(__dirname, 'dist', 'index.html');
   
   mainWindow.loadFile(indexPath).catch(err => {
@@ -189,19 +200,17 @@ function createWindow() {
 
   // Close to Tray behavior
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
+    if (!isExplicitExit) {
       if (closeToTrayEnabled) {
         event.preventDefault();
         sendToMainWindow('window-hidden-to-tray');
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.hide();
         }
-        if (tray && tray.displayBalloon) {
-          tray.displayBalloon({
-            title: 'Grid IP Scanner2',
-            content: '앱이 시스템 트레이로 최소화되었습니다. 24/7 침입 감시 및 무인 스케줄러가 계속 가동됩니다.'
-          });
-        }
+        showTrayBalloon(
+          'Grid IP Scanner2',
+          '앱이 시스템 트레이로 최소화되었습니다. 24/7 침입 감시 및 무인 스케줄러가 계속 가동됩니다.'
+        );
         return false;
       } else {
         terminateApplicationCleanly();
@@ -217,6 +226,10 @@ function createWindow() {
 // IPC Handlers
 ipcMain.on('set-close-to-tray', (event, val) => {
   closeToTrayEnabled = Boolean(val);
+});
+
+ipcMain.handle('get-close-to-tray', () => {
+  return closeToTrayEnabled;
 });
 
 ipcMain.on('minimize-to-tray', () => {
@@ -287,6 +300,8 @@ ipcMain.on('update-tray-status', (event, status) => {
 });
 
 function terminateApplicationCleanly() {
+  if (isExplicitExit) return;
+  isExplicitExit = true;
   isQuitting = true;
 
   // 1. Terminate Windows Background Service cleanly if running
@@ -350,7 +365,18 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (!isExplicitExit && closeToTrayEnabled) {
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+    }
+    showTrayBalloon(
+      'Grid IP Scanner2',
+      '앱이 시스템 트레이로 최소화되었습니다. 24/7 침입 감시 및 무인 스케줄러가 계속 가동됩니다.'
+    );
+    return;
+  }
   isQuitting = true;
 });
 
