@@ -108,7 +108,7 @@ int Fingerprint_ClassifyDevice(
         strlen(rtsp) > 0 || stristr_local(v, "Hikvision") || stristr_local(v, "Dahua") ||
         stristr_local(v, "Axis") || stristr_local(v, "Hanwha") || stristr_local(v, "Uniview") ||
         stristr_local(s, "App-webs") || stristr_local(s, "DVRDVS-Webs") || stristr_local(h, "CAM") || stristr_local(h, "IPC")) {
-        if (has_port(p, 554) || has_port(p, 37777) || has_port(p, 8000) || stristr_local(v, "Hikvision") || stristr_local(v, "Dahua")) {
+        if (has_port(p, 554) || has_port(p, 37777) || has_port(p, 8899) || has_port(p, 8000) || stristr_local(v, "Hikvision") || stristr_local(v, "Dahua")) {
             out->categoryCode = DEVICE_CAT_IP_CAMERA;
             safe_strcpy(out->categoryName, "CCTV / IP 카메라 / NVR (Surveillance)", sizeof(out->categoryName));
             safe_strcpy(out->detectedOS, "Embedded Linux (IP Camera Firmware)", sizeof(out->detectedOS));
@@ -116,6 +116,39 @@ int Fingerprint_ClassifyDevice(
             out->confidencePercent = 95;
             return 1;
         }
+    }
+
+    // 2.5 Smart TV / Media & Game Console
+    if (has_port(p, 8008) || has_port(p, 8009) || has_port(p, 9080) || stristr_local(v, "Sonos") ||
+        stristr_local(v, "Roku") || stristr_local(h, "bravia") || stristr_local(h, "webos") || stristr_local(h, "tizen") ||
+        stristr_local(h, "apple-tv") || stristr_local(h, "chromecast")) {
+        out->categoryCode = DEVICE_CAT_MEDIA_TV;
+        safe_strcpy(out->categoryName, "스마트TV / 미디어 스트리밍 (Smart TV/Media)", sizeof(out->categoryName));
+        safe_strcpy(out->detectedOS, "Smart TV / Media OS", sizeof(out->detectedOS));
+        snprintf(out->hardwareModel, sizeof(out->hardwareModel), "%s Media Device", strlen(v) > 0 ? v : "Smart");
+        out->confidencePercent = 90;
+        return 1;
+    }
+
+    if (stristr_local(v, "Nintendo") || stristr_local(v, "Valve") || stristr_local(h, "playstation") ||
+        stristr_local(h, "ps5") || stristr_local(h, "xbox") || stristr_local(h, "nintendo")) {
+        out->categoryCode = DEVICE_CAT_GAME_CONSOLE;
+        safe_strcpy(out->categoryName, "게임 콘솔 (Game Console)", sizeof(out->categoryName));
+        safe_strcpy(out->detectedOS, "Console OS", sizeof(out->detectedOS));
+        snprintf(out->hardwareModel, sizeof(out->hardwareModel), "%s Gaming Console", strlen(v) > 0 ? v : "Console");
+        out->confidencePercent = 90;
+        return 1;
+    }
+
+    // 2.7 IoT / Smart Home (MQTT / Espressif / Tuya / Hue / HomeAssistant)
+    if (has_port(p, 1883) || has_port(p, 8883) || stristr_local(v, "Espressif") || stristr_local(v, "Tuya") ||
+        stristr_local(v, "Signify") || stristr_local(v, "Shelly") || stristr_local(h, "homeassistant") || stristr_local(h, "esp-")) {
+        out->categoryCode = DEVICE_CAT_IOT_SMART_DEVICE;
+        safe_strcpy(out->categoryName, "IoT / 스마트홈 센서 (IoT Device)", sizeof(out->categoryName));
+        safe_strcpy(out->detectedOS, "Embedded IoT / RTOS", sizeof(out->detectedOS));
+        snprintf(out->hardwareModel, sizeof(out->hardwareModel), "%s Smart IoT Node", strlen(v) > 0 ? v : "IoT");
+        out->confidencePercent = 92;
+        return 1;
     }
 
     // 3. NAS / Network Storage
@@ -390,6 +423,32 @@ int Fingerprint_AnalyzeFullHost(
 // ============================================================================
 // JSON Bridge Interface (Fast C to Go/JS Interop)
 // ============================================================================
+static void json_escape_str(const char* src, char* dst, size_t cap) {
+    if (!dst || cap == 0) return;
+    if (!src) { dst[0] = '\0'; return; }
+    size_t j = 0;
+    for (size_t i = 0; src[i] != '\0' && j + 2 < cap; i++) {
+        unsigned char c = (unsigned char)src[i];
+        if (c == '"' || c == '\\') {
+            if (j + 3 >= cap) break;
+            dst[j++] = '\\';
+            dst[j++] = (char)c;
+        } else if (c == '\n') {
+            if (j + 3 >= cap) break;
+            dst[j++] = '\\'; dst[j++] = 'n';
+        } else if (c == '\r') {
+            if (j + 3 >= cap) break;
+            dst[j++] = '\\'; dst[j++] = 'r';
+        } else if (c == '\t') {
+            if (j + 3 >= cap) break;
+            dst[j++] = '\\'; dst[j++] = 't';
+        } else if (c >= 0x20) {
+            dst[j++] = (char)c;
+        }
+    }
+    dst[j] = '\0';
+}
+
 int Fingerprint_AnalyzeJson(
     const char* inJson,
     char* outJson,
@@ -400,19 +459,25 @@ int Fingerprint_AnalyzeJson(
     HostFingerprintProfile prof;
     memset(&prof, 0, sizeof(prof));
 
-    // Simple robust JSON extractor for keys: ip, mac, vendor, hostname, workgroup, ttl, ports
+    // Safe JSON string extractor (handles empty "" values and \" escapes cleanly)
     const char* p;
     #define EXTRACT_STR(key, target) do { \
         p = strstr(inJson, "\"" key "\""); \
         if (p) { \
-            p = strchr(p, ':'); \
-            if (p) { \
-                while (*p && (*p == ' ' || *p == '"' || *p == ':')) p++; \
-                size_t idx = 0; \
-                while (*p && *p != '"' && *p != ',' && *p != '}' && idx < sizeof(target) - 1) { \
-                    target[idx++] = *p++; \
+            p += strlen("\"" key "\""); \
+            while (*p && (*p == ' ' || *p == '\t')) p++; \
+            if (*p == ':') { \
+                p++; \
+                while (*p && (*p == ' ' || *p == '\t')) p++; \
+                if (*p == '"') { \
+                    p++; \
+                    size_t idx = 0; \
+                    while (*p && *p != '"' && idx < sizeof(target) - 1) { \
+                        if (*p == '\\' && *(p + 1) != '\0') p++; \
+                        target[idx++] = *p++; \
+                    } \
+                    target[idx] = '\0'; \
                 } \
-                target[idx] = '\0'; \
             } \
         } \
     } while (0)
@@ -453,7 +518,13 @@ int Fingerprint_AnalyzeJson(
     SecurityRiskResult risk;
     Fingerprint_AnalyzeFullHost(&prof, &cls, &risk);
 
-    // Escape helper for JSON output
+    char escCat[256], escOs[256], escModel[256], escVuln[1024], escRec[512];
+    json_escape_str(cls.categoryName, escCat, sizeof(escCat));
+    json_escape_str(cls.detectedOS, escOs, sizeof(escOs));
+    json_escape_str(cls.hardwareModel, escModel, sizeof(escModel));
+    json_escape_str(risk.vulnerabilityList, escVuln, sizeof(escVuln));
+    json_escape_str(risk.recommendation, escRec, sizeof(escRec));
+
     int written = snprintf(outJson, maxOutLen,
         "{"
         "\"categoryCode\":%d,"
@@ -468,15 +539,15 @@ int Fingerprint_AnalyzeJson(
         "\"recommendation\":\"%s\""
         "}",
         cls.categoryCode,
-        cls.categoryName,
-        cls.detectedOS,
-        cls.hardwareModel,
+        escCat,
+        escOs,
+        escModel,
         cls.confidencePercent,
         risk.riskLevelName,
         risk.riskScore,
         risk.vulnerabilityCount,
-        risk.vulnerabilityList,
-        risk.recommendation
+        escVuln,
+        escRec
     );
 
     return (written > 0 && written < maxOutLen) ? 1 : 0;

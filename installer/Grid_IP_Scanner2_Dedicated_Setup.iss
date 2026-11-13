@@ -161,6 +161,8 @@ Source: "..\grid_pcap_analyzer.dll"; DestDir: "{app}"; Flags: ignoreversion skip
 Source: "..\native_dll\grid_pcap_analyzer.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_fingerprint_engine.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\native_dll\grid_fingerprint_engine.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\grid_topology_guard.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\native_dll\grid_topology_guard.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_net_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\native_dll\grid_net_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\grid_vault_driver.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist

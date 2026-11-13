@@ -25,26 +25,32 @@
 #endif
 
 static HMODULE hWpcap = NULL;
-static int npcapChecked = 0;
-static int npcapAvailable = 0;
+static LONG volatile npcapState = 0; /* 0=uninit, 1=probing, 2=done */
+static LONG volatile npcapAvailable = 0;
 
 int Pcap_GetVersion(void) {
-    return 20500;
+    return 20501;
 }
 
 int Pcap_IsNpcapAvailable(void) {
-    if (!npcapChecked) {
-        hWpcap = LoadLibraryA("wpcap.dll");
-        if (hWpcap) {
-            npcapAvailable = 1;
-        } else {
-            // Check Npcap custom system32 folder if installed
-            hWpcap = LoadLibraryA("C:\\Windows\\System32\\Npcap\\wpcap.dll");
-            if (hWpcap) npcapAvailable = 1;
-        }
-        npcapChecked = 1;
+    if (InterlockedCompareExchange(&npcapState, 0, 0) == 2) {
+        return (int)InterlockedCompareExchange(&npcapAvailable, 0, 0);
     }
-    return npcapAvailable;
+    if (InterlockedCompareExchange(&npcapState, 1, 0) == 0) {
+        HMODULE mod = LoadLibraryA("wpcap.dll");
+        if (!mod) {
+            // Check Npcap custom system32 folder if installed
+            mod = LoadLibraryA("C:\\Windows\\System32\\Npcap\\wpcap.dll");
+        }
+        hWpcap = mod;
+        InterlockedExchange(&npcapAvailable, mod ? 1 : 0);
+        InterlockedExchange(&npcapState, 2);
+    } else {
+        while (InterlockedCompareExchange(&npcapState, 0, 0) != 2) {
+            Sleep(0);
+        }
+    }
+    return (int)InterlockedCompareExchange(&npcapAvailable, 0, 0);
 }
 
 int Pcap_DetectOSFromSynAck(
@@ -55,6 +61,7 @@ int Pcap_DetectOSFromSynAck(
     int maxLen,
     int* outTtl
 ) {
+    (void)port;
     if (!targetIp || !outOsName || maxLen < 1) return 0;
     outOsName[0] = '\0';
     if (outTtl) *outTtl = 0;
@@ -99,13 +106,12 @@ int Pcap_DetectOSFromSynAck(
     if (ttl > 0) {
         if (outTtl) *outTtl = ttl;
         if (ttl <= 64) {
-            strncpy(outOsName, "Linux / Android / macOS / iOS (TTL 64)", maxLen - 1);
+            snprintf(outOsName, (size_t)maxLen, "%s", "Linux / Android / macOS / iOS (TTL 64)");
         } else if (ttl <= 128) {
-            strncpy(outOsName, "Windows PC / Server (TTL 128)", maxLen - 1);
+            snprintf(outOsName, (size_t)maxLen, "%s", "Windows PC / Server (TTL 128)");
         } else {
-            strncpy(outOsName, "Cisco IOS / Network Switch / Gateway (TTL 255)", maxLen - 1);
+            snprintf(outOsName, (size_t)maxLen, "%s", "Cisco IOS / Network Switch / Gateway (TTL 255)");
         }
-        outOsName[maxLen - 1] = '\0';
         return 1;
     }
 
@@ -135,7 +141,7 @@ int Pcap_DetectArpSpoofing(
                  macAddr[3], macAddr[4], macAddr[5]);
 
         if (strlen(expectedMac) >= 17 && _stricmp(liveMac, expectedMac) != 0) {
-            snprintf(outAlertMessage, maxLen,
+            snprintf(outAlertMessage, (size_t)maxLen,
                      "WARNING: Potential ARP Spoofing Detected! Expected [%s] but live is [%s]",
                      expectedMac, liveMac);
             return 1; // Anomaly detected!
@@ -145,12 +151,30 @@ int Pcap_DetectArpSpoofing(
     return 0; // Normal
 }
 
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    (void)hinstDLL;
+    (void)lpvReserved;
+    if (fdwReason == DLL_PROCESS_DETACH) {
+        if (hWpcap) {
+            FreeLibrary(hWpcap);
+            hWpcap = NULL;
+        }
+        InterlockedExchange(&npcapAvailable, 0);
+        InterlockedExchange(&npcapState, 0);
+    }
+    return TRUE;
+}
+
 #else
-int Pcap_GetVersion(void) { return 20500; }
+int Pcap_GetVersion(void) { return 20501; }
 int Pcap_IsNpcapAvailable(void) { return 0; }
 int Pcap_DetectOSFromSynAck(const char* targetIp, int port, int timeoutMs, char* outOsName, int maxLen, int* outTtl) {
+    (void)targetIp; (void)port; (void)timeoutMs; (void)outOsName; (void)maxLen;
     if (outTtl) *outTtl = 0;
     return 0;
 }
-int Pcap_DetectArpSpoofing(const char* targetIp, const char* expectedMac, char* outAlertMessage, int maxLen) { return 0; }
+int Pcap_DetectArpSpoofing(const char* targetIp, const char* expectedMac, char* outAlertMessage, int maxLen) {
+    (void)targetIp; (void)expectedMac; (void)outAlertMessage; (void)maxLen;
+    return 0;
+}
 #endif

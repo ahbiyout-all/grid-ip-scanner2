@@ -21,25 +21,33 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-static int winsockInitialized = 0;
+static LONG volatile winsockState = 0; /* 0=uninit, 1=init, 2=ready */
 static CRITICAL_SECTION lockPort;
 
 static void EnsureWinsock(void) {
-    if (!winsockInitialized) {
+    if (InterlockedCompareExchange(&winsockState, 0, 0) == 2) return;
+    if (InterlockedCompareExchange(&winsockState, 1, 0) == 0) {
         WSADATA wsa;
         WSAStartup(MAKEWORD(2, 2), &wsa);
         InitializeCriticalSection(&lockPort);
-        winsockInitialized = 1;
+        InterlockedExchange(&winsockState, 2);
+    } else {
+        while (InterlockedCompareExchange(&winsockState, 0, 0) != 2) {
+            Sleep(0);
+        }
     }
 }
 
 int PortScan_GetVersion(void) {
-    return 20500;
+    return 20501;
 }
 
 int PortScan_ProbeSingle(const char* targetIp, int port, int timeoutMs) {
     if (!targetIp || port <= 0 || port > 65535) return 0;
     EnsureWinsock();
+
+    unsigned long ipAddr = inet_addr(targetIp);
+    if (ipAddr == INADDR_NONE) return 0;
 
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) return 0;
@@ -52,7 +60,7 @@ int PortScan_ProbeSingle(const char* targetIp, int port, int timeoutMs) {
     memset(&target, 0, sizeof(target));
     target.sin_family = AF_INET;
     target.sin_port = htons((u_short)port);
-    target.sin_addr.s_addr = inet_addr(targetIp);
+    target.sin_addr.s_addr = ipAddr;
 
     connect(s, (struct sockaddr*)&target, sizeof(target));
 
@@ -62,9 +70,10 @@ int PortScan_ProbeSingle(const char* targetIp, int port, int timeoutMs) {
     FD_SET(s, &writeSet);
     FD_SET(s, &errSet);
 
+    int effTimeout = timeoutMs > 0 ? timeoutMs : 300;
     struct timeval tv;
-    tv.tv_sec = timeoutMs / 1000;
-    tv.tv_usec = (timeoutMs % 1000) * 1000;
+    tv.tv_sec = effTimeout / 1000;
+    tv.tv_usec = (effTimeout % 1000) * 1000;
 
     int sel = select(0, NULL, &writeSet, &errSet, &tv);
     int isOpen = 0;
@@ -123,6 +132,10 @@ int PortScan_RunBatch(
     int* outOpenCount
 ) {
     if (!targetIp || !portList || portCount <= 0 || !outOpenPorts || !outOpenCount) return 0;
+    if (inet_addr(targetIp) == INADDR_NONE) {
+        *outOpenCount = 0;
+        return 0;
+    }
     EnsureWinsock();
 
     *outOpenCount = 0;
@@ -141,13 +154,33 @@ int PortScan_RunBatch(
     ctx.nextIndex = 0;
 
     HANDLE threads[64];
+    int validCount = 0;
     for (int i = 0; i < maxConcurrency; i++) {
-        threads[i] = CreateThread(NULL, 0, BatchWorkerThread, &ctx, 0, NULL);
+        HANDLE h = CreateThread(NULL, 0, BatchWorkerThread, &ctx, 0, NULL);
+        if (h) {
+            threads[validCount++] = h;
+        }
     }
 
-    WaitForMultipleObjects(maxConcurrency, threads, TRUE, INFINITE);
-    for (int i = 0; i < maxConcurrency; i++) {
-        if (threads[i]) CloseHandle(threads[i]);
+    if (validCount > 0) {
+        WaitForMultipleObjects((DWORD)validCount, threads, TRUE, INFINITE);
+        for (int i = 0; i < validCount; i++) {
+            CloseHandle(threads[i]);
+        }
+    } else {
+        BatchWorkerThread(&ctx);
+    }
+
+    // Sort open ports ascending
+    int cnt = *outOpenCount;
+    for (int i = 1; i < cnt; i++) {
+        int key = outOpenPorts[i];
+        int j = i - 1;
+        while (j >= 0 && outOpenPorts[j] > key) {
+            outOpenPorts[j + 1] = outOpenPorts[j];
+            j--;
+        }
+        outOpenPorts[j + 1] = key;
     }
 
     return 1;
@@ -156,17 +189,10 @@ int PortScan_RunBatch(
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     (void)hinstDLL;
     (void)lpvReserved;
-    switch (fdwReason) {
-        case DLL_PROCESS_ATTACH:
-            EnsureWinsock();
-            break;
-        case DLL_PROCESS_DETACH:
-            if (winsockInitialized) {
-                DeleteCriticalSection(&lockPort);
-                WSACleanup();
-                winsockInitialized = 0;
-            }
-            break;
+    if (fdwReason == DLL_PROCESS_DETACH && InterlockedCompareExchange(&winsockState, 0, 0) == 2) {
+        DeleteCriticalSection(&lockPort);
+        WSACleanup();
+        InterlockedExchange(&winsockState, 0);
     }
     return TRUE;
 }

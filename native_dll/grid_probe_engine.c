@@ -25,17 +25,22 @@
 #endif
 
 static LARGE_INTEGER qpcFreq;
-static int qpcInit = 0;
+static LONG volatile qpcState = 0; /* 0=uninit, 1=init-in-progress, 2=ready */
 
 static void EnsureQpcInit(void) {
-    if (!qpcInit) {
+    if (InterlockedCompareExchange(&qpcState, 0, 0) == 2) return;
+    if (InterlockedCompareExchange(&qpcState, 1, 0) == 0) {
         QueryPerformanceFrequency(&qpcFreq);
-        qpcInit = 1;
+        InterlockedExchange(&qpcState, 2);
+    } else {
+        while (InterlockedCompareExchange(&qpcState, 0, 0) != 2) {
+            Sleep(0);
+        }
     }
 }
 
 int Probe_GetDriverVersion(void) {
-    return 20500; // v2.5.0
+    return 20501; // v2.5.1
 }
 
 int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) {
@@ -132,7 +137,7 @@ static DWORD WINAPI ProbeWorkerThread(LPVOID param) {
     if (task->resultTarget) {
         snprintf(task->resultTarget->ip, sizeof(task->resultTarget->ip), "%s", task->ipStr);
         snprintf(task->resultTarget->mac, sizeof(task->resultTarget->mac), "%s", mac);
-        task->resultTarget->rttMs = (pingSuccess ? rtt : 0.5);
+        task->resultTarget->rttMs = (pingSuccess ? rtt : (arpSuccess ? 0.5 : -1.0));
         task->resultTarget->isAlive = isAlive;
         task->resultTarget->isArpAlive = arpSuccess;
     }
@@ -153,22 +158,23 @@ int Probe_SweepSubnetAsync(
 ) {
     if (!startIp || count <= 0 || count > 1024) return 0;
 
-    unsigned long baseIp = ntohl(inet_addr(startIp));
-    if (baseIp == INADDR_NONE) return 0;
+    unsigned long parsedAddr = inet_addr(startIp);
+    if (parsedAddr == INADDR_NONE) return 0;
+    unsigned long baseIp = ntohl(parsedAddr);
 
     HANDLE threads[128];
     int activeThreads = 0;
 
     for (int i = 0; i < count; i++) {
         unsigned long curIp = baseIp + (unsigned long)i;
-        struct in_addr in;
-        in.s_addr = htonl(curIp);
 
-        WorkerTask* task = (WorkerTask*)malloc(sizeof(WorkerTask));
+        WorkerTask* task = (WorkerTask*)calloc(1, sizeof(WorkerTask));
         if (!task) continue;
 
         task->ipLong = curIp;
-        strncpy(task->ipStr, inet_ntoa(in), sizeof(task->ipStr) - 1);
+        snprintf(task->ipStr, sizeof(task->ipStr), "%lu.%lu.%lu.%lu",
+                 (curIp >> 24) & 0xFF, (curIp >> 16) & 0xFF,
+                 (curIp >> 8) & 0xFF, curIp & 0xFF);
         task->timeoutMs = timeoutMs;
         task->callback = callback;
         task->resultTarget = NULL;
@@ -176,8 +182,8 @@ int Probe_SweepSubnetAsync(
         HANDLE hThread = CreateThread(NULL, 0, ProbeWorkerThread, task, 0, NULL);
         if (hThread) {
             threads[activeThreads++] = hThread;
-            if (activeThreads >= 128) {
-                WaitForMultipleObjects(activeThreads, threads, TRUE, INFINITE);
+            if (activeThreads >= 64) {
+                WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
                 for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
                 activeThreads = 0;
             }
@@ -187,7 +193,7 @@ int Probe_SweepSubnetAsync(
     }
 
     if (activeThreads > 0) {
-        WaitForMultipleObjects(activeThreads, threads, TRUE, INFINITE);
+        WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
         for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
     }
 
@@ -203,22 +209,23 @@ int Probe_BatchSweep(
 ) {
     if (!startIp || count <= 0 || !outResults || maxResults < count) return 0;
 
-    unsigned long baseIp = ntohl(inet_addr(startIp));
-    if (baseIp == INADDR_NONE) return 0;
+    unsigned long parsedAddr = inet_addr(startIp);
+    if (parsedAddr == INADDR_NONE) return 0;
+    unsigned long baseIp = ntohl(parsedAddr);
 
     HANDLE threads[64];
     int activeThreads = 0;
 
     for (int i = 0; i < count; i++) {
         unsigned long curIp = baseIp + (unsigned long)i;
-        struct in_addr in;
-        in.s_addr = htonl(curIp);
 
-        WorkerTask* task = (WorkerTask*)malloc(sizeof(WorkerTask));
+        WorkerTask* task = (WorkerTask*)calloc(1, sizeof(WorkerTask));
         if (!task) continue;
 
         task->ipLong = curIp;
-        strncpy(task->ipStr, inet_ntoa(in), sizeof(task->ipStr) - 1);
+        snprintf(task->ipStr, sizeof(task->ipStr), "%lu.%lu.%lu.%lu",
+                 (curIp >> 24) & 0xFF, (curIp >> 16) & 0xFF,
+                 (curIp >> 8) & 0xFF, curIp & 0xFF);
         task->timeoutMs = timeoutMs;
         task->callback = NULL;
         task->resultTarget = &outResults[i];
@@ -227,7 +234,7 @@ int Probe_BatchSweep(
         if (hThread) {
             threads[activeThreads++] = hThread;
             if (activeThreads >= 64) {
-                WaitForMultipleObjects(activeThreads, threads, TRUE, INFINITE);
+                WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
                 for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
                 activeThreads = 0;
             }
@@ -237,7 +244,7 @@ int Probe_BatchSweep(
     }
 
     if (activeThreads > 0) {
-        WaitForMultipleObjects(activeThreads, threads, TRUE, INFINITE);
+        WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
         for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
     }
 

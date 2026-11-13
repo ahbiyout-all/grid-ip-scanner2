@@ -1,13 +1,14 @@
 /**
  * Grid IP Scanner2 - Native Modules Service
- * High-performance client bridge for the 7 roadmap native DLL modules:
- *   1. grid_probe_engine.dll  (Async ICMP & L2 SendARP sweep)
- *   2. grid_port_iocp.dll     (IOCP high-concurrency port scanner)
- *   3. grid_discovery.dll     (mDNS, SSDP, LLMNR, NetBIOS multicast discovery)
- *   4. grid_oui_trie.dll      (In-memory Radix-Trie OUI search engine)
- *   5. grid_banner_grabber.dll(HTTP, SSH, RTSP, TLS deep banner grabber)
- *   6. grid_pcap_analyzer.dll (Npcap kernel packet capture & OS fingerprinting)
+ * High-performance client bridge for the 8 specialized native DLL modules:
+ *   1. grid_probe_engine.dll     (Async ICMP & L2 SendARP sweep)
+ *   2. grid_port_iocp.dll        (IOCP high-concurrency port scanner)
+ *   3. grid_discovery.dll        (mDNS, SSDP, LLMNR, NetBIOS multicast discovery)
+ *   4. grid_oui_trie.dll         (In-memory Radix-Trie OUI search engine)
+ *   5. grid_banner_grabber.dll   (HTTP, SSH, RTSP, TLS deep banner grabber)
+ *   6. grid_pcap_analyzer.dll    (Npcap kernel packet capture & OS fingerprinting)
  *   7. grid_fingerprint_engine.dll (AI heuristic device fingerprinting & security scoring)
+ *   8. grid_topology_guard.dll   (Sub-millisecond topology diff, conflict hash & LAA guard)
  * Copyright (c) 2025-2026 AhBiYout. All rights reserved.
  */
 
@@ -18,6 +19,7 @@ import {
   NativeOsDetectResult,
   NativeArpSpoofResult,
   NativeFingerprintResult,
+  NativeTopologyGuardResult,
 } from '../types';
 
 /**
@@ -43,6 +45,7 @@ export async function fetchNativeModulesStatus(): Promise<NativeModulesStatus> {
     bannerGrabber: false,
     pcapAnalyzer: false,
     fingerprintEngine: false,
+    topologyGuard: false,
     npcapLoaded: false,
   };
 }
@@ -156,6 +159,41 @@ export async function fetchDeviceFingerprint(params: {
       const data = await res.json();
       if (data.success && data.result) {
         return data.result as NativeFingerprintResult;
+      }
+    }
+  } catch {
+    // Ignore
+  }
+  return null;
+}
+
+export interface TopologyGuardHostPayload {
+  ip: string;
+  mac?: string;
+  hostname?: string;
+  vendor?: string;
+  openPorts?: number[];
+  isTrusted?: boolean;
+}
+
+/**
+ * Runs sub-millisecond subnet topology diff, conflict hash, Proxy-ARP & LAA Random MAC Guard via grid_topology_guard.dll.
+ */
+export async function analyzeNativeTopologyGuard(params: {
+  current: TopologyGuardHostPayload[];
+  baseline: TopologyGuardHostPayload[];
+}): Promise<NativeTopologyGuardResult | null> {
+  try {
+    const res = await fetch('/api/topology-guard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.result) {
+        return data.result as NativeTopologyGuardResult;
       }
     }
   } catch {

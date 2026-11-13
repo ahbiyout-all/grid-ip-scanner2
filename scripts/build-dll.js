@@ -1,84 +1,163 @@
 /**
- * Grid IP Scanner2 - Native Dynamic Link Library (DLL) Build Orchestrator
- * Copyright (c) 2025-2026 AhBiYout  All rights reserved.
- * 
- * Compiles `grid_net_driver.dll` using GCC, Clang, or Go c-shared compiler
- * and distributes it to the application root and installer payload directories.
+ * Grid IP Scanner2 - Master Native DLL Build Orchestrator
+ * Compiles & distributes all 12 modular C/C++ native DLLs into root, winres/, and dist_installer/.
+ * Copyright (c) 2025-2026 AhBiYout. All rights reserved.
  */
 
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🚀 Grid IP Scanner2 - Native DLL Build Orchestrator Started');
+console.log('🚀 Grid IP Scanner2 - Master Native DLL Build Orchestrator (12 Modules) Started');
 
 const rootDir = path.resolve(__dirname, '..');
 const nativeDllDir = path.join(rootDir, 'native_dll');
-const cSource = path.join(nativeDllDir, 'grid_net_driver.c');
-const goSource = path.join(nativeDllDir, 'grid_net_driver.go');
-const targetDll = path.join(rootDir, 'grid_net_driver.dll');
 
-let compiled = false;
+const DLL_TARGETS = [
+  {
+    name: 'grid_probe_engine.dll',
+    src: 'grid_probe_engine.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_PROBE_ENGINE',
+    libs: ['-lws2_32', '-liphlpapi'],
+  },
+  {
+    name: 'grid_port_iocp.dll',
+    src: 'grid_port_iocp.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_PORT_IOCP',
+    libs: ['-lws2_32'],
+  },
+  {
+    name: 'grid_discovery.dll',
+    src: 'grid_discovery.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_DISCOVERY',
+    libs: ['-lws2_32'],
+  },
+  {
+    name: 'grid_oui_trie.dll',
+    src: 'grid_oui_trie.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_OUI_TRIE',
+    libs: [],
+  },
+  {
+    name: 'grid_banner_grabber.dll',
+    src: 'grid_banner_grabber.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_BANNER_GRABBER',
+    libs: ['-lws2_32'],
+  },
+  {
+    name: 'grid_pcap_analyzer.dll',
+    src: 'grid_pcap_analyzer.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_PCAP_ANALYZER',
+    libs: ['-lws2_32', '-liphlpapi'],
+  },
+  {
+    name: 'grid_fingerprint_engine.dll',
+    src: 'grid_fingerprint_engine.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_FINGERPRINT_ENGINE',
+    libs: [],
+  },
+  {
+    name: 'grid_topology_guard.dll',
+    src: 'grid_topology_guard.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_TOPOLOGY_GUARD',
+    libs: [],
+  },
+  {
+    name: 'grid_net_driver.dll',
+    src: 'grid_net_driver.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_NET_DRIVER',
+    libs: ['-lws2_32', '-liphlpapi'],
+  },
+  {
+    name: 'grid_vault_driver.dll',
+    src: 'grid_vault_driver.c',
+    lang: 'c',
+    define: 'BUILDING_GRID_VAULT_DRIVER',
+    libs: ['-lcrypt32', '-ladvapi32'],
+  },
+  {
+    name: 'oui_validator.dll',
+    src: 'oui_validator.cpp',
+    lang: 'cpp',
+    define: 'BUILDING_OUI_VALIDATOR',
+    libs: [],
+  },
+  {
+    name: 'secure_vault.dll',
+    src: 'secure_vault.cpp',
+    lang: 'cpp',
+    define: 'BUILDING_SECURE_VAULT',
+    libs: ['-lbcrypt', '-lcrypt32', '-ladvapi32'],
+  },
+];
 
-// 1. Try GCC / Clang (MinGW-w64 or MSVC)
-if (fs.existsSync(cSource)) {
-  const compilers = ['gcc', 'clang', 'x86_64-w64-mingw32-gcc'];
-  for (const cc of compilers) {
+function findCompiler(candidates) {
+  for (const cc of candidates) {
     try {
-      console.log(`   - Testing C compiler: ${cc}...`);
       execSync(`${cc} --version`, { stdio: 'ignore' });
-      const cmd = `${cc} -shared -O3 -DBUILDING_GRID_NET_DRIVER "${cSource}" -o "${targetDll}" -lws2_32 -liphlpapi`;
-      console.log(`> Executing: ${cmd}`);
-      execSync(cmd, { cwd: rootDir, stdio: 'inherit' });
-      if (fs.existsSync(targetDll)) {
-        console.log(`✅ [OK] Successfully compiled grid_net_driver.dll via ${cc}!`);
-        compiled = true;
-        break;
-      }
+      return cc;
+    } catch {
+      // Not available
+    }
+  }
+  return null;
+}
+
+const cCompiler = findCompiler(['x86_64-w64-mingw32-gcc', 'gcc', 'clang']);
+const cppCompiler = findCompiler(['x86_64-w64-mingw32-g++', 'g++', 'clang++']) || cCompiler;
+
+if (!cCompiler) {
+  console.log('ℹ️ Notice: No Windows/MinGW C compiler found in PATH. Skipping DLL compilation; Go runtime fallbacks remain active.');
+} else {
+  console.log(`   - Detected C Compiler: ${cCompiler} | C++ Compiler: ${cppCompiler}`);
+  for (const mod of DLL_TARGETS) {
+    const srcPath = path.join(nativeDllDir, mod.src);
+    const outInNative = path.join(nativeDllDir, mod.name);
+    if (!fs.existsSync(srcPath)) continue;
+
+    const compiler = mod.lang === 'cpp' ? cppCompiler : cCompiler;
+    const stdFlag = mod.lang === 'cpp' ? '-std=c++17 -static-libstdc++' : '';
+    const cmd = `${compiler} -O3 -s -shared -Wall -D${mod.define} ${stdFlag} -static-libgcc "${srcPath}" -o "${outInNative}" ${mod.libs.join(' ')}`;
+    try {
+      execSync(cmd, { cwd: nativeDllDir, stdio: 'inherit' });
+      console.log(`✅ [OK] Compiled ${mod.name}`);
     } catch (e) {
-      // Continue to next compiler
+      console.warn(`⚠️ [WARN] Failed to compile ${mod.name}: ${e.message}`);
     }
   }
 }
 
-// 2. Try Go c-shared mode if GCC/Clang was not available
-if (!compiled && fs.existsSync(goSource)) {
-  try {
-    console.log('   - Testing Go compiler for c-shared mode...');
-    execSync('go version', { stdio: 'ignore' });
-    const cmd = `go build -buildmode=c-shared -o "${targetDll}" "${goSource}"`;
-    console.log(`> Executing: ${cmd}`);
-    execSync(cmd, { cwd: nativeDllDir, env: { ...process.env, CGO_ENABLED: '1' }, stdio: 'inherit' });
-    if (fs.existsSync(targetDll)) {
-      console.log(`✅ [OK] Successfully compiled grid_net_driver.dll via Go c-shared mode!`);
-      compiled = true;
-    }
-  } catch (e) {
-    console.warn('   - Notice: Go c-shared compilation skipped (CGO requirements not met).');
-  }
-}
+// Synchronize any available DLLs from native_dll/ to root, winres/, and dist_installer/
+let syncedCount = 0;
+const winresDir = path.join(rootDir, 'winres');
+const distInstallerDir = path.join(rootDir, 'dist_installer');
 
-// 3. Fallback: If no compiler was available on this runner, ensure fallback structure
-if (!compiled) {
-  if (fs.existsSync(targetDll)) {
-    console.log(`ℹ️ Using existing pre-built grid_net_driver.dll in root directory.`);
-  } else {
-    console.log(`⚠️ Notice: Pre-built grid_net_driver.dll not found in current environment.`);
-    console.log(`   Application will safely utilize native Win32/Iphlpapi LazyDLL fallback.`);
-  }
-}
+for (const mod of DLL_TARGETS) {
+  const srcDll = path.join(nativeDllDir, mod.name);
+  const rootDll = path.join(rootDir, mod.name);
+  const activeSrc = fs.existsSync(srcDll) ? srcDll : (fs.existsSync(rootDll) ? rootDll : null);
+  if (!activeSrc) continue;
 
-// 4. Distribute DLL to winres/ and release folders if present
-if (fs.existsSync(targetDll)) {
-  const winresDir = path.join(rootDir, 'winres');
+  if (activeSrc !== rootDll) {
+    fs.copyFileSync(activeSrc, rootDll);
+  }
   if (fs.existsSync(winresDir)) {
-    fs.copyFileSync(targetDll, path.join(winresDir, 'grid_net_driver.dll'));
+    fs.copyFileSync(activeSrc, path.join(winresDir, mod.name));
   }
-  const distInstaller = path.join(rootDir, 'dist_installer');
-  if (fs.existsSync(distInstaller)) {
-    fs.copyFileSync(targetDll, path.join(distInstaller, 'grid_net_driver.dll'));
+  if (fs.existsSync(distInstallerDir)) {
+    fs.copyFileSync(activeSrc, path.join(distInstallerDir, mod.name));
   }
-  console.log(`📦 Synced grid_net_driver.dll to distribution assets.`);
+  syncedCount++;
 }
 
+console.log(`📦 Synchronized ${syncedCount}/${DLL_TARGETS.length} Native DLL modules.`);
 console.log('✨ Native DLL Orchestrator execution complete!\n');

@@ -26,7 +26,7 @@ static const uint8_t GVAULT_MAGIC[8] = {'G', 'V', 'A', 'U', 'L', 'T', '1', '0'};
 static const char B64_CHARS[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 GRID_VAULT_API int GridVault_GetVersion(void) {
-    return 20400; // v2.4.0
+    return 20501; // v2.5.1
 }
 
 GRID_VAULT_API int GridVault_IsHardwareAesSupported(void) {
@@ -51,6 +51,32 @@ GRID_VAULT_API void GridVault_WipeMemory(void* ptr, size_t len) {
         *p++ = 0;
     }
 #endif
+}
+
+/* Cryptographically Secure Random Byte Generator */
+static void fill_random_bytes(uint8_t* buf, size_t len) {
+    if (!buf || len == 0) return;
+#ifdef _WIN32
+    HCRYPTPROV hProv = 0;
+    if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+        if (CryptGenRandom(hProv, (DWORD)len, buf)) {
+            CryptReleaseContext(hProv, 0);
+            return;
+        }
+        CryptReleaseContext(hProv, 0);
+    }
+#else
+    FILE* urand = fopen("/dev/urandom", "rb");
+    if (urand) {
+        size_t readN = fread(buf, 1, len, urand);
+        fclose(urand);
+        if (readN == len) return;
+    }
+#endif
+    /* Fallback entropy mixer if OS CSPRNG unavailable */
+    for (size_t i = 0; i < len; ++i) {
+        buf[i] = (uint8_t)(((unsigned int)rand() ^ (unsigned int)(i * 0x9E3779B9U)) & 0xFF);
+    }
 }
 
 /* Fast SHA-256 implementation helper for software hashing */
@@ -80,6 +106,51 @@ static void fast_sha256_hash(const uint8_t* data, size_t len, uint8_t hash[32]) 
         state[(i + 3) % 8] ^= (state[i % 8] >> 13);
     }
     memcpy(hash, state, 32);
+}
+
+static void ctr_xor_stream(const uint8_t derivedKey[32], const uint8_t iv[16], const uint8_t* src, uint8_t* dst, size_t len) {
+    uint8_t ctrInput[52];
+    memcpy(ctrInput, derivedKey, 32);
+    memcpy(ctrInput + 32, iv, 16);
+
+    uint8_t keystream[32];
+    size_t offset = 0;
+    uint32_t blockIdx = 0;
+    while (offset < len) {
+        ctrInput[48] = (uint8_t)(blockIdx & 0xFF);
+        ctrInput[49] = (uint8_t)((blockIdx >> 8) & 0xFF);
+        ctrInput[50] = (uint8_t)((blockIdx >> 16) & 0xFF);
+        ctrInput[51] = (uint8_t)((blockIdx >> 24) & 0xFF);
+        fast_sha256_hash(ctrInput, sizeof(ctrInput), keystream);
+
+        size_t chunk = (len - offset) < 32 ? (len - offset) : 32;
+        for (size_t i = 0; i < chunk; ++i) {
+            dst[offset + i] = src[offset + i] ^ keystream[i];
+        }
+        offset += chunk;
+        blockIdx++;
+    }
+    GridVault_WipeMemory(ctrInput, sizeof(ctrInput));
+    GridVault_WipeMemory(keystream, sizeof(keystream));
+}
+
+static void compute_keyed_tag(const uint8_t derivedKey[32], const uint8_t iv[16], const uint8_t* cipher, size_t cipherLen, uint8_t outTag[16]) {
+    size_t macBufLen = 32 + 16 + cipherLen;
+    uint8_t* macBuf = (uint8_t*)malloc(macBufLen);
+    if (!macBuf) {
+        memset(outTag, 0, 16);
+        return;
+    }
+    memcpy(macBuf, derivedKey, 32);
+    memcpy(macBuf + 32, iv, 16);
+    if (cipherLen > 0) memcpy(macBuf + 48, cipher, cipherLen);
+
+    uint8_t fullHash[32];
+    fast_sha256_hash(macBuf, macBufLen, fullHash);
+    memcpy(outTag, fullHash, 16);
+    GridVault_WipeMemory(macBuf, macBufLen);
+    GridVault_WipeMemory(fullHash, sizeof(fullHash));
+    free(macBuf);
 }
 
 GRID_VAULT_API int GridVault_HashData(const uint8_t* inData, size_t inLen, char* outHexHash, size_t maxLen) {
@@ -135,7 +206,7 @@ GRID_VAULT_API int GridVault_EncryptData(
     }
 #endif
 
-    // Mode 2: Key Derivation & Stream Cipher AEAD Emulation (Cross-Platform)
+    // Mode 2: Key Derivation & SHA-256-CTR Authenticated Stream Cipher (Cross-Platform)
     uint8_t derivedKey[32];
     const char* keySrc = optionalPassphrase ? optionalPassphrase : "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY";
     fast_sha256_hash((const uint8_t*)keySrc, strlen(keySrc), derivedKey);
@@ -150,24 +221,17 @@ GRID_VAULT_API int GridVault_EncryptData(
     // Write Magic
     memcpy(outCipher, GVAULT_MAGIC, 8);
 
-    // Write IV (16 bytes pseudo-random)
+    // Write CSPRNG IV (16 bytes)
     uint8_t iv[16];
-    for (int i = 0; i < 16; ++i) {
-        iv[i] = (uint8_t)(rand() & 0xFF);
-    }
+    fill_random_bytes(iv, sizeof(iv));
     memcpy(outCipher + 8, iv, 16);
 
-    // Encrypt payload using multi-round XOR-CTR mixer
+    // Encrypt payload using SHA-256 CTR block stream
     uint8_t* cipherDst = outCipher + 24;
-    for (size_t i = 0; i < inLen; ++i) {
-        uint8_t k = derivedKey[(i + iv[i % 16]) % 32];
-        cipherDst[i] = inData[i] ^ k;
-    }
+    ctr_xor_stream(derivedKey, iv, inData, cipherDst, inLen);
 
-    // Compute Tag (16 bytes)
-    uint8_t fullHash[32];
-    fast_sha256_hash(cipherDst, inLen, fullHash);
-    memcpy(outCipher + 24 + inLen, fullHash, 16);
+    // Compute keyed Tag (16 bytes) over derivedKey + IV + Ciphertext
+    compute_keyed_tag(derivedKey, iv, cipherDst, inLen, outCipher + 24 + inLen);
 
     *outCipherLen = totalSize;
     GridVault_WipeMemory(derivedKey, sizeof(derivedKey));
@@ -227,29 +291,34 @@ GRID_VAULT_API int GridVault_DecryptData(
     const uint8_t* cipherPayload = inCipher + 24;
     const uint8_t* tag = inCipher + 24 + payloadLen;
 
-    // Verify Tag
-    uint8_t expectedHash[32];
-    fast_sha256_hash(cipherPayload, payloadLen, expectedHash);
-    if (memcmp(expectedHash, tag, 16) != 0) {
+    uint8_t derivedKey[32];
+    const char* keySrc = optionalPassphrase ? optionalPassphrase : "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY";
+    fast_sha256_hash((const uint8_t*)keySrc, strlen(keySrc), derivedKey);
+
+    // Constant-time keyed Tag verification
+    uint8_t expectedTag[16];
+    compute_keyed_tag(derivedKey, iv, cipherPayload, payloadLen, expectedTag);
+    uint8_t diff = 0;
+    for (size_t i = 0; i < 16; ++i) {
+        diff |= (uint8_t)(expectedTag[i] ^ tag[i]);
+    }
+    if (diff != 0) {
+        GridVault_WipeMemory(derivedKey, sizeof(derivedKey));
+        GridVault_WipeMemory(expectedTag, sizeof(expectedTag));
         return VAULT_ERR_AUTH_FAILED;
     }
 
     if (*outDataLen < payloadLen) {
         *outDataLen = payloadLen;
+        GridVault_WipeMemory(derivedKey, sizeof(derivedKey));
         return VAULT_ERR_BUFFER_TOO_SMALL;
     }
 
-    uint8_t derivedKey[32];
-    const char* keySrc = optionalPassphrase ? optionalPassphrase : "GRID_IP_SCANNER2_DEFAULT_MACHINE_KEY";
-    fast_sha256_hash((const uint8_t*)keySrc, strlen(keySrc), derivedKey);
-
-    for (size_t i = 0; i < payloadLen; ++i) {
-        uint8_t k = derivedKey[(i + iv[i % 16]) % 32];
-        outData[i] = cipherPayload[i] ^ k;
-    }
+    ctr_xor_stream(derivedKey, iv, cipherPayload, outData, payloadLen);
 
     *outDataLen = payloadLen;
     GridVault_WipeMemory(derivedKey, sizeof(derivedKey));
+    GridVault_WipeMemory(expectedTag, sizeof(expectedTag));
     return VAULT_SUCCESS;
 }
 

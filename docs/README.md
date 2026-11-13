@@ -143,5 +143,8 @@ github-push.bat
 - [`docs/SECURITY_REPORT.md`](./SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서
 - [`docs/PROPRIETARY_TECHNOLOGY.md`](./PROPRIETARY_TECHNOLOGY.md) : 15대 핵심 독점 기술 및 코어 엔진 기술 명세서
 - [`docs/OUI_DATABASE_SPEC.md`](./OUI_DATABASE_SPEC.md) : OUI 계층형 데이터베이스 및 이중 미러링 기술 명세서
+- [`docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`](./GRID_TOPOLOGY_GUARD_DLL_SPEC.md) : **순수 창작 네이티브 DLL(`grid_topology_guard.dll`) 동작원리 및 기존 11개 DLL 감사 보고서 (NEW)**
+- [`docs/NATIVE_DLL_EXPANSION_ROADMAP.md`](./NATIVE_DLL_EXPANSION_ROADMAP.md) : 네이티브 DLL 모듈화 기술 명세서 및 8대 핵심 엔진 아키텍처 로드맵
+- [`docs/PURE_NATIVE_DLL_INTEGRATION_GUIDE.md`](./PURE_NATIVE_DLL_INTEGRATION_GUIDE.md) : 순수 창작 네이티브 DLL 연동 및 Caller-Allocates 라이프사이클 종합 가이드
 - [`docs/LICENSE_KR.md`](./LICENSE_KR.md) : 한국어 라이선스 전문
 - [`docs/LICENSE.md`](./LICENSE.md) : 프로그램 이중 라이선스 계약서

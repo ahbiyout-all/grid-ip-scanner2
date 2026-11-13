@@ -193,6 +193,15 @@ public:
             if (tabPos != std::string::npos) {
                 prefixPart = line.substr(0, tabPos);
                 vendorPart = line.substr(tabPos + 1);
+                // Wireshark manuf 3-column format: PREFIX\tSHORTNAME\tFULL_VENDOR_NAME
+                size_t secondTab = vendorPart.find('\t');
+                if (secondTab != std::string::npos) {
+                    std::string longVendor = vendorPart.substr(secondTab + 1);
+                    trim(longVendor);
+                    if (!longVendor.empty()) {
+                        vendorPart = longVendor;
+                    }
+                }
             } else {
                 size_t commaPos = line.find(',');
                 if (commaPos != std::string::npos) {
@@ -367,7 +376,7 @@ public:
             dr.description = "Collision with primary vendor '" + col.primaryVendor + "' registered on line " + std::to_string(col.primaryLine);
             dr.suggestedPrefix = col.prefix;
             dr.suggestedVendor = col.primaryVendor; // Standardize to primary entry
-            dr.detectedBits = 24;
+            dr.detectedBits = (col.prefix.find("/36") != std::string::npos) ? 36 : ((col.prefix.find("/28") != std::string::npos) ? 28 : 24);
             dr.isRepaired = true;
             discrepancies.push_back(std::move(dr));
         }
@@ -455,8 +464,10 @@ public:
             const auto& c = collisions[i];
             json << "    {\n";
             json << "      \"prefix\": \"" << escapeJson(c.prefix) << "\",\n";
-            json << "      \"primary\": \"" << escapeJson(c.primaryVendor) << "\" (Line " << c.primaryLine << "),\n";
-            json << "      \"conflict\": \"" << escapeJson(c.conflictingVendor) << "\" (Line " << c.conflictLine << ")\n";
+            json << "      \"primary\": \"" << escapeJson(c.primaryVendor) << "\",\n";
+            json << "      \"primaryLine\": " << c.primaryLine << ",\n";
+            json << "      \"conflict\": \"" << escapeJson(c.conflictingVendor) << "\",\n";
+            json << "      \"conflictLine\": " << c.conflictLine << "\n";
             json << "    }" << (i + 1 < limit ? "," : "") << "\n";
         }
         json << "  ]\n";

@@ -34,6 +34,12 @@ export interface DeviceInfo {
   chipsetConfidence?: number;
   confidenceScore?: number;
   priorityRank?: number;
+  ouiBlockType?: 'MA-L' | 'MA-M' | 'MA-S' | 'LAA' | 'LAA-VM' | 'PRIVATE' | 'UNKNOWN' | string;
+  ouiPrefix?: string;
+  isRandomizedMac?: boolean;
+  isChipsetOem?: boolean;
+  deviceCategory?: string;
+  classificationReasons?: { source: string; detail: string; weight: number }[];
   hostname?: string;
   nameSource?: NameSourceType;
   hostnameSources?: Record<string, string>;
@@ -258,6 +264,7 @@ export interface NativeModulesStatus {
   bannerGrabber: boolean;
   pcapAnalyzer: boolean;
   fingerprintEngine: boolean;
+  topologyGuard: boolean;
   npcapLoaded: boolean;
 }
 
@@ -302,6 +309,35 @@ export interface NativeFingerprintResult {
   vulnerabilityCount: number;
   vulnerabilities: string;
   recommendation: string;
+}
+
+export interface NativeTopologyGuardAlert {
+  ip: string;
+  deltaStatus: number;
+  anomalyMask: number;
+  similarityScore: number;
+  isSoftTrusted: boolean;
+  matchedPrevIp: string;
+  reason: string;
+}
+
+export interface NativeTopologyGuardResult {
+  engine: string;
+  version: number;
+  totalEvaluated: number;
+  newCount: number;
+  offlineCount: number;
+  changedCount: number;
+  sameCount: number;
+  conflictCount: number;
+  multiIpMacCount: number;
+  laaRandomCount: number;
+  virtualNicCount: number;
+  hardIntruderCount: number;
+  softTrustedCount: number;
+  highRiskDeltaCount: number;
+  elapsedMicroseconds: number;
+  alerts: NativeTopologyGuardAlert[];
 }
 
 export interface IntruderLogRecord {

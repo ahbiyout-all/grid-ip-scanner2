@@ -27,19 +27,26 @@
 #endif
 
 // Automatic Winsock Initializer
-static int g_wsaInitialized = 0;
+static LONG volatile g_wsaState = 0;
 
 static void EnsureWinsock(void) {
-    if (!g_wsaInitialized) {
+    if (InterlockedCompareExchange(&g_wsaState, 0, 0) == 2) return;
+    if (InterlockedCompareExchange(&g_wsaState, 1, 0) == 0) {
         WSADATA wsaData;
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) == 0) {
-            g_wsaInitialized = 1;
+            InterlockedExchange(&g_wsaState, 2);
+        } else {
+            InterlockedExchange(&g_wsaState, 0);
+        }
+    } else {
+        while (InterlockedCompareExchange(&g_wsaState, 1, 1) == 1) {
+            Sleep(0);
         }
     }
 }
 
 GRID_NET_API int GridNet_GetDriverVersion(void) {
-    return 20400; // v2.4.0
+    return 20401; // v2.4.1
 }
 
 GRID_NET_API int GridNet_FastPing(const char* ip, int timeoutMs) {
@@ -445,16 +452,11 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
-    switch (fdwReason) {
-        case DLL_PROCESS_ATTACH:
-            EnsureWinsock();
-            break;
-        case DLL_PROCESS_DETACH:
-            if (g_wsaInitialized) {
-                WSACleanup();
-                g_wsaInitialized = 0;
-            }
-            break;
+    (void)hinstDLL;
+    (void)lpvReserved;
+    if (fdwReason == DLL_PROCESS_DETACH && InterlockedCompareExchange(&g_wsaState, 0, 0) == 2) {
+        WSACleanup();
+        InterlockedExchange(&g_wsaState, 0);
     }
     return TRUE;
 }

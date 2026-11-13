@@ -171,6 +171,19 @@ __declspec(dllexport) int Banner_GrabHttp(
 
 ---
 
+### 3.7 [모듈 7] `grid_fingerprint_engine.dll` - AI 휴리스틱 기기 핑거프린팅 엔진 (구현 완료)
+* **역할**: 개방 포트, TTL, HTTP/SSH/RTSP 배너 서명, OUI 제조사 정보를 결합해 15개 카테고리(IoT, CCTV/ONVIF, Smart TV, Game Console 등)와 보안 위험도를 0ms 내 판별
+* **C-ABI 인터페이스**: `Fingerprint_GetDriverVersion`, `Fingerprint_AnalyzeHost`, `Fingerprint_AnalyzeJson`
+
+---
+
+### 3.8 [모듈 8] `grid_topology_guard.dll` - 순수 창작 서브넷 토폴로지 Diff · 충돌 해시 · LAA 가드 엔진 (구현 완료)
+* **역할**: 서브넷 다중 호스트 스냅샷(`current` vs `baseline`)을 대상으로 IP 점유 MAC 변조(IP Takeover), 동일 MAC 다중 IP 점유(Proxy-ARP), IEEE 802.3 LAA 랜덤 MAC vs 가상 NIC(QEMU/Docker/VirtualBox/Hyper-V) 비트 분리, Soft-Trust 유사도 점수를 O(N) FNV-1a 해시로 고속 산출
+* **상세 명세 및 기존 DLL 감사 내역**: [`docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`](./GRID_TOPOLOGY_GUARD_DLL_SPEC.md) 참조
+* **C-ABI 인터페이스**: `Guard_GetDriverVersion`, `Guard_AnalyzeMacProfile`, `Guard_ComputeSimilarity`, `Guard_AnalyzeSubnetTopology`, `Guard_AnalyzeTopologyJson`
+
+---
+
 ## 4. 기술 스택 비교 및 언어 선정 기준
 
 | 비교 항목 | C / C++ (MSVC / MinGW) | Rust (`napi-rs`) | Go (`-buildmode=c-shared`) |

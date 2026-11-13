@@ -26,6 +26,26 @@ typedef struct TrieNode {
 static TrieNode* g_root = NULL;
 static int g_entryCount = 0;
 
+#ifdef _WIN32
+static CRITICAL_SECTION g_ouiLock;
+static volatile LONG g_ouiLockState = 0; /* 0=uninit, 1=initing, 2=ready */
+
+static void EnsureOuiLock(void) {
+    if (g_ouiLockState == 2) return;
+    if (InterlockedCompareExchange(&g_ouiLockState, 1, 0) == 0) {
+        InitializeCriticalSection(&g_ouiLock);
+        InterlockedExchange(&g_ouiLockState, 2);
+    } else {
+        while (g_ouiLockState != 2) Sleep(0);
+    }
+}
+#define OUI_LOCK()   do { EnsureOuiLock(); EnterCriticalSection(&g_ouiLock); } while (0)
+#define OUI_UNLOCK() do { LeaveCriticalSection(&g_ouiLock); } while (0)
+#else
+#define OUI_LOCK()   ((void)0)
+#define OUI_UNLOCK() ((void)0)
+#endif
+
 static int HexCharToNibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -34,8 +54,7 @@ static int HexCharToNibble(char c) {
 }
 
 static TrieNode* CreateTrieNode(void) {
-    TrieNode* node = (TrieNode*)calloc(1, sizeof(TrieNode));
-    return node;
+    return (TrieNode*)calloc(1, sizeof(TrieNode));
 }
 
 static void FreeTrieNode(TrieNode* node) {
@@ -54,19 +73,28 @@ static void FreeTrieNode(TrieNode* node) {
 }
 
 int Oui_GetVersion(void) {
-    return 20500;
+    return 20501; /* v2.5.1 audited */
 }
 
 int Oui_GetEntryCount(void) {
-    return g_entryCount;
+    OUI_LOCK();
+    int count = g_entryCount;
+    OUI_UNLOCK();
+    return count;
 }
 
-void Oui_Release(void) {
+static void ReleaseInternal(void) {
     if (g_root) {
         FreeTrieNode(g_root);
         g_root = NULL;
     }
     g_entryCount = 0;
+}
+
+void Oui_Release(void) {
+    OUI_LOCK();
+    ReleaseInternal();
+    OUI_UNLOCK();
 }
 
 static void TrieInsert(const char* hexPrefix, const char* vendor) {
@@ -80,6 +108,7 @@ static void TrieInsert(const char* hexPrefix, const char* vendor) {
 
         if (!curr->children[nibble]) {
             curr->children[nibble] = CreateTrieNode();
+            if (!curr->children[nibble]) return;
         }
         curr = curr->children[nibble];
     }
@@ -97,8 +126,8 @@ static void TrieInsert(const char* hexPrefix, const char* vendor) {
     }
 }
 
-int Oui_Initialize(const char* databasePath) {
-    Oui_Release();
+static int InitializeInternal(const char* databasePath) {
+    ReleaseInternal();
     g_root = CreateTrieNode();
 
     const char* path = databasePath;
@@ -108,13 +137,11 @@ int Oui_Initialize(const char* databasePath) {
 
     FILE* fp = fopen(path, "r");
     if (!fp) {
-        // Try fallback paths
         fp = fopen("../master_oui.txt", "r");
         if (!fp) fp = fopen("./master_oui.txt", "r");
     }
 
     if (!fp) {
-        // Populate standard default prefixes if file not found
         TrieInsert("00000C", "Cisco Systems, Inc.");
         TrieInsert("000C29", "VMware, Inc.");
         TrieInsert("005056", "VMware, Inc.");
@@ -131,7 +158,6 @@ int Oui_Initialize(const char* databasePath) {
 
     char line[512];
     while (fgets(line, sizeof(line), fp)) {
-        // Strip trailing newline / carriage return
         size_t len = strlen(line);
         while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n')) {
             line[--len] = '\0';
@@ -139,19 +165,46 @@ int Oui_Initialize(const char* databasePath) {
 
         if (len < 6 || line[0] == '#') continue;
 
-        // Parse prefix (hex characters)
-        char hexOnly[32] = {0};
-        int hIdx = 0;
+        /* Extract prefix token before tab/space/'=' and detect optional /28 or /36 CIDR */
+        char rawPrefix[64] = {0};
+        int rIdx = 0;
         int lineIdx = 0;
 
         while (line[lineIdx] && line[lineIdx] != '\t' && line[lineIdx] != ' ' && line[lineIdx] != '=') {
-            char c = line[lineIdx++];
-            if (isxdigit((unsigned char)c) && hIdx < 16) {
-                hexOnly[hIdx++] = (char)toupper((unsigned char)c);
+            if (rIdx < (int)sizeof(rawPrefix) - 1) {
+                rawPrefix[rIdx++] = line[lineIdx];
+            }
+            lineIdx++;
+        }
+        rawPrefix[rIdx] = '\0';
+
+        int cidrBits = 0;
+        char* slashPos = strchr(rawPrefix, '/');
+        if (slashPos) {
+            cidrBits = atoi(slashPos + 1);
+            *slashPos = '\0'; /* Strip '/28' or '/36' BEFORE hex extraction */
+        }
+
+        char hexOnly[32] = {0};
+        int hIdx = 0;
+        for (int i = 0; rawPrefix[i] != '\0' && hIdx < 16; i++) {
+            if (isxdigit((unsigned char)rawPrefix[i])) {
+                hexOnly[hIdx++] = (char)toupper((unsigned char)rawPrefix[i]);
             }
         }
 
-        // Skip whitespace, delimiters, and IEEE tags like (hex) or (base 16)
+        /* Enforce exact IEEE MA-M (7 nibbles) / MA-S (9 nibbles) nibble precision */
+        if (cidrBits == 28 && hIdx >= 7) {
+            hexOnly[7] = '\0';
+            hIdx = 7;
+        } else if (cidrBits == 36 && hIdx >= 9) {
+            hexOnly[9] = '\0';
+            hIdx = 9;
+        } else if (cidrBits == 24 && hIdx >= 6) {
+            hexOnly[6] = '\0';
+            hIdx = 6;
+        }
+
         while (line[lineIdx]) {
             while (line[lineIdx] == ' ' || line[lineIdx] == '\t' || line[lineIdx] == '=' || line[lineIdx] == ':') {
                 lineIdx++;
@@ -166,7 +219,16 @@ int Oui_Initialize(const char* databasePath) {
         }
 
         char* vendor = &line[lineIdx];
-        // Strip optional surrounding quotes
+        /* Wireshark manuf uses "SHORTNAME\tFULL_VENDOR_NAME"; prefer FULL_VENDOR_NAME */
+        char* secondTab = strchr(vendor, '\t');
+        if (secondTab && secondTab[1] != '\0') {
+            char* fullVendor = secondTab + 1;
+            while (*fullVendor == ' ' || *fullVendor == '\t') fullVendor++;
+            if (*fullVendor != '\0') {
+                vendor = fullVendor;
+            }
+        }
+
         if (vendor[0] == '"') {
             vendor++;
             size_t vlen = strlen(vendor);
@@ -184,14 +246,25 @@ int Oui_Initialize(const char* databasePath) {
     return g_entryCount;
 }
 
+int Oui_Initialize(const char* databasePath) {
+    OUI_LOCK();
+    int cnt = InitializeInternal(databasePath);
+    OUI_UNLOCK();
+    return cnt;
+}
+
 int Oui_LookupVendor(const char* macAddress, char* outVendorName, int maxLen) {
     if (!macAddress || !outVendorName || maxLen < 1) return 0;
     outVendorName[0] = '\0';
 
+    OUI_LOCK();
     if (!g_root) {
-        Oui_Initialize(NULL);
+        InitializeInternal(NULL);
     }
-    if (!g_root) return 0;
+    if (!g_root) {
+        OUI_UNLOCK();
+        return 0;
+    }
 
     TrieNode* curr = g_root;
     char* bestVendor = NULL;
@@ -204,20 +277,22 @@ int Oui_LookupVendor(const char* macAddress, char* outVendorName, int maxLen) {
         if (nibble < 0) break;
 
         if (!curr->children[nibble]) {
-            break; // No deeper match
+            break;
         }
 
         curr = curr->children[nibble];
         if (curr->vendor) {
-            bestVendor = curr->vendor; // Longest prefix match
+            bestVendor = curr->vendor;
         }
     }
 
+    int found = 0;
     if (bestVendor) {
         strncpy(outVendorName, bestVendor, maxLen - 1);
         outVendorName[maxLen - 1] = '\0';
-        return 1;
+        found = 1;
     }
 
-    return 0;
+    OUI_UNLOCK();
+    return found;
 }

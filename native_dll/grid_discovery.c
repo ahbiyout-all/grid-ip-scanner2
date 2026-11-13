@@ -21,17 +21,41 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-static int winsockInit = 0;
+static LONG volatile winsockState = 0;
 static void EnsureWinsock(void) {
-    if (!winsockInit) {
+    if (InterlockedCompareExchange(&winsockState, 0, 0) == 2) return;
+    if (InterlockedCompareExchange(&winsockState, 1, 0) == 0) {
         WSADATA wsa;
         WSAStartup(MAKEWORD(2, 2), &wsa);
-        winsockInit = 1;
+        InterlockedExchange(&winsockState, 2);
+    } else {
+        while (InterlockedCompareExchange(&winsockState, 0, 0) != 2) {
+            Sleep(0);
+        }
     }
 }
 
+static char* disc_stristr(const char* haystack, const char* needle) {
+    if (!haystack || !needle || !*needle) return (char*)haystack;
+    size_t nlen = strlen(needle);
+    for (const char* p = haystack; *p; p++) {
+        if (_strnicmp(p, needle, nlen) == 0) return (char*)p;
+    }
+    return NULL;
+}
+
+static int is_mdns_boilerplate(const char* s, int len) {
+    if (len <= 0) return 1;
+    if (len == 9 && _strnicmp(s, "_services", 9) == 0) return 1;
+    if (len == 7 && _strnicmp(s, "_dns-sd", 7) == 0) return 1;
+    if (len == 4 && _strnicmp(s, "_udp", 4) == 0) return 1;
+    if (len == 4 && _strnicmp(s, "_tcp", 4) == 0) return 1;
+    if (len == 5 && _strnicmp(s, "local", 5) == 0) return 1;
+    return 0;
+}
+
 int Discovery_GetVersion(void) {
-    return 20500;
+    return 20501;
 }
 
 // NetBIOS Node Status Query implementation
@@ -47,6 +71,9 @@ int Discovery_QueryNetBIOS(
     outHost[0] = '\0';
     if (outWorkgroup && wgLen > 0) outWorkgroup[0] = '\0';
 
+    unsigned long ipAddr = inet_addr(targetIp);
+    if (ipAddr == INADDR_NONE) return 0;
+
     EnsureWinsock();
 
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -61,7 +88,7 @@ int Discovery_QueryNetBIOS(
     memset(&dest, 0, sizeof(dest));
     dest.sin_family = AF_INET;
     dest.sin_port = htons(137);
-    dest.sin_addr.s_addr = inet_addr(targetIp);
+    dest.sin_addr.s_addr = ipAddr;
 
     // Standard RFC 1002 NetBIOS Node Status Request Packet (50 bytes)
     unsigned char nbPacket[50] = {
@@ -91,7 +118,7 @@ int Discovery_QueryNetBIOS(
     int recvLen = recv(s, (char*)resp, sizeof(resp), 0);
     closesocket(s);
 
-    if (recvLen < 56) return 0;
+    if (recvLen < 57) return 0;
 
     int numNames = resp[56];
     if (numNames <= 0 || recvLen < 57 + numNames * 18) return 0;
@@ -108,7 +135,7 @@ int Discovery_QueryNetBIOS(
         rawName[15] = '\0';
 
         unsigned char type = resp[offset + 15];
-        unsigned short flags = (resp[offset + 16] << 8) | resp[offset + 17];
+        unsigned short flags = (unsigned short)((resp[offset + 16] << 8) | resp[offset + 17]);
         int isGroup = (flags & 0x8000) != 0;
 
         // Trim right spaces
@@ -119,18 +146,18 @@ int Discovery_QueryNetBIOS(
 
         if (strlen(rawName) > 0) {
             if (!isGroup && (type == 0x00 || type == 0x20) && resolvedHost[0] == '\0') {
-                strncpy(resolvedHost, rawName, sizeof(resolvedHost) - 1);
+                snprintf(resolvedHost, sizeof(resolvedHost), "%s", rawName);
             } else if (isGroup && type == 0x00 && resolvedGroup[0] == '\0') {
-                strncpy(resolvedGroup, rawName, sizeof(resolvedGroup) - 1);
+                snprintf(resolvedGroup, sizeof(resolvedGroup), "%s", rawName);
             }
         }
         offset += 18;
     }
 
     if (resolvedHost[0] != '\0') {
-        strncpy(outHost, resolvedHost, hostLen - 1);
+        snprintf(outHost, (size_t)hostLen, "%s", resolvedHost);
         if (outWorkgroup && wgLen > 0 && resolvedGroup[0] != '\0') {
-            strncpy(outWorkgroup, resolvedGroup, wgLen - 1);
+            snprintf(outWorkgroup, (size_t)wgLen, "%s", resolvedGroup);
         }
         return 1;
     }
@@ -148,6 +175,9 @@ int Discovery_QueryMDNS(
     if (!targetIp || !outName || maxLen < 1) return 0;
     outName[0] = '\0';
 
+    unsigned long ipAddr = inet_addr(targetIp);
+    if (ipAddr == INADDR_NONE) return 0;
+
     EnsureWinsock();
 
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -161,10 +191,9 @@ int Discovery_QueryMDNS(
     memset(&dest, 0, sizeof(dest));
     dest.sin_family = AF_INET;
     dest.sin_port = htons(5353);
-    dest.sin_addr.s_addr = inet_addr(targetIp);
+    dest.sin_addr.s_addr = ipAddr;
 
     // Standard mDNS PTR query for "_services._dns-sd._udp.local"
-    // Transaction ID: 0x0000, Flags: 0x0000, Questions: 1
     unsigned char mdnsQuery[] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x09, '_', 's', 'e', 'r', 'v', 'i', 'c', 'e', 's',
@@ -181,23 +210,46 @@ int Discovery_QueryMDNS(
         return 0;
     }
 
-    char buffer[1500];
-    int r = recv(s, buffer, sizeof(buffer) - 1, 0);
+    unsigned char buffer[1500];
+    int r = recv(s, (char*)buffer, sizeof(buffer) - 1, 0);
     closesocket(s);
 
     if (r > 12) {
-        buffer[r] = '\0';
-        // Extract readable strings
-        for (int i = 12; i < r - 5; i++) {
-            if (buffer[i] >= 32 && buffer[i] <= 126 && buffer[i+1] >= 32 && buffer[i+1] <= 126) {
-                int start = i;
-                while (i < r && buffer[i] >= 32 && buffer[i] <= 126) i++;
-                int segLen = i - start;
-                if (segLen >= 4 && segLen < maxLen) {
-                    strncpy(outName, &buffer[start], maxLen - 1);
-                    return 1;
+        // Scan length-prefixed DNS labels in packet, skipping echoed query tokens (_services/_dns-sd/_udp/_tcp/local)
+        char fallbackService[128] = {0};
+        for (int i = 12; i < r - 2; i++) {
+            unsigned char lblLen = buffer[i];
+            if (lblLen >= 3 && lblLen <= 63 && (i + 1 + lblLen) <= r) {
+                int validChars = 1;
+                for (int k = 1; k <= lblLen; k++) {
+                    unsigned char c = buffer[i + k];
+                    // Allow printable ASCII and valid UTF-8 continuation/lead bytes (>= 0x80)
+                    if (!((c >= 32 && c <= 126) || c >= 0x80)) {
+                        validChars = 0;
+                        break;
+                    }
+                }
+                if (validChars) {
+                    const char* seg = (const char*)&buffer[i + 1];
+                    if (!is_mdns_boilerplate(seg, (int)lblLen)) {
+                        if (seg[0] != '_') {
+                            int copyLen = (int)lblLen < (maxLen - 1) ? (int)lblLen : (maxLen - 1);
+                            memcpy(outName, seg, (size_t)copyLen);
+                            outName[copyLen] = '\0';
+                            return 1;
+                        } else if (fallbackService[0] == '\0') {
+                            int copyLen = (int)lblLen < (int)(sizeof(fallbackService) - 1) ? (int)lblLen : (int)(sizeof(fallbackService) - 1);
+                            memcpy(fallbackService, seg, (size_t)copyLen);
+                            fallbackService[copyLen] = '\0';
+                        }
+                    }
+                    i += (int)lblLen;
                 }
             }
+        }
+        if (fallbackService[0] != '\0') {
+            snprintf(outName, (size_t)maxLen, "%s", fallbackService);
+            return 1;
         }
     }
 
@@ -214,6 +266,9 @@ int Discovery_QuerySSDP(
     if (!targetIp || !outDevice || maxLen < 1) return 0;
     outDevice[0] = '\0';
 
+    unsigned long ipAddr = inet_addr(targetIp);
+    if (ipAddr == INADDR_NONE) return 0;
+
     EnsureWinsock();
 
     SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -227,7 +282,7 @@ int Discovery_QuerySSDP(
     memset(&dest, 0, sizeof(dest));
     dest.sin_family = AF_INET;
     dest.sin_port = htons(1900);
-    dest.sin_addr.s_addr = inet_addr(targetIp);
+    dest.sin_addr.s_addr = ipAddr;
 
     const char* mSearch = 
         "M-SEARCH * HTTP/1.1\r\n"
@@ -247,28 +302,21 @@ int Discovery_QuerySSDP(
 
     if (r > 0) {
         buffer[r] = '\0';
-        char* serverLine = strstr(buffer, "SERVER:");
-        if (!serverLine) serverLine = strstr(buffer, "server:");
-        if (serverLine) {
-            serverLine += 7;
-            while (*serverLine == ' ' || *serverLine == '\t') serverLine++;
-            char* end = strstr(serverLine, "\r\n");
-            if (end) *end = '\0';
-            strncpy(outDevice, serverLine, maxLen - 1);
-            outDevice[maxLen - 1] = '\0';
-            return 1;
-        }
-
-        char* stLine = strstr(buffer, "ST:");
-        if (!stLine) stLine = strstr(buffer, "st:");
-        if (stLine) {
-            stLine += 3;
-            while (*stLine == ' ' || *stLine == '\t') stLine++;
-            char* end = strstr(stLine, "\r\n");
-            if (end) *end = '\0';
-            strncpy(outDevice, stLine, maxLen - 1);
-            outDevice[maxLen - 1] = '\0';
-            return 1;
+        const char* headers[] = { "SERVER:", "ST:", "LOCATION:" };
+        const int headerLens[] = { 7, 3, 9 };
+        for (int h = 0; h < 3; h++) {
+            char* ptr = disc_stristr(buffer, headers[h]);
+            if (ptr) {
+                ptr += headerLens[h];
+                while (*ptr == ' ' || *ptr == '\t') ptr++;
+                char* end = strstr(ptr, "\r\n");
+                if (!end) end = strchr(ptr, '\n');
+                size_t len = end ? (size_t)(end - ptr) : strlen(ptr);
+                if (len >= (size_t)maxLen) len = (size_t)(maxLen - 1);
+                memcpy(outDevice, ptr, len);
+                outDevice[len] = '\0';
+                return 1;
+            }
         }
     }
 

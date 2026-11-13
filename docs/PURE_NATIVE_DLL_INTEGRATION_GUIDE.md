@@ -1,15 +1,15 @@
 # 📖 Pure Native DLL Integration Guide (순수 창작 네이티브 DLL 연동 및 라이프사이클 종합 가이드)
 
-> **문서 버전**: v2.4.0  
-> **최종 수정일**: 2026-10-07  
-> **대상 시스템**: Grid IP Scanner2 Architecture (Electron / Node.js <-> Native C/C++/Go Core)  
+> **문서 버전**: v2.6.0  
+> **최종 수정일**: 2026-11-13  
+> **대상 시스템**: Grid IP Scanner2 Architecture (Electron / Go Backend <-> Native C/C++ Core)  
 > **작성자**: AhBiYout (Grid IP Scanner2 Architecture Core Team)
 
 ---
 
 ## 1. 개요 및 설계 철학 (Overview & Architectural Philosophy)
 
-**Grid IP Scanner2**는 고속 네트워크 스캐닝, 대용량 OUI 무결성 검증, 로컬 자산 암호화의 극한 성능(Sub-Millisecond Execution)과 보안성을 달성하기 위해 **순수 창작 네이티브 동적 링크 라이브러리(Custom Native DLL)** 아키텍처를 채택하고 있습니다.
+**Grid IP Scanner2**는 고속 네트워크 스캐닝, 대용량 OUI 무결성 검증, 서브넷 토폴로지 상관분석 및 로컬 자산 암호화의 극한 성능(Sub-Millisecond Execution)과 보안성을 달성하기 위해 **순수 창작 네이티브 동적 링크 라이브러리(Custom Native DLL)** 아키텍처를 채택하고 있습니다.
 
 본 문서는 프로젝트 내 모든 커스텀 DLL 모듈의 **운영 수명주기(Lifecycle)**, **C++/Go/Electron 간 메모리 관리 원칙**, **예외 격리 및 폴백 에러 처리 절차**, **바이너리 모듈의 버전 제어 및 CI/CD 빌드 거버넌스**를 표준화하여 정의합니다.
 
@@ -18,22 +18,22 @@
 |                        1. Electron Renderer (React / UI)                          |
 |      - Context Isolation IPC Invoke: `window.secureVault`, `window.gridDriver`    |
 +-----------------------------------------------------------------------------------+
-                                         │  (Async IPC Message)
+                                         │  (Async IPC / HTTP Bridge)
                                          ▼
 +-----------------------------------------------------------------------------------+
-|                     2. Electron Main Process (Node.js Service)                    |
-|      - FFI Binding Layer: `koffi` (Primary) / `ffi-napi` (Secondary)              |
+|                     2. Electron Main Process / Go Native Host                     |
+|      - FFI Binding Layer: Win32 `syscall.NewLazyDLL` / `koffi`                    |
 |      - Buffer Life-cycle Management & Graceful Fallback Engine                    |
 +-----------------------------------------------------------------------------------+
                                          │  (Zero-Copy C-ABI Pointers)
                                          ▼
 +-----------------------------------------------------------------------------------+
-|                     3. Pure Custom Native DLLs (C++17 / Go CGo)                   |
+|                     3. Pure Custom Native DLLs (C99 / C++17)                      |
 |  ┌───────────────────────┬────────────────────────┬────────────────────────────┐  |
-|  │ `grid_net_driver.dll` │ `grid_vault_driver.dll`│    `oui_validator.dll`     │  |
-|  │ - Win32 SendARP       │ - Hardware AES-NI GCM  │ - 128K Robin Hood Hash Map │  |
-|  │ - IcmpSendEcho Async  │ - DPAPI Machine Bound  │ - 24/28/36-bit Wireshark   │  |
-|  │ - Winsock UDP 137 NetB│ - Zero-Memory Wipe     │ - Auto Repair Log Generator│  |
+|  │ `grid_topology_guard` │ `grid_vault_driver.dll`│    `oui_validator.dll`     │  |
+|  │ - O(N) FNV-1a Diff    │ - DPAPI / CSPRNG CTR   │ - 128K Robin Hood Hash Map │  |
+|  │ - IEEE LAA vs VM Bit  │ - Keyed Auth Tag       │ - 24/28/36-bit Wireshark   │  |
+|  │ - Soft-Trust Scorer   │ - Zero-Memory Wipe     │ - Auto Repair Log Generator│  |
 |  └───────────────────────┴────────────────────────┴────────────────────────────┘  |
 +-----------------------------------------------------------------------------------+
 ```
@@ -44,8 +44,10 @@
 
 | DLL 파일명 | 언어 및 규격 | 핵심 역할 및 기능 | 성능 지표 |
 | :--- | :--- | :--- | :--- |
+| **`grid_topology_guard.dll`** *(NEW)* | Pure C99 C-ABI | FNV-1a O(N) 서브넷 Diff, IP/MAC 충돌·Proxy-ARP 탐색, IEEE 802.3 LAA vs 가상 NIC 분리, Soft-Trust 유사도 점수 계산 ([상세 명세](./GRID_TOPOLOGY_GUARD_DLL_SPEC.md)) | 512 호스트 상관분석: **< 0.5ms** |
+| **`grid_fingerprint_engine.dll`** | Pure C99 C-ABI | 다중 포트·TTL·배너·OUI 결합 휴리스틱 15종 기기 분류(Smart TV/Console/MQTT/ONVIF) 및 보안 리스크 스코어링 | 단건 휴리스틱 판별: **< 0.05ms** |
 | **`grid_net_driver.dll`** | Pure C / Win32 API | 커널 레벨 SendARP, ICMP 비동기 핑, NetBIOS UDP 137 이름 질의, Winsock Raw 포트 프로빙 | /24 서브넷 스캔: **0.18초** |
-| **`grid_vault_driver.dll`**<br>(`secure_vault.dll`) | C++17 / Go CGo (BCrypt) | 장치 별칭(Aliases) 및 스냅샷(Snapshots) AES-256-GCM / DPAPI 인증 암호화 | 256개 자산 암/복호화: **0.19ms** |
+| **`grid_vault_driver.dll`**<br>(`secure_vault.dll`) | Pure C / C++17 (BCrypt) | 장치 별칭(Aliases) 및 스냅샷(Snapshots) DPAPI / CSPRNG SHA-256 CTR + AES-256-GCM 암호화 | 256개 자산 암/복호화: **0.19ms** |
 | **`oui_validator.dll`** | C++17 Custom Engine | 92,000건 IEEE/Wireshark OUI 24/28/36비트 멀티비트 정규화, 충돌 색출 및 `repair_log.json` 자동 복구 | 9만건 파싱/검증: **2.84ms** |
 
 ---

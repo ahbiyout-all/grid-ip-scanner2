@@ -16,6 +16,7 @@ import {
   detectHostOS,
   checkArpSpoofing,
   fetchDeviceFingerprint,
+  analyzeNativeTopologyGuard,
 } from '../services/nativeModulesService';
 
 interface NativeModulesModalProps {
@@ -140,6 +141,17 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
       features: isEn ? ['Heuristic Risk Scoring', 'Multi-Port Vector Classifier', 'Zero-Latency Pattern Engine'] : ['휴리스틱 리스크 스코어링', '다중 포트 벡터 분류기', 'Zero-Latency 패턴 엔진'],
       tag: 'Phase 4 AI/Rule',
     },
+    {
+      id: 'topology_guard',
+      name: 'grid_topology_guard.dll',
+      title: isEn ? 'Subnet Topology Diff & LAA Guard Engine' : '서브넷 토폴로지 Diff · 충돌 · LAA 가드 엔진',
+      active: status?.topologyGuard ?? false,
+      desc: isEn
+        ? 'Pure custom O(N) FNV-1a correlation engine detecting IP takeover, Proxy-ARP multi-IP MAC clones, IEEE LAA random MAC rotation, and Soft-Trust identity similarity.'
+        : 'FNV-1a 해시 기반 O(N) 상관분석으로 IP 점유 변조, Proxy-ARP 중복 MAC, IEEE LAA 랜덤 MAC 전환 및 Soft-Trust 유사도 추적을 수행하는 순수 창작 엔진입니다.',
+      features: isEn ? ['O(N) FNV-1a Conflict Hash', 'IEEE LAA vs Virtual NIC Filter', 'Soft-Trust Similarity Scorer'] : ['O(N) FNV-1a 충돌 해시', 'IEEE LAA · 가상 NIC 분리', 'Soft-Trust 유사도 추적'],
+      tag: 'Phase 5 Pure Custom',
+    },
   ];
 
   const handleTestDiscovery = async () => {
@@ -223,6 +235,50 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
     setIsTesting(false);
   };
 
+  const handleTestTopologyGuard = async () => {
+    setIsTesting(true);
+    setTestOutput(`[*] ${testIp} (${testMac || '02:AB:CD:11:22:33'}) 대상 LAA 비트 · 충돌 해시 · Soft-Trust 토폴로지 분석 중...`);
+    const sampleMac = testMac && testMac.trim().length >= 12 ? testMac.trim() : '02:AB:CD:11:22:33';
+    const res = await analyzeNativeTopologyGuard({
+      current: [
+        {
+          ip: testIp,
+          mac: sampleMac,
+          hostname: 'Mobile-Client.local',
+          vendor: 'Randomized MAC (LAA)',
+          openPorts: [80, 443, 62078],
+          isTrusted: false,
+        },
+      ],
+      baseline: [
+        {
+          ip: '192.168.0.249',
+          mac: 'AA:BB:CC:10:20:30',
+          hostname: 'Mobile-Client',
+          vendor: 'Apple Inc.',
+          openPorts: [80, 443, 62078],
+          isTrusted: true,
+        },
+      ],
+    });
+    if (res) {
+      const topAlert = res.alerts && res.alerts.length > 0 ? res.alerts[0] : null;
+      setTestOutput(
+        `[OK] 토폴로지 가드 분석 완료 (${res.engine}):\n` +
+        `• 총 평가 노드: ${res.totalEvaluated}개 (신규: ${res.newCount}, 오프라인: ${res.offlineCount}, 변동: ${res.changedCount})\n` +
+        `• LAA 랜덤 MAC 감지: ${res.laaRandomCount}개 | 가상 NIC 감지: ${res.virtualNicCount}개\n` +
+        `• Soft-Trust 유예 일치: ${res.softTrustedCount}개 | 미등록 침입 의심: ${res.hardIntruderCount}개\n` +
+        `• 연산 소요 시간: ${res.elapsedMicroseconds} µs\n` +
+        (topAlert
+          ? `• 핵심 판정: [${topAlert.ip}] 유사도 ${topAlert.similarityScore}% → ${topAlert.reason}`
+          : '• 핵심 판정: 이상 징후 없음')
+      );
+    } else {
+      setTestOutput(`[-] ${testIp}: 토폴로지 가드 분석 응답 실패`);
+    }
+    setIsTesting(false);
+  };
+
   const toggleModule = (id: string) => {
     setExpandedModules((prev) => ({
       ...prev,
@@ -266,8 +322,8 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
               </div>
               <p className="text-xs opacity-70 mt-0.5">
                 {isEn 
-                  ? 'Runtime health status and direct kernel diagnostics for 7 specialized acceleration DLL modules'
-                  : '로드맵에 정의된 7대 전용 가속 DLL 모듈의 런타임 상태 및 다이렉트 커널 진단'}
+                  ? 'Runtime health status and direct kernel diagnostics for 8 specialized acceleration DLL modules'
+                  : '로드맵 및 순수 창작으로 구축된 8대 전용 가속 DLL 모듈의 런타임 상태 및 커널 진단'}
               </p>
             </div>
           </div>
@@ -296,10 +352,10 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5" />
-                <span>{isEn ? 'Dedicated Acceleration Modules (7)' : '전용 네이티브 가속 DLL (7대 모듈)'}</span>
+                <span>{isEn ? 'Dedicated Acceleration Modules (8)' : '전용 네이티브 가속 DLL (8대 모듈)'}</span>
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-sky-500/15 text-sky-400 border border-sky-500/30">
-                {status ? `${Object.values(status).filter(Boolean).length}/7 ${isEn ? 'Loaded' : '정상 로드'}` : 'Checking...'}
+                {status ? `${modules.filter((m) => m.active).length}/8 ${isEn ? 'Loaded' : '정상 로드'}` : 'Checking...'}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -504,6 +560,14 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
               >
                 <Zap className="w-3.5 h-3.5" />
                 <span>{isEn ? 'AI Heuristic Fingerprint' : 'AI 휴리스틱 핑거프린트'}</span>
+              </button>
+              <button
+                onClick={handleTestTopologyGuard}
+                disabled={isTesting || !testIp}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Topology & LAA Guard' : '토폴로지·충돌·LAA 상관분석'}</span>
               </button>
             </div>
 

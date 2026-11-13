@@ -11,13 +11,15 @@ import (
 
 // ============================================================================
 // Grid IP Scanner2 - Native Multi-Module DLL Bridge (Windows x64)
-// Implements Go FFI bindings for the 6 roadmap native modules:
+// Implements Go FFI bindings for the 8 specialized native modules:
 //   1. grid_probe_engine.dll
 //   2. grid_port_iocp.dll
 //   3. grid_discovery.dll
 //   4. grid_oui_trie.dll
 //   5. grid_banner_grabber.dll
 //   6. grid_pcap_analyzer.dll
+//   7. grid_fingerprint_engine.dll
+//   8. grid_topology_guard.dll (Pure Custom Subnet Topology Diff & LAA Guard)
 // ============================================================================
 
 // Native C structs mapping
@@ -98,6 +100,11 @@ var (
 	modGridFingerprint         = syscall.NewLazyDLL("grid_fingerprint_engine.dll")
 	procFingerprintGetVersion  = modGridFingerprint.NewProc("Fingerprint_GetDriverVersion")
 	procFingerprintAnalyzeJson = modGridFingerprint.NewProc("Fingerprint_AnalyzeJson")
+
+	// Module 8: grid_topology_guard.dll (Pure Custom Native Topology Diff & LAA Guard)
+	modGridTopologyGuard         = syscall.NewLazyDLL("grid_topology_guard.dll")
+	procTopologyGuardGetVersion  = modGridTopologyGuard.NewProc("Guard_GetDriverVersion")
+	procTopologyGuardAnalyzeJson = modGridTopologyGuard.NewProc("Guard_AnalyzeTopologyJson")
 )
 
 // Check native modules status
@@ -109,6 +116,7 @@ type NativeModulesStatus struct {
 	BannerGrabber     bool `json:"bannerGrabber"`
 	PcapAnalyzer      bool `json:"pcapAnalyzer"`
 	FingerprintEngine bool `json:"fingerprintEngine"`
+	TopologyGuard     bool `json:"topologyGuard"`
 	NpcapLoaded       bool `json:"npcapLoaded"`
 }
 
@@ -121,6 +129,7 @@ func getNativeModulesStatus() NativeModulesStatus {
 		BannerGrabber:     modGridBanner.Load() == nil,
 		PcapAnalyzer:      modGridPcap.Load() == nil,
 		FingerprintEngine: modGridFingerprint.Load() == nil,
+		TopologyGuard:     modGridTopologyGuard.Load() == nil,
 		NpcapLoaded:       false,
 	}
 
@@ -410,3 +419,60 @@ func tryNativeFingerprintAnalyzeJson(inJson string) (*FingerprintAnalysisResult,
 	}
 	return nil, false
 }
+
+// ----------------------------------------------------------------------------
+// 8. Subnet Topology Guard, Conflict Hash & LAA Correlation API
+// ----------------------------------------------------------------------------
+type TopologyGuardAlert struct {
+	IP              string `json:"ip"`
+	DeltaStatus     int    `json:"deltaStatus"`
+	AnomalyMask     uint32 `json:"anomalyMask"`
+	SimilarityScore int    `json:"similarityScore"`
+	IsSoftTrusted   bool   `json:"isSoftTrusted"`
+	MatchedPrevIp   string `json:"matchedPrevIp"`
+	Reason          string `json:"reason"`
+}
+
+type TopologyGuardAnalysisResult struct {
+	Engine              string               `json:"engine"`
+	Version             int                  `json:"version"`
+	TotalEvaluated      int                  `json:"totalEvaluated"`
+	NewCount            int                  `json:"newCount"`
+	OfflineCount        int                  `json:"offlineCount"`
+	ChangedCount        int                  `json:"changedCount"`
+	SameCount           int                  `json:"sameCount"`
+	ConflictCount       int                  `json:"conflictCount"`
+	MultiIpMacCount     int                  `json:"multiIpMacCount"`
+	LaaRandomCount      int                  `json:"laaRandomCount"`
+	VirtualNicCount     int                  `json:"virtualNicCount"`
+	HardIntruderCount   int                  `json:"hardIntruderCount"`
+	SoftTrustedCount    int                  `json:"softTrustedCount"`
+	HighRiskDeltaCount  int                  `json:"highRiskDeltaCount"`
+	ElapsedMicroseconds uint64               `json:"elapsedMicroseconds"`
+	Alerts              []TopologyGuardAlert `json:"alerts"`
+}
+
+func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisResult, bool) {
+	if procTopologyGuardAnalyzeJson.Find() == nil {
+		inPtr, err := syscall.BytePtrFromString(inJson)
+		if err == nil {
+			outBuf := make([]byte, 16384)
+			ret, _, _ := procTopologyGuardAnalyzeJson.Call(
+				uintptr(unsafe.Pointer(inPtr)),
+				uintptr(unsafe.Pointer(&outBuf[0])),
+				uintptr(len(outBuf)),
+			)
+			if ret != 0 {
+				jsonStr := byteSliceToString(outBuf)
+				if len(jsonStr) > 0 {
+					var res TopologyGuardAnalysisResult
+					if json.Unmarshal([]byte(jsonStr), &res) == nil {
+						return &res, true
+					}
+				}
+			}
+		}
+	}
+	return nil, false
+}
+

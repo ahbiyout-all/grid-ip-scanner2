@@ -21,20 +21,37 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-static int winsockInit = 0;
+static LONG volatile winsockState = 0;
 static void EnsureWinsock(void) {
-    if (!winsockInit) {
+    if (InterlockedCompareExchange(&winsockState, 0, 0) == 2) return;
+    if (InterlockedCompareExchange(&winsockState, 1, 0) == 0) {
         WSADATA wsa;
         WSAStartup(MAKEWORD(2, 2), &wsa);
-        winsockInit = 1;
+        InterlockedExchange(&winsockState, 2);
+    } else {
+        while (InterlockedCompareExchange(&winsockState, 0, 0) != 2) {
+            Sleep(0);
+        }
     }
 }
 
+static char* banner_stristr(const char* haystack, const char* needle) {
+    if (!haystack || !needle || !*needle) return (char*)haystack;
+    size_t nlen = strlen(needle);
+    for (const char* p = haystack; *p; p++) {
+        if (_strnicmp(p, needle, nlen) == 0) return (char*)p;
+    }
+    return NULL;
+}
+
 int Banner_GetVersion(void) {
-    return 20500;
+    return 20501;
 }
 
 static SOCKET ConnectSocket(const char* ip, int port, int timeoutMs) {
+    unsigned long ipAddr = inet_addr(ip);
+    if (ipAddr == INADDR_NONE) return INVALID_SOCKET;
+
     EnsureWinsock();
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) return INVALID_SOCKET;
@@ -46,7 +63,7 @@ static SOCKET ConnectSocket(const char* ip, int port, int timeoutMs) {
     memset(&dest, 0, sizeof(dest));
     dest.sin_family = AF_INET;
     dest.sin_port = htons((u_short)port);
-    dest.sin_addr.s_addr = inet_addr(ip);
+    dest.sin_addr.s_addr = ipAddr;
 
     connect(s, (struct sockaddr*)&dest, sizeof(dest));
 
@@ -56,9 +73,10 @@ static SOCKET ConnectSocket(const char* ip, int port, int timeoutMs) {
     FD_SET(s, &writeSet);
     FD_SET(s, &errSet);
 
+    int effTimeout = timeoutMs > 0 ? timeoutMs : 1000;
     struct timeval tv;
-    tv.tv_sec = timeoutMs / 1000;
-    tv.tv_usec = (timeoutMs % 1000) * 1000;
+    tv.tv_sec = effTimeout / 1000;
+    tv.tv_usec = (effTimeout % 1000) * 1000;
 
     int sel = select(0, NULL, &writeSet, &errSet, &tv);
     if (sel <= 0 || !FD_ISSET(s, &writeSet) || FD_ISSET(s, &errSet)) {
@@ -70,7 +88,7 @@ static SOCKET ConnectSocket(const char* ip, int port, int timeoutMs) {
     mode = 0;
     ioctlsocket(s, FIONBIO, &mode);
 
-    DWORD sockTimeout = (DWORD)(timeoutMs > 0 ? timeoutMs : 1000);
+    DWORD sockTimeout = (DWORD)effTimeout;
     setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&sockTimeout, sizeof(sockTimeout));
     setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (const char*)&sockTimeout, sizeof(sockTimeout));
 
@@ -99,45 +117,66 @@ int Banner_GrabHttp(
 
     send(s, request, (int)strlen(request), 0);
 
-    char response[4096];
-    int bytesRecv = recv(s, response, sizeof(response) - 1, 0);
+    char response[8192];
+    int totalRecv = 0;
+    while (totalRecv < (int)sizeof(response) - 1) {
+        int chunk = recv(s, response + totalRecv, (int)sizeof(response) - 1 - totalRecv, 0);
+        if (chunk <= 0) break;
+        totalRecv += chunk;
+        // Stop early once we have both headers and closing title tag
+        response[totalRecv] = '\0';
+        if (banner_stristr(response, "</title>") != NULL) break;
+    }
     closesocket(s);
 
-    if (bytesRecv <= 0) return 0;
-    response[bytesRecv] = '\0';
+    if (totalRecv <= 0) return 0;
+    response[totalRecv] = '\0';
 
     int found = 0;
 
-    // 1. Extract Server header
+    // 1. Extract Server header without mutating response buffer
     if (outServerHeader) {
-        char* serverPtr = strstr(response, "Server:");
-        if (!serverPtr) serverPtr = strstr(response, "server:");
+        char* serverPtr = banner_stristr(response, "\nServer:");
+        if (!serverPtr) {
+            if (_strnicmp(response, "Server:", 7) == 0) serverPtr = response;
+        } else {
+            serverPtr += 1; /* skip '\n' */
+        }
         if (serverPtr) {
             serverPtr += 7;
             while (*serverPtr == ' ' || *serverPtr == '\t') serverPtr++;
-            char* lineEnd = strstr(serverPtr, "\r\n");
-            if (lineEnd) *lineEnd = '\0';
-            strncpy(outServerHeader, serverPtr, maxLen - 1);
-            outServerHeader[maxLen - 1] = '\0';
+            char* lineEnd = strpbrk(serverPtr, "\r\n");
+            size_t len = lineEnd ? (size_t)(lineEnd - serverPtr) : strlen(serverPtr);
+            if (len >= (size_t)maxLen) len = (size_t)(maxLen - 1);
+            memcpy(outServerHeader, serverPtr, len);
+            outServerHeader[len] = '\0';
             found = 1;
         }
     }
 
     // 2. Extract HTML <title>
     if (outHtmlTitle) {
-        char* titleStart = strstr(response, "<title>");
-        if (!titleStart) titleStart = strstr(response, "<TITLE>");
-        if (titleStart) {
-            titleStart += 7;
-            char* titleEnd = strstr(titleStart, "</title>");
-            if (!titleEnd) titleEnd = strstr(titleStart, "</TITLE>");
-            if (titleEnd) {
-                *titleEnd = '\0';
-                // Trim leading whitespace
-                while (*titleStart == ' ' || *titleStart == '\n' || *titleStart == '\r' || *titleStart == '\t') titleStart++;
-                strncpy(outHtmlTitle, titleStart, maxLen - 1);
-                outHtmlTitle[maxLen - 1] = '\0';
-                found = 1;
+        char* titleTag = banner_stristr(response, "<title");
+        if (titleTag) {
+            char* gt = strchr(titleTag, '>');
+            if (gt) {
+                char* titleStart = gt + 1;
+                char* titleEnd = banner_stristr(titleStart, "</title>");
+                if (titleEnd) {
+                    while (titleStart < titleEnd &&
+                           (*titleStart == ' ' || *titleStart == '\n' || *titleStart == '\r' || *titleStart == '\t')) {
+                        titleStart++;
+                    }
+                    while (titleEnd > titleStart &&
+                           (titleEnd[-1] == ' ' || titleEnd[-1] == '\n' || titleEnd[-1] == '\r' || titleEnd[-1] == '\t')) {
+                        titleEnd--;
+                    }
+                    size_t tlen = (size_t)(titleEnd - titleStart);
+                    if (tlen >= (size_t)maxLen) tlen = (size_t)(maxLen - 1);
+                    memcpy(outHtmlTitle, titleStart, tlen);
+                    outHtmlTitle[tlen] = '\0';
+                    found = 1;
+                }
             }
         }
     }
@@ -159,10 +198,11 @@ int Banner_GrabSsh(const char* ip, int port, int timeoutMs, char* outSshBanner, 
     if (bytes > 4) {
         buffer[bytes] = '\0';
         if (strncmp(buffer, "SSH-", 4) == 0) {
-            char* end = strstr(buffer, "\r\n");
-            if (end) *end = '\0';
-            strncpy(outSshBanner, buffer, maxLen - 1);
-            outSshBanner[maxLen - 1] = '\0';
+            char* end = strpbrk(buffer, "\r\n");
+            size_t len = end ? (size_t)(end - buffer) : strlen(buffer);
+            if (len >= (size_t)maxLen) len = (size_t)(maxLen - 1);
+            memcpy(outSshBanner, buffer, len);
+            outSshBanner[len] = '\0';
             return 1;
         }
     }
@@ -185,19 +225,19 @@ int Banner_GrabRtsp(const char* ip, int port, int timeoutMs, char* outRtspServer
 
     if (bytes > 0) {
         buffer[bytes] = '\0';
-        char* serverPtr = strstr(buffer, "Server:");
-        if (!serverPtr) serverPtr = strstr(buffer, "server:");
+        char* serverPtr = banner_stristr(buffer, "Server:");
         if (serverPtr) {
             serverPtr += 7;
             while (*serverPtr == ' ' || *serverPtr == '\t') serverPtr++;
-            char* end = strstr(serverPtr, "\r\n");
-            if (end) *end = '\0';
-            strncpy(outRtspServer, serverPtr, maxLen - 1);
-            outRtspServer[maxLen - 1] = '\0';
+            char* end = strpbrk(serverPtr, "\r\n");
+            size_t len = end ? (size_t)(end - serverPtr) : strlen(serverPtr);
+            if (len >= (size_t)maxLen) len = (size_t)(maxLen - 1);
+            memcpy(outRtspServer, serverPtr, len);
+            outRtspServer[len] = '\0';
             return 1;
         }
         if (strstr(buffer, "RTSP/1.0")) {
-            strncpy(outRtspServer, "RTSP Media Server (Active)", maxLen - 1);
+            snprintf(outRtspServer, (size_t)maxLen, "%s", "RTSP Media Server (Active)");
             return 1;
         }
     }

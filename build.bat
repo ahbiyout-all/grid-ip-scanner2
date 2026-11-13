@@ -92,7 +92,7 @@ echo.
 
 :: Step 3.5: Compile Native Acceleration DLL Modules
 if not exist "native_dll\build_all_dlls.bat" goto SKIP_NATIVE_DLL
-echo [3.5/6] Building Native Acceleration DLL Modules (11 Modular DLL Targets)...
+echo [3.5/6] Building Native Acceleration DLL Modules (12 Modular DLL Targets)...
 pushd native_dll
 call build_all_dlls.bat
 popd
@@ -100,10 +100,10 @@ if exist "native_dll\*.dll" (
     copy /Y native_dll\*.dll .\ >nul 2>nul
 )
 set "READY_DLL_COUNT=0"
-for %%F in (grid_probe_engine.dll grid_port_iocp.dll grid_discovery.dll grid_oui_trie.dll grid_banner_grabber.dll grid_pcap_analyzer.dll grid_fingerprint_engine.dll grid_net_driver.dll grid_vault_driver.dll oui_validator.dll secure_vault.dll) do (
+for %%F in (grid_probe_engine.dll grid_port_iocp.dll grid_discovery.dll grid_oui_trie.dll grid_banner_grabber.dll grid_pcap_analyzer.dll grid_fingerprint_engine.dll grid_topology_guard.dll grid_net_driver.dll grid_vault_driver.dll oui_validator.dll secure_vault.dll) do (
     if exist "%%F" set /a READY_DLL_COUNT+=1
 )
-echo [*] Verified !READY_DLL_COUNT! / 11 Native Acceleration DLLs present in root directory.
+echo [*] Verified !READY_DLL_COUNT! / 12 Native Acceleration DLLs present in root directory.
 echo.
 :SKIP_NATIVE_DLL
 

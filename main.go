@@ -37,6 +37,9 @@ type ScanResult struct {
 	Latency         int               `json:"latency"`
 	MAC             string            `json:"mac"`
 	Vendor          string            `json:"vendor"`
+	OUIBlockType    string            `json:"ouiBlockType,omitempty"`
+	OUIPrefix       string            `json:"ouiPrefix,omitempty"`
+	IsRandomizedMac bool              `json:"isRandomizedMac,omitempty"`
 	ChipsetVendor   string            `json:"chipsetVendor,omitempty"`
 	RealVendor      string            `json:"realVendor,omitempty"`
 	DeviceModel     string            `json:"deviceModel,omitempty"`
@@ -77,9 +80,17 @@ type LocalInfo struct {
 	ComputerName       string          `json:"computerName"`
 }
 
+type OUILookupDetail struct {
+	Vendor       string
+	BlockType    string // "MA-S", "MA-M", "MA-L", "LAA", "LAA-VM", "PRIVATE", "UNKNOWN"
+	Prefix       string
+	IsRandomized bool
+}
+
 // OUIProvider defines the interface for manufacturer lookup
 type OUIProvider interface {
 	Lookup(mac string) string
+	LookupDetailed(mac string) OUILookupDetail
 	EntryCount() int
 }
 
@@ -88,33 +99,113 @@ type MapOUIProvider struct {
 	data map[string]string
 }
 
-func (p *MapOUIProvider) Lookup(mac string) string {
-	if mac == "" || mac == "Unknown" {
-		return "Unknown"
+func formatOUIPrefixHex(hexPrefix string) string {
+	var parts []string
+	for i := 0; i < len(hexPrefix); i += 2 {
+		end := i + 2
+		if end > len(hexPrefix) {
+			end = len(hexPrefix)
+		}
+		parts = append(parts, hexPrefix[i:end])
 	}
-	// 0. Try Native Radix-Trie In-Memory Engine (<1µs)
-	if nativeVendor, ok := tryNativeOuiTrieLookup(mac); ok && nativeVendor != "" {
-		return nativeVendor
+	return strings.Join(parts, ":")
+}
+
+func detectVirtualLAAMac(cleanMac string) (string, bool) {
+	if len(cleanMac) < 6 {
+		return "", false
+	}
+	p6 := cleanMac[:6]
+	p4 := cleanMac[:4]
+	switch {
+	case p6 == "525400":
+		return "QEMU / KVM Virtual NIC", true
+	case p6 == "0242AC" || p4 == "0242":
+		return "Docker Container Bridge", true
+	case p6 == "0A0027":
+		return "Oracle VirtualBox Host-Only", true
+	}
+	return "", false
+}
+
+func (p *MapOUIProvider) LookupDetailed(mac string) OUILookupDetail {
+	if mac == "" || mac == "Unknown" {
+		return OUILookupDetail{Vendor: "Unknown", BlockType: "UNKNOWN"}
 	}
 
-	cleanMac := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(mac, ":", ""), "-", ""))
-	
-	// Support IEEE standard assignment lengths:
-	// MA-S: 36 bits (9 hex digits)
-	// MA-M: 28 bits (7 hex digits)
-	// MA-L: 24 bits (6 hex digits)
-	
+	cleanMac := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(mac, ":", ""), "-", ""), ".", ""))
+	if len(cleanMac) < 6 {
+		return OUILookupDetail{Vendor: "Unknown Vendor", BlockType: "UNKNOWN"}
+	}
+
+	// Check IEEE 802 Locally Administered Address (LAA) bit (bit 1 of first octet, non-multicast)
+	if firstByte, err := strconv.ParseUint(cleanMac[:2], 16, 8); err == nil {
+		isMulticast := (firstByte & 0x01) != 0
+		isLAA := (firstByte&0x02) != 0 && !isMulticast
+		if isLAA {
+			if vmVendor, isVM := detectVirtualLAAMac(cleanMac); isVM {
+				return OUILookupDetail{
+					Vendor:       vmVendor,
+					BlockType:    "LAA-VM",
+					Prefix:       formatOUIPrefixHex(cleanMac[:6]),
+					IsRandomized: false,
+				}
+			}
+			return OUILookupDetail{
+				Vendor:       "Randomized MAC (LAA)",
+				BlockType:    "LAA",
+				Prefix:       formatOUIPrefixHex(cleanMac[:6]),
+				IsRandomized: true,
+			}
+		}
+	}
+
+	// Support IEEE standard assignment lengths in descending specificity:
+	// MA-S: 36 bits (9 hex digits), MA-M: 28 bits (7 hex digits), MA-L: 24 bits (6 hex digits)
 	lengths := []int{12, 9, 8, 7, 6}
 	for _, l := range lengths {
 		if len(cleanMac) >= l {
 			prefix := cleanMac[:l]
-			if vendor, ok := p.data[prefix]; ok {
-				return vendor
+			if vendor, ok := p.data[prefix]; ok && vendor != "" {
+				blockType := "MA-L"
+				if l >= 9 {
+					blockType = "MA-S"
+				} else if l >= 7 {
+					blockType = "MA-M"
+				}
+				lowerV := strings.ToLower(vendor)
+				if lowerV == "private" || strings.Contains(lowerV, "ieee registration authority") {
+					blockType = "PRIVATE"
+				}
+				return OUILookupDetail{
+					Vendor:       vendor,
+					BlockType:    blockType,
+					Prefix:       formatOUIPrefixHex(prefix),
+					IsRandomized: false,
+				}
 			}
 		}
 	}
-	
-	return "Unknown Vendor"
+
+	// Fallback to Native Radix-Trie Engine if available
+	if nativeVendor, ok := tryNativeOuiTrieLookup(mac); ok && nativeVendor != "" {
+		return OUILookupDetail{
+			Vendor:       nativeVendor,
+			BlockType:    "MA-L",
+			Prefix:       formatOUIPrefixHex(cleanMac[:6]),
+			IsRandomized: false,
+		}
+	}
+
+	return OUILookupDetail{
+		Vendor:    "Unknown Vendor",
+		BlockType: "UNKNOWN",
+		Prefix:    formatOUIPrefixHex(cleanMac[:6]),
+	}
+}
+
+func (p *MapOUIProvider) Lookup(mac string) string {
+	return p.LookupDetailed(mac).Vendor
 }
 
 func (p *MapOUIProvider) EntryCount() int {
@@ -973,8 +1064,9 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 		}
 
 		ouiMutex.RLock()
-		vendor := currentOUIProvider.Lookup(mac)
+		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
+		vendor := ouiDetail.Vendor
 		
 		mdnsName := hostnameSources[NameSourceMDNS]
 		upnpName := hostnameSources[NameSourceUPnP]
@@ -1021,6 +1113,9 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 			Latency:         int(time.Since(start).Milliseconds()),
 			MAC:             mac,
 			Vendor:          vendor,
+			OUIBlockType:    ouiDetail.BlockType,
+			OUIPrefix:       ouiDetail.Prefix,
+			IsRandomizedMac: ouiDetail.IsRandomized,
 			ChipsetVendor:   chipsetVendor,
 			RealVendor:      realVendor,
 			DeviceModel:     deviceModel,
@@ -1060,7 +1155,7 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 	}
 
 	// 3. TCP Port Scan - Using Native IOCP Engine with concurrent FastTCPVerify fallback
-	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 5000, 8080, 1900, 5353, 5355, 8000, 8443}
+	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
 	if iocpPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, timeoutMs, 16); ok {
 		openPorts = iocpPorts
 		aliveViaPort = len(openPorts) > 0
@@ -1082,8 +1177,9 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 		localIP, _ := getLocalIP()
 		
 		ouiMutex.RLock()
-		vendor := currentOUIProvider.Lookup(mac)
+		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
+		vendor := ouiDetail.Vendor
 		
 		// Run Multi-protocol parallel device name resolution (SMB, NetBIOS, mDNS, WSD, UPnP, SNMP, DNS, Web)
 		nameRes := ResolveDeviceNamesParallel(ctx, ip, openPorts, timeoutMs)
@@ -1178,6 +1274,9 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 			Latency:         int(time.Since(start).Milliseconds()),
 			MAC:             mac,
 			Vendor:          vendor,
+			OUIBlockType:    ouiDetail.BlockType,
+			OUIPrefix:       ouiDetail.Prefix,
+			IsRandomizedMac: ouiDetail.IsRandomized,
 			ChipsetVendor:   chipsetVendor,
 			RealVendor:      realVendor,
 			DeviceModel:     deviceModel,
@@ -1406,19 +1505,23 @@ func scanIPQuick(ctx context.Context, ip string, wg *sync.WaitGroup, results cha
 		mac := getMacFromArp(ctx, ip)
 		
 		ouiMutex.RLock()
-		vendor := currentOUIProvider.Lookup(mac)
+		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
+		vendor := ouiDetail.Vendor
 		
 		hostname := getHostname(ctx, ip)
 		
 		results <- ScanResult{
-			IP:        ip,
-			Alive:     true,
-			Latency:   int(time.Since(start).Milliseconds()),
-			MAC:       mac,
-			Vendor:    vendor,
-			Hostname:  hostname,
-			OpenPorts: []int{},
+			IP:              ip,
+			Alive:           true,
+			Latency:         int(time.Since(start).Milliseconds()),
+			MAC:             mac,
+			Vendor:          vendor,
+			OUIBlockType:    ouiDetail.BlockType,
+			OUIPrefix:       ouiDetail.Prefix,
+			IsRandomizedMac: ouiDetail.IsRandomized,
+			Hostname:        hostname,
+			OpenPorts:       []int{},
 		}
 	} else {
 		results <- ScanResult{IP: ip, Alive: false}
@@ -1429,7 +1532,7 @@ func scanIP(ctx context.Context, ip string, wg *sync.WaitGroup, results chan<- S
 	defer wg.Done()
 	start := time.Now()
 	
-	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 5000, 8080, 1900, 5353, 5355, 8000, 8443}
+	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
 	var openPorts []int
 	var portMu sync.Mutex
 	var portWg sync.WaitGroup
@@ -1480,8 +1583,9 @@ func scanIP(ctx context.Context, ip string, wg *sync.WaitGroup, results chan<- S
 		mac := getMacFromArp(ctx, ip)
 		
 		ouiMutex.RLock()
-		vendor := currentOUIProvider.Lookup(mac)
+		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
+		vendor := ouiDetail.Vendor
 		
 		hostname := getHostname(ctx, ip)
 		webTitle := ""
@@ -1501,14 +1605,17 @@ func scanIP(ctx context.Context, ip string, wg *sync.WaitGroup, results chan<- S
 		}
 
 		results <- ScanResult{
-			IP:        ip,
-			Alive:     true,
-			Latency:   int(time.Since(start).Milliseconds()),
-			MAC:       mac,
-			Vendor:    vendor,
-			Hostname:  hostname,
-			WebTitle:  webTitle,
-			OpenPorts: openPorts,
+			IP:              ip,
+			Alive:           true,
+			Latency:         int(time.Since(start).Milliseconds()),
+			MAC:             mac,
+			Vendor:          vendor,
+			OUIBlockType:    ouiDetail.BlockType,
+			OUIPrefix:       ouiDetail.Prefix,
+			IsRandomizedMac: ouiDetail.IsRandomized,
+			Hostname:        hostname,
+			WebTitle:        webTitle,
+			OpenPorts:       openPorts,
 		}
 	} else {
 		results <- ScanResult{IP: ip, Alive: false}
@@ -2779,6 +2886,50 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to analyze fingerprint",
+		})
+	})
+
+	// Native Subnet Topology Diff, Conflict Hash & LAA Random MAC Guard Endpoint (Module 8: grid_topology_guard.dll)
+	http.HandleFunc("/api/topology-guard", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		var inJson string
+		if r.Method == http.MethodPost {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err == nil && len(bodyBytes) > 0 {
+				inJson = string(bodyBytes)
+			}
+		}
+
+		if inJson == "" {
+			ip := r.URL.Query().Get("ip")
+			mac := r.URL.Query().Get("mac")
+			hostname := r.URL.Query().Get("hostname")
+			vendor := r.URL.Query().Get("vendor")
+			inJson = fmt.Sprintf(`{"current":[{"ip":%q,"mac":%q,"hostname":%q,"vendor":%q,"openPorts":[80,443],"isTrusted":false}],"baseline":[]}`,
+				ip, mac, hostname, vendor)
+		}
+
+		res, ok := tryNativeTopologyGuardAnalyzeJson(inJson)
+		if ok && res != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"native":  true,
+				"result":  res,
+			})
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to analyze topology guard payload",
 		})
 	})
 

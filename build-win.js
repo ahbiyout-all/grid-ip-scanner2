@@ -279,7 +279,7 @@ async function startBuild() {
   }
 
   // 4.7. Automatic Native Acceleration DLL Compiler Check & Execution
-  console.log('\n⚙️ Step 4.7: Verifying & compiling Native Acceleration DLLs (All 11 modules)...');
+  console.log('\n⚙️ Step 4.7: Verifying & compiling Native Acceleration DLLs (All 12 modules)...');
   const nativeDllDir = path.join(process.cwd(), 'native_dll');
   const allDllNames = [
     'grid_probe_engine.dll',
@@ -289,6 +289,7 @@ async function startBuild() {
     'grid_banner_grabber.dll',
     'grid_pcap_analyzer.dll',
     'grid_fingerprint_engine.dll',
+    'grid_topology_guard.dll',
     'grid_net_driver.dll',
     'grid_vault_driver.dll',
     'oui_validator.dll',
@@ -312,7 +313,7 @@ async function startBuild() {
     const buildBat = path.join(nativeDllDir, 'build_all_dlls.bat');
     if (fs.existsSync(buildBat) && process.platform === 'win32') {
       try {
-        console.log('   - Executing native_dll/build_all_dlls.bat to compile all 11 native DLLs...');
+        console.log('   - Executing native_dll/build_all_dlls.bat to compile all 12 native DLLs...');
         execSync(`cmd.exe /c "cd /d "${nativeDllDir}" && call build_all_dlls.bat"`, { stdio: 'inherit' });
       } catch (batErr) {
         console.warn(`   - Warning during build_all_dlls.bat: ${batErr.message}`);
