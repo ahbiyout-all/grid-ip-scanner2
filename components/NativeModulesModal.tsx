@@ -266,7 +266,7 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
       setTestOutput(
         `[OK] 토폴로지 가드 분석 완료 (${res.engine}):\n` +
         `• 총 평가 노드: ${res.totalEvaluated}개 (신규: ${res.newCount}, 오프라인: ${res.offlineCount}, 변동: ${res.changedCount})\n` +
-        `• LAA 랜덤 MAC 감지: ${res.laaRandomCount}개 | 가상 NIC 감지: ${res.virtualNicCount}개\n` +
+        `• LAA 랜덤 MAC: ${res.laaRandomCount}개 | 가상 NIC: ${res.virtualNicCount}개 | Proxy-ARP 정상(Info): ${res.proxyArpInfoCount ?? 0}개\n` +
         `• Soft-Trust 유예 일치: ${res.softTrustedCount}개 | 미등록 침입 의심: ${res.hardIntruderCount}개\n` +
         `• 연산 소요 시간: ${res.elapsedMicroseconds} µs\n` +
         (topAlert

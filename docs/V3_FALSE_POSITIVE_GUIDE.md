@@ -10,7 +10,7 @@
 ```text
 날짜: 2026-10-17 09:30:50
 진단명: Trojan/Win.Generic.C5651299
-파일 경로: C:\Users\user\AppData\Local\Google\Chrome\User Data\Profile 6\Cache\Cache_Data\f_00085a
+파일 경로: C:\Users\<사용자명>\AppData\Local\Google\Chrome\User Data\Profile 6\Cache\Cache_Data\f_00085a
 ```
 
 ### 왜 크롬 캐시(`f_00085a`) 경로에서 감지되었는가?
@@ -95,7 +95,7 @@
 오진율을 사전에 최소화하기 위해 이번 업데이트에서 다음 빌드 조치를 완료하였습니다:
 
 1. **`-trimpath` 컴파일러 플래그 전면 적용**:
-   - Go 빌드 시 개발자의 로컬 파일 시스템 절대 경로(`C:\Users\user\...`)가 실행 파일 내부에 남지 않도록 스트립하여 백신의 임시 폴더 패턴 오탐을 원천 차단했습니다.
+   - Go 빌드 시 개발자의 로컬 파일 시스템 절대 경로(`C:\Users\<사용자명>\...`)가 실행 파일 내부에 남지 않도록 스트립하여 백신의 임시 폴더 패턴 오탐을 원천 차단했습니다.
 2. **Windows PE Manifest 완전 표준화 (`winres.json`)**:
    - `requireAdministrator` 정식 UAC 레벨 명시, 회사명(`AhBiYout`), 제품명(`Grid IP Scanner2`), 저작권, 설명 메타데이터를 PE 리소스에 완전하게 내장하여 정상적인 소프트웨어 프로필을 갖추었습니다.
 3. **인스톨러 스텁 단일화 및 Inno Setup 권장**:

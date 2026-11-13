@@ -7,6 +7,10 @@
 #ifndef BUILDING_GRID_PCAP_ANALYZER
 #define BUILDING_GRID_PCAP_ANALYZER
 #endif
+#if defined(_WIN32) && (!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0601)
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include "grid_pcap_analyzer.h"
 
 #ifdef _WIN32
@@ -29,18 +33,28 @@ static LONG volatile npcapState = 0; /* 0=uninit, 1=probing, 2=done */
 static LONG volatile npcapAvailable = 0;
 
 int Pcap_GetVersion(void) {
-    return 20501;
+    return 20600;
 }
+
+#ifndef LOAD_LIBRARY_SEARCH_SYSTEM32
+#define LOAD_LIBRARY_SEARCH_SYSTEM32 0x00000800
+#endif
 
 int Pcap_IsNpcapAvailable(void) {
     if (InterlockedCompareExchange(&npcapState, 0, 0) == 2) {
         return (int)InterlockedCompareExchange(&npcapAvailable, 0, 0);
     }
     if (InterlockedCompareExchange(&npcapState, 1, 0) == 0) {
-        HMODULE mod = LoadLibraryA("wpcap.dll");
+        char sysDir[MAX_PATH] = {0};
+        HMODULE mod = NULL;
+        UINT sysLen = GetSystemDirectoryA(sysDir, sizeof(sysDir));
+        if (sysLen > 0 && sysLen + 20 < sizeof(sysDir)) {
+            char npcapPath[MAX_PATH + 32];
+            snprintf(npcapPath, sizeof(npcapPath), "%s\\Npcap\\wpcap.dll", sysDir);
+            mod = LoadLibraryExA(npcapPath, NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        }
         if (!mod) {
-            // Check Npcap custom system32 folder if installed
-            mod = LoadLibraryA("C:\\Windows\\System32\\Npcap\\wpcap.dll");
+            mod = LoadLibraryExA("wpcap.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
         }
         hWpcap = mod;
         InterlockedExchange(&npcapAvailable, mod ? 1 : 0);

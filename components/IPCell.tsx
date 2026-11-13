@@ -17,6 +17,9 @@ interface IPCellProps {
   index: number;
   diffStatus?: DiffStatus;
   isConflict?: boolean;
+  isGatewayProxyArp?: boolean;
+  conflictSeverity?: 'conflict' | 'info' | 'none';
+  conflictCategory?: 'ip_takeover' | 'multi_ip_mac' | 'proxy_arp_gateway';
   conflictDetails?: string;
   isNewIntruder?: boolean;
   isSoftTrust?: boolean;
@@ -41,6 +44,9 @@ const IPCell: React.FC<IPCellProps> = ({
   index, 
   diffStatus,
   isConflict,
+  isGatewayProxyArp: isGatewayProxyArpProp,
+  conflictSeverity = 'conflict',
+  conflictCategory,
   conflictDetails,
   isNewIntruder,
   isSoftTrust,
@@ -51,6 +57,12 @@ const IPCell: React.FC<IPCellProps> = ({
   baselineColor = 'sky'
 }) => {
   const currentLang = lang || (s?.lang === 'en' ? 'en' : 'ko');
+  const isGatewayProxyArp = Boolean(
+    isGatewayProxyArpProp ||
+    conflictCategory === 'proxy_arp_gateway' ||
+    (isConflict && (conflictSeverity === 'info' || conflictSeverity === 'none'))
+  );
+  const hasActiveConflict = Boolean(isConflict && !isGatewayProxyArp && conflictSeverity === 'conflict');
   const lastOctet = ip.split('.').pop();
   
   // Calculate grid position (0-15 for both col and row) based on visual array index
@@ -212,27 +224,43 @@ const IPCell: React.FC<IPCellProps> = ({
     const webTitle = (displayDevice.webTitle || '').toLowerCase();
     const model = ((displayDevice as any).deviceModel || '').toLowerCase();
     const devType = ((displayDevice as any).deviceType || '').toLowerCase();
+    const category = (displayDevice.deviceCategory || '').toLowerCase();
     const combined = `${hostname} ${vendor} ${os} ${mdns} ${webTitle} ${model} ${devType}`;
     const iconClass = "w-3 h-3 md:w-4 md:h-4 opacity-80";
-    
-    // 포트 기반 또는 명칭 기반 아이콘 결정
+
+    // 1. Classified deviceCategory 우선 매칭
+    if (category === 'printer') return <Printer className={iconClass} />;
+    if (category === 'cctv') return <Camera className={iconClass} />;
+    if (category === 'iot') return <Zap className={iconClass} />;
+    if (category === 'router' || category === 'nas' || category === 'vm' || category === 'linux') return <Server className={iconClass} />;
+    if (category === 'macos') return <Laptop className={iconClass} />;
+    if (category === 'apple_mobile' || category === 'android') {
+      if (combined.includes('ipad') || combined.includes('tablet') || combined.includes('tab')) return <Tablet className={iconClass} />;
+      return <Smartphone className={iconClass} />;
+    }
+    if (category === 'media' || category === 'console' || category === 'windows') return <Monitor className={iconClass} />;
+
+    // 2. 세분화 키워드 매칭 (MacBook / Smart TV가 Apple/Samsung 스마트폰으로 오인되지 않도록 선행)
     if (combined.includes('printer') || combined.includes('epson') || combined.includes('canon') || combined.includes('brother')) return <Printer className={iconClass} />;
+    if (combined.includes('cctv') || combined.includes('ipcam') || combined.includes('hikvision') || combined.includes('dahua') || displayDevice.openPorts?.includes(554)) return <Camera className={iconClass} />;
     if (combined.includes('ipad') || combined.includes('tablet') || combined.includes('galaxy tab')) return <Tablet className={iconClass} />;
+    if (combined.includes('macbook') || combined.includes('laptop') || combined.includes('notebook') || combined.includes('thinkpad')) return <Laptop className={iconClass} />;
+    if (combined.includes('smarttv') || combined.includes('smart tv') || combined.includes('webos') || combined.includes('tizen') || combined.includes('apple tv') || combined.includes('imac') || combined.includes('mac mini')) return <Monitor className={iconClass} />;
+    if (combined.includes('router') || combined.includes('gateway') || combined.includes('synology') || combined.includes('qnap') || combined.includes('server') || (displayDevice.openPorts?.includes(22) && displayDevice.openPorts?.length > 0)) return <Server className={iconClass} />;
     if (
-      combined.includes('iphone') || 
-      combined.includes('phone') || 
-      combined.includes('mobile') || 
-      combined.includes('galaxy') || 
-      combined.includes('pixel') || 
-      combined.includes('android') || 
-      combined.includes('oneplus') || 
-      combined.includes('xperia') || 
-      vendor.includes('samsung') || 
+      combined.includes('iphone') ||
+      combined.includes('phone') ||
+      combined.includes('mobile') ||
+      combined.includes('galaxy') ||
+      combined.includes('pixel') ||
+      combined.includes('android') ||
+      combined.includes('oneplus') ||
+      combined.includes('xperia') ||
+      vendor.includes('samsung') ||
       vendor.includes('apple')
     ) return <Smartphone className={iconClass} />;
-    if (combined.includes('laptop') || combined.includes('macbook') || combined.includes('computer') || vendor.includes('dell') || vendor.includes('intel')) return <Laptop className={iconClass} />;
-    if (combined.includes('server') || (displayDevice.openPorts?.includes(22) && displayDevice.openPorts?.length > 0)) return <Server className={iconClass} />;
-    
+    if (combined.includes('computer') || vendor.includes('dell') || vendor.includes('intel')) return <Laptop className={iconClass} />;
+
     return <Monitor className={iconClass} />;
   };
 
@@ -257,6 +285,7 @@ const IPCell: React.FC<IPCellProps> = ({
         ${getStatusBase()}
         ${isSelected ? 'scale-110 rounded-md border-[2px]' : 'rounded-[2px] hover:z-50 hover:scale-125'}
         ${isHost ? 'ring-2 ring-sky-400 ring-offset-1 z-10' : ''}
+        ${!diffStatus && !isSelected && !isHost ? (isGatewayProxyArp ? 'ring-1 ring-sky-400/75' : hasActiveConflict ? 'ring-1 ring-rose-500/90' : '') : ''}
         ${isFilteredOut ? 'opacity-20 grayscale scale-95' : ''}
       `}
     >
@@ -315,15 +344,24 @@ const IPCell: React.FC<IPCellProps> = ({
         );
       })()}
 
-      {/* IP Conflict Warning Badge */}
-      {isConflict && (
-        <span 
+      {/* IP Conflict Warning / Gateway Proxy-ARP Info Badge */}
+      {isGatewayProxyArp ? (
+        <span
+          data-testid="proxy-arp-badge"
+          title={conflictDetails || (currentLang === 'ko' ? "게이트웨이 Proxy-ARP 공유 (정상)" : "Gateway Proxy-ARP Sharing (Normal)")}
+          className="absolute -top-1.5 -right-1.5 px-1 py-[1px] bg-sky-600 text-white rounded text-[6px] md:text-[7px] font-black tracking-tighter leading-none whitespace-nowrap shadow-[0_0_8px_rgba(14,165,233,0.8)] z-30 border border-sky-200/90"
+        >
+          Proxy-ARP
+        </span>
+      ) : hasActiveConflict ? (
+        <span
+          data-testid="conflict-badge"
           title={conflictDetails || (currentLang === 'ko' ? "IP 충돌 의심" : "IP Conflict Suspected")}
           className="absolute -top-1.5 -right-1.5 px-1 py-0.2 bg-rose-600 text-white rounded-full text-[8px] font-black tracking-tighter shadow-[0_0_10px_rgba(244,63,94,0.9)] z-30 animate-pulse border border-white"
         >
           ⚠️
         </span>
-      )}
+      ) : null}
 
       {/* New Intruder / Unknown Device Badge (Normal scan mode) */}
       {isNewIntruder && !diffStatus && (
@@ -387,7 +425,8 @@ const IPCell: React.FC<IPCellProps> = ({
               diffStatus === 'new' ? 'bg-emerald-500 animate-pulse' :
               diffStatus === 'offline' ? 'bg-rose-500' :
               diffStatus === 'changed' ? 'bg-amber-500 animate-ping' :
-              isConflict ? 'bg-rose-500 animate-ping' : 'bg-emerald-500 animate-pulse'
+              isGatewayProxyArp ? 'bg-sky-500' :
+              hasActiveConflict ? 'bg-rose-500 animate-ping' : 'bg-emerald-500 animate-pulse'
             }`} />
           </div>
           
@@ -421,15 +460,26 @@ const IPCell: React.FC<IPCellProps> = ({
               </div>
             )}
 
-            {isConflict && (
-              <div className="flex flex-col bg-rose-500/20 p-1 rounded border border-rose-500/40">
-                <span className="text-[8px] uppercase font-black text-rose-400 tracking-wider">
-                  {currentLang === 'ko' ? '⚠️ IP 충돌 주의' : '⚠️ IP Conflict Warning'}
-                </span>
-                <span className="text-[9px] font-bold text-rose-300 leading-tight mt-0.5">
-                  {conflictDetails || (currentLang === 'ko' ? "동일 IP 다중 응답 감지" : "Multiple responses on same IP")}
-                </span>
-              </div>
+            {(isGatewayProxyArp || hasActiveConflict) && (
+              isGatewayProxyArp ? (
+                <div className="flex flex-col bg-sky-500/20 p-1 rounded border border-sky-500/40">
+                  <span className="text-[8px] uppercase font-black text-sky-400 tracking-wider">
+                    {currentLang === 'ko' ? 'ℹ️ Proxy-ARP 게이트웨이 공유' : 'ℹ️ Proxy-ARP Gateway Sharing'}
+                  </span>
+                  <span className="text-[9px] font-bold text-sky-300 leading-tight mt-0.5">
+                    {conflictDetails || (currentLang === 'ko' ? "게이트웨이 MAC 대리 응답 (정상)" : "Gateway MAC Proxy-ARP (Normal)")}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col bg-rose-500/20 p-1 rounded border border-rose-500/40">
+                  <span className="text-[8px] uppercase font-black text-rose-400 tracking-wider">
+                    {currentLang === 'ko' ? '⚠️ IP 충돌 주의' : '⚠️ IP Conflict Warning'}
+                  </span>
+                  <span className="text-[9px] font-bold text-rose-300 leading-tight mt-0.5">
+                    {conflictDetails || (currentLang === 'ko' ? "동일 IP 다중 응답 감지" : "Multiple responses on same IP")}
+                  </span>
+                </div>
+              )
             )}
 
             <div className="flex flex-col">

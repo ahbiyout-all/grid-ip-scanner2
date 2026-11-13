@@ -39,6 +39,18 @@ func getNativeModulesStatus() NativeModulesStatus {
 	}
 }
 
+type NativeProbeBatchHint struct {
+	IP         string
+	MAC        string
+	RttMs      float64
+	IsAlive    bool
+	IsArpAlive bool
+}
+
+func hasNativeProbeEngine() bool {
+	return false
+}
+
 func tryNativeProbeFastPing(ip string, timeoutMs int) (float64, bool) {
 	return -1.0, false
 }
@@ -47,7 +59,15 @@ func tryNativeProbeResolveMac(ip string) (string, bool) {
 	return "", false
 }
 
+func tryNativeProbeAsyncBatch(ips []string, timeoutMs int) (map[string]NativeProbeBatchHint, bool) {
+	return nil, false
+}
+
 func tryNativePortIOCPBatch(targetIp string, portList []int, timeoutMs int, maxConcurrency int) ([]int, bool) {
+	return nil, false
+}
+
+func tryNativePortIocpMultiHost(ips []string, ports []int, timeoutMs int, maxInFlight int) (map[string][]int, bool) {
 	return nil, false
 }
 
@@ -284,6 +304,7 @@ type TopologyGuardAnalysisResult struct {
 	SameCount           int                  `json:"sameCount"`
 	ConflictCount       int                  `json:"conflictCount"`
 	MultiIpMacCount     int                  `json:"multiIpMacCount"`
+	ProxyArpInfoCount   int                  `json:"proxyArpInfoCount"`
 	LaaRandomCount      int                  `json:"laaRandomCount"`
 	VirtualNicCount     int                  `json:"virtualNicCount"`
 	HardIntruderCount   int                  `json:"hardIntruderCount"`
@@ -303,8 +324,43 @@ type guardHostInput struct {
 }
 
 type guardTopologyInput struct {
-	Current  []guardHostInput `json:"current"`
-	Baseline []guardHostInput `json:"baseline"`
+	GatewayIP string           `json:"gatewayIp"`
+	Current   []guardHostInput `json:"current"`
+	Baseline  []guardHostInput `json:"baseline"`
+}
+
+func isGuardGatewayCandidateIP(ip string, explicitGatewayIP string) bool {
+	if ip == "" {
+		return false
+	}
+	if explicitGatewayIP != "" && ip == explicitGatewayIP {
+		return true
+	}
+	return strings.HasSuffix(ip, ".1") || strings.HasSuffix(ip, ".254") || strings.HasSuffix(ip, ".253")
+}
+
+func isGuardInfraSignature(vendor string, hostname string) bool {
+	v := strings.ToLower(vendor)
+	h := strings.ToLower(hostname)
+	infraVendors := []string{
+		"cisco", "hewlett", "hpe", "aruba", "fortinet", "juniper",
+		"palo alto", "ahnlab", "genians", "iptime", "efm", "mikrotik",
+		"ubiquiti", "unifi", "dasan", "ubiquoss", "extreme", "brocade",
+		"ruckus", "meraki", "arista", "watchguard", "sonicwall",
+		"netgear", "tp-link",
+	}
+	for _, kw := range infraVendors {
+		if strings.Contains(v, kw) {
+			return true
+		}
+	}
+	infraNames := []string{"gateway", "router", "firewall", "switch", "core-sw", "l3-"}
+	for _, kw := range infraNames {
+		if strings.Contains(h, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 func analyzeGuardMac(raw string) (clean string, oui string, valid bool, isLaaRandom bool, isLaaVM bool) {
@@ -432,19 +488,23 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 	}
 	curIpMap := make(map[string]bool, len(input.Current))
 	macCountMap := make(map[string]int, len(input.Current))
+	macInfraMap := make(map[string]bool, len(input.Current))
 	for _, c := range input.Current {
 		if c.IP != "" {
 			curIpMap[c.IP] = true
 		}
-		clean, _, valid, _, _ := analyzeGuardMac(c.MAC)
+		clean, _, valid, isRand, _ := analyzeGuardMac(c.MAC)
 		if valid {
 			macCountMap[clean]++
+			if !isRand && (isGuardGatewayCandidateIP(c.IP, input.GatewayIP) || isGuardInfraSignature(c.Vendor, c.Hostname)) {
+				macInfraMap[clean] = true
+			}
 		}
 	}
 
 	res := &TopologyGuardAnalysisResult{
 		Engine:  "grid_topology_guard.dll (Go Fallback)",
-		Version: 20600,
+		Version: 20601,
 		Alerts:  []TopologyGuardAlert{},
 	}
 
@@ -461,17 +521,27 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 		}
 
 		alert := TopologyGuardAlert{IP: cur.IP}
+		isBenignProxyArp := false
 		if macValid && macCountMap[cleanMac] > 1 {
-			alert.AnomalyMask |= 2 // MULTI_IP_MAC
-			res.MultiIpMacCount++
-			alert.Reason = fmt.Sprintf("동일 MAC[%s] 다중 IP 점유 감지 (Proxy-ARP 또는 충돌)", cur.MAC)
+			if macInfraMap[cleanMac] && !isLaaRandom {
+				isBenignProxyArp = true
+				alert.AnomalyMask |= 32 // GUARD_ANOMALY_INFRA_PROXY_ARP (1 << 5)
+				res.ProxyArpInfoCount++
+				alert.Reason = fmt.Sprintf("게이트웨이/인프라 Proxy-ARP 다중 IP 응답 (MAC %s, 정상 L3 라우팅 공유)", cur.MAC)
+			} else {
+				alert.AnomalyMask |= 2 // MULTI_IP_MAC
+				res.MultiIpMacCount++
+				alert.Reason = fmt.Sprintf("동일 MAC[%s] 다중 IP 점유 감지 (Proxy-ARP 또는 충돌)", cur.MAC)
+			}
 		}
 
 		base, exists := baseMap[cur.IP]
 		if !exists {
 			alert.DeltaStatus = 2 // NEW
 			res.NewCount++
-			if !cur.IsTrusted {
+			if isBenignProxyArp {
+				// Benign L3 Proxy-ARP response from gateway/infra MAC: preserve Info verdict, do not flag SoftTrust/Intruder
+			} else if !cur.IsTrusted {
 				bestSim := 0
 				bestPrevIp := ""
 				bestReason := ""
@@ -497,9 +567,11 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 				} else {
 					alert.AnomalyMask |= 16
 					res.HardIntruderCount++
-					alert.Reason = "기준 스냅샷 미등록 신규 단말 접속"
+					if alert.Reason == "" {
+						alert.Reason = "기준 스냅샷 미등록 신규 단말 접속"
+					}
 				}
-			} else {
+			} else if alert.Reason == "" {
 				alert.Reason = "신뢰 등록 신규 활성 단말"
 			}
 		} else {
@@ -510,6 +582,10 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 			for _, p := range base.OpenPorts {
 				basePorts[p] = true
 			}
+			curPorts := make(map[int]bool, len(cur.OpenPorts))
+			for _, p := range cur.OpenPorts {
+				curPorts[p] = true
+			}
 			portDiff := len(cur.OpenPorts) != len(base.OpenPorts)
 			riskyAdded := false
 			for _, p := range cur.OpenPorts {
@@ -517,6 +593,14 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 					portDiff = true
 					if isHighRiskDeltaPort(p) {
 						riskyAdded = true
+					}
+				}
+			}
+			if !portDiff {
+				for _, p := range base.OpenPorts {
+					if !curPorts[p] {
+						portDiff = true
+						break
 					}
 				}
 			}
@@ -545,12 +629,14 @@ func tryNativeTopologyGuardAnalyzeJson(inJson string) (*TopologyGuardAnalysisRes
 			} else {
 				alert.DeltaStatus = 1 // SAME
 				res.SameCount++
-				alert.Reason = "기준 스냅샷과 상태 일치"
+				if alert.Reason == "" {
+					alert.Reason = "기준 스냅샷과 상태 일치"
+				}
 			}
 		}
 
 		res.TotalEvaluated++
-		if (alert.AnomalyMask != 0 || alert.DeltaStatus == 4) && len(res.Alerts) < 20 {
+		if (alert.AnomalyMask != 0 || alert.DeltaStatus == 4) && len(res.Alerts) < 128 {
 			res.Alerts = append(res.Alerts, alert)
 		}
 	}

@@ -82,4 +82,4 @@ Grid IP Scanner2는 초고속 ICMP 핑 sweep, L2 ARP 해소, IOCP 포트 스캔 
 
 ---
 
-> **보안 관련 문의 및 오탐지 제보**: `redmunlight@gmail.com` 또는 [공식 깃허브 이슈](https://github.com/AhBiYout-all/grid-ip-scanner2/issues)
+> **보안 관련 문의 및 오탐지 제보**: [공식 깃허브 이슈](https://github.com/AhBiYout-all/grid-ip-scanner2/issues) (GitHub Repository: `https://github.com/AhBiYout-all/grid-ip-scanner2`)

@@ -28,7 +28,7 @@ extern "C" {
     #define GRID_GUARD_API __attribute__((visibility("default")))
 #endif
 
-#define GUARD_DRIVER_VERSION 20600 /* v2.6.0 */
+#define GUARD_DRIVER_VERSION 20601 /* v2.6.1 */
 #define GUARD_MAX_SUBNET_HOSTS 512
 #define GUARD_MAX_PORTS_PER_HOST 32
 
@@ -52,10 +52,11 @@ typedef enum {
 /* Anomaly / Security Event Bitmask */
 #define GUARD_ANOMALY_NONE             0
 #define GUARD_ANOMALY_IP_TAKEOVER      (1 << 0) /* Same IP occupied by different MAC */
-#define GUARD_ANOMALY_MULTI_IP_MAC     (1 << 1) /* Same MAC claiming multiple IPs (Proxy ARP / Clone) */
+#define GUARD_ANOMALY_MULTI_IP_MAC     (1 << 1) /* Same MAC claiming multiple IPs (Rogue Clone / Static Conflict) */
 #define GUARD_ANOMALY_RISKY_PORT_OPEN  (1 << 2) /* Newly exposed dangerous port (21,23,445,3389,5900,6379) */
 #define GUARD_ANOMALY_LAA_CHURN        (1 << 3) /* Randomized MAC arrival correlating with trusted host */
 #define GUARD_ANOMALY_HARD_INTRUDER    (1 << 4) /* Unrecognized node without soft-trust correlation */
+#define GUARD_ANOMALY_INFRA_PROXY_ARP  (1 << 5) /* Benign Gateway / L3 Infra Proxy-ARP multi-IP MAC (Info) */
 
 typedef struct {
     char cleanMac[16];     /* 12 uppercase hex chars + NUL */
@@ -93,6 +94,7 @@ typedef struct {
     int sameCount;
     int conflictCount;
     int multiIpMacCount;
+    int proxyArpInfoCount;
     int laaRandomCount;
     int virtualNicCount;
     int hardIntruderCount;
@@ -102,7 +104,7 @@ typedef struct {
 } GuardTopologySummary;
 
 /**
- * Returns integer driver version (e.g. 20600 = v2.6.0).
+ * Returns integer driver version (e.g. 20601 = v2.6.1).
  */
 GRID_GUARD_API int Guard_GetDriverVersion(void);
 
@@ -145,11 +147,27 @@ GRID_GUARD_API int Guard_AnalyzeSubnetTopology(
 );
 
 /**
+ * Extended version of Guard_AnalyzeSubnetTopology accepting an explicit gateway IPv4 string
+ * to accurately classify gateway Proxy-ARP multi-IP MAC clusters as informational.
+ */
+GRID_GUARD_API int Guard_AnalyzeSubnetTopologyEx(
+    const GuardHostRecord* currentHosts,
+    int currentCount,
+    const GuardHostRecord* baselineHosts,
+    int baselineCount,
+    const char* gatewayIp,
+    GuardHostVerdict* outVerdicts,
+    int maxVerdicts,
+    GuardTopologySummary* outSummary
+);
+
+/**
  * JSON C-ABI bridge for direct Go/Electron integration (Caller-Allocates Buffer).
  * Input JSON format:
- *   {"current":[{"ip":"...","mac":"...","hostname":"...","vendor":"...","openPorts":[...],"isTrusted":false}],
+ *   {"gatewayIp":"...",
+ *    "current":[{"ip":"...","mac":"...","hostname":"...","vendor":"...","openPorts":[...],"isTrusted":false}],
  *    "baseline":[...]}
- * Output JSON contains summary metrics, detected conflicts, LAA stats, and top alerts.
+ * Output JSON contains summary metrics, detected conflicts, Proxy-ARP info, LAA stats, and alerts.
  *
  * @return 1 on success, 0 on error
  */

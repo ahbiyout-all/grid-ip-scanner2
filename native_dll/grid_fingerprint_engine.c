@@ -449,6 +449,66 @@ static void json_escape_str(const char* src, char* dst, size_t cap) {
     dst[j] = '\0';
 }
 
+/* Finds top-level JSON key value pointer inside a JSON object without matching substrings inside string values */
+static const char* find_json_value(const char* json, const char* key) {
+    if (!json || !key) return NULL;
+    size_t klen = strlen(key);
+    const char* p = json;
+    int depth = 0;
+
+    while (*p) {
+        if (*p == '{' || *p == '[') {
+            depth++;
+            p++;
+        } else if (*p == '}' || *p == ']') {
+            depth--;
+            p++;
+        } else if (*p == '"') {
+            const char* strStart = p + 1;
+            p++;
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1) != '\0') p += 2;
+                else p++;
+            }
+            size_t tokLen = (size_t)(p - strStart);
+            if (*p == '"') p++;
+
+            const char* after = p;
+            while (*after && (*after == ' ' || *after == '\t' || *after == '\r' || *after == '\n')) after++;
+            if (depth == 1 && *after == ':' && tokLen == klen && strncmp(strStart, key, klen) == 0) {
+                after++;
+                while (*after && (*after == ' ' || *after == '\t' || *after == '\r' || *after == '\n')) after++;
+                return after;
+            }
+        } else {
+            p++;
+        }
+    }
+    return NULL;
+}
+
+static void extract_json_str_safe(const char* json, const char* key, char* target, size_t cap) {
+    if (!target || cap == 0) return;
+    target[0] = '\0';
+    const char* val = find_json_value(json, key);
+    if (!val || *val != '"') return;
+    val++;
+    size_t idx = 0;
+    while (*val && *val != '"' && idx < cap - 1) {
+        if (*val == '\\' && *(val + 1) != '\0') {
+            val++;
+            char esc = *val++;
+            if (esc == 'n') target[idx++] = '\n';
+            else if (esc == 'r') target[idx++] = '\r';
+            else if (esc == 't') target[idx++] = '\t';
+            else target[idx++] = esc;
+        } else {
+            target[idx++] = *val++;
+        }
+    }
+    target[idx] = '\0';
+}
+
 int Fingerprint_AnalyzeJson(
     const char* inJson,
     char* outJson,
@@ -459,57 +519,36 @@ int Fingerprint_AnalyzeJson(
     HostFingerprintProfile prof;
     memset(&prof, 0, sizeof(prof));
 
-    // Safe JSON string extractor (handles empty "" values and \" escapes cleanly)
-    const char* p;
-    #define EXTRACT_STR(key, target) do { \
-        p = strstr(inJson, "\"" key "\""); \
-        if (p) { \
-            p += strlen("\"" key "\""); \
-            while (*p && (*p == ' ' || *p == '\t')) p++; \
-            if (*p == ':') { \
-                p++; \
-                while (*p && (*p == ' ' || *p == '\t')) p++; \
-                if (*p == '"') { \
-                    p++; \
-                    size_t idx = 0; \
-                    while (*p && *p != '"' && idx < sizeof(target) - 1) { \
-                        if (*p == '\\' && *(p + 1) != '\0') p++; \
-                        target[idx++] = *p++; \
-                    } \
-                    target[idx] = '\0'; \
-                } \
-            } \
-        } \
-    } while (0)
+    extract_json_str_safe(inJson, "ip", prof.ip, sizeof(prof.ip));
+    extract_json_str_safe(inJson, "mac", prof.mac, sizeof(prof.mac));
+    extract_json_str_safe(inJson, "vendor", prof.vendor, sizeof(prof.vendor));
+    extract_json_str_safe(inJson, "hostname", prof.hostname, sizeof(prof.hostname));
+    extract_json_str_safe(inJson, "workgroup", prof.workgroup, sizeof(prof.workgroup));
+    extract_json_str_safe(inJson, "serverHeader", prof.serverHeader, sizeof(prof.serverHeader));
+    extract_json_str_safe(inJson, "sshBanner", prof.sshBanner, sizeof(prof.sshBanner));
+    extract_json_str_safe(inJson, "rtspServer", prof.rtspServer, sizeof(prof.rtspServer));
 
-    EXTRACT_STR("ip", prof.ip);
-    EXTRACT_STR("mac", prof.mac);
-    EXTRACT_STR("vendor", prof.vendor);
-    EXTRACT_STR("hostname", prof.hostname);
-    EXTRACT_STR("workgroup", prof.workgroup);
-    EXTRACT_STR("serverHeader", prof.serverHeader);
-    EXTRACT_STR("sshBanner", prof.sshBanner);
-    EXTRACT_STR("rtspServer", prof.rtspServer);
-
-    p = strstr(inJson, "\"ttl\"");
-    if (p) {
-        p = strchr(p, ':');
-        if (p) prof.ttl = atoi(p + 1);
+    const char* ttlVal = find_json_value(inJson, "ttl");
+    if (ttlVal && (isdigit((unsigned char)*ttlVal) || *ttlVal == '-')) {
+        prof.ttl = atoi(ttlVal);
     }
 
-    p = strstr(inJson, "\"openPorts\"");
-    if (p) {
-        p = strchr(p, '[');
-        if (p) {
-            p++;
-            while (*p && *p != ']' && prof.openPortCount < 64) {
-                while (*p == ' ' || *p == ',') p++;
-                if (isdigit((unsigned char)*p)) {
-                    prof.openPorts[prof.openPortCount++] = atoi(p);
-                    while (isdigit((unsigned char)*p)) p++;
-                } else {
-                    p++;
+    const char* portsVal = find_json_value(inJson, "openPorts");
+    if (portsVal && *portsVal == '[') {
+        const char* p = portsVal + 1;
+        while (*p && *p != ']' && prof.openPortCount < 64) {
+            while (*p == ' ' || *p == ',' || *p == '\t') p++;
+            if (*p == '-') {
+                p++;
+                while (isdigit((unsigned char)*p)) p++;
+            } else if (isdigit((unsigned char)*p)) {
+                int portNum = atoi(p);
+                if (portNum > 0 && portNum <= 65535) {
+                    prof.openPorts[prof.openPortCount++] = portNum;
                 }
+                while (isdigit((unsigned char)*p)) p++;
+            } else {
+                p++;
             }
         }
     }

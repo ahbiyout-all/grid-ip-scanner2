@@ -986,8 +986,11 @@ func isAlivePingWithTimeout(ctx context.Context, ip string, timeoutMs int) bool 
 	if _, ok := tryNativeProbeFastPing(ip, timeoutMs); ok {
 		return true
 	}
-	if lat, ok := tryNativeFastPing(ip, timeoutMs); ok && lat >= 0 {
-		return true
+	// Only fall back to legacy grid_net_driver ping if grid_probe_engine is not loaded (avoid double ICMP wait on dead IPs)
+	if !hasNativeProbeEngine() {
+		if lat, ok := tryNativeFastPing(ip, timeoutMs); ok && lat >= 0 {
+			return true
+		}
 	}
 
 	var cmd *exec.Cmd
@@ -1023,31 +1026,44 @@ func isAlivePingWithTimeout(ctx context.Context, ip string, timeoutMs int) bool 
 }
 
 func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult {
+	return scanIPQuickWithHints(ctx, ip, timeoutMs, nil)
+}
+
+func scanIPQuickWithHints(ctx context.Context, ip string, timeoutMs int, hint *NativeProbeBatchHint) ScanResult {
 	start := time.Now()
 	alive := false
 
-	// 1. ICMP Ping
-	if isAlivePingWithTimeout(ctx, ip, timeoutMs) {
+	if hint != nil && hint.IsAlive {
 		alive = true
-	}
-
-	// 2. NetBIOS Check (Fallback)
-	if !alive {
-		if checkNetBIOSWithTimeout(ctx, ip, timeoutMs) {
+	} else {
+		// 1. ICMP Ping
+		if isAlivePingWithTimeout(ctx, ip, timeoutMs) {
 			alive = true
 		}
-	}
 
-	// 3. Quick TCP Check - Now using FastTCPVerify engine
-	if !alive {
-		aliveFromTCP, _ := GlobalEngine.FastTCPVerify(ctx, ip, timeoutMs/2, []int{445, 135, 80})
-		if aliveFromTCP {
-			alive = true
+		// 2. NetBIOS Check (Fallback)
+		if !alive {
+			if checkNetBIOSWithTimeout(ctx, ip, timeoutMs) {
+				alive = true
+			}
+		}
+
+		// 3. Quick TCP Check - Now using FastTCPVerify engine
+		if !alive {
+			aliveFromTCP, _ := GlobalEngine.FastTCPVerify(ctx, ip, timeoutMs/2, []int{445, 135, 80})
+			if aliveFromTCP {
+				alive = true
+			}
 		}
 	}
 
 	if alive {
-		mac := getMacFromArp(ctx, ip)
+		mac := ""
+		if hint != nil && hint.MAC != "" {
+			mac = hint.MAC
+		} else {
+			mac = getMacFromArp(ctx, ip)
+		}
 		localIP, _ := getLocalIP()
 		
 		// Run Multi-protocol parallel device name resolution
@@ -1134,6 +1150,10 @@ func scanIPQuickWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanR
 }
 
 func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult {
+	return scanIPWithHints(ctx, ip, timeoutMs, nil, nil, false)
+}
+
+func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *NativeProbeBatchHint, preOpenPorts []int, hasPrePorts bool) ScanResult {
 	start := time.Now()
 	
 	var openPorts []int
@@ -1142,21 +1162,28 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 	aliveViaNetBIOS := false
 	aliveViaPort := false
 
-	// 1. ICMP Ping (Most reliable "Alive" indicator)
-	if isAlivePingWithTimeout(ctx, ip, timeoutMs) {
+	// 1. ICMP Ping (or Batch Native Probe Hint)
+	if hint != nil && hint.IsAlive {
 		aliveViaPing = true
-	}
+	} else {
+		if isAlivePingWithTimeout(ctx, ip, timeoutMs) {
+			aliveViaPing = true
+		}
 
-	// 2. UDP NetBIOS Check (Port 137)
-	if !aliveViaPing {
-		if checkNetBIOSWithTimeout(ctx, ip, timeoutMs) {
-			aliveViaNetBIOS = true
+		// 2. UDP NetBIOS Check (Port 137)
+		if !aliveViaPing {
+			if checkNetBIOSWithTimeout(ctx, ip, timeoutMs) {
+				aliveViaNetBIOS = true
+			}
 		}
 	}
 
-	// 3. TCP Port Scan - Using Native IOCP Engine with concurrent FastTCPVerify fallback
+	// 3. TCP Port Scan - Use batch IOCP sweep hint if available, else per-host IOCP / FastTCPVerify
 	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
-	if iocpPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, timeoutMs, 16); ok {
+	if hasPrePorts {
+		openPorts = preOpenPorts
+		aliveViaPort = len(openPorts) > 0
+	} else if iocpPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, timeoutMs, 16); ok {
 		openPorts = iocpPorts
 		aliveViaPort = len(openPorts) > 0
 	} else {
@@ -1173,7 +1200,12 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 	alive := aliveViaPing || aliveViaNetBIOS || aliveViaPort
 	
 	if alive {
-		mac := getMacFromArp(ctx, ip)
+		mac := ""
+		if hint != nil && hint.MAC != "" {
+			mac = hint.MAC
+		} else {
+			mac = getMacFromArp(ctx, ip)
+		}
 		localIP, _ := getLocalIP()
 		
 		ouiMutex.RLock()
@@ -1210,14 +1242,28 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 			}
 		}
 
-		// Try deep banner grabber if available
+		// Try deep banner grabber only when port 80 or 8080 is actually open
 		webTitle := hostnameSources[NameSourceWeb]
-		if banner, ok := tryNativeDeepBannerGrab(ip, 80, timeoutMs); ok && banner != nil && banner.HtmlTitle != "" {
-			webTitle = banner.HtmlTitle
-			hostnameSources[NameSourceWeb] = banner.HtmlTitle
-			if hostname == "" {
-				hostname = webTitle
-				nameSource = NameSourceWeb
+		hasPort80, hasPort8080 := false, false
+		for _, p := range openPorts {
+			if p == 80 {
+				hasPort80 = true
+			} else if p == 8080 {
+				hasPort8080 = true
+			}
+		}
+		if hasPort80 || hasPort8080 {
+			bannerPort := 80
+			if !hasPort80 {
+				bannerPort = 8080
+			}
+			if banner, ok := tryNativeDeepBannerGrab(ip, bannerPort, timeoutMs); ok && banner != nil && banner.HtmlTitle != "" {
+				webTitle = banner.HtmlTitle
+				hostnameSources[NameSourceWeb] = banner.HtmlTitle
+				if hostname == "" {
+					hostname = webTitle
+					nameSource = NameSourceWeb
+				}
 			}
 		}
 
@@ -2430,6 +2476,42 @@ func main() {
 		// Warm up the new Search Engine's ARP Cache
 		GlobalEngine.Prepare()
 
+		// Build IP list & run Native Vectorized Batch Pre-Sweep when native DLLs are available (0ms pacing mode)
+		targetIPs := make([]string, 0, endIP-startIP+1)
+		for i := startIP; i <= endIP; i++ {
+			targetIPs = append(targetIPs, fmt.Sprintf("%s.%d", subnet, i))
+		}
+
+		var probeHints map[string]NativeProbeBatchHint
+		var portHints map[string][]int
+		if delayMs == 0 && len(targetIPs) > 0 {
+			probeTimeout := timeoutMs
+			if probeTimeout > 600 {
+				probeTimeout = 600
+			}
+			if hints, ok := tryNativeProbeAsyncBatch(targetIPs, probeTimeout); ok {
+				probeHints = hints
+				if deepScan {
+					var liveIPs []string
+					for _, ip := range targetIPs {
+						if h, exists := hints[ip]; exists && h.IsAlive {
+							liveIPs = append(liveIPs, ip)
+						}
+					}
+					if len(liveIPs) > 0 {
+						deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
+						iocpTimeout := timeoutMs
+						if iocpTimeout > 500 {
+							iocpTimeout = 500
+						}
+						if pMap, pOk := tryNativePortIocpMultiHost(liveIPs, deepTargetPorts, iocpTimeout, 256); pOk {
+							portHints = pMap
+						}
+					}
+				}
+			}
+		}
+
 		// Adaptive logic: If delay is high, we can afford more retries and longer timeouts
 		retryCount := 1 // Default to 1 retry for fast mode
 		if delayMs >= 100 || timeoutMs >= 1500 {
@@ -2483,14 +2565,38 @@ func main() {
 					case <-ctx.Done():
 					}
 					
+					var pHintPtr *NativeProbeBatchHint
+					if probeHints != nil {
+						if h, ok := probeHints[ip]; ok {
+							hCopy := h
+							pHintPtr = &hCopy
+						}
+					}
+					var prePorts []int
+					hasPrePorts := false
+					if portHints != nil {
+						if ps, ok := portHints[ip]; ok {
+							prePorts = ps
+							hasPrePorts = true
+						}
+					}
+
 					var res ScanResult
 					// Adaptive Retry Logic
 				retryLoop:
 					for r := 0; r < retryCount; r++ {
+						curHint := pHintPtr
+						curPrePorts := prePorts
+						curHasPrePorts := hasPrePorts
+						if r > 0 {
+							// On retry, re-probe actively without relying on initial dead hint
+							curHint = nil
+							curHasPrePorts = false
+						}
 						if deepScan {
-							res = scanIPWithTimeout(ctx, ip, timeoutMs)
+							res = scanIPWithHints(ctx, ip, timeoutMs, curHint, curPrePorts, curHasPrePorts)
 						} else {
-							res = scanIPQuickWithTimeout(ctx, ip, timeoutMs)
+							res = scanIPQuickWithHints(ctx, ip, timeoutMs, curHint)
 						}
 						if res.Alive {
 							break retryLoop
@@ -2851,7 +2957,7 @@ func main() {
 		}
 
 		if inJson == "" {
-			// Construct JSON from GET query parameters
+			// Construct JSON safely via encoding/json to prevent JSON injection
 			ip := r.URL.Query().Get("ip")
 			mac := r.URL.Query().Get("mac")
 			vendor := r.URL.Query().Get("vendor")
@@ -2860,17 +2966,43 @@ func main() {
 			serverHeader := r.URL.Query().Get("server")
 			ttl := 0
 			if t := r.URL.Query().Get("ttl"); t != "" {
-				fmt.Sscanf(t, "%d", &ttl)
+				if parsedTtl, err := strconv.Atoi(strings.TrimSpace(t)); err == nil {
+					ttl = parsedTtl
+				}
 			}
-			portsStr := r.URL.Query().Get("ports")
-			portsJson := "[]"
-			if portsStr != "" {
-				parts := strings.Split(portsStr, ",")
-				portsJson = "[" + strings.Join(parts, ",") + "]"
+			var openPorts []int
+			if portsStr := r.URL.Query().Get("ports"); portsStr != "" {
+				for _, tok := range strings.Split(portsStr, ",") {
+					if pNum, err := strconv.Atoi(strings.TrimSpace(tok)); err == nil && pNum >= 1 && pNum <= 65535 {
+						openPorts = append(openPorts, pNum)
+					}
+				}
 			}
-
-			inJson = fmt.Sprintf(`{"ip":"%s","mac":"%s","vendor":"%s","hostname":"%s","workgroup":"%s","serverHeader":"%s","ttl":%d,"openPorts":%s}`,
-				ip, mac, vendor, hostname, workgroup, serverHeader, ttl, portsJson)
+			if openPorts == nil {
+				openPorts = []int{}
+			}
+			payload := struct {
+				IP           string `json:"ip"`
+				MAC          string `json:"mac"`
+				Vendor       string `json:"vendor"`
+				Hostname     string `json:"hostname"`
+				Workgroup    string `json:"workgroup"`
+				ServerHeader string `json:"serverHeader"`
+				TTL          int    `json:"ttl"`
+				OpenPorts    []int  `json:"openPorts"`
+			}{
+				IP:           ip,
+				MAC:          mac,
+				Vendor:       vendor,
+				Hostname:     hostname,
+				Workgroup:    workgroup,
+				ServerHeader: serverHeader,
+				TTL:          ttl,
+				OpenPorts:    openPorts,
+			}
+			if marshaled, err := json.Marshal(payload); err == nil {
+				inJson = string(marshaled)
+			}
 		}
 
 		res, ok := tryNativeFingerprintAnalyzeJson(inJson)
@@ -2909,12 +3041,27 @@ func main() {
 		}
 
 		if inJson == "" {
-			ip := r.URL.Query().Get("ip")
-			mac := r.URL.Query().Get("mac")
-			hostname := r.URL.Query().Get("hostname")
-			vendor := r.URL.Query().Get("vendor")
-			inJson = fmt.Sprintf(`{"current":[{"ip":%q,"mac":%q,"hostname":%q,"vendor":%q,"openPorts":[80,443],"isTrusted":false}],"baseline":[]}`,
-				ip, mac, hostname, vendor)
+			payload := struct {
+				GatewayIP string                   `json:"gatewayIp,omitempty"`
+				Current   []map[string]interface{} `json:"current"`
+				Baseline  []map[string]interface{} `json:"baseline"`
+			}{
+				GatewayIP: r.URL.Query().Get("gatewayIp"),
+				Current: []map[string]interface{}{
+					{
+						"ip":        r.URL.Query().Get("ip"),
+						"mac":       r.URL.Query().Get("mac"),
+						"hostname":  r.URL.Query().Get("hostname"),
+						"vendor":    r.URL.Query().Get("vendor"),
+						"openPorts": []int{80, 443},
+						"isTrusted": false,
+					},
+				},
+				Baseline: []map[string]interface{}{},
+			}
+			if marshaled, err := json.Marshal(payload); err == nil {
+				inJson = string(marshaled)
+			}
 		}
 
 		res, ok := tryNativeTopologyGuardAnalyzeJson(inJson)

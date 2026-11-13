@@ -17,7 +17,7 @@ import { checkGitHubRelease, UpdateInfo, CURRENT_APP_VERSION, GITHUB_REPO_OWNER,
 import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
 import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
-import { analyzeNetworkConflicts, findNewIntruderDevices, ConflictInfo } from './services/conflictDetector';
+import { analyzeNetworkConflicts, findNewIntruderDevices, isConflictAlert, ConflictInfo } from './services/conflictDetector';
 import { getSchedules, recordScheduleRunCompletion, addHistoryRecord } from './services/schedulerService';
 import { TrayStatusIndicator } from './components/TrayStatusIndicator';
 import { IntruderLogModal } from './components/IntruderLogModal';
@@ -1075,10 +1075,18 @@ const App: React.FC = () => {
     return combined;
   }, [trustedDevices, localIpInfo, interfaces, aliases, snapshots]);
 
-  // Feature 4: IP Conflict Detection
+  // Feature 4: IP Conflict Detection (separating benign Gateway Proxy-ARP Info from real conflicts)
   const detectedConflicts = useMemo(() => {
     return analyzeNetworkConflicts(results, baselineSnapshot?.results);
   }, [results, baselineSnapshot]);
+
+  const realConflictCount = useMemo(() => {
+    let count = 0;
+    detectedConflicts.forEach((c) => {
+      if (isConflictAlert(c)) count++;
+    });
+    return count;
+  }, [detectedConflicts]);
 
   // Historical Device Map for Fingerprint Matching & Soft Trust Grace Period
   const historicalDevices = useMemo(() => {
@@ -2964,7 +2972,7 @@ const App: React.FC = () => {
 
       // Custom Filter Mode (all / active / conflict / intruder / soft_trust / alias)
       if (customFilterMode === 'active' && item.status !== 'active') return false;
-      if (customFilterMode === 'conflict' && !detectedConflicts.has(ip)) return false;
+      if (customFilterMode === 'conflict' && !isConflictAlert(detectedConflicts.get(ip))) return false;
       if (customFilterMode === 'intruder' && !detectedIntruders.some(d => d.ip === ip)) return false;
       if (customFilterMode === 'soft_trust' && !softTrustedDevices.some(d => d.ip === ip)) return false;
       if (customFilterMode === 'alias' && !alias?.nickname) return false;
@@ -4080,7 +4088,7 @@ const App: React.FC = () => {
                 >
                   {s.active} ({activeCount})
                 </button>
-                {detectedConflicts.size > 0 && (
+                {realConflictCount > 0 && (
                   <button
                     onClick={() => setCustomFilterMode('conflict')}
                     className={`px-2 py-0.5 rounded font-black transition-all flex items-center gap-1 ${
@@ -4089,7 +4097,7 @@ const App: React.FC = () => {
                     title={lang === 'ko' ? "IP 충돌 의심 기기만 필터링" : "Filter IP conflict suspected devices"}
                   >
                     <span>⚠️</span>
-                    <span>{detectedConflicts.size}</span>
+                    <span>{realConflictCount}</span>
                   </button>
                 )}
                 {detectedIntruders.length > 0 && (
@@ -4846,7 +4854,10 @@ const App: React.FC = () => {
                   s={s}
                   lang={lang}
                   diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
-                  isConflict={!!conflict}
+                  isConflict={isConflictAlert(conflict)}
+                  isGatewayProxyArp={Boolean(conflict?.isGatewayProxyArp)}
+                  conflictSeverity={conflict?.severity}
+                  conflictCategory={conflict?.category}
                   conflictDetails={conflict?.reason}
                   isNewIntruder={isIntruder}
                   isSoftTrust={softTrustedDevices.some(d => d.ip === ip)}
@@ -5132,18 +5143,39 @@ const App: React.FC = () => {
                     </div>
                   )}
 
-                  {/* IP Conflict Warning Banner */}
+                  {/* IP Conflict Warning / Gateway Proxy-ARP Info Banner */}
                   {selectedConflict && (
-                    <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
-                      <div className={`flex items-center gap-1.5 text-rose-400 font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
-                        <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                        <span>⚠️ {lang === 'ko' ? 'IP 충돌 경고 (IP Conflict)' : 'IP Conflict Warning'}</span>
+                    (selectedConflict.isGatewayProxyArp || !isConflictAlert(selectedConflict)) ? (
+                      <div className={`p-3.5 rounded-xl border space-y-1.5 shadow-sm ${
+                        theme === 'beige' || theme === 'white'
+                          ? 'border-sky-400 bg-sky-50 text-sky-950'
+                          : 'border-sky-500/50 bg-sky-500/15 text-sky-100'
+                      }`}>
+                        <div className={`flex items-center gap-1.5 font-black ${
+                          theme === 'beige' || theme === 'white' ? 'text-sky-700' : 'text-sky-300'
+                        } ${isLgText ? 'text-sm' : 'text-xs'}`}>
+                          <Info className="w-4 h-4 text-sky-500 shrink-0" />
+                          <span>ℹ️ {lang === 'ko' ? '게이트웨이 Proxy-ARP 공유 (정상)' : 'Gateway Proxy-ARP Sharing (Normal)'}</span>
+                        </div>
+                        <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
+                        <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} ${
+                          theme === 'beige' || theme === 'white' ? 'bg-sky-100 text-sky-800' : 'text-sky-200/90 bg-black/30'
+                        } p-2 rounded mt-1`}>
+                          💡 {lang === 'ko' ? '안내: 학교/기업 L3 라우터·방화벽이 여러 IP 대역을 대리 응답(Proxy-ARP)하거나 보조 IP를 함께 운영할 때 나타나는 정상 동작입니다.' : 'Note: Normal behavior when an L3 gateway/router answers Proxy-ARP or secondary IPs without real conflict.'}
+                        </div>
                       </div>
-                      <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
-                      <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} text-rose-300/90 bg-black/30 p-2 rounded mt-1`}>
-                        💡 {lang === 'ko' ? '해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.' : 'Resolution: Check for static IP duplication or renew DHCP router lease.'}
+                    ) : (
+                      <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
+                        <div className={`flex items-center gap-1.5 text-rose-400 font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
+                          <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                          <span>⚠️ {lang === 'ko' ? 'IP 충돌 경고 (IP Conflict)' : 'IP Conflict Warning'}</span>
+                        </div>
+                        <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
+                        <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} text-rose-300/90 bg-black/30 p-2 rounded mt-1`}>
+                          💡 {lang === 'ko' ? '해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.' : 'Resolution: Check for static IP duplication or renew DHCP router lease.'}
+                        </div>
                       </div>
-                    </div>
+                    )
                   )}
 
                   {/* New Intruder Device Banner */}

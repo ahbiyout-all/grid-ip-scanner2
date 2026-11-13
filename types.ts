@@ -331,6 +331,7 @@ export interface NativeTopologyGuardResult {
   sameCount: number;
   conflictCount: number;
   multiIpMacCount: number;
+  proxyArpInfoCount: number;
   laaRandomCount: number;
   virtualNicCount: number;
   hardIntruderCount: number;

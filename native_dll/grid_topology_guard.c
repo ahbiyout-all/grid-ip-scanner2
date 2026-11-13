@@ -291,27 +291,90 @@ int Guard_ComputeSimilarity(
 /* ============================================================================
  * Public API 4: O(N) Subnet Topology Diff, Conflict Hash & Anomaly Analyzer
  * ============================================================================ */
-#define HASH_BUCKETS 1024
-
 typedef struct {
-    char key[32];
+    char key[64];
     int hostIndex;
     int count;
+    int isInfraGroup;
     uint8_t used;
 } GuardHashSlot;
 
-static int hash_insert_ip(GuardHashSlot* table, const char* ip, int hostIdx) {
-    uint32_t h = fnv1a_hash(ip) & (HASH_BUCKETS - 1);
-    for (int step = 0; step < HASH_BUCKETS; step++) {
-        uint32_t idx = (h + (uint32_t)step) & (HASH_BUCKETS - 1);
-        if (!table[idx].used) {
-            table[idx].used = 1;
-            safe_copy(table[idx].key, ip, sizeof(table[idx].key));
-            table[idx].hostIndex = hostIdx;
-            table[idx].count = 1;
+static int next_pow2(int v) {
+    int p = 1024;
+    while (p < v && p < (1 << 18)) p <<= 1;
+    return p;
+}
+
+static int ci_contains(const char* haystack, const char* needle) {
+    if (!haystack || !needle || !needle[0]) return 0;
+    size_t nLen = strlen(needle);
+    for (const char* p = haystack; *p; p++) {
+        size_t i = 0;
+        while (i < nLen && p[i] &&
+               tolower((unsigned char)p[i]) == tolower((unsigned char)needle[i])) {
+            i++;
+        }
+        if (i == nLen) return 1;
+    }
+    return 0;
+}
+
+static int is_gateway_candidate_ip(const char* ip, const char* explicitGatewayIp) {
+    if (!ip || !ip[0]) return 0;
+    if (explicitGatewayIp && explicitGatewayIp[0] && strcmp(ip, explicitGatewayIp) == 0) {
+        return 1;
+    }
+    const char* lastDot = strrchr(ip, '.');
+    if (lastDot) {
+        if (strcmp(lastDot, ".1") == 0 ||
+            strcmp(lastDot, ".254") == 0 ||
+            strcmp(lastDot, ".253") == 0) {
             return 1;
         }
-        if (strcmp(table[idx].key, ip) == 0) {
+    }
+    return 0;
+}
+
+static int is_infra_device_signature(const char* vendor, const char* hostname) {
+    static const char* kInfraVendors[] = {
+        "cisco", "hewlett", "hpe", "aruba", "fortinet", "juniper",
+        "palo alto", "ahnlab", "genians", "iptime", "efm", "mikrotik",
+        "ubiquiti", "unifi", "dasan", "ubiquoss", "extreme", "brocade",
+        "ruckus", "meraki", "arista", "watchguard", "sonicwall",
+        "netgear", "tp-link"
+    };
+    static const char* kInfraNames[] = {
+        "gateway", "router", "firewall", "switch", "core-sw", "l3-"
+    };
+
+    if (vendor && vendor[0]) {
+        for (size_t i = 0; i < sizeof(kInfraVendors) / sizeof(kInfraVendors[0]); i++) {
+            if (ci_contains(vendor, kInfraVendors[i])) return 1;
+        }
+    }
+    if (hostname && hostname[0]) {
+        for (size_t i = 0; i < sizeof(kInfraNames) / sizeof(kInfraNames[0]); i++) {
+            if (ci_contains(hostname, kInfraNames[i])) return 1;
+        }
+    }
+    return 0;
+}
+
+static int hash_insert_key(GuardHashSlot* table, int buckets, const char* key, int hostIdx) {
+    if (!key || !key[0] || buckets <= 0) return 0;
+    uint32_t mask = (uint32_t)(buckets - 1);
+    uint32_t h = fnv1a_hash(key) & mask;
+    for (int step = 0; step < buckets; step++) {
+        uint32_t idx = (h + (uint32_t)step) & mask;
+        if (!table[idx].used) {
+            table[idx].used = 1;
+            safe_copy(table[idx].key, key, sizeof(table[idx].key));
+            table[idx].hostIndex = hostIdx;
+            table[idx].count = 1;
+            table[idx].isInfraGroup = 0;
+            return 1;
+        }
+        if (strcmp(table[idx].key, key) == 0) {
             table[idx].hostIndex = hostIdx;
             table[idx].count++;
             return 0;
@@ -320,39 +383,56 @@ static int hash_insert_ip(GuardHashSlot* table, const char* ip, int hostIdx) {
     return 0;
 }
 
-static int hash_find_ip(const GuardHashSlot* table, const char* ip) {
-    uint32_t h = fnv1a_hash(ip) & (HASH_BUCKETS - 1);
-    for (int step = 0; step < HASH_BUCKETS; step++) {
-        uint32_t idx = (h + (uint32_t)step) & (HASH_BUCKETS - 1);
+static int hash_find_key(const GuardHashSlot* table, int buckets, const char* key) {
+    if (!key || !key[0] || buckets <= 0) return -1;
+    uint32_t mask = (uint32_t)(buckets - 1);
+    uint32_t h = fnv1a_hash(key) & mask;
+    for (int step = 0; step < buckets; step++) {
+        uint32_t idx = (h + (uint32_t)step) & mask;
         if (!table[idx].used) return -1;
-        if (strcmp(table[idx].key, ip) == 0) return table[idx].hostIndex;
+        if (strcmp(table[idx].key, key) == 0) return table[idx].hostIndex;
     }
     return -1;
 }
 
-static void hash_increment_mac(GuardHashSlot* macTable, const char* cleanMac) {
-    uint32_t h = fnv1a_hash(cleanMac) & (HASH_BUCKETS - 1);
-    for (int step = 0; step < HASH_BUCKETS; step++) {
-        uint32_t idx = (h + (uint32_t)step) & (HASH_BUCKETS - 1);
+static void hash_increment_mac(
+    GuardHashSlot* macTable,
+    int buckets,
+    const char* cleanMac,
+    int isInfraNode
+) {
+    if (!cleanMac || !cleanMac[0] || buckets <= 0) return;
+    uint32_t mask = (uint32_t)(buckets - 1);
+    uint32_t h = fnv1a_hash(cleanMac) & mask;
+    for (int step = 0; step < buckets; step++) {
+        uint32_t idx = (h + (uint32_t)step) & mask;
         if (!macTable[idx].used) {
             macTable[idx].used = 1;
             safe_copy(macTable[idx].key, cleanMac, sizeof(macTable[idx].key));
             macTable[idx].count = 1;
+            macTable[idx].isInfraGroup = isInfraNode ? 1 : 0;
             return;
         }
         if (strcmp(macTable[idx].key, cleanMac) == 0) {
             macTable[idx].count++;
+            if (isInfraNode) macTable[idx].isInfraGroup = 1;
             return;
         }
     }
 }
 
-static int hash_get_mac_count(const GuardHashSlot* macTable, const char* cleanMac) {
-    uint32_t h = fnv1a_hash(cleanMac) & (HASH_BUCKETS - 1);
-    for (int step = 0; step < HASH_BUCKETS; step++) {
-        uint32_t idx = (h + (uint32_t)step) & (HASH_BUCKETS - 1);
+static int hash_get_mac_info(const GuardHashSlot* macTable, int buckets, const char* cleanMac, int* outIsInfra) {
+    if (outIsInfra) *outIsInfra = 0;
+    if (!cleanMac || !cleanMac[0] || buckets <= 0) return 0;
+    uint32_t mask = (uint32_t)(buckets - 1);
+    uint32_t h = fnv1a_hash(cleanMac) & mask;
+    for (int step = 0; step < buckets; step++) {
+        uint32_t idx = (h + (uint32_t)step) & mask;
         if (!macTable[idx].used) return 0;
-        if (strcmp(macTable[idx].key, cleanMac) == 0) return macTable[idx].count;
+        if (strcmp(macTable[idx].key, cleanMac) == 0) {
+            if (outIsInfra) *outIsInfra = macTable[idx].isInfraGroup;
+            return macTable[idx].count;
+        }
     }
     return 0;
 }
@@ -372,15 +452,29 @@ static int ports_changed(const GuardHostRecord* a, const GuardHostRecord* b, int
             if (is_high_risk_port(p)) *outRiskyAdded = 1;
         }
     }
+    if (!changed) {
+        for (int i = 0; i < a->openPortCount && i < GUARD_MAX_PORTS_PER_HOST; i++) {
+            int p = a->openPorts[i];
+            int found = 0;
+            for (int j = 0; j < b->openPortCount && j < GUARD_MAX_PORTS_PER_HOST; j++) {
+                if (b->openPorts[j] == p) { found = 1; break; }
+            }
+            if (!found) {
+                changed = 1;
+                break;
+            }
+        }
+    }
     if (!changed && a->openPortCount != b->openPortCount) changed = 1;
     return changed;
 }
 
-int Guard_AnalyzeSubnetTopology(
+int Guard_AnalyzeSubnetTopologyEx(
     const GuardHostRecord* currentHosts,
     int currentCount,
     const GuardHostRecord* baselineHosts,
     int baselineCount,
+    const char* gatewayIp,
     GuardHostVerdict* outVerdicts,
     int maxVerdicts,
     GuardTopologySummary* outSummary
@@ -394,26 +488,38 @@ int Guard_AnalyzeSubnetTopology(
     if (currentCount > GUARD_MAX_SUBNET_HOSTS) currentCount = GUARD_MAX_SUBNET_HOSTS;
     if (baselineCount > GUARD_MAX_SUBNET_HOSTS) baselineCount = GUARD_MAX_SUBNET_HOSTS;
 
-    GuardHashSlot* baseIpTable = (GuardHashSlot*)calloc(HASH_BUCKETS, sizeof(GuardHashSlot));
-    GuardHashSlot* curIpTable  = (GuardHashSlot*)calloc(HASH_BUCKETS, sizeof(GuardHashSlot));
-    GuardHashSlot* curMacTable = (GuardHashSlot*)calloc(HASH_BUCKETS, sizeof(GuardHashSlot));
-    if (!baseIpTable || !curIpTable || !curMacTable) {
-        free(baseIpTable); free(curIpTable); free(curMacTable);
+    int buckets = next_pow2((currentCount + baselineCount + 64) * 2);
+    GuardHashSlot* baseIpTable   = (GuardHashSlot*)calloc((size_t)buckets, sizeof(GuardHashSlot));
+    GuardHashSlot* curIpTable    = (GuardHashSlot*)calloc((size_t)buckets, sizeof(GuardHashSlot));
+    GuardHashSlot* curMacTable   = (GuardHashSlot*)calloc((size_t)buckets, sizeof(GuardHashSlot));
+    GuardHashSlot* baseHostTable = (GuardHashSlot*)calloc((size_t)buckets, sizeof(GuardHashSlot));
+    if (!baseIpTable || !curIpTable || !curMacTable || !baseHostTable) {
+        free(baseIpTable); free(curIpTable); free(curMacTable); free(baseHostTable);
         return -2;
     }
 
     for (int i = 0; i < baselineCount; i++) {
         if (baselineHosts[i].ip[0]) {
-            hash_insert_ip(baseIpTable, baselineHosts[i].ip, i);
+            hash_insert_key(baseIpTable, buckets, baselineHosts[i].ip, i);
+        }
+        char normH[64];
+        normalize_hostname(baselineHosts[i].hostname, normH, sizeof(normH));
+        if (normH[0]) {
+            hash_insert_key(baseHostTable, buckets, normH, i);
         }
     }
     for (int i = 0; i < currentCount; i++) {
         if (currentHosts[i].ip[0]) {
-            hash_insert_ip(curIpTable, currentHosts[i].ip, i);
+            hash_insert_key(curIpTable, buckets, currentHosts[i].ip, i);
         }
         GuardMacProfile mp;
         if (Guard_AnalyzeMacProfile(currentHosts[i].mac, &mp)) {
-            hash_increment_mac(curMacTable, mp.cleanMac);
+            int isNonRandom = ((mp.macFlags & GUARD_MAC_FLAG_LAA_RANDOM) == 0);
+            int isInfra = isNonRandom && (
+                is_gateway_candidate_ip(currentHosts[i].ip, gatewayIp) ||
+                is_infra_device_signature(currentHosts[i].vendor, currentHosts[i].hostname)
+            );
+            hash_increment_mac(curMacTable, buckets, mp.cleanMac, isInfra);
         }
     }
 
@@ -422,6 +528,7 @@ int Guard_AnalyzeSubnetTopology(
     /* Step 1: Evaluate all current active hosts */
     for (int i = 0; i < currentCount; i++) {
         const GuardHostRecord* cur = &currentHosts[i];
+        if (!cur->ip[0]) continue;
         GuardMacProfile curMac;
         int macValid = Guard_AnalyzeMacProfile(cur->mac, &curMac);
 
@@ -433,32 +540,66 @@ int Guard_AnalyzeSubnetTopology(
         safe_copy(v.ip, cur->ip, sizeof(v.ip));
         v.similarityScore = 0;
 
-        /* Multi-IP duplicate MAC check (Proxy ARP / Cloning) */
-        if (macValid && hash_get_mac_count(curMacTable, curMac.cleanMac) > 1) {
-            v.anomalyMask |= GUARD_ANOMALY_MULTI_IP_MAC;
-            outSummary->multiIpMacCount++;
-            snprintf(v.reason, sizeof(v.reason), "동일 MAC[%s] 다중 IP 점유 감지 (Proxy-ARP 또는 충돌)", cur->mac);
+        /* Multi-IP duplicate MAC check: separate Gateway/Infra Proxy-ARP Info vs Conflict */
+        int isBenignProxyArp = 0;
+        if (macValid) {
+            int isInfraGroup = 0;
+            int macDupCount = hash_get_mac_info(curMacTable, buckets, curMac.cleanMac, &isInfraGroup);
+            if (macDupCount > 1) {
+                if (isInfraGroup && ((curMac.macFlags & GUARD_MAC_FLAG_LAA_RANDOM) == 0)) {
+                    isBenignProxyArp = 1;
+                    v.anomalyMask |= GUARD_ANOMALY_INFRA_PROXY_ARP;
+                    outSummary->proxyArpInfoCount++;
+                    snprintf(v.reason, sizeof(v.reason),
+                        "게이트웨이/인프라 Proxy-ARP 다중 IP 응답 (MAC %s, 정상 L3 라우팅 공유)", cur->mac);
+                } else {
+                    v.anomalyMask |= GUARD_ANOMALY_MULTI_IP_MAC;
+                    outSummary->multiIpMacCount++;
+                    snprintf(v.reason, sizeof(v.reason),
+                        "동일 MAC[%s] 다중 IP 점유 감지 (Proxy-ARP 또는 충돌)", cur->mac);
+                }
+            }
         }
 
-        int baseIdx = hash_find_ip(baseIpTable, cur->ip);
+        int baseIdx = hash_find_key(baseIpTable, buckets, cur->ip);
         if (baseIdx < 0) {
             /* +NEW host not present in baseline IP slot */
             v.deltaStatus = GUARD_DELTA_NEW;
             outSummary->newCount++;
 
-            if (!cur->isTrusted) {
-                /* Check if it matches a baseline host under DHCP IP shift or LAA random MAC rotation */
+            if (isBenignProxyArp) {
+                /* Benign L3 Proxy-ARP response from gateway/infra MAC: preserve Info verdict, do not flag SoftTrust/Intruder */
+            } else if (!cur->isTrusted) {
                 int bestSim = 0;
                 int bestBaseIdx = -1;
                 char simReason[128] = {0};
 
-                for (int b = 0; b < baselineCount; b++) {
-                    char tmpReason[128] = {0};
-                    int sim = Guard_ComputeSimilarity(cur, &baselineHosts[b], tmpReason, sizeof(tmpReason));
-                    if (sim > bestSim) {
-                        bestSim = sim;
-                        bestBaseIdx = b;
-                        safe_copy(simReason, tmpReason, sizeof(simReason));
+                /* O(1) hostname hash pre-probe first */
+                char curNormH[64];
+                normalize_hostname(cur->hostname, curNormH, sizeof(curNormH));
+                if (curNormH[0]) {
+                    int hMatchIdx = hash_find_key(baseHostTable, buckets, curNormH);
+                    if (hMatchIdx >= 0 && hMatchIdx < baselineCount) {
+                        char tmpReason[128] = {0};
+                        int sim = Guard_ComputeSimilarity(cur, &baselineHosts[hMatchIdx], tmpReason, sizeof(tmpReason));
+                        if (sim > bestSim) {
+                            bestSim = sim;
+                            bestBaseIdx = hMatchIdx;
+                            safe_copy(simReason, tmpReason, sizeof(simReason));
+                        }
+                    }
+                }
+
+                /* Fall back to O(B) similarity scan only if hostname hash didn't yield strong match */
+                if (bestSim < 75) {
+                    for (int b = 0; b < baselineCount; b++) {
+                        char tmpReason[128] = {0};
+                        int sim = Guard_ComputeSimilarity(cur, &baselineHosts[b], tmpReason, sizeof(tmpReason));
+                        if (sim > bestSim) {
+                            bestSim = sim;
+                            bestBaseIdx = b;
+                            safe_copy(simReason, tmpReason, sizeof(simReason));
+                        }
                     }
                 }
 
@@ -476,9 +617,11 @@ int Guard_AnalyzeSubnetTopology(
                 } else {
                     v.anomalyMask |= GUARD_ANOMALY_HARD_INTRUDER;
                     outSummary->hardIntruderCount++;
-                    safe_copy(v.reason, "기준 스냅샷 미등록 신규 단말 접속", sizeof(v.reason));
+                    if (!v.reason[0]) {
+                        safe_copy(v.reason, "기준 스냅샷 미등록 신규 단말 접속", sizeof(v.reason));
+                    }
                 }
-            } else {
+            } else if (!v.reason[0]) {
                 safe_copy(v.reason, "신뢰 등록 신규 활성 단말", sizeof(v.reason));
             }
         } else {
@@ -517,7 +660,9 @@ int Guard_AnalyzeSubnetTopology(
             } else {
                 v.deltaStatus = GUARD_DELTA_SAME;
                 outSummary->sameCount++;
-                safe_copy(v.reason, "기준 스냅샷과 상태 일치", sizeof(v.reason));
+                if (!v.reason[0]) {
+                    safe_copy(v.reason, "기준 스냅샷과 상태 일치", sizeof(v.reason));
+                }
             }
         }
 
@@ -531,7 +676,7 @@ int Guard_AnalyzeSubnetTopology(
     for (int b = 0; b < baselineCount; b++) {
         const GuardHostRecord* base = &baselineHosts[b];
         if (!base->ip[0]) continue;
-        if (hash_find_ip(curIpTable, base->ip) < 0) {
+        if (hash_find_key(curIpTable, buckets, base->ip) < 0) {
             outSummary->offlineCount++;
             outSummary->totalEvaluated++;
             if (outVerdicts && written < maxVerdicts) {
@@ -548,69 +693,146 @@ int Guard_AnalyzeSubnetTopology(
     free(baseIpTable);
     free(curIpTable);
     free(curMacTable);
+    free(baseHostTable);
 
     uint64_t tEnd = get_microseconds();
     outSummary->elapsedMicroseconds = (tEnd >= tStart) ? (tEnd - tStart) : 0;
     return outSummary->totalEvaluated;
 }
 
+int Guard_AnalyzeSubnetTopology(
+    const GuardHostRecord* currentHosts,
+    int currentCount,
+    const GuardHostRecord* baselineHosts,
+    int baselineCount,
+    GuardHostVerdict* outVerdicts,
+    int maxVerdicts,
+    GuardTopologySummary* outSummary
+) {
+    return Guard_AnalyzeSubnetTopologyEx(
+        currentHosts,
+        currentCount,
+        baselineHosts,
+        baselineCount,
+        NULL,
+        outVerdicts,
+        maxVerdicts,
+        outSummary
+    );
+}
+
 /* ============================================================================
- * Public API 5: Lightweight JSON Parser & C-ABI Diagnostic Bridge
+ * Public API 5: Depth & Quote-Aware JSON Parser & C-ABI Diagnostic Bridge
  * ============================================================================ */
+static const char* find_json_value_in_object(const char* objStart, const char* objEnd, const char* key) {
+    if (!objStart || !objEnd || objStart >= objEnd || !key || !key[0]) return NULL;
+    size_t keyLen = strlen(key);
+    const char* p = objStart;
+    if (*p == '{') p++;
+
+    int depth = 0;
+    int inStr = 0;
+    int expectingKey = 1;
+
+    while (p < objEnd && *p != '\0') {
+        char c = *p;
+        if (inStr) {
+            if (c == '\\' && (p + 1) < objEnd) {
+                p += 2;
+                continue;
+            }
+            if (c == '"') inStr = 0;
+            p++;
+            continue;
+        }
+
+        if (c == '"') {
+            if (depth == 0 && expectingKey) {
+                const char* strStart = p + 1;
+                const char* q = strStart;
+                while (q < objEnd && *q != '\0') {
+                    if (*q == '\\' && (q + 1) < objEnd) {
+                        q += 2;
+                        continue;
+                    }
+                    if (*q == '"') break;
+                    q++;
+                }
+                if (q < objEnd && *q == '"') {
+                    size_t tokLen = (size_t)(q - strStart);
+                    const char* after = q + 1;
+                    while (after < objEnd && isspace((unsigned char)*after)) after++;
+                    if (after < objEnd && *after == ':') {
+                        if (tokLen == keyLen && strncmp(strStart, key, keyLen) == 0) {
+                            after++;
+                            while (after < objEnd && isspace((unsigned char)*after)) after++;
+                            return after;
+                        }
+                    }
+                    p = q + 1;
+                    expectingKey = 0;
+                    continue;
+                }
+            }
+            inStr = 1;
+        } else if (c == '{' || c == '[') {
+            depth++;
+        } else if (c == '}' || c == ']') {
+            if (depth == 0) break;
+            depth--;
+        } else if (depth == 0 && c == ',') {
+            expectingKey = 1;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 static void extract_json_field(const char* objStart, const char* objEnd, const char* key, char* out, size_t cap) {
     if (!out || cap == 0) return;
     out[0] = '\0';
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
+    const char* val = find_json_value_in_object(objStart, objEnd, key);
+    if (!val || val >= objEnd || *val != '"') return;
 
-    const char* p = objStart;
-    while (p && p < objEnd) {
-        const char* hit = strstr(p, pattern);
-        if (!hit || hit >= objEnd) return;
-        const char* afterKey = hit + strlen(pattern);
-        while (afterKey < objEnd && isspace((unsigned char)*afterKey)) afterKey++;
-        if (afterKey >= objEnd || *afterKey != ':') {
-            p = hit + 1;
-            continue;
-        }
-        afterKey++;
-        while (afterKey < objEnd && isspace((unsigned char)*afterKey)) afterKey++;
-        if (afterKey < objEnd && *afterKey == '"') {
-            afterKey++;
-            size_t idx = 0;
-            while (afterKey < objEnd && *afterKey != '"' && idx < cap - 1) {
-                if (*afterKey == '\\' && (afterKey + 1) < objEnd) afterKey++;
-                out[idx++] = *afterKey++;
+    val++;
+    size_t idx = 0;
+    while (val < objEnd && *val != '"' && idx < cap - 1) {
+        if (*val == '\\' && (val + 1) < objEnd) {
+            val++;
+            switch (*val) {
+                case 'n': out[idx++] = '\n'; break;
+                case 'r': out[idx++] = '\r'; break;
+                case 't': out[idx++] = '\t'; break;
+                default:  out[idx++] = *val; break;
             }
-            out[idx] = '\0';
-            return;
+            val++;
+        } else {
+            out[idx++] = *val++;
         }
-        return;
     }
+    out[idx] = '\0';
 }
 
 static int extract_json_bool(const char* objStart, const char* objEnd, const char* key) {
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char* hit = strstr(objStart, pattern);
-    if (!hit || hit >= objEnd) return 0;
-    const char* colon = strchr(hit + strlen(pattern), ':');
-    if (!colon || colon >= objEnd) return 0;
-    colon++;
-    while (colon < objEnd && isspace((unsigned char)*colon)) colon++;
-    return (colon + 4 <= objEnd && strncmp(colon, "true", 4) == 0) ? 1 : 0;
+    const char* val = find_json_value_in_object(objStart, objEnd, key);
+    if (!val || val >= objEnd) return 0;
+    return (val + 4 <= objEnd && strncmp(val, "true", 4) == 0) ? 1 : 0;
 }
 
 static void extract_json_ports(const char* objStart, const char* objEnd, int* ports, int* count) {
     *count = 0;
-    const char* hit = strstr(objStart, "\"openPorts\"");
-    if (!hit || hit >= objEnd) return;
-    const char* br = strchr(hit, '[');
-    if (!br || br >= objEnd) return;
+    const char* br = find_json_value_in_object(objStart, objEnd, "openPorts");
+    if (!br || br >= objEnd || *br != '[') return;
     br++;
     while (br < objEnd && *br != ']' && *count < GUARD_MAX_PORTS_PER_HOST) {
-        if (isdigit((unsigned char)*br)) {
-            ports[(*count)++] = atoi(br);
+        if (*br == '-') {
+            br++;
+            while (br < objEnd && isdigit((unsigned char)*br)) br++;
+        } else if (isdigit((unsigned char)*br)) {
+            long port = strtol(br, NULL, 10);
+            if (port >= 1 && port <= 65535) {
+                ports[(*count)++] = (int)port;
+            }
             while (br < objEnd && isdigit((unsigned char)*br)) br++;
         } else {
             br++;
@@ -618,28 +840,36 @@ static void extract_json_ports(const char* objStart, const char* objEnd, int* po
     }
 }
 
-static int parse_host_array(const char* json, const char* arrayKey, GuardHostRecord* outArr, int maxItems) {
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", arrayKey);
-    const char* keyPos = strstr(json, pattern);
-    if (!keyPos) return 0;
-    const char* arrStart = strchr(keyPos, '[');
-    if (!arrStart) return 0;
+static int parse_host_array(const char* jsonStart, const char* jsonEnd, const char* arrayKey, GuardHostRecord* outArr, int maxItems) {
+    const char* arrStart = find_json_value_in_object(jsonStart, jsonEnd, arrayKey);
+    if (!arrStart || arrStart >= jsonEnd || *arrStart != '[') return 0;
 
     int count = 0;
     const char* p = arrStart + 1;
     int bracketDepth = 1;
-    while (*p && bracketDepth > 0 && count < maxItems) {
+    int inOuterStr = 0;
+    while (p < jsonEnd && *p && bracketDepth > 0 && count < maxItems) {
+        if (inOuterStr) {
+            if (*p == '\\' && (p + 1) < jsonEnd) { p += 2; continue; }
+            if (*p == '"') inOuterStr = 0;
+            p++;
+            continue;
+        }
+        if (*p == '"') { inOuterStr = 1; p++; continue; }
+        if (*p == '[') { bracketDepth++; p++; continue; }
         if (*p == ']') { bracketDepth--; break; }
         if (*p == '{') {
             const char* objStart = p;
             int objDepth = 1;
             p++;
             int inStr = 0;
-            while (*p && objDepth > 0) {
-                if (*p == '"' && *(p - 1) != '\\') inStr = !inStr;
-                else if (!inStr) {
-                    if (*p == '{') objDepth++;
+            while (p < jsonEnd && *p && objDepth > 0) {
+                if (inStr) {
+                    if (*p == '\\' && (p + 1) < jsonEnd) { p += 2; continue; }
+                    if (*p == '"') inStr = 0;
+                } else {
+                    if (*p == '"') inStr = 1;
+                    else if (*p == '{') objDepth++;
                     else if (*p == '}') objDepth--;
                 }
                 p++;
@@ -666,6 +896,11 @@ static int parse_host_array(const char* json, const char* arrayKey, GuardHostRec
 int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) {
     if (!inJson || !outJson || maxOutLen < 256) return 0;
 
+    size_t inLen = strlen(inJson);
+    const char* jsonEnd = inJson + inLen;
+    char gatewayIp[32] = {0};
+    extract_json_field(inJson, jsonEnd, "gatewayIp", gatewayIp, sizeof(gatewayIp));
+
     GuardHostRecord* curHosts = (GuardHostRecord*)calloc(GUARD_MAX_SUBNET_HOSTS, sizeof(GuardHostRecord));
     GuardHostRecord* baseHosts = (GuardHostRecord*)calloc(GUARD_MAX_SUBNET_HOSTS, sizeof(GuardHostRecord));
     GuardHostVerdict* verdicts = (GuardHostVerdict*)calloc(GUARD_MAX_SUBNET_HOSTS, sizeof(GuardHostVerdict));
@@ -674,12 +909,14 @@ int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) 
         return 0;
     }
 
-    int curCount = parse_host_array(inJson, "current", curHosts, GUARD_MAX_SUBNET_HOSTS);
-    int baseCount = parse_host_array(inJson, "baseline", baseHosts, GUARD_MAX_SUBNET_HOSTS);
+    int curCount = parse_host_array(inJson, jsonEnd, "current", curHosts, GUARD_MAX_SUBNET_HOSTS);
+    int baseCount = parse_host_array(inJson, jsonEnd, "baseline", baseHosts, GUARD_MAX_SUBNET_HOSTS);
 
     GuardTopologySummary summary;
-    int evalCount = Guard_AnalyzeSubnetTopology(
-        curHosts, curCount, baseHosts, baseCount, verdicts, GUARD_MAX_SUBNET_HOSTS, &summary
+    int evalCount = Guard_AnalyzeSubnetTopologyEx(
+        curHosts, curCount, baseHosts, baseCount,
+        gatewayIp[0] ? gatewayIp : NULL,
+        verdicts, GUARD_MAX_SUBNET_HOSTS, &summary
     );
 
     if (evalCount < 0) {
@@ -698,6 +935,7 @@ int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) 
         "\"sameCount\":%d,"
         "\"conflictCount\":%d,"
         "\"multiIpMacCount\":%d,"
+        "\"proxyArpInfoCount\":%d,"
         "\"laaRandomCount\":%d,"
         "\"virtualNicCount\":%d,"
         "\"hardIntruderCount\":%d,"
@@ -713,6 +951,7 @@ int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) 
         summary.sameCount,
         summary.conflictCount,
         summary.multiIpMacCount,
+        summary.proxyArpInfoCount,
         summary.laaRandomCount,
         summary.virtualNicCount,
         summary.hardIntruderCount,
@@ -722,14 +961,14 @@ int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) 
     );
 
     int alertEmitted = 0;
-    for (int i = 0; i < evalCount && i < GUARD_MAX_SUBNET_HOSTS && pos + 300 < maxOutLen; i++) {
+    for (int i = 0; i < evalCount && i < GUARD_MAX_SUBNET_HOSTS && pos + 360 < maxOutLen; i++) {
         if (verdicts[i].anomalyMask == 0 && verdicts[i].deltaStatus != GUARD_DELTA_CHANGED) continue;
         char escIp[64], escReason[384], escPrevIp[64];
         json_escape(verdicts[i].ip, escIp, sizeof(escIp));
         json_escape(verdicts[i].reason, escReason, sizeof(escReason));
         json_escape(verdicts[i].matchedPrevIp, escPrevIp, sizeof(escPrevIp));
 
-        pos += snprintf(outJson + pos, (size_t)(maxOutLen - pos),
+        int wrote = snprintf(outJson + pos, (size_t)(maxOutLen - pos),
             "%s{\"ip\":\"%s\",\"deltaStatus\":%d,\"anomalyMask\":%u,\"similarityScore\":%d,\"isSoftTrusted\":%s,\"matchedPrevIp\":\"%s\",\"reason\":\"%s\"}",
             alertEmitted > 0 ? "," : "",
             escIp,
@@ -740,11 +979,13 @@ int Guard_AnalyzeTopologyJson(const char* inJson, char* outJson, int maxOutLen) 
             escPrevIp,
             escReason
         );
+        if (wrote < 0 || pos + wrote >= maxOutLen - 4) break;
+        pos += wrote;
         alertEmitted++;
-        if (alertEmitted >= 20) break;
+        if (alertEmitted >= 128) break;
     }
 
-    if (pos + 4 < maxOutLen) {
+    if (pos + 4 <= maxOutLen) {
         snprintf(outJson + pos, (size_t)(maxOutLen - pos), "]}");
     }
 

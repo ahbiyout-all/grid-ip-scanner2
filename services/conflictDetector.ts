@@ -3,8 +3,16 @@ import { ScanResult, DeviceInfo, SoftTrustInfo } from '../types';
 export interface ConflictInfo {
   ip: string;
   mac?: string;
+  severity: 'conflict' | 'info' | 'none';
+  category?: 'ip_takeover' | 'multi_ip_mac' | 'proxy_arp_gateway';
+  isGatewayProxyArp: boolean;
+  isAlert: boolean;
+  sharedIps?: string[];
   reason: string;
 }
+
+export const isConflictAlert = (conflict?: ConflictInfo): boolean =>
+  Boolean(conflict && conflict.isAlert && !conflict.isGatewayProxyArp && conflict.severity === 'conflict');
 
 export interface IntruderAnalysisResult {
   intruders: ScanResult[];
@@ -82,12 +90,52 @@ export const computeFingerprintSimilarity = (
   return { score: finalScore, reason: reasonText };
 };
 
+const INFRA_VENDOR_KEYWORDS = [
+  'cisco', 'hewlett', 'hpe', 'aruba', 'fortinet', 'juniper',
+  'palo alto', 'ahnlab', 'genians', 'iptime', 'efm', 'mikrotik',
+  'ubiquiti', 'unifi', 'dasan', 'ubiquoss', 'extreme', 'brocade',
+  'ruckus', 'meraki', 'arista', 'watchguard', 'sonicwall',
+  'netgear', 'tp-link'
+];
+
+const isGatewayCandidateIp = (ip: string, explicitGatewayIp?: string): boolean => {
+  if (!ip) return false;
+  if (explicitGatewayIp && ip === explicitGatewayIp) return true;
+  return ip.endsWith('.1') || ip.endsWith('.254') || ip.endsWith('.253');
+};
+
+const isInfraDevice = (dev?: DeviceInfo): boolean => {
+  if (!dev) return false;
+  const corpus = [
+    dev.vendor,
+    dev.realVendor,
+    dev.chipsetVendor,
+    dev.hostname,
+    dev.deviceCategory,
+    dev.deviceType,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!corpus) return false;
+  if (INFRA_VENDOR_KEYWORDS.some((kw) => corpus.includes(kw))) return true;
+  return (
+    corpus.includes('gateway') ||
+    corpus.includes('router') ||
+    corpus.includes('firewall') ||
+    corpus.includes('switch') ||
+    corpus.includes('l3')
+  );
+};
+
 /**
  * Detects IP address and MAC address conflicts across network scan results.
+ * Separates benign L3 Gateway / Infrastructure Proxy-ARP multi-IP MACs as `severity: 'info'`.
  */
 export const analyzeNetworkConflicts = (
   currentResults: Record<string, ScanResult>,
-  baselineResults?: Record<string, ScanResult>
+  baselineResults?: Record<string, ScanResult>,
+  gatewayIp?: string
 ): Map<string, ConflictInfo> => {
   const conflicts = new Map<string, ConflictInfo>();
 
@@ -105,6 +153,10 @@ export const analyzeNetworkConflicts = (
           conflicts.set(ip, {
             ip,
             mac: curMac,
+            severity: 'conflict',
+            category: 'ip_takeover',
+            isGatewayProxyArp: false,
+            isAlert: true,
             reason: `IP 충돌 의심: 기존 점유 기기(${baseMac}, ${base.device.vendor || '알 수 없음'})와 다른 신규 MAC(${curMac}, ${cur.device.vendor || '알 수 없음'})이 동일 IP를 점유 중입니다.`
           });
         }
@@ -126,13 +178,39 @@ export const analyzeNetworkConflicts = (
 
   macToIps.forEach((ips, mac) => {
     if (ips.length > 1) {
+      const isNonRandom = !isRandomizedMacAddress(mac);
+      const isProxyArpInfraCluster =
+        isNonRandom &&
+        ips.some((ip) => isGatewayCandidateIp(ip, gatewayIp) || isInfraDevice(currentResults[ip]?.device));
+
+      const gatewayMembers = ips.filter((ip) => isGatewayCandidateIp(ip, gatewayIp));
+      const gwLabel = gatewayMembers.length > 0 ? gatewayMembers.join(', ') : ips[0];
+
       ips.forEach(ip => {
         if (!conflicts.has(ip)) {
-          conflicts.set(ip, {
-            ip,
-            mac,
-            reason: `동일 MAC 다중 IP 감지: MAC [${mac}] 기기가 ${ips.length}개의 IP(${ips.join(', ')})를 동시에 점유하고 있습니다 (Proxy ARP 또는 고정 IP 충돌 가능성).`
-          });
+          if (isProxyArpInfraCluster) {
+            conflicts.set(ip, {
+              ip,
+              mac,
+              severity: 'info',
+              category: 'proxy_arp_gateway',
+              isGatewayProxyArp: true,
+              isAlert: false,
+              sharedIps: ips,
+              reason: `게이트웨이/인프라 Proxy-ARP 공유(정상): L3 장비(${gwLabel}, MAC ${mac})가 ${ips.length}개 IP(${ips.join(', ')})에 대리 응답하거나 보조 인터페이스를 운용 중입니다. 실제 IP 충돌이 아니므로 인터넷은 정상 동작합니다.`
+            });
+          } else {
+            conflicts.set(ip, {
+              ip,
+              mac,
+              severity: 'conflict',
+              category: 'multi_ip_mac',
+              isGatewayProxyArp: false,
+              isAlert: true,
+              sharedIps: ips,
+              reason: `동일 MAC 다중 IP 감지: MAC [${mac}] 기기가 ${ips.length}개의 IP(${ips.join(', ')})를 동시에 점유하고 있습니다 (Proxy ARP 또는 고정 IP 충돌 가능성).`
+            });
+          }
         }
       });
     }

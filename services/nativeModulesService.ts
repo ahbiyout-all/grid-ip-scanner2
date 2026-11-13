@@ -180,6 +180,7 @@ export interface TopologyGuardHostPayload {
  * Runs sub-millisecond subnet topology diff, conflict hash, Proxy-ARP & LAA Random MAC Guard via grid_topology_guard.dll.
  */
 export async function analyzeNativeTopologyGuard(params: {
+  gatewayIp?: string;
   current: TopologyGuardHostPayload[];
   baseline: TopologyGuardHostPayload[];
 }): Promise<NativeTopologyGuardResult | null> {

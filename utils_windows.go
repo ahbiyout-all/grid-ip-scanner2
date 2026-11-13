@@ -31,28 +31,28 @@ func hideWindow(cmd *exec.Cmd) {
 }
 
 var (
-	modkernel32             = syscall.NewLazyDLL("kernel32.dll")
+	modkernel32             = syscall.NewLazyDLL(resolveSystemDllPath("kernel32.dll"))
 	procMultiByteToWideChar = modkernel32.NewProc("MultiByteToWideChar")
 
-	moduser32      = syscall.NewLazyDLL("user32.dll")
+	moduser32      = syscall.NewLazyDLL(resolveSystemDllPath("user32.dll"))
 	procMessageBox = moduser32.NewProc("MessageBoxW")
 
-	modshell32        = syscall.NewLazyDLL("shell32.dll")
+	modshell32        = syscall.NewLazyDLL(resolveSystemDllPath("shell32.dll"))
 	procShellExecuteW = modshell32.NewProc("ShellExecuteW")
 
 	// Custom Pure Creative Native Network Acceleration DLL
-	modGridNetDriver          = syscall.NewLazyDLL("grid_net_driver.dll")
-	procGridNetFastPing       = modGridNetDriver.NewProc("GridNet_FastPing")
-	procGridNetGetMac         = modGridNetDriver.NewProc("GridNet_GetMacAddress")
-	procGridNetScanPort       = modGridNetDriver.NewProc("GridNet_ScanPort")
-	procGridNetGetNetBIOS     = modGridNetDriver.NewProc("GridNet_GetNetBIOSName")
+	modGridNetDriver            = syscall.NewLazyDLL(resolveNativeDllPath("grid_net_driver.dll"))
+	procGridNetFastPing         = modGridNetDriver.NewProc("GridNet_FastPing")
+	procGridNetGetMac           = modGridNetDriver.NewProc("GridNet_GetMacAddress")
+	procGridNetScanPort         = modGridNetDriver.NewProc("GridNet_ScanPort")
+	procGridNetGetNetBIOS       = modGridNetDriver.NewProc("GridNet_GetNetBIOSName")
 	procGridNetGetServiceBanner = modGridNetDriver.NewProc("GridNet_GetServiceBanner")
-	procGridNetBatchScanPorts = modGridNetDriver.NewProc("GridNet_BatchScanPorts")
-	procGridNetValidateOUI    = modGridNetDriver.NewProc("GridNet_ValidateAndSanitizeOUI")
-	procGridNetGetVersion     = modGridNetDriver.NewProc("GridNet_GetDriverVersion")
+	procGridNetBatchScanPorts   = modGridNetDriver.NewProc("GridNet_BatchScanPorts")
+	procGridNetValidateOUI      = modGridNetDriver.NewProc("GridNet_ValidateAndSanitizeOUI")
+	procGridNetGetVersion       = modGridNetDriver.NewProc("GridNet_GetDriverVersion")
 
 	// Direct Win32 Iphlpapi Fallback
-	modiphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+	modiphlpapi = syscall.NewLazyDLL(resolveSystemDllPath("iphlpapi.dll"))
 	procSendARP = modiphlpapi.NewProc("SendARP")
 )
 

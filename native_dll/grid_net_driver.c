@@ -124,6 +124,8 @@ GRID_NET_API int GridNet_GetMacAddress(const char* ip, char* outMac, int maxLen)
 
 GRID_NET_API int GridNet_ScanPort(const char* ip, int port, int timeoutMs) {
     if (!ip || port <= 0 || port > 65535 || timeoutMs <= 0) return 0;
+    unsigned long ipAddr = inet_addr(ip);
+    if (ipAddr == INADDR_NONE) return 0;
     EnsureWinsock();
 
     SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -137,7 +139,7 @@ GRID_NET_API int GridNet_ScanPort(const char* ip, int port, int timeoutMs) {
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
     server.sin_port = htons((u_short)port);
-    server.sin_addr.s_addr = inet_addr(ip);
+    server.sin_addr.s_addr = ipAddr;
 
     connect(sock, (struct sockaddr*)&server, sizeof(server));
 
@@ -170,6 +172,8 @@ GRID_NET_API int GridNet_ScanPort(const char* ip, int port, int timeoutMs) {
 
 GRID_NET_API int GridNet_GetNetBIOSName(const char* ip, char* outName, int nameMaxLen, char* outWorkgroup, int wgMaxLen) {
     if (!ip || !outName || nameMaxLen < 2) return 0;
+    unsigned long ipAddr = inet_addr(ip);
+    if (ipAddr == INADDR_NONE) return 0;
     EnsureWinsock();
 
     if (outWorkgroup && wgMaxLen > 0) outWorkgroup[0] = '\0';
@@ -186,7 +190,7 @@ GRID_NET_API int GridNet_GetNetBIOSName(const char* ip, char* outName, int nameM
     memset(&dest, 0, sizeof(dest));
     dest.sin_family = AF_INET;
     dest.sin_port = htons(137); // NetBIOS Name Service Port
-    dest.sin_addr.s_addr = inet_addr(ip);
+    dest.sin_addr.s_addr = ipAddr;
 
     // Standard NetBIOS Node Status Request Packet
     unsigned char request[] = {
@@ -245,14 +249,16 @@ GRID_NET_API int GridNet_GetNetBIOSName(const char* ip, char* outName, int nameM
 }
 
 GRID_NET_API int GridNet_GetServiceBanner(const char* ip, int port, int timeoutMs, char* outBanner, int maxLen) {
-    if (!ip || port <= 0 || !outBanner || maxLen < 4) return 0;
+    if (!ip || port <= 0 || port > 65535 || !outBanner || maxLen < 4) return 0;
+    unsigned long ipAddr = inet_addr(ip);
+    if (ipAddr == INADDR_NONE) return 0;
     EnsureWinsock();
     outBanner[0] = '\0';
 
     SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == INVALID_SOCKET) return 0;
 
-    DWORD tv = (DWORD)timeoutMs;
+    DWORD tv = timeoutMs > 0 ? (DWORD)timeoutMs : 500;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
 
@@ -260,14 +266,15 @@ GRID_NET_API int GridNet_GetServiceBanner(const char* ip, int port, int timeoutM
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
     server.sin_port = htons((u_short)port);
-    server.sin_addr.s_addr = inet_addr(ip);
+    server.sin_addr.s_addr = ipAddr;
 
     if (connect(sock, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) {
         closesocket(sock);
         return 0;
     }
 
-    char req[] = "HEAD / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: GridNetScanner/2.4.0\r\nConnection: close\r\n\r\n";
+    char req[160];
+    snprintf(req, sizeof(req), "HEAD / HTTP/1.1\r\nHost: %s\r\nUser-Agent: GridNetScanner/2.6\r\nConnection: close\r\n\r\n", ip);
     send(sock, req, (int)strlen(req), 0);
 
     char recvBuf[1024];
@@ -277,13 +284,17 @@ GRID_NET_API int GridNet_GetServiceBanner(const char* ip, int port, int timeoutM
     if (recvLen <= 0) return 0;
     recvBuf[recvLen] = '\0';
 
-    char* serverHeader = strstr(recvBuf, "Server: ");
-    if (serverHeader) {
-        serverHeader += 8;
-        char* endLine = strstr(serverHeader, "\r\n");
-        if (endLine) *endLine = '\0';
-        snprintf(outBanner, maxLen, "%s", serverHeader);
-        return 1;
+    for (const char* p = recvBuf; *p; p++) {
+        if ((p == recvBuf || p[-1] == '\n') && _strnicmp(p, "Server:", 7) == 0) {
+            const char* val = p + 7;
+            while (*val == ' ' || *val == '\t') val++;
+            const char* endLine = strpbrk(val, "\r\n");
+            size_t len = endLine ? (size_t)(endLine - val) : strlen(val);
+            if (len >= (size_t)maxLen) len = (size_t)(maxLen - 1);
+            memcpy(outBanner, val, len);
+            outBanner[len] = '\0';
+            return 1;
+        }
     }
 
     return 0;

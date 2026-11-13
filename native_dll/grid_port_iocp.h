@@ -39,6 +39,16 @@ PORT_IOCP_API int PortScan_ProbeSingle(
     int timeoutMs
 );
 
+PORT_IOCP_API int PortScan_IocpMultiHostSweep(
+    const unsigned int* ipListNetOrder,
+    int ipCount,
+    const unsigned short* ports,
+    int portCount,
+    int timeoutMs,
+    int maxInFlightSockets,
+    unsigned long long* outOpenPortBitmasks
+);
+
 #ifdef __cplusplus
 }
 #endif

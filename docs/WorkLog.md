@@ -1,3 +1,30 @@
+### 71. OUI 시맨틱 고도화, 순수 창작 12대 네이티브 DLL 확장, 게이트웨이 Proxy-ARP 비알림 분리 및 전수 자아성찰 패치 (v2.5.0)
+- **사용자 요청 사항 및 피드백**:
+  - "특정 학교 환경에서 ip 251번과 254번이 mac이 똑같아서 충돌 났다고 하는데? 254번은 게이트웨이로 사용중임. 원인이 무엇일까요?"
+  - "Analyze existing DLL integrations for potential security vulnerabilities and performance bottlenecks, and propose a new set of custom, lightweight DLL functions that could improve network scanning efficiency."
+  - "위 내용을 적용할 계획을 세워요." -> 전체 수정(DLL 경로 고정, 암호화, JSON 방어), 기존 DLL 모듈 확장(유지), IOCP 포트 스캔 및 비동기 ICMP 배치 스위프, 게이트웨이 Proxy-ARP 정상 판별 후 Info 분리
+  - "자아성찰(Self-Reflection & Deep Audit) 과 오류 수정"
+  - "Update IPCell component to display a 'Proxy-ARP' indicator badge... Extend the conflictDetector.ts to support a 'Gateway Proxy-ARP' flag... downgrade Proxy-ARP nodes to a non-alert status."
+  - "버전업이 필요하지 않나요? docs폴더 문서들에 수정된 최신 내용을 업데이트 합니다. 깃허브용 문서 업데이트, 구글 블로거용 문서를 생성 해주세요. [작성 모드] 및 [HTML 편집 모드]"
+- **원인 규명 및 해결 조치**:
+  1. **[OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적] `services/ouiClassifier.ts`, `App.tsx`**:
+     - OUI + 개방 포트 + mDNS + UPnP 복합 점수 기반 분류기 및 IEEE LAA 사설 랜덤 MAC 역추적 엔진 구현.
+     - 장치 상세 프로필 패널에 신뢰도 점수(Confidence Score) 및 근거(Evidence Breakdown) 시각화.
+  2. **[순수 창작 `grid_topology_guard.dll` (`v2.6.1`) & 12대 DLL 고속 배치/보안 하드닝] `native_dll/*`, `main.go`, `native_modules_bridge*.go`**:
+     - O(N) FNV-1a 해시 서브넷 토폴로지 분석, 비트 수준 LAA vs VM NIC 분리, Soft-Trust 유사도 점수, `Guard_AnalyzeSubnetTopologyEx` (`gatewayIp` 및 `GUARD_ANOMALY_INFRA_PROXY_ARP`) 및 `POST /api/topology-guard` 연동.
+     - `Probe_SweepCidrAsyncBatch` (`grid_probe_engine.c`, `v2.6.0`) 및 `PortScan_IocpMultiHostSweep` (`grid_port_iocp.c`, `v2.6.0`) 고성능 배치 스위프 신설.
+     - `LoadLibraryExW(LOAD_LIBRARY_SEARCH_APPLICATION_DIR)` 경로 고정, `grid_vault_driver.c`/`secure_vault.cpp` (`GVAULT11` 16B 솔트 + PBKDF2-HMAC-SHA256 10,000회 + 256B 스택 고속 경로 + 엄격한 Base64 검증), JSON 음수 포트 및 중첩 깊이 방어.
+  3. **[게이트웨이 Proxy-ARP 정상 판별 및 비알림 UI 분리] `services/conflictDetector.ts`, `components/IPCell.tsx`, `App.tsx`**:
+     - `ConflictInfo`에 `isGatewayProxyArp`, `isAlert`, `severity` 및 `isConflictAlert()` 추가, 소비자 벤더(`asus`, `synology`, `qnap`) 인프라 화이트리스트 제외.
+     - `IPCell.tsx`에 스카이블루 `Proxy-ARP` 인디케이터 뱃지(`ring-1 ring-sky-400/75`) 분리 적용 및 `realConflictCount` 경보 집계에서 비알림 노드로 하향 처리.
+  4. **[자아성찰(Deep Audit) 동시성·안정성 결함 10종 해결]**:
+     - `grid_probe_engine.c`: `ArpBatchWorker` 데이터 레이스 제거, `WAIT_TIMEOUT` IRP 슬랩 오염 방지를 위한 ICMP 핸들 리셋, 버퍼 슬랙 `+64B` 확장.
+     - `grid_port_iocp.c`: `CancelIoEx` + `activeInFlight` 드레인 대기, `(ULONGLONG)` 캐스트, `port == 0` 방어, `SO_UPDATE_CONNECT_CONTEXT` 반환값 검증.
+     - `grid_topology_guard.c` & `native_modules_bridge_other.go`: `isBenignProxyArp` 덮어쓰기 방지, 양방향 `ports_changed`, 음수 포트 방어.
+     - `name_resolver.go` & `components/IPCell.tsx`: mDNS `"lg"` 오탐 방어 및 `getDeviceIcon()` 카테고리·기기명 우선순위 재정렬.
+  5. **[SemVer MINOR 버전업 `v2.4.47 -> v2.5.0` 및 문서 전수 최신화]**:
+     - `node scripts/sync-version.js --bump-minor` 실행으로 10대 핵심 타깃을 `2.5.0`으로 동기화하고 GitHub/Blogger/기술 문서 일괄 최신화 완료.
+
 ### 70. 창 닫기 시 트레이 최소화(Close-to-Tray) 정상화 및 하이브리드 수명주기 동기화 (v2.4.47)
 - **사용자 요청 사항 및 피드백**:
   - "창닫기시 트레이 최소화 기능 안됨."

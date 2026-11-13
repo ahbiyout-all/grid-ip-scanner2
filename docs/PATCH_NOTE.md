@@ -1,4 +1,41 @@
-# Grid IP Scanner2 - Patch Note (v2.4.47)
+# Grid IP Scanner2 - Patch Note (v2.5.0)
+
+## 🚀 [v2.5.0] - 2026-11-13
+
+### 🌟 OUI 시맨틱 다중 신호 분류, 순수 창작 `grid_topology_guard.dll` 12대 DLL 체계, 게이트웨이 Proxy-ARP 비알림 분리 및 전수 자아성찰(Deep Audit) (SemVer MINOR Release)
+
+1. **OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적 엔진 (`services/ouiClassifier.ts`, `App.tsx`)**
+   - **기능 설명**:
+     - 기존 단일 OUI 문자열 매핑에서 한 단계 도약하여 **OUI + 개방 포트 + mDNS + UPnP 복합 점수 기반 시맨틱 기기 분류 엔진**(`ouiClassifier.ts`)을 정식 탑재했습니다.
+     - IoT/스마트홈, CCTV/IP 카메라, 가상 머신(QEMU/Docker/VirtualBox/Hyper-V), 스마트 TV/미디어, 라우터/AP 등 세분화된 카테고리를 자동 분류합니다.
+     - **사설 랜덤 MAC(IEEE 802.3 LAA) 탐지 시**에도 mDNS 레코드, 호스트명, 포트 지문을 교차 역추적하여 실제 장비 브랜드와 모델을 추론하며, 장치 상세 프로필 패널에 **신뢰도 점수(Confidence Score)와 판별 근거(Evidence Breakdown)**를 투명하게 표시합니다.
+
+2. **순수 창작 8번째 네이티브 엔진 `grid_topology_guard.dll` (`v2.6.1`) 및 IOCP / Async ICMP 고속 배치 스캔 신설 (`native_dll/*`, `main.go`, `native_modules_bridge*.go`)**
+   - **순수 창작 토폴로지 가드 DLL (`grid_topology_guard.c`, `v2.6.1`, `GUARD_DRIVER_VERSION = 20601`)**:
+     - 외부 의존성 없는 순수 C99 엔진으로 **O(N) FNV-1a Open-Addressing 해시** 기반 서브넷 스냅샷 델타 비교(`+NEW`/`-OFF`/`!CHG`/`=SAME`), **비트 수준 LAA vs VM NIC 분리**(`52:54:00` QEMU, `02:42` Docker, `0A:00:27` VirtualBox, `00:15:5D` Hyper-V), **다중 시그널 Soft-Trust 유사도 점수(0~100)**를 네이티브 C 속도로 연산합니다.
+     - 게이트웨이 IP 인식 API **`Guard_AnalyzeSubnetTopologyEx`** 및 **`GUARD_ANOMALY_INFRA_PROXY_ARP`**를 신설하고 `POST /api/topology-guard` 백엔드 엔드포인트와 연동했습니다.
+   - **고성능 배치 스캔 함수 2종 확장**:
+     - `Probe_SweepCidrAsyncBatch` (`grid_probe_engine.c`, `v2.6.0`): 단일 공유 ICMP 핸들(`IcmpSendEcho2` 64-이벤트 윈도우) + 8-스레드 `SendARP` 풀 기반 벡터화 비동기 ICMP/ARP 스위프.
+     - `PortScan_IocpMultiHostSweep` (`grid_port_iocp.c`, `v2.6.0`): Win32 `CreateIoCompletionPort` + `ConnectEx` 기반 다중 호스트 논블로킹 포트 스위프.
+   - **12대 전체 네이티브 DLL 보안·성능 하드닝**:
+     - **DLL 경로 고정**: `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_APPLICATION_DIR)`(및 `wpcap.dll` 시스템 폴더 고정) 적용으로 DLL 하이재킹 차단.
+     - **암호화 고도화 (`grid_vault_driver.c`, `secure_vault.cpp`, `v2.6.0`)**: `GVAULT11` 16바이트 CSPRNG 솔트 + PBKDF2-HMAC-SHA256(10,000회 반복), CryptoAPI/BCrypt 프로바이더 핸들 2만 회 재오픈을 제거한 **256B 스택 고속 경로(Fast-Path)**, 엄격한 Base64 패딩 검증 도입.
+     - **JSON 방어 파서**: 중첩 깊이·따옴표 인식 JSON 파싱 및 음수 포트 입력(`[-23]`) 방어 적용.
+
+3. **게이트웨이/인프라 동일 MAC 다중 IP(Proxy-ARP) 정상 판별 및 비알림 UI 분리 (`services/conflictDetector.ts`, `components/IPCell.tsx`, `App.tsx`)**
+   - **원인 분석**:
+     - 특정 학교·캠퍼스·기업망에서 `.251`과 게이트웨이 `.254`가 동일 MAC으로 탐지되는 현상은 L3 스위치/라우터의 **Proxy-ARP / 다중 대역 HSRP·VRRP·가상 게이트웨이(VIP)** 응답에 의한 정상 토폴로지 동작이며 실제 IP 충돌 장애가 아닙니다.
+   - **개선 내역**:
+     - `services/conflictDetector.ts`: `ConflictInfo`에 `isGatewayProxyArp: boolean`, `isAlert: boolean`, `severity: 'conflict' | 'info' | 'none'` 필드 및 `isConflictAlert()` 헬퍼를 신설했습니다. `254`/`1` 번 게이트웨이 및 엔터프라이즈 L3 인프라 벤더가 다중 IP를 보유할 경우 **`Gateway Proxy-ARP (비알림 Info)`**로 자동 하향 분류하며, 일반 소비자 브랜드(`asus`, `synology`, `qnap`)는 화이트리스트에서 제외해 실제 사설 공유기/NAS MAC 복제 충돌이 은폐되지 않도록 정교화했습니다.
+     - `components/IPCell.tsx` & `App.tsx`: `isGatewayProxyArp` 및 `conflictCategory` 명시적 Props를 추가하여 정상 Proxy-ARP 노드는 붉은 점멸(`⚠️`) 대신 스카이블루 **`Proxy-ARP`** 인디케이터 뱃지(`ring-1 ring-sky-400/75`)로 구분 표시하고, 상단 충돌 경보 카운터(`realConflictCount`) 및 충돌 필터·상세 패널 배너에서 실제 위협 경보와 명확히 분리했습니다.
+
+4. **전수 자아성찰(Self-Reflection & Deep Audit) 안정성·동시성 결함 10종 일괄 수정**
+   - `grid_probe_engine.c`: `ArpBatchWorker`와 비동기 ICMP 루프 간 `isAlive`/`rttMs` 동시 쓰기 경쟁 제거(워커는 `mac`/`isArpAlive`만 기록 후 Join 이후 일괄 병합), `WAIT_TIMEOUT` 시 미완료 IRP의 스택/슬랩 접근을 막기 위한 `WaitForSingleObject(..., 0)` + `IcmpCloseHandle`/`IcmpCreateFile` 리셋, ICMP Reply 버퍼 슬랙 `+64B` 확장, `_WIN32_WINNT >= 0x0601` 명시.
+   - `grid_port_iocp.c`: `_WIN32_WINNT >= 0x0601` 명시, 종료 시 `CancelIoEx` + `activeInFlight` 드레인 대기, `(ULONGLONG)` 캐스트 오버플로 방지, `port == 0` 스킵, `setsockopt(SO_UPDATE_CONNECT_CONTEXT) == 0` 반환값 검증 추가.
+   - `grid_topology_guard.c` & `native_modules_bridge_other.go`: `+NEW` 호스트의 정상 Proxy-ARP 판정이 `SoftTrust`/`HardIntruder`에 의해 덮어써지지 않도록 `isBenignProxyArp` 보호, `ports_changed` 양방향(추가/제거) 비교, 소비자 벤더 제외 및 음수 포트 JSON 방어.
+   - `name_resolver.go` & `components/IPCell.tsx`: mDNS `"lg"` 단문자 매칭 오탐을 `lg-`/`lge`/`webos`/`tv`/`electronics`로 엄격 제한하고, `IPCell.tsx`의 `getDeviceIcon()`이 `deviceCategory` 및 `MacBook`/`Smart TV`/`CCTV`/`Router` 단서를 일반 `apple`/`samsung` 브랜드보다 우선 판별하도록 개선했습니다.
+
+---
 
 ## 🚀 [v2.4.47] - 2026-11-11
 

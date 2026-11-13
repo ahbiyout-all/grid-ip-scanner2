@@ -7,6 +7,10 @@
 #ifndef BUILDING_GRID_PROBE_ENGINE
 #define BUILDING_GRID_PROBE_ENGINE
 #endif
+#if defined(_WIN32) && (!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0601)
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include "grid_probe_engine.h"
 
 #ifdef _WIN32
@@ -40,7 +44,7 @@ static void EnsureQpcInit(void) {
 }
 
 int Probe_GetDriverVersion(void) {
-    return 20501; // v2.5.1
+    return 20600; // v2.6.0
 }
 
 int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) {
@@ -56,7 +60,7 @@ int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) {
     if (hIcmp == INVALID_HANDLE_VALUE) return -1;
 
     char sendData[32] = "GridIPScannerProbeEngineV2";
-    DWORD replySize = sizeof(ICMP_ECHO_REPLY) + sizeof(sendData) + 16;
+    DWORD replySize = sizeof(ICMP_ECHO_REPLY) + sizeof(sendData) + 64;
     void* replyBuffer = malloc(replySize);
     if (!replyBuffer) {
         IcmpCloseHandle(hIcmp);
@@ -82,7 +86,7 @@ int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) {
 
     if (replies > 0) {
         PICMP_ECHO_REPLY pEcho = (PICMP_ECHO_REPLY)replyBuffer;
-        if (pEcho->Status == IP_SUCCESS) {
+        if (pEcho->Status == IP_SUCCESS && pEcho->DataSize <= sizeof(sendData) + 32) {
             double elapsed = ((double)(tEnd.QuadPart - tStart.QuadPart) * 1000.0) / (double)qpcFreq.QuadPart;
             if (elapsed < 0.1) elapsed = 0.1;
             *outRttMs = elapsed;
@@ -213,49 +217,210 @@ int Probe_BatchSweep(
     if (parsedAddr == INADDR_NONE) return 0;
     unsigned long baseIp = ntohl(parsedAddr);
 
-    HANDLE threads[64];
-    int activeThreads = 0;
+    unsigned int ipList[1024];
+    int n = count > 1024 ? 1024 : count;
+    for (int i = 0; i < n; i++) {
+        ipList[i] = htonl(baseIp + (unsigned long)i);
+    }
+    return Probe_SweepCidrAsyncBatch(ipList, n, timeoutMs, outResults, maxResults);
+}
 
-    for (int i = 0; i < count; i++) {
-        unsigned long curIp = baseIp + (unsigned long)i;
+/* ============================================================================
+ * Vectorized Shared-Handle IcmpSendEcho2 + Parallel SendARP Batch Engine
+ * Eliminates per-IP handle churn and thread storms by reusing 1 ICMP handle.
+ * ============================================================================ */
+typedef struct {
+    const unsigned int* ipListNetOrder;
+    int hostCount;
+    ProbeHostResult* outResults;
+    LONG nextArpIdx;
+} ArpBatchCtx;
 
-        WorkerTask* task = (WorkerTask*)calloc(1, sizeof(WorkerTask));
-        if (!task) continue;
+static DWORD WINAPI ArpBatchWorker(LPVOID param) {
+    ArpBatchCtx* ctx = (ArpBatchCtx*)param;
+    for (;;) {
+        LONG idx = InterlockedIncrement(&ctx->nextArpIdx) - 1;
+        if (idx >= ctx->hostCount) break;
+        BYTE macAddr[8] = {0};
+        ULONG macLen = 6;
+        if (SendARP((IPAddr)ctx->ipListNetOrder[idx], 0, (PULONG)macAddr, &macLen) == NO_ERROR && macLen == 6) {
+            snprintf(ctx->outResults[idx].mac, sizeof(ctx->outResults[idx].mac),
+                     "%02X:%02X:%02X:%02X:%02X:%02X",
+                     macAddr[0], macAddr[1], macAddr[2],
+                     macAddr[3], macAddr[4], macAddr[5]);
+            ctx->outResults[idx].isArpAlive = 1;
+        }
+    }
+    return 0;
+}
 
-        task->ipLong = curIp;
-        snprintf(task->ipStr, sizeof(task->ipStr), "%lu.%lu.%lu.%lu",
-                 (curIp >> 24) & 0xFF, (curIp >> 16) & 0xFF,
-                 (curIp >> 8) & 0xFF, curIp & 0xFF);
-        task->timeoutMs = timeoutMs;
-        task->callback = NULL;
-        task->resultTarget = &outResults[i];
+int Probe_SweepCidrAsyncBatch(
+    const unsigned int* ipListNetOrder,
+    int hostCount,
+    int timeoutMs,
+    ProbeHostResult* outResults,
+    int maxResults
+) {
+    if (!ipListNetOrder || hostCount <= 0 || !outResults || maxResults < hostCount) return 0;
+    if (hostCount > 4096) hostCount = 4096;
 
-        HANDLE hThread = CreateThread(NULL, 0, ProbeWorkerThread, task, 0, NULL);
-        if (hThread) {
-            threads[activeThreads++] = hThread;
-            if (activeThreads >= 64) {
-                WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
-                for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
-                activeThreads = 0;
+    EnsureQpcInit();
+    memset(outResults, 0, sizeof(ProbeHostResult) * (size_t)hostCount);
+
+    for (int i = 0; i < hostCount; i++) {
+        unsigned long hostOrd = ntohl(ipListNetOrder[i]);
+        snprintf(outResults[i].ip, sizeof(outResults[i].ip), "%lu.%lu.%lu.%lu",
+                 (hostOrd >> 24) & 0xFF, (hostOrd >> 16) & 0xFF,
+                 (hostOrd >> 8) & 0xFF, hostOrd & 0xFF);
+        outResults[i].rttMs = -1.0;
+    }
+
+    HANDLE hIcmp = IcmpCreateFile();
+    if (hIcmp == INVALID_HANDLE_VALUE) return 0;
+
+    char sendData[24] = "GridScannerAsyncV2";
+    DWORD replyStride = (DWORD)(sizeof(ICMP_ECHO_REPLY) + sizeof(sendData) + 64);
+    DWORD effTimeout = timeoutMs > 0 ? (DWORD)timeoutMs : 400;
+
+    /* Run batched L2 SendARP concurrently on a small 8-thread pool alongside async ICMP */
+    ArpBatchCtx arpCtx;
+    arpCtx.ipListNetOrder = ipListNetOrder;
+    arpCtx.hostCount = hostCount;
+    arpCtx.outResults = outResults;
+    arpCtx.nextArpIdx = 0;
+
+    HANDLE arpThreads[8] = {0};
+    int arpWorkerCount = hostCount < 8 ? hostCount : 8;
+    for (int w = 0; w < arpWorkerCount; w++) {
+        arpThreads[w] = CreateThread(NULL, 0, ArpBatchWorker, &arpCtx, 0, NULL);
+    }
+
+    /* Process IcmpSendEcho2 in 64-event windows (MAXIMUM_WAIT_OBJECTS) on 1 slab buffer */
+    #define ICMP_WIN_SIZE 64
+    HANDLE events[ICMP_WIN_SIZE];
+    for (int k = 0; k < ICMP_WIN_SIZE; k++) {
+        events[k] = CreateEventA(NULL, TRUE, FALSE, NULL);
+    }
+    unsigned char* slab = (unsigned char*)calloc((size_t)ICMP_WIN_SIZE, (size_t)replyStride);
+
+    if (slab) {
+        int offset = 0;
+        while (offset < hostCount) {
+            int batch = hostCount - offset;
+            if (batch > ICMP_WIN_SIZE) batch = ICMP_WIN_SIZE;
+
+            HANDLE waitHandles[ICMP_WIN_SIZE];
+            int waitMap[ICMP_WIN_SIZE];
+            int waitCount = 0;
+            LARGE_INTEGER tStarts[ICMP_WIN_SIZE];
+
+            for (int k = 0; k < batch; k++) {
+                int idx = offset + k;
+                ResetEvent(events[k]);
+                unsigned char* rBuf = slab + ((size_t)k * replyStride);
+                memset(rBuf, 0, replyStride);
+                QueryPerformanceCounter(&tStarts[k]);
+
+                DWORD syncRet = IcmpSendEcho2(
+                    hIcmp,
+                    events[k],
+                    NULL,
+                    NULL,
+                    (IPAddr)ipListNetOrder[idx],
+                    sendData,
+                    (WORD)sizeof(sendData),
+                    NULL,
+                    rBuf,
+                    replyStride,
+                    effTimeout
+                );
+
+                if (syncRet > 0) {
+                    PICMP_ECHO_REPLY pEcho = (PICMP_ECHO_REPLY)rBuf;
+                    if (pEcho->Status == IP_SUCCESS) {
+                        outResults[idx].isAlive = 1;
+                        outResults[idx].rttMs = pEcho->RoundTripTime > 0 ? (double)pEcho->RoundTripTime : 0.4;
+                    }
+                } else if (GetLastError() == ERROR_IO_PENDING) {
+                    waitHandles[waitCount] = events[k];
+                    waitMap[waitCount] = k;
+                    waitCount++;
+                }
             }
-        } else {
-            free(task);
+
+            if (waitCount > 0) {
+                DWORD waitRes = WaitForMultipleObjects((DWORD)waitCount, waitHandles, TRUE, effTimeout + 100);
+                LARGE_INTEGER tNow;
+                QueryPerformanceCounter(&tNow);
+                for (int w = 0; w < waitCount; w++) {
+                    int k = waitMap[w];
+                    if (waitRes == WAIT_TIMEOUT && WaitForSingleObject(events[k], 0) != WAIT_OBJECT_0) {
+                        continue;
+                    }
+                    int idx = offset + k;
+                    unsigned char* rBuf = slab + ((size_t)k * replyStride);
+                    DWORD parsed = IcmpParseReplies(rBuf, replyStride);
+                    if (parsed > 0) {
+                        PICMP_ECHO_REPLY pEcho = (PICMP_ECHO_REPLY)rBuf;
+                        if (pEcho->Status == IP_SUCCESS) {
+                            double qpcMs = ((double)(tNow.QuadPart - tStarts[k].QuadPart) * 1000.0) / (double)qpcFreq.QuadPart;
+                            double reported = (double)pEcho->RoundTripTime;
+                            double bestRtt = reported > 0.0 ? reported : (qpcMs > 0.1 ? qpcMs : 0.2);
+                            outResults[idx].isAlive = 1;
+                            outResults[idx].rttMs = bestRtt;
+                        }
+                    }
+                }
+                if (waitRes == WAIT_TIMEOUT) {
+                    /* Cancel any still-pending async ICMP IRPs referencing slab/events before next batch reuse */
+                    IcmpCloseHandle(hIcmp);
+                    hIcmp = IcmpCreateFile();
+                    if (hIcmp == INVALID_HANDLE_VALUE) {
+                        break;
+                    }
+                }
+            }
+            offset += batch;
+        }
+        free(slab);
+    }
+
+    for (int k = 0; k < ICMP_WIN_SIZE; k++) {
+        if (events[k]) CloseHandle(events[k]);
+    }
+    if (hIcmp != INVALID_HANDLE_VALUE) {
+        IcmpCloseHandle(hIcmp);
+    }
+
+    for (int w = 0; w < arpWorkerCount; w++) {
+        if (arpThreads[w]) {
+            WaitForSingleObject(arpThreads[w], INFINITE);
+            CloseHandle(arpThreads[w]);
         }
     }
 
-    if (activeThreads > 0) {
-        WaitForMultipleObjects((DWORD)activeThreads, threads, TRUE, INFINITE);
-        for (int t = 0; t < activeThreads; t++) CloseHandle(threads[t]);
+    /* Single-threaded reconciliation of ARP results with ICMP RTT measurements */
+    for (int i = 0; i < hostCount; i++) {
+        if (outResults[i].isArpAlive && !outResults[i].isAlive) {
+            outResults[i].isAlive = 1;
+            if (outResults[i].rttMs < 0.0) {
+                outResults[i].rttMs = 0.5;
+            }
+        }
     }
 
-    return count;
+    return hostCount;
 }
 
 #else
 // Non-Windows stub for cross-platform compilation
-int Probe_GetDriverVersion(void) { return 20500; }
+int Probe_GetDriverVersion(void) { return 20600; }
 int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) { if (outRttMs) *outRttMs = -1.0; return -1; }
 int Probe_ResolveMac(const char* ip, char* outMacBuffer, int bufferLen) { return 0; }
 int Probe_SweepSubnetAsync(const char* startIp, int count, int timeoutMs, ProbeHostCallback callback) { return 0; }
 int Probe_BatchSweep(const char* startIp, int count, int timeoutMs, ProbeHostResult* outResults, int maxResults) { return 0; }
+int Probe_SweepCidrAsyncBatch(const unsigned int* ipListNetOrder, int hostCount, int timeoutMs, ProbeHostResult* outResults, int maxResults) {
+    (void)ipListNetOrder; (void)hostCount; (void)timeoutMs; (void)outResults; (void)maxResults;
+    return 0;
+}
 #endif

@@ -1,6 +1,6 @@
 # Grid IP Scanner2 파일 및 디렉토리 구조 명세서 (File Structure & Component Specifications)
 
-본 문서는 **Grid IP Scanner2 (v2.4.24)** 프로젝트를 구성하는 모든 디렉토리와 파일의 역할, 세부 동작 원리, 상호 작용 관계 및 상용 빌드 프로세스에서의 사용처를 일목요연하게 정리한 공식 기술 구조 가이드입니다.
+본 문서는 **Grid IP Scanner2 (v2.5.0)** 프로젝트를 구성하는 모든 디렉토리와 파일의 역할, 세부 동작 원리, 상호 작용 관계 및 상용 빌드 프로세스에서의 사용처를 일목요연하게 정리한 공식 기술 구조 가이드입니다.
 
 ---
 
@@ -15,86 +15,82 @@ Grid IP Scanner2 Root/
 │       └── mobile-release.yml      # 모바일 전용 독립 릴리스 워크플로우
 │
 ├── 📂 components/                  # React 개별 컴포넌트 폴더
-│   ├── IPCell.tsx                  # 16x16 그리드 속 개별 IP 상태 및 Diff 뱃지 표현 컴포넌트
+│   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, Diff 뱃지, Proxy-ARP 인디케이터 뱃지 컴포넌트
+│   ├── IntruderLogModal.tsx        # 24/7 무인 백그라운드 서비스 침입 탐지 이력 조회 및 화이트리스트 모달
+│   ├── NativeModulesModal.tsx      # 12대 C/C++ 네이티브 DLL 엔진 아코디언 진단 콘솔
 │   ├── ScheduleModal.tsx           # 정기 자동 네트워크 스캔 스케줄 관리 및 실행 이력 모달
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
+│   ├── TrayStatusIndicator.tsx     # 트레이 실시간 스캔 진척도 및 침입 경보 타임스탬프 인디케이터
 │   └── UpdateModal.tsx             # GitHub Releases 실시간 업데이트 센터 안내 및 다운로드 모달
 │
 ├── 📂 services/                    # 비즈니스 로직 및 코어 엔진 서비스 폴더
-│   ├── schedulerService.ts         # 5초 Ticker 기반 정기 스케줄러, 남은 시간 카운트다운, 스냅샷 자동저장
+│   ├── conflictDetector.ts         # IP/MAC 충돌 탐지, Gateway Proxy-ARP 비알림 분리 및 Soft Trust 알고리즘
+│   ├── ouiClassifier.ts            # OUI + 포트/mDNS/UPnP 다중 신호 시맨틱 분류 및 LAA 랜덤 MAC 역추적
 │   ├── diffEngine.ts               # 스냅샷 A/B 딥 비교 엔진, 고위험 포트 탐지, IP 충돌 분석
 │   ├── portScanner.ts              # 25개 주요 포트 정밀 보안 검사 및 위험도 분류 모듈
-│   ├── reportGenerator.ts          # A4 최적화 스마트 페이지네이션 PDF/HTML 전문 보안 감사 보고서 엔진
+│   ├── schedulerService.ts         # 5초 Ticker 기반 정기 스케줄러, 남은 시간 카운트다운, 스냅샷 자동저장
+│   ├── reportGenerator.ts          # A4 최적화 스마트 페이지네이션 PDF/HTML(칩셋 OUI & 실제 제조사 분리) 엔진
 │   ├── licenseManager.ts           # Community/Pro/Enterprise 비대칭 암호키 오프라인 라이선스 매니저
-│   ├── updateChecker.ts            # GitHub Releases API 조회 및 버전 비교 실시간 업데이트 체커
+│   ├── updateChecker.ts            # GitHub Releases API 조회 및 버전 비교 실시간 업데이트 체커 (v2.5.0)
 │   ├── wolService.ts               # Wake-on-LAN (UDP 9/7 매직 패킷) 원격 부팅 서비스
-│   └── conflictDetector.ts         # IP/MAC 충돌 탐지 및 Soft Trust 유예 지능형 알고리즘
+│   ├── intruderLogService.ts       # 24/7 침입 탐지 이력 저장/필터/CSV 내보내기 서비스
+│   ├── nativeModulesService.ts     # 네이티브 DLL 상태 점검 및 토폴로지 가드 API 브리지
+│   ├── ouiValidatorBridge.ts       # OUI DB 검증 브리지
+│   ├── secureVaultBridge.ts        # Secure Vault AES-256-GCM 암호화 브리지
+│   ├── electronVaultBridge.ts      # Electron 환경 Vault IPC 브리지
+│   ├── vaultService.ts             # 통합 보안 저장소 추상화 계층
+│   ├── deviceAliasManager.ts       # 사용자 장치 별칭 관리
+│   └── remoteActionService.ts      # 원격 진단 및 제어 액션 서비스
 │
-├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브
-│   ├── README.md                   # 문서 저장소 총괄 가이드 및 색인 목차 (v2.4.6)
-│   ├── SCHEDULED_SCAN_SPEC.md      # 정기 자동 스캔 스케줄러 아키텍처 및 데이터 명세서 (신규)
+├── 📂 native_dll/                  # 순수 C99 / C++17 12대 네이티브 가속 DLL 엔진 소스
+│   ├── grid_topology_guard.c/.h    # [신규/순수창작] O(N) 서브넷 토폴로지 해시 & Proxy-ARP/LAA 분리 (v2.6.1)
+│   ├── grid_probe_engine.c/.h      # 벡터화 비동기 ICMP 배치 스위프 (`Probe_SweepCidrAsyncBatch`, v2.6.0)
+│   ├── grid_port_iocp.c/.h         # Win32 IOCP+ConnectEx 다중 호스트 포트 스위프 (`PortScan_IocpMultiHostSweep`)
+│   ├── grid_discovery.c/.h         # 네이티브 SSDP / mDNS 라벨 파싱 & 다중 프로토콜 탐색 엔진
+│   ├── grid_oui_trie.c/.h          # Bitwise OUI CIDR(/24, /28, /36) 고속 트라이 탐색 엔진
+│   ├── grid_banner_grabber.c/.h    # 비파괴 다중 recv HTTP/서비스 배너 추출 엔진
+│   ├── grid_pcap_analyzer.c/.h     # Npcap(`wpcap.dll` System32 고정) 패킷 기반 OS TTL 분석 엔진
+│   ├── grid_fingerprint_engine.c/.h# AI 휴리스틱 기기 지문 분석 & 리스크 점수 산출 엔진
+│   ├── grid_net_driver.c/.h/.go    # 코어 네이티브 소켓 드라이버 및 Go FFI 바인딩
+│   ├── grid_vault_driver.c/.h/.go  # `GVAULT11` PBKDF2-HMAC-SHA256 스택 고속 경로 보안 볼트 C 드라이버
+│   ├── oui_validator.cpp/.h        # Wireshark/IEEE `manuf` 무결성 & CIDR 충돌 검증기
+│   ├── secure_vault.cpp/.h         # C++17 AES-256-GCM 네이티브 암호화 엔진 (`v2.6.0`)
+│   └── build_all_dlls.bat          # MSYS2 GCC 16.1.0 정적 링크(`-static-libgcc -static-libstdc++`) 전수 빌드 스크립트
+│
+├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (v2.5.0)
+│   ├── README.md                   # 문서 저장소 총괄 가이드 및 색인 목차 (v2.5.0)
+│   ├── GOOGLE_BLOGGER_POST.md      # 구글 블로거 포스팅 가이드 ([작성 모드 (서식 있는 텍스트)])
+│   ├── GOOGLE_BLOGGER_POST.html    # 구글 블로거 포스팅 가이드 ([HTML 편집 모드] 전용 소스)
+│   ├── GITHUB_GUIDE.md             # 깃허브 연동, .gitignore 규칙 및 CI/CD 자동 배포 가이드 (v2.5.0)
+│   ├── GRID_TOPOLOGY_GUARD_DLL_SPEC.md # 순수 창작 DLL 명세 및 12대 DLL 감사·하드닝 보고서
+│   ├── SCHEDULED_SCAN_SPEC.md      # 정기 자동 스캔 스케줄러 아키텍처 및 데이터 명세서
 │   ├── SNAPSHOT_DIFF_SPEC.md       # 딥 스냅샷 비교 엔진 v2 및 1:1 대조 스튜디오 명세서
-│   ├── GOOGLE_BLOGGER_POST.md      # 구글 블로거 포스팅 완벽 가이드 ([작성 모드] & [HTML 편집 모드])
-│   ├── GITHUB_GUIDE.md             # 깃허브 연동, .gitignore 규칙 및 CI/CD 자동 배포 가이드
 │   ├── MOBILE_GITHUB_GUIDE.md      # 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
-│   ├── WorkLog.md                  # 개발 및 기능 구현 공식 작업 일지 (v2.4.6)
-│   ├── VERSIONING_POLICY.md        # SemVer 3단계 버전 관리 규정 및 패치노트 기록 지침
-│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (v2.4.6 최신화)
-│   ├── GRID_IP_SCANNER_2.md        # 서비스 개요 및 제품 설명서 백서 (v2.4.6)
-│   ├── DISTRIBUTION_AND_TIER_STRATEGY.md # 포터블 & 인스톨러 배포 전략 및 유료화 사양서
-│   ├── V3_FALSE_POSITIVE_GUIDE.md  # AhnLab V3 오진 분석 및 검사 예외 등록 가이드
-│   ├── DIGITAL_SIGNATURE_GUIDE.md  # 테스트용 자가 서명(PowerShell) 가이드
-│   ├── FILE_STRUCTURE_GUIDE.md     # [본 문서] 파일 구조 및 디렉토리 상세 명세서 (v2.4.6)
+│   ├── WorkLog.md                  # 개발 및 기능 구현 공식 작업 일지 (v2.5.0)
+│   ├── VERSIONING_POLICY.md        # SemVer 3단계 버전 관리 규정 및 SSOT 10대 타깃 동기화 지침
+│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (v2.5.0 최신화)
+│   ├── GRID_IP_SCANNER_2.md        # 서비스 개요 및 제품 설명서 백서 (v2.5.0)
+│   ├── SECURITY_REPORT.md          # 보안 점검 및 암호화 검증 보고서 (v2.5.0)
+│   ├── FILE_STRUCTURE_GUIDE.md     # [본 문서] 파일 구조 및 디렉토리 상세 명세서 (v2.5.0)
 │   └── LICENSE.md                  # 프로그램 이중 라이선스 및 준수 명세 계약서
 │
 ├── 📂 installer/                   # Windows 정식 인스톨러 패키징 툴체인
-│   ├── Grid_IP_Scanner2_Setup.iss  # Inno Setup 6 윈도우 인스톨러 스크립트 (방화벽 사전등록/제어판/시작메뉴)
+│   ├── Grid_IP_Scanner2_Dedicated_Setup.iss # Inno Setup 6 인스톨러 (12대 DLL 분리 배치, 포그라운드 무클릭 자동 제거)
 │   ├── build-installer.js          # 버전 자동 동기화 및 인스톨러 빌드 오케스트레이터
 │   └── setup_builder.go            # 스탠드얼론 Go 기반 자체 압축해제 설치 빌더
 │
 ├── 📂 public/                      # 브라우저 정적 에셋 폴더
-│   ├── favicon.ico                 # 브라우저 탭 아이콘 (멀티레이어)
-│   ├── icon.ico                    # 웹 애플리케이션 고해상도 아이콘 (16~256px)
+│   ├── favicon.ico / icon.ico      # 멀티레이어 고해상도 아이콘 (16~256px)
 │   ├── logo.png                    # 풀 블리드(Full-Bleed) 공식 대표 로고 이미지
 │   └── manifest.json               # PWA 모바일 웹 매니페스트
 │
-├── 📝 LICENSE.md                   # 프로그램 루트 이중 라이선스 명세서
-├── 📝 App.tsx                      # React 프론트엔드 메인 컨테이너 및 비즈니스 로직
-├── 📝 index.html                   # 프론트엔드 HTML 엔트리 (notranslate, lang="ko" 브라우저 번역 팝업 차단)
-├── 📝 index.tsx                    # React와 DOM 렌더러 연결부 (렌더링 진입점)
-├── 📝 index.css                    # Tailwind CSS 연동 글로벌 테마 및 스타일링 지정
-├── 📝 types.ts                     # 전체 시스템 공유 TypeScript 타입 명세 및 이늄(Enum) 정의
-├── 📝 env.d.ts                     # Vite 및 환경변수 전용 타입 어노테이션 파일
-│
-├── 🐹 main.go                      # Go 기반 초고속 하이브리드 백엔드 메인 엔트리
-├── 🐹 engine.go                    # 멀티 프로토콜 병렬 포트/IP 탐색 및 하드웨어 제조사 추적 모듈
-├── 🐹 utils_windows.go             # Win32 API 바인딩, 적응형 브라우저 런처 (--disable-translate 주입)
-├── 🐹 utils_other.go               # Linux / macOS 플랫폼용 저사양 소켓 추상화 폴백 모듈
+├── 📝 App.tsx / index.html / types.ts / env.d.ts # React 19 프론트엔드 코어
+├── 🐹 main.go / engine.go / name_resolver.go # Go 병렬 백엔드, UPnP XML/mDNS 제조사 식별 엔진
+├── 🐹 native_modules_bridge.go / native_modules_bridge_other.go # 경로 고정 `LoadLibraryExW` C-DLL 브리지 & 폴백
+├── 🐹 utils_windows.go / utils_other.go # Win32 트레이 서브메뉴, 풍선 알림, Close-to-Tray, 5단계 런처
 ├── 📝 master_oui.txt               # 9만여 건의 가공된 IEEE/Wireshark OUI 로컬 정적 데이터베이스
-│
-├── 🖥️ server.ts                   # Node.js 개발/프록시 서버
-├── ⚙️ vite.config.ts               # Vite 프론트엔드 빌드 툴체인 설정
-├── ⚙️ tsconfig.json                # TypeScript 컴파일 규칙 및 경로 매핑 구성 파일
-│
-├── 🛠️ build-win.js                 # EXE 빌드 & 리소스 패칭 오케스트레이터 (Go 유효성 자동 검증)
-├── 🛠️ generate-assets.js           # 엣지-투-엣지 자동 크롭, 6단계 멀티레이어 ICO 생성 스크립트
-├── 🛠️ winres.json                  # Windows 바이너리 메타데이터 (#1 & APP 아이콘 그룹 주입용) 리소스 명세
-├── ⚙️ package.json                 # Node.js 의존성 패키지 및 개발 스크립트 중앙 관리 매니페스트 (v2.4.4)
-├── ⚙️ go.mod                       # Go 모듈 및 병렬 처리 의존성 정의 구성 파일
-├── 🛡️ .gitignore                   # 푸시 스크립트 및 바이너리 격리 클린 소스 전용 제외 규칙
-│
-├── 📂 scripts/                     # 자동화 및 배포 스크립트 폴더
-│   ├── sync-version.js             # 9대 핵심 타깃 일괄 버전 동기화(Single Source of Truth) 엔진
-│   ├── package-mobile.js           # 모바일 PWA 웹 패키지 압축 스크립트
-│   ├── package-android.js          # 안드로이드 스마트폰 전용 APK 패키징 스크립트
-│   ├── build-distribution.js       # 폴더별/빌드번호별 배포 패키지 생성기
-│   ├── sign-binary.ps1             # 테스트용 자가 서명 PowerShell 유틸리티
-│   ├── auto-update.bat             # 콘솔 대화형 실시간 자동 업데이트 배치 스크립트
-│   ├── github-sync.bat             # [로컬 전용] 깃허브 자동 푸시 및 릴리스 배치 스크립트 (원격 업로드 제외)
-│   └── github-sync.sh              # [로컬 전용] 깃허브 자동 푸시 쉘 스크립트 (원격 업로드 제외)
-│
-├── 🛠️ github-push.bat              # [로컬 전용] 프로젝트 루트 원클릭 푸시 단축 스크립트 (원격 업로드 제외)
-└── 🛠️ build.bat / build.sh         # 영문 자동 빌드 배치 및 쉘 스크립트
+├── 🛠️ build-win.js / scripts/build-dll.js / scripts/sync-version.js # SSOT 동기화 및 12-DLL/EXE 빌드 파이프라인
+└── ⚙️ package.json / go.mod / winres.json # 의존성 및 v2.5.0 메타데이터
 ```
 
 ---

@@ -52,6 +52,14 @@ PROBE_API int Probe_BatchSweep(
     int maxResults
 );
 
+PROBE_API int Probe_SweepCidrAsyncBatch(
+    const unsigned int* ipListNetOrder,
+    int hostCount,
+    int timeoutMs,
+    ProbeHostResult* outResults,
+    int maxResults
+);
+
 #ifdef __cplusplus
 }
 #endif

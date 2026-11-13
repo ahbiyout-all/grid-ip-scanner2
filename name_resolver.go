@@ -860,7 +860,7 @@ func ResolveDeviceNamesParallel(ctx context.Context, ip string, openPorts []int,
 			} else if strings.Contains(lowerMdns, "samsung") {
 				realVendor = "Samsung Electronics"
 				vendorSource = NameSourceMDNS
-			} else if strings.Contains(lowerMdns, "lg") {
+			} else if strings.Contains(lowerMdns, "lg-") || strings.Contains(lowerMdns, "lge") || strings.Contains(lowerMdns, "webos") || (strings.Contains(lowerMdns, "lg") && (strings.Contains(lowerMdns, "tv") || strings.Contains(lowerMdns, "electronics"))) {
 				realVendor = "LG Electronics"
 				vendorSource = NameSourceMDNS
 			}
