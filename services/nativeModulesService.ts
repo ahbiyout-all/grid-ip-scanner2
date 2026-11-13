@@ -22,13 +22,22 @@ import {
   NativeTopologyGuardResult,
 } from '../types';
 
+const safeTimeout = (ms: number): AbortSignal | undefined => {
+  try {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      return AbortSignal.timeout(ms);
+    }
+  } catch {}
+  return undefined;
+};
+
 /**
  * Checks the runtime presence and loading status of all 6 native DLL modules.
  */
 export async function fetchNativeModulesStatus(): Promise<NativeModulesStatus> {
   try {
     const res = await fetch('/api/native-modules', {
-      signal: AbortSignal.timeout(3000),
+      signal: safeTimeout(3000),
     });
     if (res.ok) {
       return (await res.json()) as NativeModulesStatus;
@@ -60,7 +69,7 @@ export async function fetchDeepDiscovery(
   try {
     const res = await fetch(
       `/api/discovery?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`,
-      { signal: AbortSignal.timeout(timeoutMs + 500) }
+      { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
       return (await res.json()) as NativeDiscoveryResult;
@@ -82,7 +91,7 @@ export async function fetchDeepBannerGrab(
   try {
     const res = await fetch(
       `/api/banner-grab?ip=${encodeURIComponent(ip)}&port=${port}&timeout=${timeoutMs}`,
-      { signal: AbortSignal.timeout(timeoutMs + 500) }
+      { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
       return (await res.json()) as NativeDeepBannerResult;
@@ -103,7 +112,7 @@ export async function detectHostOS(
   try {
     const res = await fetch(
       `/api/os-detect?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`,
-      { signal: AbortSignal.timeout(timeoutMs + 500) }
+      { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
       return (await res.json()) as NativeOsDetectResult;
@@ -124,7 +133,7 @@ export async function checkArpSpoofing(
   try {
     const res = await fetch(
       `/api/arp-spoof-check?ip=${encodeURIComponent(ip)}&mac=${encodeURIComponent(expectedMac)}`,
-      { signal: AbortSignal.timeout(1500) }
+      { signal: safeTimeout(1500) }
     );
     if (res.ok) {
       return (await res.json()) as NativeArpSpoofResult;
@@ -153,7 +162,7 @@ export async function fetchDeviceFingerprint(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-      signal: AbortSignal.timeout(2000),
+      signal: safeTimeout(2000),
     });
     if (res.ok) {
       const data = await res.json();
@@ -189,7 +198,7 @@ export async function analyzeNativeTopologyGuard(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-      signal: AbortSignal.timeout(3000),
+      signal: safeTimeout(3000),
     });
     if (res.ok) {
       const data = await res.json();
@@ -227,7 +236,6 @@ export async function getClientLocalIP(): Promise<{ ip: string; subnet: string }
       rtc.onicecandidate = (event) => {
         if (!event || !event.candidate || done) return;
         const candidate = event.candidate.candidate;
-        // Match private IPv4 address formats: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
         const ipv4Match = candidate.match(/\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/);
         if (ipv4Match) {
           const fullIP = ipv4Match[1];
@@ -259,7 +267,7 @@ export async function executeWindowsUtility(
     if (enable !== undefined) {
       url += `&enable=${enable}`;
     }
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, { signal: safeTimeout(4000) });
     if (res.ok) {
       return await res.json();
     }
@@ -268,5 +276,3 @@ export async function executeWindowsUtility(
   }
   return { success: false, message: 'Windows 유틸리티 실행 중 오류가 발생했습니다.' };
 }
-
-

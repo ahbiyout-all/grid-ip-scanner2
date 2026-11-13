@@ -2057,11 +2057,31 @@ const App: React.FC = () => {
   };
 
   const startScan = async (scheduledTask?: ScanSchedule) => {
+    if (isScanningRef.current) return;
+
+    let targetSubnet = scheduledTask ? scheduledTask.subnet : (config.subnet || '192.168.0');
+    targetSubnet = targetSubnet.trim().replace(/\.+$/, '');
+    const octets = targetSubnet.split('.');
+    if (octets.length === 4) {
+      targetSubnet = octets.slice(0, 3).join('.');
+    }
+    if (!targetSubnet || octets.length < 3) {
+      showToast(lang === 'ko' ? "⚠️ 유효하지 않은 서브넷 형식입니다 (예: 192.168.0)." : "⚠️ Invalid subnet format (e.g. 192.168.0)");
+      return;
+    }
+
+    const targetStart = Math.max(0, Math.min(255, scheduledTask ? scheduledTask.start : config.start));
+    const targetEnd = Math.max(0, Math.min(255, scheduledTask ? scheduledTask.end : config.end));
+    if (targetStart > targetEnd) {
+      showToast(lang === 'ko' ? "⚠️ 시작 IP 번호가 종료 IP 번호보다 클 수 없습니다." : "⚠️ Start IP cannot be greater than end IP");
+      return;
+    }
+
     let engineReady = goEngineAlive;
 
     if (!engineReady) {
       try {
-        const pingRes = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout(3000) });
+        const pingRes = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined });
         if (pingRes.ok) {
           engineReady = true;
           setGoEngineAlive(true);
@@ -2071,9 +2091,6 @@ const App: React.FC = () => {
       }
     }
 
-    const targetSubnet = scheduledTask ? scheduledTask.subnet : (config.subnet || '192.168.0');
-    const targetStart = scheduledTask ? scheduledTask.start : config.start;
-    const targetEnd = scheduledTask ? scheduledTask.end : config.end;
     const targetDeep = scheduledTask ? scheduledTask.deepScan : deepScan;
     const targetMode = scheduledTask ? scheduledTask.scanMode : scanMode;
     const targetTotalCount = targetEnd - targetStart + 1;
@@ -2140,29 +2157,61 @@ const App: React.FC = () => {
         timeout = 2000;
       }
 
-      const response = await fetch(
-        getApiUrl(`/api/scan?subnet=${targetSubnet}&start=${targetStart}&end=${targetEnd}&deep=${targetDeep}&delay=${delay}&timeout=${timeout}`),
-        { signal: abortControllerRef.current.signal }
-      );
+      const scanUrl = getApiUrl(`/api/scan?subnet=${encodeURIComponent(targetSubnet)}&start=${targetStart}&end=${targetEnd}&deep=${targetDeep}&delay=${delay}&timeout=${timeout}`);
+      const response = await fetch(scanUrl, { signal: abortControllerRef.current.signal });
       
+      if (!response.ok) {
+        let errText = response.statusText;
+        try {
+          const errJson = await response.json();
+          if (errJson && errJson.error) errText = errJson.error;
+        } catch (_) {
+          const txt = await response.text();
+          if (txt) errText = txt;
+        }
+        throw new Error(lang === 'ko' ? `스캔 시작 실패 (${response.status}): ${errText}` : `Scan start failed (${response.status}): ${errText}`);
+      }
+
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
-      if (!reader) return;
+      if (!reader) {
+        throw new Error(lang === 'ko' ? "응답 스트림을 읽을 수 없습니다." : "Response body reader unavailable");
+      }
 
       let buffer = '';
       while (true) {
         const { value, done } = await reader.read();
-        if (done || stopScanRef.current) {
-          if (stopScanRef.current) {
-            reader.cancel();
-            abortControllerRef.current.abort();
+        if (done) {
+          if (buffer.trim()) {
+            const finalLines = buffer.split(/\r?\n\r?\n/);
+            for (const line of finalLines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const msg = JSON.parse(line.replace('data: ', ''));
+                  if (msg.type === 'scanning') {
+                    localScanningIPs.add(msg.ip);
+                    localProcessedIPs.add(msg.ip);
+                    resultsRef.current[msg.ip] = { ...resultsRef.current[msg.ip], status: 'scanning' };
+                  } else if (msg.type === 'result') {
+                    const res = msg.data;
+                    localScanningIPs.delete(res.ip);
+                    localProcessedIPs.add(res.ip);
+                  }
+                } catch (_) {}
+              }
+            }
           }
+          break;
+        }
+        if (stopScanRef.current) {
+          try { reader.cancel(); } catch (_) {}
+          try { abortControllerRef.current?.abort(); } catch (_) {}
           break;
         }
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
+        const lines = buffer.split(/\r?\n\r?\n/);
         buffer = lines.pop() || '';
 
         for (const line of lines) {
@@ -2250,12 +2299,10 @@ const App: React.FC = () => {
               if (!res.alive && prevResult && prevResult.status === 'active') {
                 const currentMiss = (prevResult.missCount || 0) + 1;
                 if (currentMiss < 3) {
-                  // Grace period: keep it active
                   finalStatus = 'active';
                   finalDevice = prevResult.device;
                   newMissCount = currentMiss;
                 } else {
-                  // Missed 3 times, let it die
                   finalStatus = 'inactive';
                   finalDevice = undefined;
                   newMissCount = 0;
@@ -2288,6 +2335,7 @@ const App: React.FC = () => {
         console.log("Scan aborted by user");
       } else {
         console.error("Scan Failed:", e);
+        showToast(lang === 'ko' ? `⚠️ 스캔 오류: ${(e as Error).message}` : `⚠️ Scan error: ${(e as Error).message}`);
       }
     } finally {
       if (updateTimerRef.current) {

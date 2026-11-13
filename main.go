@@ -2439,6 +2439,10 @@ func main() {
 			return
 		}
 
+		// Immediate header flush so client never stalls before stream starts
+		fmt.Fprintf(w, ": scan-stream-started\n\n")
+		flusher.Flush()
+
 		query := r.URL.Query()
 		subnet := query.Get("subnet")
 		if subnet == "" {
