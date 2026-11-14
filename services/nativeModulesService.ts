@@ -21,16 +21,7 @@ import {
   NativeFingerprintResult,
   NativeTopologyGuardResult,
 } from '../types';
-import { getApiUrl } from './apiConfig';
-
-const safeTimeout = (ms: number): AbortSignal | undefined => {
-  try {
-    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
-      return AbortSignal.timeout(ms);
-    }
-  } catch {}
-  return undefined;
-};
+import { getApiUrl, safeTimeout } from './apiConfig';
 
 /**
  * Checks the runtime presence and loading status of all 6 native DLL modules.

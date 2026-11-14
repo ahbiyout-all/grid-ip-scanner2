@@ -66,6 +66,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [schedules, setSchedules] = useState<ScanSchedule[]>([]);
   const [history, setHistory] = useState<ScheduledScanRunRecord[]>([]);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClearHistory, setConfirmClearHistory] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -94,6 +96,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     if (isOpen) {
       setSchedules(getSchedules());
       setHistory(getScheduleHistory());
+      setConfirmDeleteId(null);
+      setConfirmClearHistory(false);
     }
   }, [isOpen]);
 
@@ -172,17 +176,25 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm(lang === 'ko' ? '해당 스케줄을 삭제하시겠습니까?' : 'Delete this schedule?')) {
-      deleteSchedule(id);
-      refreshData();
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      setTimeout(() => setConfirmDeleteId(prev => (prev === id ? null : prev)), 4000);
+      return;
     }
+    deleteSchedule(id);
+    setConfirmDeleteId(null);
+    refreshData();
   };
 
   const handleClearHistory = () => {
-    if (confirm(lang === 'ko' ? '모든 스케줄 실행 기록을 삭제하시겠습니까?' : 'Clear all schedule run history?')) {
-      clearScheduleHistory();
-      refreshData();
+    if (!confirmClearHistory) {
+      setConfirmClearHistory(true);
+      setTimeout(() => setConfirmClearHistory(false), 4000);
+      return;
     }
+    clearScheduleHistory();
+    setConfirmClearHistory(false);
+    refreshData();
   };
 
   if (!isOpen) return null;
@@ -294,10 +306,18 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               </button>
               <button
                 onClick={handleClearHistory}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                  confirmClearHistory
+                    ? 'bg-rose-600 text-white hover:bg-rose-500 animate-pulse'
+                    : 'text-rose-400 hover:bg-rose-950/40 hover:text-rose-300'
+                }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{lang === 'ko' ? '기록 비우기' : 'Clear'}</span>
+                <span>
+                  {confirmClearHistory
+                    ? (lang === 'ko' ? '확인: 전체 삭제' : 'Confirm Clear')
+                    : (lang === 'ko' ? '기록 비우기' : 'Clear')}
+                </span>
               </button>
             </div>
           )}
@@ -441,10 +461,17 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleDelete(sched.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition"
+                            className={`p-1.5 rounded-lg transition flex items-center gap-1 text-xs font-semibold ${
+                              confirmDeleteId === sched.id
+                                ? 'bg-rose-600 text-white hover:bg-rose-500 px-2'
+                                : 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
+                            }`}
                             title={lang === 'ko' ? '삭제' : 'Delete'}
                           >
                             <Trash2 className="w-4 h-4" />
+                            {confirmDeleteId === sched.id && (
+                              <span>{lang === 'ko' ? '삭제 확인' : 'Confirm'}</span>
+                            )}
                           </button>
                         </div>
                       </div>

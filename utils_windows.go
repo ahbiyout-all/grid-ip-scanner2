@@ -30,6 +30,15 @@ func hideWindow(cmd *exec.Cmd) {
 	cmd.SysProcAttr.CreationFlags |= CREATE_NO_WINDOW
 }
 
+func isRunningAsAdmin() bool {
+	f, err := os.Open("\\\\.\\PHYSICALDRIVE0")
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
+}
+
 var (
 	modkernel32             = syscall.NewLazyDLL(resolveSystemDllPath("kernel32.dll"))
 	procMultiByteToWideChar = modkernel32.NewProc("MultiByteToWideChar")

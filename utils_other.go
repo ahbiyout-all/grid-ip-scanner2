@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -119,3 +120,8 @@ func initNativeSystemTray(port string) {
 func showTrayBalloonNotification(title, message string) {
 	// Stub for non-Windows platforms
 }
+
+func isRunningAsAdmin() bool {
+	return os.Geteuid() == 0
+}
+

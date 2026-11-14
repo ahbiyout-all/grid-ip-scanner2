@@ -23,6 +23,7 @@ import { TrayStatusIndicator } from './components/TrayStatusIndicator';
 import { IntruderLogModal } from './components/IntruderLogModal';
 import { recordIntrudersFromDetection, getIntruderLogs } from './services/intruderLogService';
 import { classifyDeviceHybrid, ClassificationEvidence, OUIBlockType } from './services/ouiClassifier';
+import { getApiUrl, safeTimeout } from './services/apiConfig';
 
 export interface DeviceClassificationContext {
   ip?: string;
@@ -937,7 +938,7 @@ const App: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).electronAPI?.setCloseToTray) {
       (window as any).electronAPI.setCloseToTray(closeToTray);
     }
-    fetch(`/api/close-to-tray?enabled=${closeToTray}`, { method: 'POST' }).catch(() => {});
+    fetch(getApiUrl(`/api/close-to-tray?enabled=${closeToTray}`), { method: 'POST' }).catch(() => {});
   }, [closeToTray]);
 
   const [showWindowsUtilModal, setShowWindowsUtilModal] = useState(false);
@@ -948,9 +949,25 @@ const App: React.FC = () => {
     setShowAllClassificationReasons(false);
   }, [selectedIp]);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
   const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 3000);
   }, []);
 
   const handleMinimizeToTray = useCallback(() => {
@@ -959,7 +976,7 @@ const App: React.FC = () => {
       showToast(lang === 'ko' ? '📌 백그라운드 시스템 트레이로 최소화되었습니다.' : '📌 Minimized to background system tray.');
     } else {
       // Standalone Win32 / Webview mode: notify Go engine
-      fetch('/api/tray-minimize', { method: 'POST' }).catch(() => {});
+      fetch(getApiUrl('/api/tray-minimize'), { method: 'POST' }).catch(() => {});
       showToast(
         lang === 'ko' 
           ? '📌 시스템 트레이로 최소화되었습니다. 창을 닫아도 24/7 침입 감시가 백그라운드에서 계속 상주 가동됩니다.' 
@@ -1012,7 +1029,7 @@ const App: React.FC = () => {
       if (api.onToggleIntruder) {
         const unsub = api.onToggleIntruder((val: boolean) => {
           setIntruderWatchMode(val);
-          try { localStorage.setItem('grid_intruder_watch', String(val)); } catch (_) {}
+          try { localStorage.setItem('grid_intruder_watch_mode', String(val)); } catch (_) {}
           showToast(
             val
               ? (lang === 'ko' ? '🚨 트레이 24/7 침입 감시 활성화' : '🚨 Tray 24/7 Intruder Watch Enabled')
@@ -1190,6 +1207,7 @@ const App: React.FC = () => {
       clearInterval(updateTimerRef.current);
       updateTimerRef.current = null;
     }
+    isScanningRef.current = false;
     setIsScanning(false);
   }, []);
 
@@ -1211,9 +1229,9 @@ const App: React.FC = () => {
       if (closeToTray) {
         try {
           if (navigator.sendBeacon) {
-            navigator.sendBeacon('/api/window-closed');
+            navigator.sendBeacon(getApiUrl('/api/window-closed'));
           } else {
-            fetch('/api/window-closed', { method: 'POST', keepalive: true }).catch(() => {});
+            fetch(getApiUrl('/api/window-closed'), { method: 'POST', keepalive: true }).catch(() => {});
           }
         } catch (_) {}
       }
@@ -1319,8 +1337,12 @@ const App: React.FC = () => {
   const handleCopyIpAddress = useCallback((ip: string) => {
     if (!ip) return;
     const onCopiedSuccess = () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
       setCopiedIp(ip);
-      setTimeout(() => setCopiedIp(null), 2500);
+      copiedTimerRef.current = setTimeout(() => {
+        setCopiedIp(null);
+        copiedTimerRef.current = null;
+      }, 2500);
       showToast(lang === 'ko' ? `📋 IP 주소 (${ip})가 클립보드에 복사되었습니다.` : `📋 IP Address (${ip}) copied to clipboard.`);
     };
 
@@ -1760,17 +1782,10 @@ const App: React.FC = () => {
     }
   };
 
-  const getApiUrl = (path: string) => {
-    if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
-      return `http://127.0.0.1:3031${path}`;
-    }
-    return path;
-  };
-
   const syncOUI = async () => {
     setRegistryMeta(prev => ({ ...prev, isSyncing: true }));
     try {
-      const res = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(3000) });
       if (res.ok) {
         const data = await res.json();
         setRegistryMeta({
@@ -1798,7 +1813,7 @@ const App: React.FC = () => {
     const checkEngine = async () => {
       try {
         // Increase timeout for health check to be more resilient during heavy scans
-        const res = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout(6000) });
+        const res = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(6000) });
         if (res.ok) {
           const data = await res.json();
           setGoEngineAlive(true);
@@ -2032,12 +2047,14 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (isScanningRef.current) return;
     const initial: Record<string, ScanResult> = {};
     const subnet = config.subnet || '192.168.0';
     for (let i = config.start; i <= config.end; i++) {
       const ip = `${subnet}.${i}`;
       initial[ip] = { ip, status: 'idle' };
     }
+    resultsRef.current = initial;
     setResults(initial);
   }, [config.subnet, config.start, config.end]);
 
@@ -2065,18 +2082,24 @@ const App: React.FC = () => {
     if (isScanningRef.current) return;
 
     let targetSubnet = scheduledTask ? scheduledTask.subnet : (config.subnet || '192.168.0');
-    targetSubnet = targetSubnet.trim().replace(/\.+$/, '');
+    targetSubnet = targetSubnet.trim().split('/')[0].replace(/\.+$/, '');
     const octets = targetSubnet.split('.');
     if (octets.length === 4) {
       targetSubnet = octets.slice(0, 3).join('.');
     }
-    if (!targetSubnet || octets.length < 3) {
+    const validOctets = targetSubnet.split('.');
+    const isValidSubnet =
+      validOctets.length === 3 &&
+      validOctets.every(o => /^\d{1,3}$/.test(o) && Number(o) >= 0 && Number(o) <= 255);
+    if (!isValidSubnet) {
       showToast(lang === 'ko' ? "⚠️ 유효하지 않은 서브넷 형식입니다 (예: 192.168.0)." : "⚠️ Invalid subnet format (e.g. 192.168.0)");
       return;
     }
 
-    const targetStart = Math.max(0, Math.min(255, scheduledTask ? scheduledTask.start : config.start));
-    const targetEnd = Math.max(0, Math.min(255, scheduledTask ? scheduledTask.end : config.end));
+    const rawStart = scheduledTask ? scheduledTask.start : config.start;
+    const rawEnd = scheduledTask ? scheduledTask.end : config.end;
+    const targetStart = Math.max(0, Math.min(255, Number.isFinite(rawStart) ? rawStart : 1));
+    const targetEnd = Math.max(0, Math.min(255, Number.isFinite(rawEnd) ? rawEnd : 254));
     if (targetStart > targetEnd) {
       showToast(lang === 'ko' ? "⚠️ 시작 IP 번호가 종료 IP 번호보다 클 수 없습니다." : "⚠️ Start IP cannot be greater than end IP");
       return;
@@ -2086,7 +2109,7 @@ const App: React.FC = () => {
 
     if (!engineReady) {
       try {
-        const pingRes = await fetch(getApiUrl('/api/info'), { signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined });
+        const pingRes = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(3000) });
         if (pingRes.ok) {
           engineReady = true;
           setGoEngineAlive(true);
@@ -2099,6 +2122,17 @@ const App: React.FC = () => {
     const targetDeep = scheduledTask ? scheduledTask.deepScan : deepScan;
     const targetMode = scheduledTask ? scheduledTask.scanMode : scanMode;
     const targetTotalCount = targetEnd - targetStart + 1;
+    const runStartedAt = Date.now();
+
+    isScanningRef.current = true;
+    setIsScanning(true);
+    setHasStartedScan(true);
+    setShowSummary(false);
+    stopScanRef.current = false;
+    setScanningIPs(new Set());
+    setProcessedIPs(new Set());
+    setScanStartTime(runStartedAt);
+    setElapsedTime(0);
 
     if (scheduledTask && (config.subnet !== targetSubnet || config.start !== targetStart || config.end !== targetEnd)) {
       setConfig({
@@ -2108,15 +2142,6 @@ const App: React.FC = () => {
         timeout: config.timeout
       });
     }
-
-    setIsScanning(true);
-    setHasStartedScan(true);
-    setShowSummary(false);
-    stopScanRef.current = false;
-    setScanningIPs(new Set());
-    setProcessedIPs(new Set());
-    setScanStartTime(Date.now());
-    setElapsedTime(0);
     
     // Use AbortController for real cancellation
     abortControllerRef.current = new AbortController();
@@ -2149,6 +2174,135 @@ const App: React.FC = () => {
     };
     updateTimerRef.current = setInterval(syncResultsToUI, 250); // Increased to 250ms for smoothness
 
+    let receivedComplete = false;
+
+    const processSsePayload = (jsonStr: string) => {
+      try {
+        const msg = JSON.parse(jsonStr);
+        if (msg.type === 'scanning') {
+          localScanningIPs.add(msg.ip);
+          resultsRef.current[msg.ip] = { ...resultsRef.current[msg.ip], status: 'scanning' };
+        } else if (msg.type === 'result') {
+          const res = msg.data;
+          localScanningIPs.delete(res.ip);
+          localProcessedIPs.add(res.ip);
+
+          const isSelf = res.ip === localIpInfo?.ip;
+          const vendorName = res.vendor || "Unknown Vendor";
+          const classification = classifyDevice(vendorName, res.openPorts || [], s, {
+            ip: res.ip,
+            hostname: res.hostname,
+            mdns: res.mdns,
+            webTitle: res.webTitle,
+            upnp: res.upnp,
+            snmp: res.snmp,
+            mac: res.mac,
+            realVendor: res.realVendor,
+            chipsetVendor: res.chipsetVendor,
+            vendorSource: res.vendorSource,
+            ouiBlockType: res.ouiBlockType,
+            ouiPrefix: res.ouiPrefix,
+            isRandomizedMac: res.isRandomizedMac,
+            lang
+          });
+
+          let finalName = res.hostname;
+          if (!finalName && classification.model) {
+            finalName = classification.model;
+          }
+          if (!finalName && res.webTitle) {
+            finalName = res.webTitle.length > 25 ? res.webTitle.substring(0, 22) + "..." : res.webTitle;
+          }
+          if (!finalName) {
+            if (!res.mac || res.mac === "Unknown" || res.mac === "") {
+              finalName = isSelf ? s.deviceTypes.hostMachine : "Hidden Node";
+            } else {
+              finalName = isSelf ? s.deviceTypes.hostMachine : (classification.model ? classification.model : (vendorName !== "Unknown Vendor" && !classification.isRandomizedMac ? `${vendorName} ${classification.type}` : classification.type));
+            }
+          }
+
+          const prevResult = previousResults[res.ip];
+          let newMissCount = 0;
+          let finalStatus: IPStatus = res.alive ? 'active' : 'inactive';
+          let finalDevice: DeviceInfo | undefined = res.alive ? {
+            ip: res.ip,
+            mac: res.mac || "Unknown",
+            vendor: isSelf ? s.deviceTypes.hostMachine : (res.vendor || vendorName),
+            chipsetVendor: res.chipsetVendor || classification.chipsetVendor || (isSelf ? s.deviceTypes.hostMachine : vendorName),
+            realVendor: res.realVendor || classification.realVendor,
+            vendorSource: res.vendorSource || classification.vendorSource || (res.realVendor ? (res.upnp ? 'UPnP XML' : res.mdns ? 'mDNS TXT' : 'IEEE OUI') : undefined),
+            realVendorConfidence: classification.realVendorConfidence,
+            chipsetConfidence: classification.chipsetConfidence,
+            confidenceScore: classification.confidenceScore,
+            priorityRank: classification.priorityRank,
+            ouiBlockType: res.ouiBlockType || classification.ouiBlockType,
+            ouiPrefix: res.ouiPrefix || classification.ouiPrefix,
+            isRandomizedMac: res.isRandomizedMac ?? classification.isRandomizedMac,
+            isChipsetOem: classification.isChipsetOem,
+            deviceCategory: classification.deviceCategory,
+            classificationReasons: classification.classificationReasons,
+            latency: res.latency,
+            hostname: finalName,
+            nameSource: res.nameSource || (res.mdns ? 'MDNS' : res.upnp ? 'UPNP' : res.snmp ? 'SNMP' : res.webTitle ? 'WEB' : res.hostname ? 'DNS' : 'UNKNOWN'),
+            hostnameSources: res.hostnameSources || (res.hostname ? { [res.nameSource || 'DNS']: res.hostname } : undefined),
+            webTitle: res.webTitle,
+            os: isSelf ? "Windows (Host PC)" : classification.os,
+            openPorts: res.openPorts,
+            mdns: res.mdns,
+            upnp: res.upnp,
+            snmp: res.snmp,
+            deviceType: classification.type,
+            deviceModel: res.deviceModel || classification.model
+          } : undefined;
+
+          if (!res.alive && prevResult && prevResult.status === 'active') {
+            const currentMiss = (prevResult.missCount || 0) + 1;
+            if (currentMiss < 3) {
+              finalStatus = 'active';
+              finalDevice = prevResult.device;
+              newMissCount = currentMiss;
+            } else {
+              finalStatus = 'inactive';
+              finalDevice = undefined;
+              newMissCount = 0;
+            }
+          }
+
+          resultsRef.current[res.ip] = {
+            ip: res.ip,
+            status: finalStatus,
+            device: finalDevice,
+            missCount: newMissCount
+          };
+        } else if (msg.type === 'complete') {
+          receivedComplete = true;
+          setIsScanning(false);
+          setShowSummary(true);
+          const activeCount = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
+          setScanHistory(prev => [{
+            date: new Date().toLocaleString(),
+            active: activeCount,
+            total: targetTotalCount
+          }, ...prev].slice(0, 5));
+        }
+      } catch (e) {
+        console.error("Parse Error:", e);
+      }
+    };
+
+    const processSseBlocks = (blocks: string[]) => {
+      for (const block of blocks) {
+        if (!block) continue;
+        const subLines = block.split(/\r?\n/);
+        for (const subLine of subLines) {
+          const trimmed = subLine.trim();
+          if (trimmed.startsWith('data:')) {
+            processSsePayload(trimmed.slice(5).trim());
+          }
+        }
+      }
+    };
+
     try {
       setShowSummary(false);
       let delay = 10;
@@ -2171,7 +2325,7 @@ const App: React.FC = () => {
           const errJson = await response.json();
           if (errJson && errJson.error) errText = errJson.error;
         } catch (_) {
-          const txt = await response.text();
+          const txt = await response.text().catch(() => '');
           if (txt) errText = txt;
         }
         throw new Error(lang === 'ko' ? `스캔 시작 실패 (${response.status}): ${errText}` : `Scan start failed (${response.status}): ${errText}`);
@@ -2189,23 +2343,7 @@ const App: React.FC = () => {
         const { value, done } = await reader.read();
         if (done) {
           if (buffer.trim()) {
-            const finalLines = buffer.split(/\r?\n\r?\n/);
-            for (const line of finalLines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const msg = JSON.parse(line.replace('data: ', ''));
-                  if (msg.type === 'scanning') {
-                    localScanningIPs.add(msg.ip);
-                    localProcessedIPs.add(msg.ip);
-                    resultsRef.current[msg.ip] = { ...resultsRef.current[msg.ip], status: 'scanning' };
-                  } else if (msg.type === 'result') {
-                    const res = msg.data;
-                    localScanningIPs.delete(res.ip);
-                    localProcessedIPs.add(res.ip);
-                  }
-                } catch (_) {}
-              }
-            }
+            processSseBlocks(buffer.split(/\r?\n\r?\n/));
           }
           break;
         }
@@ -2216,123 +2354,22 @@ const App: React.FC = () => {
         }
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split(/\r?\n\r?\n/);
-        buffer = lines.pop() || '';
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() || '';
+        processSseBlocks(blocks);
+      }
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.replace('data: ', '');
-          try {
-            const msg = JSON.parse(jsonStr);
-            if (msg.type === 'scanning') {
-              localScanningIPs.add(msg.ip);
-              localProcessedIPs.add(msg.ip);
-              resultsRef.current[msg.ip] = { ...resultsRef.current[msg.ip], status: 'scanning' };
-            } else if (msg.type === 'result') {
-              const res = msg.data;
-              localScanningIPs.delete(res.ip);
-              localProcessedIPs.add(res.ip);
-
-              const isSelf = res.ip === localIpInfo?.ip;
-              const vendorName = res.vendor || "Unknown Vendor";
-              const classification = classifyDevice(vendorName, res.openPorts || [], s, {
-                ip: res.ip,
-                hostname: res.hostname,
-                mdns: res.mdns,
-                webTitle: res.webTitle,
-                upnp: res.upnp,
-                snmp: res.snmp,
-                mac: res.mac,
-                realVendor: res.realVendor,
-                chipsetVendor: res.chipsetVendor,
-                vendorSource: res.vendorSource,
-                ouiBlockType: res.ouiBlockType,
-                ouiPrefix: res.ouiPrefix,
-                isRandomizedMac: res.isRandomizedMac,
-                lang
-              });
-              
-              let finalName = res.hostname;
-              if (!finalName && classification.model) {
-                finalName = classification.model;
-              }
-              if (!finalName && res.webTitle) {
-                finalName = res.webTitle.length > 25 ? res.webTitle.substring(0, 22) + "..." : res.webTitle;
-              }
-              if (!finalName) {
-                if (!res.mac || res.mac === "Unknown" || res.mac === "") {
-                  finalName = isSelf ? s.deviceTypes.hostMachine : "Hidden Node";
-                } else {
-                  finalName = isSelf ? s.deviceTypes.hostMachine : (classification.model ? classification.model : (vendorName !== "Unknown Vendor" && !classification.isRandomizedMac ? `${vendorName} ${classification.type}` : classification.type));
-                }
-              }
-
-              const prevResult = previousResults[res.ip];
-              let newMissCount = 0;
-              let finalStatus: IPStatus = res.alive ? 'active' : 'inactive';
-              let finalDevice: DeviceInfo | undefined = res.alive ? {
-                ip: res.ip,
-                mac: res.mac || "Unknown",
-                vendor: isSelf ? s.deviceTypes.hostMachine : (res.vendor || vendorName),
-                chipsetVendor: res.chipsetVendor || classification.chipsetVendor || (isSelf ? s.deviceTypes.hostMachine : vendorName),
-                realVendor: res.realVendor || classification.realVendor,
-                vendorSource: res.vendorSource || classification.vendorSource || (res.realVendor ? (res.upnp ? 'UPnP XML' : res.mdns ? 'mDNS TXT' : 'IEEE OUI') : undefined),
-                realVendorConfidence: classification.realVendorConfidence,
-                chipsetConfidence: classification.chipsetConfidence,
-                confidenceScore: classification.confidenceScore,
-                priorityRank: classification.priorityRank,
-                ouiBlockType: res.ouiBlockType || classification.ouiBlockType,
-                ouiPrefix: res.ouiPrefix || classification.ouiPrefix,
-                isRandomizedMac: res.isRandomizedMac ?? classification.isRandomizedMac,
-                isChipsetOem: classification.isChipsetOem,
-                deviceCategory: classification.deviceCategory,
-                classificationReasons: classification.classificationReasons,
-                latency: res.latency,
-                hostname: finalName,
-                nameSource: res.nameSource || (res.mdns ? 'MDNS' : res.upnp ? 'UPNP' : res.snmp ? 'SNMP' : res.webTitle ? 'WEB' : res.hostname ? 'DNS' : 'UNKNOWN'),
-                hostnameSources: res.hostnameSources || (res.hostname ? { [res.nameSource || 'DNS']: res.hostname } : undefined),
-                webTitle: res.webTitle,
-                os: isSelf ? "Windows (Host PC)" : classification.os,
-                openPorts: res.openPorts,
-                mdns: res.mdns,
-                upnp: res.upnp,
-                snmp: res.snmp,
-                deviceType: classification.type,
-                deviceModel: res.deviceModel || classification.model
-              } : undefined;
-
-              if (!res.alive && prevResult && prevResult.status === 'active') {
-                const currentMiss = (prevResult.missCount || 0) + 1;
-                if (currentMiss < 3) {
-                  finalStatus = 'active';
-                  finalDevice = prevResult.device;
-                  newMissCount = currentMiss;
-                } else {
-                  finalStatus = 'inactive';
-                  finalDevice = undefined;
-                  newMissCount = 0;
-                }
-              }
-
-              resultsRef.current[res.ip] = {
-                ip: res.ip,
-                status: finalStatus,
-                device: finalDevice,
-                missCount: newMissCount
-              };
-            } else if (msg.type === 'complete') {
-              setIsScanning(false);
-              setShowSummary(true);
-              const activeCount = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
-              setScanHistory(prev => [{
-                date: new Date().toLocaleString(),
-                active: activeCount,
-                total: targetTotalCount
-              }, ...prev].slice(0, 5));
-            }
-          } catch (e) {
-            console.error("Parse Error:", e);
-          }
+      if (!stopScanRef.current && !receivedComplete) {
+        if (localProcessedIPs.size > 0) {
+          setShowSummary(true);
+          const activeCount = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
+          setScanHistory(prev => [{
+            date: new Date().toLocaleString(),
+            active: activeCount,
+            total: targetTotalCount
+          }, ...prev].slice(0, 5));
+        } else {
+          showToast(lang === 'ko' ? '⚠️ 백엔드 스캔 스트림 응답이 없습니다. Go 엔진 상태를 확인해주세요.' : '⚠️ Empty scan stream from backend. Check Go engine status.');
         }
       }
     } catch (e) {
@@ -2372,7 +2409,7 @@ const App: React.FC = () => {
 
       // Feature: Automated Recurring Schedule Auto-Save & History Logging
       if (scheduledTask) {
-        const scanDuration = Date.now() - (scanStartTime || Date.now());
+        const scanDuration = Date.now() - runStartedAt;
         const finalActive = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
         let autoSnapshotId: string | undefined = undefined;
 
@@ -2426,6 +2463,7 @@ const App: React.FC = () => {
         }
       }
 
+      isScanningRef.current = false;
       setIsScanning(false);
       abortControllerRef.current = null;
     }
@@ -2498,13 +2536,13 @@ const App: React.FC = () => {
 
     // Run periodic scan every 60 seconds while watch mode is active
     const periodicTimer = setInterval(() => {
-      if (!isScanning && goEngineAlive) {
+      if (!isScanningRef.current && goEngineAlive) {
         startScan();
       }
     }, 60000);
 
     return () => clearInterval(periodicTimer);
-  }, [intruderWatchMode, license.features.intruderDetection, isScanning, goEngineAlive, config, deepScan, scanMode]);
+  }, [intruderWatchMode, license.features.intruderDetection, goEngineAlive, config, deepScan, scanMode]);
 
   // Trigger sound and system notification when new intruder devices are detected (only when scan finishes or during periodic watch scan)
   useEffect(() => {
@@ -2528,7 +2566,7 @@ const App: React.FC = () => {
         }
       }
     }
-    if (detectedIntruders.length > 0) {
+    if (!isScanning && detectedIntruders.length > 0) {
       recordIntrudersFromDetection(detectedIntruders, 'background_service');
       if (!latestIntruderTimestamp) {
         const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2615,6 +2653,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleExportGrid = () => {
@@ -2820,6 +2859,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleExportExcelGrid = () => {
@@ -2940,6 +2980,7 @@ const App: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleOUIAutoUpdate = async () => {
@@ -3081,7 +3122,7 @@ const App: React.FC = () => {
       });
     }
     return ips;
-  }, [allIps, results, searchTerm, s, sortMode]);
+  }, [allIps, results, searchTerm, s, sortMode, customFilterMode, detectedConflicts, detectedIntruders, softTrustedDevices, lang]);
 
   const t = {
     dark: { bg: 'bg-zinc-950', sidebar: 'bg-zinc-900 border-zinc-800', main: 'bg-zinc-950', header: 'bg-zinc-900/90 border-zinc-800 backdrop-blur-md', text: 'text-zinc-100', textMuted: 'text-zinc-300', input: 'bg-zinc-950 border-zinc-700 text-zinc-100', panel: 'bg-zinc-900 border-zinc-800', accent: 'text-emerald-400' },

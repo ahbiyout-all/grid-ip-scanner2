@@ -10,3 +10,29 @@ export const getApiUrl = (path: string): string => {
   }
   return path;
 };
+
+/**
+ * Cross-browser / WebView-safe fetch timeout signal helper.
+ * Falls back gracefully on older Electron/WebView engines lacking AbortSignal.timeout.
+ */
+export const safeTimeout = (ms: number): AbortSignal | undefined => {
+  try {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+      return AbortSignal.timeout(ms);
+    }
+    if (typeof AbortController !== 'undefined') {
+      const controller = new AbortController();
+      setTimeout(() => {
+        try {
+          controller.abort();
+        } catch {
+          // ignore
+        }
+      }, ms);
+      return controller.signal;
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+};

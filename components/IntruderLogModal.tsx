@@ -45,11 +45,13 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'investigating' | 'trusted' | 'blocked'>('all');
   const [copiedIp, setCopiedIp] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Reload logs whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setLogs(getIntruderLogs());
+      setConfirmClear(false);
     }
   }, [isOpen]);
 
@@ -80,10 +82,14 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
   };
 
   const handleClearAll = () => {
-    if (window.confirm(lang === 'ko' ? '모든 낯선 기기 감시 로그를 영구 삭제하시겠습니까?' : 'Permanently clear all intruder logs?')) {
-      clearIntruderLogs();
-      setLogs([]);
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 4000);
+      return;
     }
+    clearIntruderLogs();
+    setLogs([]);
+    setConfirmClear(false);
   };
 
   const filteredLogs = useMemo(() => {
@@ -240,11 +246,19 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
             <button
               onClick={handleClearAll}
               disabled={logs.length === 0}
-              className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 text-red-400 border border-red-500/30 font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              className={`px-2.5 py-1.5 rounded-lg disabled:opacity-40 font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 border ${
+                confirmClear
+                  ? 'bg-red-600 hover:bg-red-500 text-white border-red-400 animate-pulse'
+                  : 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
+              }`}
               title={lang === 'ko' ? '전체 로그 비우기' : 'Clear All Logs'}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{lang === 'ko' ? '기록 비우기' : 'Clear'}</span>
+              <span className={confirmClear ? 'inline' : 'hidden sm:inline'}>
+                {confirmClear
+                  ? (lang === 'ko' ? '확인: 삭제' : 'Confirm Clear')
+                  : (lang === 'ko' ? '기록 비우기' : 'Clear')}
+              </span>
             </button>
           </div>
         </div>

@@ -24,15 +24,17 @@ var GlobalEngine = &ScanEngine{
 
 // Prepare warms up the engine (e.g. loads ARP tables into memory)
 func (e *ScanEngine) Prepare() {
-	e.arpCacheMut.Lock()
-	defer e.arpCacheMut.Unlock()
-
-	// Only refresh once every 5 seconds to prevent network spam
-	if time.Since(e.arpCacheTime) < 5*time.Second {
+	e.arpCacheMut.RLock()
+	recent := time.Since(e.arpCacheTime) < 5*time.Second
+	e.arpCacheMut.RUnlock()
+	if recent {
 		return
 	}
 
-	cmd := exec.Command("arp", "-a")
+	arpCtx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(arpCtx, "arp", "-a")
 	hideWindow(cmd)
 	out, _ := cmd.Output()
 	lines := strings.Split(string(out), "\n")
@@ -66,8 +68,11 @@ func (e *ScanEngine) Prepare() {
 			}
 		}
 	}
+
+	e.arpCacheMut.Lock()
 	e.arpCache = newCache
 	e.arpCacheTime = time.Now()
+	e.arpCacheMut.Unlock()
 }
 
 func (e *ScanEngine) GetMAC(ip string) string {
@@ -115,7 +120,9 @@ func (e *ScanEngine) GetMAC(ip string) string {
 		return ""
 	}
 	
-	cmd := exec.Command("arp", "-a", ip)
+	arpCtx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(arpCtx, "arp", "-a", ip)
 	hideWindow(cmd)
 	out, _ := cmd.Output()
 	lines := strings.Split(string(out), "\n")

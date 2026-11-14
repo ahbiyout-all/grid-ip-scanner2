@@ -7,6 +7,44 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 
+function runCommandAsync(command: string, args: string[], cwd: string, timeoutMs = 120000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd, stdio: 'inherit' });
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
+      reject(new Error(`Command timed out after ${timeoutMs}ms: ${command}`));
+    }, timeoutMs);
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      if (timedOut) return;
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Command exited with code ${code}: ${command}`));
+      }
+    });
+  });
+}
+
+function isGoToolchainComplete(goDir: string): boolean {
+  const goExecutable = path.join(goDir, 'bin', process.platform === 'win32' ? 'go.exe' : 'go');
+  const runtimeSrc = path.join(goDir, 'src', 'runtime');
+  const pkgTool = path.join(goDir, 'pkg', 'tool');
+  return fs.existsSync(goExecutable) && fs.existsSync(runtimeSrc) && fs.existsSync(pkgTool);
+}
+
 async function ensureGoInstalled(): Promise<string | null> {
   // 1. Check if 'go' exists in system PATH
   try {
@@ -16,26 +54,54 @@ async function ensureGoInstalled(): Promise<string | null> {
     // not in PATH
   }
 
-  // 2. Check local downloaded binary
+  // 2. Check local downloaded binary and verify completeness
   const goDir = path.join(process.cwd(), 'go');
   const goExecutable = path.join(goDir, 'bin', 'go');
-  if (fs.existsSync(goExecutable)) {
+  if (isGoToolchainComplete(goDir)) {
     return goExecutable;
   }
 
-  console.log('Go not found in system PATH. Downloading Go 1.22.2...');
+  // Remove partial/corrupted go directory or leftover staging directory
+  const tmpExtractDir = path.join(process.cwd(), '.go-download-tmp');
   try {
-    execSync('curl -sL https://go.dev/dl/go1.22.2.linux-amd64.tar.gz | tar -xz', {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-      timeout: 30000,
-    });
-    if (fs.existsSync(goExecutable)) {
-      console.log('Go downloaded successfully.');
+    if (fs.existsSync(goDir)) {
+      console.warn('Incomplete local Go toolchain detected. Cleaning up before re-download...');
+      fs.rmSync(goDir, { recursive: true, force: true });
+    }
+    if (fs.existsSync(tmpExtractDir)) {
+      fs.rmSync(tmpExtractDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(tmpExtractDir, { recursive: true });
+  } catch (cleanupErr: any) {
+    console.warn('Could not clean partial Go directories:', cleanupErr?.message || cleanupErr);
+  }
+
+  console.log('Go not found in system PATH. Downloading Go 1.22.2 asynchronously...');
+  try {
+    await runCommandAsync(
+      'sh',
+      ['-c', `curl -fsSL https://go.dev/dl/go1.22.2.linux-amd64.tar.gz | tar -xz -C "${tmpExtractDir}"`],
+      process.cwd(),
+      120000
+    );
+    const extractedGoDir = path.join(tmpExtractDir, 'go');
+    if (isGoToolchainComplete(extractedGoDir)) {
+      fs.renameSync(extractedGoDir, goDir);
+      fs.rmSync(tmpExtractDir, { recursive: true, force: true });
+      console.log('Go downloaded and verified successfully.');
       return goExecutable;
     }
+    console.warn('Downloaded Go archive appears incomplete.');
+    fs.rmSync(tmpExtractDir, { recursive: true, force: true });
   } catch (err: any) {
     console.warn('Could not auto-download Go runtime:', err?.message || err);
+    try {
+      if (fs.existsSync(tmpExtractDir)) {
+        fs.rmSync(tmpExtractDir, { recursive: true, force: true });
+      }
+    } catch {
+      // ignore
+    }
   }
   return null;
 }
@@ -46,6 +112,7 @@ async function waitForGoBackend(url: string, timeoutMs = 10000): Promise<boolean
     try {
       await new Promise((resolve, reject) => {
         const req = http.get(url, (res) => {
+          res.resume();
           if (res.statusCode === 200 || res.statusCode === 404) {
             resolve(true);
           } else {
@@ -110,16 +177,33 @@ function cleanStaleGoProcesses() {
 
 let activeGoProcess: ReturnType<typeof spawn> | null = null;
 
-async function spawnGoBackendAsync() {
-  // Check if Go backend is already running on port 8081
-  const alreadyReady = await waitForGoBackend('http://127.0.0.1:8081/api/info', 1000);
-  if (alreadyReady) {
-    console.log('✅ Existing Go backend is already up and listening on port 8081.');
-    return;
+function ensureDistPlaceholder() {
+  const distDir = path.join(process.cwd(), 'dist');
+  const distIndex = path.join(distDir, 'index.html');
+  try {
+    if (!fs.existsSync(distDir)) {
+      fs.mkdirSync(distDir, { recursive: true });
+    }
+    if (!fs.existsSync(distIndex)) {
+      const rootIndex = path.join(process.cwd(), 'index.html');
+      if (fs.existsSync(rootIndex)) {
+        fs.copyFileSync(rootIndex, distIndex);
+      } else {
+        fs.writeFileSync(distIndex, '<!doctype html><html><body>Initializing...</body></html>', 'utf-8');
+      }
+      console.log('Created placeholder dist/index.html for Go embed.');
+    }
+  } catch (err: any) {
+    console.warn('Could not ensure dist placeholder:', err?.message || err);
   }
+}
 
+async function spawnGoBackendAsync() {
   console.log('Cleaning up any stale Go backend processes...');
   cleanStaleGoProcesses();
+
+  // Ensure dist/ exists before spawning Go (required by //go:embed all:dist in main.go)
+  ensureDistPlaceholder();
 
   try {
     const goExecutable = await ensureGoInstalled();
@@ -128,10 +212,15 @@ async function spawnGoBackendAsync() {
       return;
     }
 
+    const goEnv: NodeJS.ProcessEnv = { ...process.env, PORT: '8081', GRIDSCAN_MODE: 'preview' };
+    if (goExecutable !== 'go') {
+      goEnv.GOROOT = path.join(process.cwd(), 'go');
+    }
+
     console.log(`Spawning Go backend with: ${goExecutable}`);
     const goBackend = spawn(goExecutable, ['run', '.'], {
       stdio: 'inherit',
-      env: { ...process.env, PORT: '8081', GRIDSCAN_MODE: 'preview' }
+      env: goEnv
     });
 
     activeGoProcess = goBackend;
@@ -146,7 +235,7 @@ async function spawnGoBackendAsync() {
     });
 
     console.log('Waiting for Go backend to be ready on http://127.0.0.1:8081/api/info...');
-    const ready = await waitForGoBackend('http://127.0.0.1:8081/api/info', 10000);
+    const ready = await waitForGoBackend('http://127.0.0.1:8081/api/info', 25000);
     if (ready) {
       console.log('Go backend is ready and listening on port 8081.');
     } else {
@@ -160,17 +249,23 @@ async function spawnGoBackendAsync() {
 async function startServer() {
   const app = express();
 
-  // Parse port and host from environment or command line args
-  let PORT = Number(process.env.PORT) || 3000;
-  let HOST = '0.0.0.0';
+  // Parse port and host from environment, npm_config_*, or command line args
+  let PORT = Number(process.env.PORT || process.env.npm_config_port) || 3000;
+  let HOST = process.env.HOST || process.env.npm_config_host || '0.0.0.0';
 
   for (let i = 0; i < process.argv.length; i++) {
-    if (process.argv[i] === '--port' && process.argv[i + 1]) {
+    const arg = process.argv[i];
+    if (arg === '--port' && process.argv[i + 1]) {
       const parsed = Number(process.argv[i + 1]);
       if (!isNaN(parsed) && parsed > 0) PORT = parsed;
+    } else if (arg.startsWith('--port=')) {
+      const parsed = Number(arg.slice('--port='.length));
+      if (!isNaN(parsed) && parsed > 0) PORT = parsed;
     }
-    if (process.argv[i] === '--host' && process.argv[i + 1]) {
+    if (arg === '--host' && process.argv[i + 1]) {
       HOST = process.argv[i + 1];
+    } else if (arg.startsWith('--host=')) {
+      HOST = arg.slice('--host='.length);
     }
   }
 
@@ -185,7 +280,16 @@ async function startServer() {
     target: 'http://127.0.0.1:8081',
     changeOrigin: true,
     ws: true,
+    timeout: 0,
+    proxyTimeout: 0,
     on: {
+      proxyRes: (proxyRes: any) => {
+        const ct = String(proxyRes.headers?.['content-type'] || '');
+        if (ct.includes('text/event-stream')) {
+          proxyRes.headers['cache-control'] = 'no-cache, no-transform';
+          proxyRes.headers['x-accel-buffering'] = 'no';
+        }
+      },
       error: (_err: any, _req: any, res: any) => {
         if (res && typeof res.writeHead === 'function') {
           res.writeHead(503, {
@@ -197,28 +301,39 @@ async function startServer() {
     }
   }));
 
+  let viteServer: Awaited<ReturnType<typeof createViteServer>> | null = null;
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(process.cwd(), 'dist')));
-    app.get('*', (req, res) => {
+    app.use((_req, res) => {
       res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
     });
   } else {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
+    viteServer = await createViteServer({
+      server: { middlewareMode: true, hmr: false, ws: false },
       appType: 'spa',
     });
-    app.use(vite.middlewares);
+    app.use(viteServer.middlewares);
   }
 
-  app.listen(PORT, HOST, () => {
+  const httpServer = app.listen(PORT, HOST, () => {
     console.log(`🚀 Dev server running on http://${HOST}:${PORT}`);
     // Spawn Go backend concurrently in background without blocking server listen
-    spawnGoBackendAsync().catch((err) => {
-      console.error('Async Go startup error:', err);
+    setImmediate(() => {
+      spawnGoBackendAsync().catch((err) => {
+        console.error('Async Go startup error:', err);
+      });
     });
   });
 
-  const cleanupAndExit = () => {
+  httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    console.error(`Failed to bind dev server on http://${HOST}:${PORT}:`, err.message);
+    process.exit(1);
+  });
+
+  let shuttingDown = false;
+  const cleanupAndExit = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     if (activeGoProcess) {
       try {
         activeGoProcess.kill('SIGTERM');
@@ -226,18 +341,26 @@ async function startServer() {
         // ignore
       }
     }
+    try {
+      await Promise.all([
+        new Promise<void>((resolve) => httpServer.close(() => resolve())),
+        viteServer ? viteServer.close().catch(() => {}) : Promise.resolve(),
+      ]);
+    } catch {
+      // ignore
+    }
+    process.exit(0);
   };
 
   process.on('SIGINT', () => {
-    cleanupAndExit();
-    process.exit(0);
+    void cleanupAndExit();
   });
   process.on('SIGTERM', () => {
-    cleanupAndExit();
-    process.exit(0);
+    void cleanupAndExit();
   });
 }
 
 startServer().catch(err => {
   console.error('Failed to start server:', err);
+  process.exit(1);
 });

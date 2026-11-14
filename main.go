@@ -1701,11 +1701,6 @@ func checkNetBIOS(ctx context.Context, ip string) bool {
 	return err == nil && n > 0
 }
 
-func isRunningAsAdmin() bool {
-	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
-	return err == nil
-}
-
 // ensureFirewallRulesSilently quietly pre-registers Windows Firewall rules for both the base name (Grid IP Scanner2)
 // and versioned name to prevent network scanning blocks or OS alert dialogs.
 func ensureFirewallRulesSilently() {
@@ -1885,6 +1880,13 @@ func main() {
 	})
 
 	http.HandleFunc("/api/oui/update", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -1905,7 +1907,13 @@ func main() {
 
 	http.HandleFunc("/api/oui/auto-update", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -2428,25 +2436,47 @@ func main() {
 	http.HandleFunc("/api/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("X-Accel-Buffering", "no") // Disable buffering for Nginx/Proxies
-		
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		flusher, ok := w.(http.Flusher)
 		if !ok {
 			http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 			return
 		}
 
-		// Immediate header flush so client never stalls before stream starts
-		fmt.Fprintf(w, ": scan-stream-started\n\n")
-		flusher.Flush()
-
 		query := r.URL.Query()
-		subnet := query.Get("subnet")
+		subnet := strings.TrimSpace(query.Get("subnet"))
 		if subnet == "" {
 			_, subnet = getLocalIP()
+		}
+		if idx := strings.Index(subnet, "/"); idx != -1 {
+			subnet = subnet[:idx]
+		}
+		subnet = strings.TrimRight(subnet, ".")
+		octets := strings.Split(subnet, ".")
+		if len(octets) == 4 {
+			subnet = strings.Join(octets[:3], ".")
+			octets = octets[:3]
+		}
+		validSubnet := len(octets) == 3
+		if validSubnet {
+			for _, o := range octets {
+				var v int
+				if n, err := fmt.Sscanf(o, "%d", &v); err != nil || n != 1 || v < 0 || v > 255 || fmt.Sprintf("%d", v) != o {
+					validSubnet = false
+					break
+				}
+			}
+		}
+		if !validSubnet {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"Invalid subnet format"}`))
+			return
 		}
 
 		startIP := 1
@@ -2454,12 +2484,20 @@ func main() {
 
 		if s := query.Get("start"); s != "" {
 			if val, err := fmt.Sscanf(s, "%d", &startIP); err == nil && val == 1 {
-				if startIP < 0 { startIP = 0 }
+				if startIP < 0 {
+					startIP = 0
+				} else if startIP > 255 {
+					startIP = 255
+				}
 			}
 		}
 		if e := query.Get("end"); e != "" {
 			if val, err := fmt.Sscanf(e, "%d", &endIP); err == nil && val == 1 {
-				if endIP > 255 { endIP = 255 }
+				if endIP < 0 {
+					endIP = 0
+				} else if endIP > 255 {
+					endIP = 255
+				}
 			}
 		}
 
@@ -2473,9 +2511,28 @@ func main() {
 		if d := query.Get("delay"); d != "" {
 			fmt.Sscanf(d, "%d", &delayMs)
 		}
+		if delayMs < 0 {
+			delayMs = 0
+		} else if delayMs > 5000 {
+			delayMs = 5000
+		}
 		if t := query.Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
 		}
+		if timeoutMs < 50 {
+			timeoutMs = 50
+		} else if timeoutMs > 10000 {
+			timeoutMs = 10000
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no") // Disable buffering for Nginx/Proxies
+
+		// Immediate header flush so client never stalls before stream starts
+		fmt.Fprintf(w, ": scan-stream-started\n\n")
+		flusher.Flush()
 
 		// Warm up the new Search Engine's ARP Cache
 		GlobalEngine.Prepare()
@@ -2515,6 +2572,13 @@ func main() {
 				}
 			}
 		}
+
+		// Check if client disconnected during pre-sweep
+		if ctx.Err() != nil {
+			return
+		}
+		fmt.Fprintf(w, ": probe-ready\n\n")
+		flusher.Flush()
 
 		// Adaptive logic: If delay is high, we can afford more retries and longer timeouts
 		retryCount := 1 // Default to 1 retry for fast mode
@@ -2664,7 +2728,10 @@ func main() {
 			if !ok {
 				// We only send complete if context is not done, otherwise the client disconnected anyway
 				if ctx.Err() == nil {
-					sseChan <- "{\"type\":\"complete\"}"
+					select {
+					case sseChan <- "{\"type\":\"complete\"}":
+					case <-ctx.Done():
+					}
 				}
 				close(sseChan)
 				<-writerDone // Wait for SSE writer to finish its queue
@@ -2844,13 +2911,18 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ip := r.URL.Query().Get("ip")
-		if ip == "" {
-			http.Error(w, `{"error":"Missing IP"}`, http.StatusBadRequest)
+		if ip == "" || net.ParseIP(ip) == nil {
+			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
 			return
 		}
 		timeoutMs := 600
 		if t := r.URL.Query().Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if timeoutMs < 50 {
+			timeoutMs = 50
+		} else if timeoutMs > 10000 {
+			timeoutMs = 10000
 		}
 		if res, ok := tryNativeDiscoveryProbe(ip, timeoutMs); ok && res != nil {
 			json.NewEncoder(w).Encode(res)
@@ -2872,13 +2944,25 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ip := r.URL.Query().Get("ip")
+		if ip == "" || net.ParseIP(ip) == nil {
+			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
+			return
+		}
 		port := 80
 		if p := r.URL.Query().Get("port"); p != "" {
 			fmt.Sscanf(p, "%d", &port)
 		}
+		if port < 1 || port > 65535 {
+			port = 80
+		}
 		timeoutMs := 800
 		if t := r.URL.Query().Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if timeoutMs < 50 {
+			timeoutMs = 50
+		} else if timeoutMs > 10000 {
+			timeoutMs = 10000
 		}
 		if res, ok := tryNativeDeepBannerGrab(ip, port, timeoutMs); ok && res != nil {
 			json.NewEncoder(w).Encode(res)
@@ -2899,13 +2983,18 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ip := r.URL.Query().Get("ip")
-		if ip == "" {
-			http.Error(w, `{"error":"Missing IP"}`, http.StatusBadRequest)
+		if ip == "" || net.ParseIP(ip) == nil {
+			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
 			return
 		}
 		timeoutMs := 600
 		if t := r.URL.Query().Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+		if timeoutMs < 50 {
+			timeoutMs = 50
+		} else if timeoutMs > 10000 {
+			timeoutMs = 10000
 		}
 		if osName, ttl, ok := tryNativePcapDetectOS(ip, 80, timeoutMs); ok && osName != "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2950,7 +3039,13 @@ func main() {
 	// Native Device Fingerprinting & Security Audit Endpoint (Module 7: grid_fingerprint_engine.dll)
 	http.HandleFunc("/api/fingerprint", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 
 		var inJson string
 		if r.Method == http.MethodPost {
@@ -3250,7 +3345,13 @@ func main() {
 
 	http.HandleFunc("/api/relaunch-admin", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return

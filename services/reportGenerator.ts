@@ -1295,13 +1295,11 @@ export const generateProfessionalAuditReport = (
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (!win) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `GridIPScanner_Audit_Report_${subnet}_${now.toISOString().split('T')[0]}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `GridIPScanner_Audit_Report_${subnet}_${now.toISOString().split('T')[0]}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
