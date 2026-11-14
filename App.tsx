@@ -1760,7 +1760,12 @@ const App: React.FC = () => {
     }
   };
 
-  const getApiUrl = (path: string) => path;
+  const getApiUrl = (path: string) => {
+    if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+      return `http://127.0.0.1:3031${path}`;
+    }
+    return path;
+  };
 
   const syncOUI = async () => {
     setRegistryMeta(prev => ({ ...prev, isSyncing: true }));

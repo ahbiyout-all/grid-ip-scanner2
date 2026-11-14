@@ -1,4 +1,5 @@
 import { RemoteActionType, RemoteActionResult } from '../types';
+import { getApiUrl } from './apiConfig';
 
 export const executeRemoteAction = async (ip: string, action: RemoteActionType, port?: number): Promise<RemoteActionResult> => {
   const cleanIp = ip.trim();
@@ -53,7 +54,7 @@ export const executeRemoteAction = async (ip: string, action: RemoteActionType, 
 
   // 2. System client actions via Go Backend / Native shell execution
   try {
-    const res = await fetch(`/api/remote-action?action=${action}&ip=${encodeURIComponent(cleanIp)}${port ? `&port=${port}` : ''}`, {
+    const res = await fetch(getApiUrl(`/api/remote-action?action=${action}&ip=${encodeURIComponent(cleanIp)}${port ? `&port=${port}` : ''}`), {
       method: 'POST'
     });
     if (res.ok) {

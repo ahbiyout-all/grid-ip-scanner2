@@ -1,4 +1,5 @@
 import { PortAuditItem, PortScanResult } from '../types';
+import { getApiUrl } from './apiConfig';
 
 export const WELL_KNOWN_PORTS: {
   port: number;
@@ -45,7 +46,7 @@ export const runDeepPortAudit = async (
   const startTime = Date.now();
 
   try {
-    const res = await fetch(`/api/portscan?ip=${encodeURIComponent(ip)}`, {
+    const res = await fetch(getApiUrl(`/api/portscan?ip=${encodeURIComponent(ip)}`), {
       signal: AbortSignal.timeout(5000),
     });
     if (res.ok) {

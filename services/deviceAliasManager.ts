@@ -1,4 +1,5 @@
 import { DeviceAlias } from '../types';
+import { getApiUrl } from './apiConfig';
 
 const STORAGE_KEY = 'grid_ip_scanner_aliases_v1';
 
@@ -43,7 +44,7 @@ export const saveDeviceAlias = (alias: DeviceAlias): void => {
 
     // Async sync to Go backend if available
     try {
-      fetch('/api/aliases', {
+      fetch(getApiUrl('/api/aliases'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(all)
@@ -64,7 +65,7 @@ export const removeDeviceAlias = (mac?: string, ip?: string): void => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 
     try {
-      fetch('/api/aliases', {
+      fetch(getApiUrl('/api/aliases'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(all)
@@ -90,7 +91,7 @@ export const getDeviceAlias = (mac?: string, ip?: string): DeviceAlias | undefin
 
 export const syncAliasesWithBackend = async (): Promise<Record<string, DeviceAlias>> => {
   try {
-    const res = await fetch('/api/aliases');
+    const res = await fetch(getApiUrl('/api/aliases'));
     if (res.ok) {
       const backendAliases: Record<string, DeviceAlias> = await res.json();
       if (backendAliases && typeof backendAliases === 'object') {

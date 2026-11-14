@@ -1,4 +1,5 @@
 import { WoLResult } from '../types';
+import { getApiUrl } from './apiConfig';
 
 export const isValidMacAddress = (mac: string): boolean => {
   if (!mac) return false;
@@ -19,7 +20,7 @@ export const sendWakeOnLanPacket = async (mac: string, ip?: string): Promise<WoL
   }
 
   try {
-    const res = await fetch(`/api/wol`, {
+    const res = await fetch(getApiUrl(`/api/wol`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mac: cleanMac, ip })

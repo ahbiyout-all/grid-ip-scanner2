@@ -21,6 +21,7 @@ import {
   NativeFingerprintResult,
   NativeTopologyGuardResult,
 } from '../types';
+import { getApiUrl } from './apiConfig';
 
 const safeTimeout = (ms: number): AbortSignal | undefined => {
   try {
@@ -36,7 +37,7 @@ const safeTimeout = (ms: number): AbortSignal | undefined => {
  */
 export async function fetchNativeModulesStatus(): Promise<NativeModulesStatus> {
   try {
-    const res = await fetch('/api/native-modules', {
+    const res = await fetch(getApiUrl('/api/native-modules'), {
       signal: safeTimeout(3000),
     });
     if (res.ok) {
@@ -68,7 +69,7 @@ export async function fetchDeepDiscovery(
 ): Promise<NativeDiscoveryResult | null> {
   try {
     const res = await fetch(
-      `/api/discovery?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`,
+      getApiUrl(`/api/discovery?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`),
       { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
@@ -90,7 +91,7 @@ export async function fetchDeepBannerGrab(
 ): Promise<NativeDeepBannerResult | null> {
   try {
     const res = await fetch(
-      `/api/banner-grab?ip=${encodeURIComponent(ip)}&port=${port}&timeout=${timeoutMs}`,
+      getApiUrl(`/api/banner-grab?ip=${encodeURIComponent(ip)}&port=${port}&timeout=${timeoutMs}`),
       { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
@@ -111,7 +112,7 @@ export async function detectHostOS(
 ): Promise<NativeOsDetectResult | null> {
   try {
     const res = await fetch(
-      `/api/os-detect?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`,
+      getApiUrl(`/api/os-detect?ip=${encodeURIComponent(ip)}&timeout=${timeoutMs}`),
       { signal: safeTimeout(timeoutMs + 500) }
     );
     if (res.ok) {
@@ -132,7 +133,7 @@ export async function checkArpSpoofing(
 ): Promise<NativeArpSpoofResult | null> {
   try {
     const res = await fetch(
-      `/api/arp-spoof-check?ip=${encodeURIComponent(ip)}&mac=${encodeURIComponent(expectedMac)}`,
+      getApiUrl(`/api/arp-spoof-check?ip=${encodeURIComponent(ip)}&mac=${encodeURIComponent(expectedMac)}`),
       { signal: safeTimeout(1500) }
     );
     if (res.ok) {
@@ -158,7 +159,7 @@ export async function fetchDeviceFingerprint(params: {
   openPorts?: number[];
 }): Promise<NativeFingerprintResult | null> {
   try {
-    const res = await fetch('/api/fingerprint', {
+    const res = await fetch(getApiUrl('/api/fingerprint'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -194,7 +195,7 @@ export async function analyzeNativeTopologyGuard(params: {
   baseline: TopologyGuardHostPayload[];
 }): Promise<NativeTopologyGuardResult | null> {
   try {
-    const res = await fetch('/api/topology-guard', {
+    const res = await fetch(getApiUrl('/api/topology-guard'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -263,7 +264,7 @@ export async function executeWindowsUtility(
   enable?: boolean
 ): Promise<{ success: boolean; message: string; enabled?: boolean; installed?: boolean }> {
   try {
-    let url = `/api/windows-util?action=${action}`;
+    let url = getApiUrl(`/api/windows-util?action=${action}`);
     if (enable !== undefined) {
       url += `&enable=${enable}`;
     }
