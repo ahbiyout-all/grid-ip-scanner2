@@ -2111,110 +2111,170 @@ func main() {
 		})
 	})
 
-	http.HandleFunc("/api/license", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json")
+	guard := getLicenseGuard()
 
+	writeLicenseCORSHeaders := func(w http.ResponseWriter, methods string) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", methods)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	}
+
+	http.HandleFunc("/api/license/status", func(w http.ResponseWriter, r *http.Request) {
+		writeLicenseCORSHeaders(w, "GET, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		status := guard.EvaluateStatus()
+		_ = json.NewEncoder(w).Encode(status)
+	})
+
+	http.HandleFunc("/api/license/activate", func(w http.ResponseWriter, r *http.Request) {
+		writeLicenseCORSHeaders(w, "POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		body, err := io.ReadAll(io.LimitReader(r.Body, 128*1024))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": "요청 본문을 읽지 못했습니다.",
+			})
+			return
+		}
+		var req struct {
+			LicenseKey string `json:"licenseKey"`
+		}
+		if err := json.Unmarshal(body, &req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"message": "잘못된 JSON 형식입니다.",
+			})
+			return
+		}
+
+		status, msg, ok := guard.ActivateLicense(req.LicenseKey)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": ok,
+			"message": msg,
+			"license": status,
+		})
+	})
+
+	http.HandleFunc("/api/license/refresh", func(w http.ResponseWriter, r *http.Request) {
+		writeLicenseCORSHeaders(w, "POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		status, msg, ok := guard.RefreshLease()
+		if !ok {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": ok,
+			"message": msg,
+			"license": status,
+		})
+	})
+
+	http.HandleFunc("/api/license/deactivate", func(w http.ResponseWriter, r *http.Request) {
+		writeLicenseCORSHeaders(w, "POST, DELETE, OPTIONS")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		status, msg, ok := guard.DeactivateLicense()
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": ok,
+			"message": msg,
+			"license": status,
+		})
+	})
+
+	http.HandleFunc("/api/license", func(w http.ResponseWriter, r *http.Request) {
+		writeLicenseCORSHeaders(w, "GET, POST, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		exePath, err := os.Executable()
-		var exeDir string
-		if err == nil {
-			exeDir = filepath.Dir(exePath)
-		}
-
-		portableKeyPath := ""
-		if exeDir != "" {
-			portableKeyPath = filepath.Join(exeDir, "license.key")
-		}
-
-		homeDir, _ := os.UserHomeDir()
-		fallbackKeyPath := ""
-		if homeDir != "" {
-			fallbackKeyPath = filepath.Join(homeDir, ".grid_ip_scanner", "license.key")
-		}
-
 		if r.Method == http.MethodGet {
-			var data []byte
-			if portableKeyPath != "" {
-				if b, err := os.ReadFile(portableKeyPath); err == nil && len(b) > 0 {
-					data = b
-				}
-			}
-			if len(data) == 0 && fallbackKeyPath != "" {
-				if b, err := os.ReadFile(fallbackKeyPath); err == nil && len(b) > 0 {
-					data = b
-				}
-			}
-
-			if len(data) == 0 {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"licenseKey":""}`))
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			w.Write(data)
+			status := guard.EvaluateStatus()
+			_ = json.NewEncoder(w).Encode(status)
 			return
 		}
 
 		if r.Method == http.MethodPost {
-			body, err := io.ReadAll(r.Body)
+			body, err := io.ReadAll(io.LimitReader(r.Body, 128*1024))
 			if err != nil {
-				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusInternalServerError)
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"message": "Failed to read request body",
+				})
 				return
 			}
-
-			var js map[string]interface{}
-			if err := json.Unmarshal(body, &js); err != nil {
-				http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
+			var req struct {
+				LicenseKey string `json:"licenseKey"`
+			}
+			if err := json.Unmarshal(body, &req); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"message": "Invalid JSON",
+				})
 				return
 			}
-
-			saved := false
-			if portableKeyPath != "" {
-				if err := os.WriteFile(portableKeyPath, body, 0644); err == nil {
-					saved = true
-					fmt.Println("Saved license key to portable storage (next to executable)")
-				} else {
-					fmt.Printf("Failed to write portable license key: %v (trying fallback)\n", err)
-				}
+			status, msg, ok := guard.ActivateLicense(req.LicenseKey)
+			if !ok {
+				w.WriteHeader(http.StatusForbidden)
+			} else {
+				w.WriteHeader(http.StatusOK)
 			}
-
-			if fallbackKeyPath != "" {
-				_ = os.MkdirAll(filepath.Dir(fallbackKeyPath), 0755)
-				if err := os.WriteFile(fallbackKeyPath, body, 0644); err == nil {
-					if !saved {
-						saved = true
-						fmt.Println("Saved license key to local cache")
-					}
-				}
-			}
-
-			if !saved {
-				http.Error(w, `{"error":"Failed to save license key"}`, http.StatusInternalServerError)
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success":true}`))
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": ok,
+				"message": msg,
+				"license": status,
+			})
 			return
 		}
 
 		if r.Method == http.MethodDelete {
-			if portableKeyPath != "" {
-				_ = os.Remove(portableKeyPath)
-			}
-			if fallbackKeyPath != "" {
-				_ = os.Remove(fallbackKeyPath)
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success":true}`))
+			status, msg, ok := guard.DeactivateLicense()
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": ok,
+				"message": msg,
+				"license": status,
+			})
 			return
 		}
 
@@ -3531,6 +3591,8 @@ func main() {
 			}
 		}()
 	}
+
+	guard.StartLANSeatGuard()
 
 	fmt.Printf("Grid IP Scanner2 Engine starting on %s (Preview: %v)\n", listenAddr, isPreview)
 	if err := http.ListenAndServe(listenAddr, nil); err != nil {

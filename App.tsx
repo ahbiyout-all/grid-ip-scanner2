@@ -3,7 +3,14 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Search, Activity, RefreshCw, X, Database, ShieldCheck, Wifi, Globe, Cpu, Box, Sun, Moon, Square, Zap, HardDrive, Info, AlertCircle, Terminal, MapPin, Cloud, CheckCircle2, Monitor, RotateCcw, ExternalLink, Download, CloudDownload, HelpCircle, Mail, Key, Sparkles, Layers, FileText, FileDown, BookmarkPlus, ArrowRightLeft, ShieldAlert, Package, Check, Network, Filter, Copy, Cable, Shield, Sliders, Github, Trash2, Camera, Power, Edit3, Tag, Bell, BellRing, AlertTriangle, Folder, Flame, ChevronDown, Clock, Calendar, Smartphone, ArrowRight, Move, Maximize2, Settings } from 'lucide-react';
 import { IPStatus, DeviceInfo, ScanResult, NetworkConfig, InterfaceInfo, LicenseInfo, ScanSnapshot, PortAuditItem, PortScanResult, DiffStatus, DiffItem, DeviceAlias, RemoteActionType, ScanSchedule, ScheduledScanRunRecord } from './types';
 import IPCell from './components/IPCell';
-import { getStoredLicense, activateLicenseKey, clearLicense, getTrialHistory } from './services/licenseManager';
+import {
+  getStoredLicense,
+  activateLicenseViaBackend,
+  refreshLicenseLeaseViaBackend,
+  deactivateLicenseViaBackend,
+  fetchAuthoritativeLicenseStatus,
+  getTrialHistory,
+} from './services/licenseManager';
 import { getSavedSnapshots, saveSnapshot, deleteSnapshot, computeSnapshotDiff } from './services/diffEngine';
 import { runDeepPortAudit } from './services/portScanner';
 import { generateProfessionalAuditReport, exportSecurityAuditReportToPDF, exportDeviceListToPDF } from './services/reportGenerator';
@@ -830,10 +837,11 @@ const App: React.FC = () => {
     showToast(lang === 'ko' ? `상단 여백(카메라 홀 피함): ${nextVal}px` : `Top Notch Margin: ${nextVal}px`);
   };
 
-  // License Management State (Feature Flag & Entitlements)
+  // License Management State (Backend-Authoritative USB Binding & Ed25519 Feature Gate)
   const [license, setLicense] = useState<LicenseInfo>(getStoredLicense());
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [licenseKeyInput, setLicenseKeyInput] = useState('');
+  const [isLicenseBusy, setIsLicenseBusy] = useState(false);
   const [showPdfExportModal, setShowPdfExportModal] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -1396,37 +1404,47 @@ const App: React.FC = () => {
   };
 
   const handleActivateLicense = async () => {
-    const res = activateLicenseKey(licenseKeyInput);
-    if (res.success && res.license) {
-      setLicense(res.license);
-      showToast(res.message);
-      setLicenseKeyInput('');
-      setShowLicenseModal(false);
-      try {
-        await fetch(getApiUrl('/api/license'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(res.license)
-        });
-      } catch (e) {
-        console.warn('Failed to sync license key to Go backend:', e);
+    if (isLicenseBusy) return;
+    setIsLicenseBusy(true);
+    try {
+      const res = await activateLicenseViaBackend(licenseKeyInput, getApiUrl);
+      if (res.license) {
+        setLicense(res.license);
       }
-    } else {
       showToast(res.message);
+      if (res.success) {
+        setLicenseKeyInput('');
+      }
+    } finally {
+      setIsLicenseBusy(false);
+    }
+  };
+
+  const handleRefreshLicenseLease = async () => {
+    if (isLicenseBusy) return;
+    setIsLicenseBusy(true);
+    try {
+      const res = await refreshLicenseLeaseViaBackend(getApiUrl);
+      if (res.license) {
+        setLicense(res.license);
+      }
+      showToast(res.message);
+    } finally {
+      setIsLicenseBusy(false);
     }
   };
 
   const handleResetLicense = async () => {
-    const free = clearLicense();
-    setLicense(free);
-    showToast(lang === 'ko' ? "라이선스가 커뮤니티 에디션(무료)으로 초기화되었습니다." : "License reset to Community Edition (Free).");
-    setShowLicenseModal(false);
+    if (isLicenseBusy) return;
+    setIsLicenseBusy(true);
     try {
-      await fetch(getApiUrl('/api/license'), {
-        method: 'DELETE'
-      });
-    } catch (e) {
-      console.warn('Failed to clear license key in Go backend:', e);
+      const res = await deactivateLicenseViaBackend(getApiUrl);
+      if (res.license) {
+        setLicense(res.license);
+      }
+      showToast(res.message || (lang === 'ko' ? '라이선스 바인딩이 해제되었습니다.' : 'License binding released.'));
+    } finally {
+      setIsLicenseBusy(false);
     }
   };
 
@@ -1892,27 +1910,22 @@ const App: React.FC = () => {
     }, 3000);
 
     const loadLicenseFromBackend = async () => {
-      try {
-        const res = await fetch(getApiUrl('/api/license'));
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.licenseKey) {
-            const keyRes = activateLicenseKey(data.licenseKey);
-            if (keyRes.success && keyRes.license) {
-              setLicense(keyRes.license);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to load license from portable storage:', err);
+      const authoritative = await fetchAuthoritativeLicenseStatus(getApiUrl);
+      if (authoritative) {
+        setLicense(authoritative);
       }
     };
     loadLicenseFromBackend();
+
+    const licensePollTimer = setInterval(() => {
+      loadLicenseFromBackend();
+    }, 60000);
 
     syncOUI();
     return () => {
       clearInterval(timer);
       clearInterval(heartbeatTimer);
+      clearInterval(licensePollTimer);
     };
   }, []);
 
@@ -7201,31 +7214,145 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Clone / Tamper / Duplicate / Expiry Security Warning */}
+              {(license.bindingStatus === 'clone_mismatch' ||
+                license.bindingStatus === 'clock_tamper' ||
+                license.bindingStatus === 'duplicate_seat' ||
+                license.bindingStatus === 'lease_expired' ||
+                license.bindingStatus === 'signature_invalid' ||
+                license.bindingStatus === 'revoked') && (
+                <div className="p-3.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 space-y-1.5">
+                  <div className="flex items-center gap-2 font-black text-xs uppercase tracking-tight">
+                    <ShieldAlert className="w-4 h-4 shrink-0 text-red-400" />
+                    <span>
+                      {license.bindingStatus === 'clone_mismatch'
+                        ? (lang === 'ko' ? '복제 매체 / 다른 하드웨어 감지 (Pro 잠김)' : 'Cloned Media / Hardware Mismatch')
+                        : license.bindingStatus === 'clock_tamper'
+                        ? (lang === 'ko' ? '시스템 시계 역행 탐지 (Pro 잠김)' : 'System Clock Rollback Detected')
+                        : license.bindingStatus === 'duplicate_seat'
+                        ? (lang === 'ko' ? 'LAN 동일 라이선스 동시 실행 감지 (Pro 잠김)' : 'Duplicate LAN Seat Conflict')
+                        : license.bindingStatus === 'lease_expired'
+                        ? (lang === 'ko' ? '오프라인 유예 임대 만료' : 'Offline Lease Expired')
+                        : (lang === 'ko' ? '서명 검증 실패 / 무효화된 키' : 'Invalid Signature or Revoked Key')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed opacity-90">
+                    {license.bindingReason || license.lastError}
+                  </p>
+                </div>
+              )}
+
+              {/* USB Hardware Binding & Hybrid Lease Card */}
+              <div className={`p-3.5 rounded-xl border space-y-2.5 ${theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/5 border-white/10'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider opacity-70">
+                    <HardDrive className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{lang === 'ko' ? '포터블 USB 물리 바인딩 & 하이브리드 보안 상태' : 'Portable USB Binding & Hybrid Verification'}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                    license.signatureVerified
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : license.tier !== 'free'
+                      ? 'bg-amber-500/20 text-amber-400'
+                      : 'bg-zinc-500/20 text-zinc-400'
+                  }`}>
+                    {license.signatureVerified
+                      ? 'Ed25519 Verified'
+                      : license.licenseType === 'trial'
+                      ? 'Hardware Sealed Trial'
+                      : (lang === 'ko' ? '미인증' : 'Unverified')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className={`p-2 rounded-lg border ${theme === 'white' ? 'bg-white border-slate-200' : 'bg-black/25 border-white/5'}`}>
+                    <div className="text-[9px] uppercase opacity-55 font-bold">{lang === 'ko' ? '실행 매체 유형' : 'Execution Media'}</div>
+                    <div className="font-bold mt-0.5 truncate">
+                      {license.boundMediaType === 'removable_usb'
+                        ? (lang === 'ko' ? '정품 USB 드라이브' : 'Removable USB Drive')
+                        : license.boundMediaType === 'network_share'
+                        ? (lang === 'ko' ? '네트워크 공유 (제한)' : 'Network Share (Restricted)')
+                        : (lang === 'ko' ? '로컬 PC 디스크' : 'Fixed PC Disk')}
+                    </div>
+                  </div>
+                  <div className={`p-2 rounded-lg border ${theme === 'white' ? 'bg-white border-slate-200' : 'bg-black/25 border-white/5'}`}>
+                    <div className="text-[9px] uppercase opacity-55 font-bold">{lang === 'ko' ? '장치 지문 해시' : 'Hardware Fingerprint'}</div>
+                    <div className="font-mono font-bold mt-0.5 truncate text-sky-400">
+                      {license.bindingHashShort || license.binding?.fingerprintShort || '-'}
+                      {(license.boundDeviceLabel || license.binding?.deviceLabel) ? ` · ${license.boundDeviceLabel || license.binding?.deviceLabel}` : ''}
+                    </div>
+                  </div>
+                  <div className={`p-2 rounded-lg border ${theme === 'white' ? 'bg-white border-slate-200' : 'bg-black/25 border-white/5'}`}>
+                    <div className="text-[9px] uppercase opacity-55 font-bold">{lang === 'ko' ? '인증 모드' : 'Auth Mode'}</div>
+                    <div className="font-bold mt-0.5">
+                      {license.hybridMode === 'online_verified'
+                        ? (lang === 'ko' ? '온라인 좌석 인증됨' : 'Online Seat Verified')
+                        : license.hybridMode === 'offline_grace'
+                        ? (lang === 'ko'
+                            ? `오프라인 유예${license.offlineGraceDaysLeft ? ` (${license.offlineGraceDaysLeft}일 남음)` : ''}`
+                            : `Offline Grace${license.offlineGraceDaysLeft ? ` (${license.offlineGraceDaysLeft}d left)` : ''}`)
+                        : license.hybridMode === 'local_sealed'
+                        ? (lang === 'ko' ? '로컬 AES-GCM 봉인' : 'AES-GCM Sealed Offline')
+                        : (lang === 'ko' ? '미활성' : 'Inactive')}
+                    </div>
+                  </div>
+                  <div className={`p-2 rounded-lg border ${theme === 'white' ? 'bg-white border-slate-200' : 'bg-black/25 border-white/5'}`}>
+                    <div className="text-[9px] uppercase opacity-55 font-bold">{lang === 'ko' ? '물리 시리얼 보호' : 'Physical Serial Guard'}</div>
+                    <div className={`font-bold mt-0.5 ${license.hasHardwareSerial ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {license.hasHardwareSerial
+                        ? (lang === 'ko' ? '컨트롤러 시리얼 확인됨' : 'Controller Serial Verified')
+                        : (lang === 'ko' ? '시리얼 미지원 (24h 유예 상한)' : 'No HW Serial (24h Cap)')}
+                    </div>
+                  </div>
+                </div>
+
+                {(license.tier !== 'free' || license.bindingStatus === 'clone_mismatch' || license.bindingStatus === 'lease_expired') && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <button
+                      onClick={handleRefreshLicenseLease}
+                      disabled={isLicenseBusy}
+                      className="px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 font-bold text-[10.5px] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isLicenseBusy ? 'animate-spin' : ''}`} />
+                      <span>{lang === 'ko' ? '온라인 좌석 · 무결성 갱신' : 'Refresh Seat & Integrity'}</span>
+                    </button>
+                    <button
+                      onClick={handleResetLicense}
+                      disabled={isLicenseBusy}
+                      className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-[10.5px] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <span>{lang === 'ko' ? 'USB 바인딩 해제 / 다른 USB로 이전' : 'Unbind USB / Transfer Seat'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* License Activation Form */}
               <div className={`p-4 rounded-xl border ${theme === 'beige' ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]' : theme === 'white' ? 'bg-amber-50/60 border-amber-200 text-slate-800' : 'bg-white/5 border-white/10'} space-y-3`}>
                 <label className="text-[10px] font-black uppercase tracking-wider opacity-80 flex items-center gap-1.5">
                   <Key className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{lang === 'ko' ? '라이선스 키 입력 및 활성화' : 'Enter License Key & Activate'}</span>
+                  <span>{lang === 'ko' ? 'Ed25519 서명 라이선스 키 입력 및 USB 바인딩' : 'Enter Ed25519 Signed License Key'}</span>
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={licenseKeyInput}
                     onChange={(e) => setLicenseKeyInput(e.target.value)}
-                    placeholder={s.licenseKeyPlaceholder}
+                    placeholder="GSCAN.<PAYLOAD>.<SIGNATURE> 또는 GRID-PRO-TRIAL-2026"
                     className={`flex-1 ${theme === 'white' ? 'bg-white border-slate-300 text-slate-900' : 'bg-black/40 border-white/10 text-white'} rounded-xl px-3 py-2 text-xs font-mono outline-none focus:border-amber-400 transition-colors`}
                   />
                   <button
                     onClick={handleActivateLicense}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl text-xs uppercase tracking-tight transition-all shadow-md shrink-0 cursor-pointer"
+                    disabled={isLicenseBusy}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl text-xs uppercase tracking-tight transition-all shadow-md shrink-0 cursor-pointer disabled:opacity-50"
                   >
-                    {s.activateBtn}
+                    {isLicenseBusy ? '...' : s.activateBtn}
                   </button>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  {getTrialHistory().used ? (
+                  {(license.trialUsed || getTrialHistory().used) ? (
                     <span className="text-[10px] text-amber-500/80 font-semibold flex items-center gap-1">
-                      <span>🔒 {lang === 'ko' ? '30일 체험판 이용 완료 (추가 사용은 정품 키 필요)' : '30-Day Trial completed (Requires full license key)'}</span>
+                      <span>🔒 {lang === 'ko' ? '이 장치의 30일 체험판 이용 완료 (정품 Ed25519 서명 키 필요)' : '30-Day Trial used on this device (Requires Ed25519 key)'}</span>
                     </span>
                   ) : (
                     <button
@@ -7234,13 +7361,14 @@ const App: React.FC = () => {
                       }}
                       className="text-[10px] text-sky-400 hover:underline font-semibold cursor-pointer"
                     >
-                      💡 {lang === 'ko' ? '데모 Pro 30일 사용권 키 자동 입력 (GRID-PRO-TRIAL-2026)' : 'Auto-fill Demo Pro 30-Day Key (GRID-PRO-TRIAL-2026)'}
+                      💡 {lang === 'ko' ? '30일 하드웨어 바인딩 체험 키 입력 (GRID-PRO-TRIAL-2026)' : 'Fill 30-Day Hardware Trial Key (GRID-PRO-TRIAL-2026)'}
                     </button>
                   )}
                   {license.tier !== 'free' && (
                     <button
                       onClick={handleResetLicense}
-                      className="text-[10px] text-red-400 hover:underline cursor-pointer"
+                      disabled={isLicenseBusy}
+                      className="text-[10px] text-red-400 hover:underline cursor-pointer disabled:opacity-50"
                     >
                       {lang === 'ko' ? '무료 버전으로 초기화' : 'Reset to Free Community'}
                     </button>

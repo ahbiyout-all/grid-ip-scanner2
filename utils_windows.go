@@ -4,18 +4,22 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
+	"time"
 	"unicode/utf8"
 	"unsafe"
 )
-
-
 
 const CREATE_NO_WINDOW = 0x08000000
 
@@ -42,6 +46,8 @@ func isRunningAsAdmin() bool {
 var (
 	modkernel32             = syscall.NewLazyDLL(resolveSystemDllPath("kernel32.dll"))
 	procMultiByteToWideChar = modkernel32.NewProc("MultiByteToWideChar")
+	procGetDriveTypeW       = modkernel32.NewProc("GetDriveTypeW")
+	procGetVolumeInfoW      = modkernel32.NewProc("GetVolumeInformationW")
 
 	moduser32      = syscall.NewLazyDLL(resolveSystemDllPath("user32.dll"))
 	procMessageBox = moduser32.NewProc("MessageBoxW")
@@ -277,16 +283,16 @@ func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats,
 }
 
 const (
-	SW_SHOWNORMAL       = 1
-	MB_OK               = 0x00000000
-	MB_OKCANCEL         = 0x00000001
-	MB_YESNOCANCEL      = 0x00000003
-	MB_YESNO            = 0x00000004
-	MB_ICONINFORMATION  = 0x00000040
-	MB_ICONQUESTION     = 0x00000020
-	MB_ICONEXCLAMATION  = 0x00000030
-	MB_TOPMOST          = 0x00040000
-	MB_SETFOREGROUND    = 0x00010000
+	SW_SHOWNORMAL      = 1
+	MB_OK              = 0x00000000
+	MB_OKCANCEL        = 0x00000001
+	MB_YESNOCANCEL     = 0x00000003
+	MB_YESNO           = 0x00000004
+	MB_ICONINFORMATION = 0x00000040
+	MB_ICONQUESTION    = 0x00000020
+	MB_ICONEXCLAMATION = 0x00000030
+	MB_TOPMOST         = 0x00040000
+	MB_SETFOREGROUND   = 0x00010000
 
 	IDOK     = 1
 	IDCANCEL = 2
@@ -354,8 +360,8 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 
 	// 1. Candidate browser definitions with common install paths
 	type browserTarget struct {
-		name      string
-		exeName   string
+		name           string
+		exeName        string
 		candidatePaths []string
 	}
 
@@ -529,20 +535,20 @@ func decodeANSI(b []byte) string {
 // =====================================================================
 
 const (
-	NIM_ADD        = 0x00000000
-	NIM_MODIFY     = 0x00000001
-	NIM_DELETE     = 0x00000002
-	NIF_MESSAGE    = 0x00000001
-	NIF_ICON       = 0x00000002
-	NIF_TIP        = 0x00000004
-	NIF_INFO       = 0x00000010
+	NIM_ADD     = 0x00000000
+	NIM_MODIFY  = 0x00000001
+	NIM_DELETE  = 0x00000002
+	NIF_MESSAGE = 0x00000001
+	NIF_ICON    = 0x00000002
+	NIF_TIP     = 0x00000004
+	NIF_INFO    = 0x00000010
 
 	WM_TRAY_CALLBACK = 0x8000 + 101 // WM_APP + 101
 	WM_LBUTTONUP     = 0x0202
 	WM_LBUTTONDBLCLK = 0x0203
 	WM_RBUTTONUP     = 0x0205
 
-	IMAGE_ICON     = 1
+	IMAGE_ICON      = 1
 	LR_LOADFROMFILE = 0x00000010
 	LR_DEFAULTSIZE  = 0x00000040
 
@@ -573,21 +579,21 @@ const (
 )
 
 type NOTIFYICONDATAW struct {
-	CbSize           uint32
-	HWnd             uintptr
-	UID              uint32
-	UFlags           uint32
-	UCallbackMessage uint32
-	HIcon            uintptr
-	SzTip            [128]uint16
-	DwState          uint32
-	DwStateMask      uint32
-	SzInfo           [256]uint16
+	CbSize            uint32
+	HWnd              uintptr
+	UID               uint32
+	UFlags            uint32
+	UCallbackMessage  uint32
+	HIcon             uintptr
+	SzTip             [128]uint16
+	DwState           uint32
+	DwStateMask       uint32
+	SzInfo            [256]uint16
 	UTimeoutOrVersion uint32
-	SzInfoTitle      [64]uint16
-	DwInfoFlags      uint32
-	GuidItem         [16]byte
-	HBalloonIcon     uintptr
+	SzInfoTitle       [64]uint16
+	DwInfoFlags       uint32
+	GuidItem          [16]byte
+	HBalloonIcon      uintptr
 }
 
 type WNDCLASSEXW struct {
@@ -620,23 +626,23 @@ type MSG struct {
 }
 
 var (
-	procShellNotifyIconW = modshell32.NewProc("Shell_NotifyIconW")
-	procRegisterClassExW = moduser32.NewProc("RegisterClassExW")
-	procCreateWindowExW  = moduser32.NewProc("CreateWindowExW")
-	procDefWindowProcW   = moduser32.NewProc("DefWindowProcW")
-	procDestroyWindow    = moduser32.NewProc("DestroyWindow")
-	procGetMessageW      = moduser32.NewProc("GetMessageW")
-	procTranslateMessage = moduser32.NewProc("TranslateMessage")
-	procDispatchMessageW = moduser32.NewProc("DispatchMessageW")
-	procPostQuitMessage  = moduser32.NewProc("PostQuitMessage")
-	procGetCursorPos     = moduser32.NewProc("GetCursorPos")
+	procShellNotifyIconW    = modshell32.NewProc("Shell_NotifyIconW")
+	procRegisterClassExW    = moduser32.NewProc("RegisterClassExW")
+	procCreateWindowExW     = moduser32.NewProc("CreateWindowExW")
+	procDefWindowProcW      = moduser32.NewProc("DefWindowProcW")
+	procDestroyWindow       = moduser32.NewProc("DestroyWindow")
+	procGetMessageW         = moduser32.NewProc("GetMessageW")
+	procTranslateMessage    = moduser32.NewProc("TranslateMessage")
+	procDispatchMessageW    = moduser32.NewProc("DispatchMessageW")
+	procPostQuitMessage     = moduser32.NewProc("PostQuitMessage")
+	procGetCursorPos        = moduser32.NewProc("GetCursorPos")
 	procSetForegroundWindow = moduser32.NewProc("SetForegroundWindow")
-	procCreatePopupMenu  = moduser32.NewProc("CreatePopupMenu")
-	procAppendMenuW      = moduser32.NewProc("AppendMenuW")
-	procTrackPopupMenu   = moduser32.NewProc("TrackPopupMenu")
-	procDestroyMenu      = moduser32.NewProc("DestroyMenu")
-	procLoadImageW       = moduser32.NewProc("LoadImageW")
-	procGetModuleHandleW = modkernel32.NewProc("GetModuleHandleW")
+	procCreatePopupMenu     = moduser32.NewProc("CreatePopupMenu")
+	procAppendMenuW         = moduser32.NewProc("AppendMenuW")
+	procTrackPopupMenu      = moduser32.NewProc("TrackPopupMenu")
+	procDestroyMenu         = moduser32.NewProc("DestroyMenu")
+	procLoadImageW          = moduser32.NewProc("LoadImageW")
+	procGetModuleHandleW    = modkernel32.NewProc("GetModuleHandleW")
 
 	nativeTrayHWnd   uintptr
 	nativeTrayIcon   uintptr
@@ -884,4 +890,233 @@ func initNativeSystemTray(port string) {
 		// Cleanup on exit
 		procShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
 	}()
+}
+
+// =====================================================================
+// Portable USB Physical Controller Fingerprinter (Windows)
+// Extracts Win32 DriveType + PhysicalDisk CIM (USB VID/PID/Serial)
+// =====================================================================
+
+const (
+	driveUnknown   = 0
+	driveNoRootDir = 1
+	driveRemovable = 2
+	driveFixed     = 3
+	driveRemote    = 4
+)
+
+type winDiskProbeResult struct {
+	InterfaceType string `json:"InterfaceType"`
+	MediaType     string `json:"MediaType"`
+	Model         string `json:"Model"`
+	SerialNumber  string `json:"SerialNumber"`
+	PNPDeviceID   string `json:"PNPDeviceID"`
+	Size          uint64 `json:"Size"`
+	MachineGuid   string `json:"MachineGuid"`
+}
+
+func getWinDriveType(rootPath string) uint32 {
+	if procGetDriveTypeW.Find() != nil {
+		return driveUnknown
+	}
+	ptr, err := syscall.UTF16PtrFromString(rootPath)
+	if err != nil {
+		return driveUnknown
+	}
+	ret, _, _ := procGetDriveTypeW.Call(uintptr(unsafe.Pointer(ptr)))
+	return uint32(ret)
+}
+
+func getWinVolumeSerial(rootPath string) string {
+	if procGetVolumeInfoW.Find() != nil {
+		return ""
+	}
+	ptr, err := syscall.UTF16PtrFromString(rootPath)
+	if err != nil {
+		return ""
+	}
+	var serial uint32
+	ret, _, _ := procGetVolumeInfoW.Call(
+		uintptr(unsafe.Pointer(ptr)),
+		0, 0,
+		uintptr(unsafe.Pointer(&serial)),
+		0, 0, 0, 0,
+	)
+	if ret == 0 || serial == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%08X", serial)
+}
+
+func probeWindowsPhysicalDrive(driveLetter string) winDiskProbeResult {
+	var res winDiskProbeResult
+	psDrive := strings.TrimRight(strings.TrimSpace(driveLetter), `\/`)
+	if len(psDrive) == 2 && psDrive[1] == ':' {
+		// Safe validated drive letter e.g. "E:"
+	} else {
+		psDrive = ""
+	}
+
+	psScript := fmt.Sprintf(`
+$ErrorActionPreference = 'SilentlyContinue'
+$mGuid = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Cryptography' -Name MachineGuid).MachineGuid
+$disk = $null
+if ('%s' -ne '') {
+  $ld = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='%s'"
+  if ($ld) {
+    $part = Get-CimAssociatedInstance -InputObject $ld -ResultClassName Win32_DiskPartition | Select-Object -First 1
+    if ($part) {
+      $disk = Get-CimAssociatedInstance -InputObject $part -ResultClassName Win32_DiskDrive | Select-Object -First 1
+    }
+  }
+}
+[PSCustomObject]@{
+  InterfaceType = if ($disk) { [string]$disk.InterfaceType } else { '' }
+  MediaType     = if ($disk) { [string]$disk.MediaType } else { '' }
+  Model         = if ($disk) { [string]$disk.Model } else { '' }
+  SerialNumber  = if ($disk) { [string]$disk.SerialNumber } else { '' }
+  PNPDeviceID   = if ($disk) { [string]$disk.PNPDeviceID } else { '' }
+  Size          = if ($disk -and $disk.Size) { [uint64]$disk.Size } else { 0 }
+  MachineGuid   = [string]$mGuid
+} | ConvertTo-Json -Compress
+`, psDrive, psDrive)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psScript)
+	hideWindow(cmd)
+	out, err := cmd.Output()
+	if err == nil && len(out) > 0 {
+		_ = json.Unmarshal(out, &res)
+	}
+	return res
+}
+
+func parseWinUsbVidPidSerial(pnpID string) (vid, pid, instSerial string) {
+	upper := strings.ToUpper(strings.TrimSpace(pnpID))
+	reVid := regexp.MustCompile(`VID_([0-9A-F]{4})`)
+	rePid := regexp.MustCompile(`PID_([0-9A-F]{4})`)
+	if m := reVid.FindStringSubmatch(upper); len(m) == 2 {
+		vid = m[1]
+	}
+	if m := rePid.FindStringSubmatch(upper); len(m) == 2 {
+		pid = m[1]
+	}
+	parts := strings.Split(upper, `\`)
+	if len(parts) >= 3 && strings.Contains(upper, "USB") {
+		candidate := parts[len(parts)-1]
+		if idx := strings.Index(candidate, "&"); idx > 0 {
+			candidate = candidate[:idx]
+		}
+		instSerial = normalizeHardwareSerial(candidate)
+	}
+	return vid, pid, instSerial
+}
+
+// GetStorageBindingContext inspects Windows drive type and physical disk/USB controller identity.
+func GetStorageBindingContext(targetDir string) StorageBindingInfo {
+	absDir, err := filepath.Abs(targetDir)
+	if err != nil || absDir == "" {
+		absDir = "."
+	}
+
+	info := StorageBindingInfo{
+		MediaType: "fixed_disk",
+		BusType:   "WINDOWS",
+	}
+
+	vol := filepath.VolumeName(absDir)
+	if strings.HasPrefix(vol, `\\`) {
+		info.MediaType = "network_share"
+		info.DeviceLabel = fmt.Sprintf("Network Share (%s)", vol)
+		sum := sha256.Sum256([]byte("NETSHARE_WIN|" + strings.ToUpper(vol)))
+		info.FingerprintHash = hex.EncodeToString(sum[:])
+		info.FingerprintShort = info.FingerprintHash[:12]
+		return info
+	}
+
+	rootPath := ""
+	if len(vol) == 2 && vol[1] == ':' {
+		rootPath = vol + `\`
+	}
+
+	drvType := uint32(driveUnknown)
+	if rootPath != "" {
+		drvType = getWinDriveType(rootPath)
+	}
+	if drvType == driveRemote {
+		info.MediaType = "network_share"
+		info.DeviceLabel = fmt.Sprintf("Mapped Network Drive (%s)", vol)
+		sum := sha256.Sum256([]byte("NETSHARE_WIN|" + strings.ToUpper(vol)))
+		info.FingerprintHash = hex.EncodeToString(sum[:])
+		info.FingerprintShort = info.FingerprintHash[:12]
+		return info
+	}
+
+	probe := probeWindowsPhysicalDrive(vol)
+	model := strings.TrimSpace(probe.Model)
+	ifaceUpper := strings.ToUpper(strings.TrimSpace(probe.InterfaceType))
+	mediaUpper := strings.ToUpper(strings.TrimSpace(probe.MediaType))
+	pnpUpper := strings.ToUpper(strings.TrimSpace(probe.PNPDeviceID))
+
+	vid, pid, pnpSerial := parseWinUsbVidPidSerial(probe.PNPDeviceID)
+	diskSerial := normalizeHardwareSerial(probe.SerialNumber)
+	if diskSerial == "" {
+		diskSerial = pnpSerial
+	}
+
+	isUSB := drvType == driveRemovable ||
+		ifaceUpper == "USB" ||
+		strings.Contains(mediaUpper, "REMOVABLE") ||
+		strings.Contains(mediaUpper, "EXTERNAL") ||
+		strings.HasPrefix(pnpUpper, "USBSTOR")
+
+	if isUSB {
+		info.MediaType = "removable_usb"
+		info.BusType = "USB"
+		info.VendorID = vid
+		info.ProductID = pid
+		info.Model = model
+		if info.Model == "" {
+			info.Model = "USB Storage Drive"
+		}
+		info.SerialNumber = diskSerial
+		info.HasHardwareSerial = diskSerial != ""
+
+		if info.HasHardwareSerial {
+			if vid != "" || pid != "" {
+				info.DeviceLabel = fmt.Sprintf("%s (%s · VID:%s PID:%s)", info.Model, vol, vid, pid)
+			} else {
+				info.DeviceLabel = fmt.Sprintf("%s (%s · USB Hardware Serial)", info.Model, vol)
+			}
+			raw := fmt.Sprintf("USB_HW_V1|VID=%s|PID=%s|SN=%s|MODEL=%s|SIZE=%d", vid, pid, diskSerial, info.Model, probe.Size)
+			sum := sha256.Sum256([]byte(raw))
+			info.FingerprintHash = hex.EncodeToString(sum[:])
+		} else {
+			volSerial := getWinVolumeSerial(rootPath)
+			info.DeviceLabel = fmt.Sprintf("%s (%s · No Controller Serial)", info.Model, vol)
+			info.StrictOnlineCapHours = 24
+			raw := fmt.Sprintf("USB_MODEL_V1|VID=%s|PID=%s|MODEL=%s|SIZE=%d|VSN=%s", vid, pid, info.Model, probe.Size, volSerial)
+			sum := sha256.Sum256([]byte(raw))
+			info.FingerprintHash = hex.EncodeToString(sum[:])
+		}
+		info.FingerprintShort = info.FingerprintHash[:12]
+		return info
+	}
+
+	// Internal fixed disk install: bind to PC MachineGuid + physical disk serial
+	mGuid := strings.TrimSpace(probe.MachineGuid)
+	info.Model = model
+	info.SerialNumber = diskSerial
+	info.HasHardwareSerial = mGuid != "" || diskSerial != ""
+	if model != "" {
+		info.DeviceLabel = fmt.Sprintf("Fixed PC (%s)", model)
+	} else {
+		info.DeviceLabel = "Fixed Windows PC"
+	}
+	raw := fmt.Sprintf("FIXED_PC_V1|MGUID=%s|DSN=%s|MODEL=%s|SIZE=%d", mGuid, diskSerial, model, probe.Size)
+	sum := sha256.Sum256([]byte(raw))
+	info.FingerprintHash = hex.EncodeToString(sum[:])
+	info.FingerprintShort = info.FingerprintHash[:12]
+	return info
 }

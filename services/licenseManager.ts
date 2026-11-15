@@ -1,6 +1,6 @@
 import { LicenseInfo, LicenseTier, LicenseFeatures } from '../types';
 
-const DEFAULT_FREE_FEATURES: LicenseFeatures = {
+export const DEFAULT_FREE_FEATURES: LicenseFeatures = {
   visualGrid: true,
   fastPing: true,
   ouiLookup: true,
@@ -13,7 +13,7 @@ const DEFAULT_FREE_FEATURES: LicenseFeatures = {
   intruderDetection: false,
 };
 
-const PRO_FEATURES: LicenseFeatures = {
+export const PRO_FEATURES: LicenseFeatures = {
   visualGrid: true,
   fastPing: true,
   ouiLookup: true,
@@ -26,7 +26,7 @@ const PRO_FEATURES: LicenseFeatures = {
   intruderDetection: true,
 };
 
-const ENTERPRISE_FEATURES: LicenseFeatures = {
+export const ENTERPRISE_FEATURES: LicenseFeatures = {
   visualGrid: true,
   fastPing: true,
   ouiLookup: true,
@@ -43,18 +43,14 @@ const STORAGE_KEY = 'grid_ip_scanner_license_v2';
 const TRIAL_HISTORY_KEY = 'grid_ip_scanner_trial_history_v1';
 
 /**
- * 🔓 Grid IP Scanner2 공식 라이선스 무결성 검증용 공개키 (Ed25519 Public Key)
- * 
- * ⚠️ 보안 아키텍처 원칙:
- * 1. 이 공개키(Public Key)만 앱 코드에 포함되어 사용자에게 배포됩니다 (배포 바이너리에 포함되어도 안전).
- * 2. 라이선스를 발급·서명하는 비밀키(Private Key)는 절대 앱에 포함되지 않으며, GitHub Secrets('LICENSE_PRIVATE_KEY') 및 개발자 금고에만 비밀 보관됩니다.
- * 3. 앱은 내장된 이 공개키로 오프라인(폐쇄망) 환경에서도 위조되거나 변조된 가짜 라이선스를 1ms 만에 완벽히 식별합니다.
+ * Grid IP Scanner2 Official Ed25519 SPKI Public Key
+ * Private signing key is NEVER embedded in client or desktop binaries.
  */
 export const GRID_ED25519_PUBLIC_KEY = 'MCowBQYDK2VwAyEAi8D7v5wK1y3bH0pX9aG8v4T2q1F6j3K5n8M2L0P9wQE=';
 
-// Blacklist of revoked / refunded license keys
 const REVOKED_LICENSE_KEYS = new Set<string>([
   'REFUNDED-KEY-EXAMPLE-001',
+  'REVOKED-SAMPLE-001',
 ]);
 
 export const isKeyRevoked = (key?: string): boolean => {
@@ -67,6 +63,19 @@ export interface TrialHistoryInfo {
   activatedAt?: string;
   expiresAt?: string;
 }
+
+export const buildFreeLicense = (overrides?: Partial<LicenseInfo>): LicenseInfo => ({
+  tier: 'free',
+  licenseType: 'free',
+  licensedTo: 'Community User',
+  maxSubnets: 1,
+  features: { ...DEFAULT_FREE_FEATURES },
+  bindingStatus: 'unlicensed',
+  hybridMode: 'unverified',
+  signatureVerified: false,
+  backendAuthoritative: false,
+  ...overrides,
+});
 
 export const getTrialHistory = (): TrialHistoryInfo => {
   try {
@@ -83,11 +92,11 @@ export const getTrialHistory = (): TrialHistoryInfo => {
   return { used: false };
 };
 
-export const recordTrialUsage = (expiresAt: string): void => {
+export const recordTrialUsage = (expiresAt?: string, activatedAt?: string): void => {
   try {
     const info: TrialHistoryInfo = {
       used: true,
-      activatedAt: new Date().toISOString(),
+      activatedAt: activatedAt || new Date().toISOString(),
       expiresAt,
     };
     localStorage.setItem(TRIAL_HISTORY_KEY, JSON.stringify(info));
@@ -96,67 +105,102 @@ export const recordTrialUsage = (expiresAt: string): void => {
   }
 };
 
+export const normalizeAuthoritativeLicense = (raw: any): LicenseInfo => {
+  if (!raw || typeof raw !== 'object') {
+    return buildFreeLicense();
+  }
+
+  const tier: LicenseTier =
+    raw.tier === 'enterprise' || raw.tier === 'pro' ? raw.tier : 'free';
+  const tierFeatures =
+    tier === 'enterprise'
+      ? ENTERPRISE_FEATURES
+      : tier === 'pro'
+      ? PRO_FEATURES
+      : DEFAULT_FREE_FEATURES;
+
+  const isPaidActive =
+    tier !== 'free' &&
+    raw.backendAuthoritative === true &&
+    (raw.bindingStatus === 'verified_usb' || raw.bindingStatus === 'verified_fixed_pc' || !raw.bindingStatus);
+
+  const effectiveTier: LicenseTier = isPaidActive ? tier : 'free';
+  const effectiveFeatures =
+    effectiveTier === 'enterprise'
+      ? ENTERPRISE_FEATURES
+      : effectiveTier === 'pro'
+      ? PRO_FEATURES
+      : DEFAULT_FREE_FEATURES;
+
+  if (raw.trialUsed) {
+    recordTrialUsage(raw.expiresAt, raw.trialActivatedAt);
+  }
+
+  return {
+    tier: effectiveTier,
+    licenseType: effectiveTier === 'free' ? 'free' : raw.licenseType || 'lifetime',
+    licensedTo: raw.licensedTo || (effectiveTier === 'free' ? 'Community User' : 'Verified Licensee'),
+    licenseKey: raw.licenseKey,
+    licenseId: raw.licenseId,
+    issuedAt: raw.issuedAt,
+    expiresAt: raw.expiresAt,
+    maxSubnets: effectiveTier === 'enterprise' ? 999 : effectiveTier === 'pro' ? 5 : 1,
+    features: {
+      ...tierFeatures,
+      ...effectiveFeatures,
+      remoteBoot: effectiveTier === 'pro' || effectiveTier === 'enterprise',
+      intruderDetection: effectiveTier === 'pro' || effectiveTier === 'enterprise',
+    },
+    bindingStatus: raw.bindingStatus || (effectiveTier === 'free' ? 'unlicensed' : 'verified_fixed_pc'),
+    bindingReason: raw.bindingReason,
+    boundMediaType: raw.boundMediaType,
+    boundDeviceLabel: raw.boundDeviceLabel,
+    bindingHashShort: raw.bindingHashShort,
+    hasHardwareSerial: raw.hasHardwareSerial,
+    leaseIssuedAt: raw.leaseIssuedAt,
+    leaseExpiresAt: raw.leaseExpiresAt,
+    offlineGraceDaysLeft: raw.offlineGraceDaysLeft,
+    hybridMode: raw.hybridMode || 'unverified',
+    signatureVerified: Boolean(raw.signatureVerified),
+    duplicateConflict: raw.duplicateConflict,
+    backendAuthoritative: Boolean(raw.backendAuthoritative),
+    trialUsed: Boolean(raw.trialUsed),
+    trialActivatedAt: raw.trialActivatedAt,
+    lastError: raw.lastError,
+    binding: raw.binding,
+  };
+};
+
+/**
+ * Initial safe state before backend /api/license/status handshake completes.
+ * Never grants unverified Pro/Enterprise access solely from mutable localStorage.
+ */
 export const getStoredLicense = (): LicenseInfo => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.tier) {
-        // Check if stored key is revoked due to refund
-        if (parsed.licenseKey && isKeyRevoked(parsed.licenseKey)) {
-          localStorage.removeItem(STORAGE_KEY);
-          return {
-            tier: 'free',
-            licensedTo: 'Community User',
-            maxSubnets: 1,
-            features: DEFAULT_FREE_FEATURES,
-          };
-        }
-
-        if (parsed.expiresAt) {
-          const exp = new Date(parsed.expiresAt);
-          if (exp.getTime() < Date.now()) {
-            localStorage.removeItem(STORAGE_KEY);
-            return {
-              tier: 'free',
-              licensedTo: 'Community User',
-              maxSubnets: 1,
-              features: DEFAULT_FREE_FEATURES,
-            };
-          }
-        }
-        const tierDefaults = parsed.tier === 'enterprise' 
-          ? ENTERPRISE_FEATURES 
-          : (parsed.tier === 'pro' ? PRO_FEATURES : DEFAULT_FREE_FEATURES);
-        return {
-          ...parsed,
-          features: {
-            ...tierDefaults,
-            ...(parsed.features || {}),
-            // Ensure remoteBoot & intruderDetection match the validated tier
-            remoteBoot: parsed.tier === 'pro' || parsed.tier === 'enterprise',
-            intruderDetection: parsed.tier === 'pro' || parsed.tier === 'enterprise',
-          },
-        } as LicenseInfo;
+      if (parsed && parsed.tier === 'free') {
+        return normalizeAuthoritativeLicense(parsed);
       }
     }
-  } catch (e) {
-    console.warn('Failed to parse stored license:', e);
+  } catch {
+    // ignore parse failure
   }
-
-  return {
-    tier: 'free',
-    licensedTo: 'Community User',
-    maxSubnets: 1,
-    features: DEFAULT_FREE_FEATURES,
-  };
+  return buildFreeLicense();
 };
 
 export const saveLicense = (license: LicenseInfo): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(license));
+    // Cache display/diagnostic state; runtime authority always re-verifies with Go backend on mount
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      tier: license.tier,
+      bindingStatus: license.bindingStatus,
+      boundDeviceLabel: license.boundDeviceLabel,
+      updatedAt: new Date().toISOString(),
+    }));
   } catch (e) {
-    console.error('Failed to save license:', e);
+    console.error('Failed to cache license metadata:', e);
   }
 };
 
@@ -164,14 +208,9 @@ export const clearLicense = (): LicenseInfo => {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (e) {
-    console.warn('Failed to clear license from localStorage:', e);
+    console.warn('Failed to clear license cache:', e);
   }
-  return {
-    tier: 'free',
-    licensedTo: 'Community User',
-    maxSubnets: 1,
-    features: DEFAULT_FREE_FEATURES,
-  };
+  return buildFreeLicense();
 };
 
 export interface ActivationResult {
@@ -181,194 +220,123 @@ export interface ActivationResult {
 }
 
 /**
- * Validates cryptographic license key or standard demonstration/early-adopter activation tokens.
+ * Legacy synchronous shortcut disabled: prevents forged prefix/unsigned Base64 activation.
  */
-export const activateLicenseKey = (inputKey: string): ActivationResult => {
-  const trimmed = inputKey.trim().toUpperCase();
+export const activateLicenseKey = (_inputKey: string): ActivationResult => {
+  return {
+    success: false,
+    message: '하드웨어 USB 바인딩 및 Ed25519 서명 검증은 백엔드 보안 엔진(/api/license/activate)을 통해 수행되어야 합니다.',
+    license: buildFreeLicense(),
+  };
+};
 
+export type ApiUrlResolver = (path: string) => string;
+
+export const fetchAuthoritativeLicenseStatus = async (
+  resolveUrl: ApiUrlResolver
+): Promise<LicenseInfo | null> => {
+  try {
+    const res = await fetch(resolveUrl('/api/license/status'), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const normalized = normalizeAuthoritativeLicense(data);
+    saveLicense(normalized);
+    return normalized;
+  } catch (err) {
+    console.warn('Failed to fetch authoritative license status:', err);
+    return null;
+  }
+};
+
+export const activateLicenseViaBackend = async (
+  inputKey: string,
+  resolveUrl: ApiUrlResolver
+): Promise<ActivationResult> => {
+  const trimmed = inputKey.trim();
   if (!trimmed) {
     return { success: false, message: '라이선스 키를 입력해 주세요.' };
   }
 
   if (isKeyRevoked(trimmed)) {
-    return { success: false, message: '환불 처리되었거나 무효화된 라이선스 키입니다. 정품 키를 재구입해 주세요.' };
-  }
-
-  // Enterprise Tier Activation Token
-  if (trimmed === 'GRID-ENT-2026-GLOBAL' || trimmed.startsWith('ENT-')) {
-    const entLicense: LicenseInfo = {
-      tier: 'enterprise',
-      licensedTo: 'Enterprise Organization',
-      licenseKey: trimmed,
-      issuedAt: new Date().toISOString(),
-      maxSubnets: 999,
-      features: ENTERPRISE_FEATURES,
-    };
-    saveLicense(entLicense);
     return {
-      success: true,
-      message: 'Grid IP Scanner2 Enterprise 정품 라이선스가 활성화되었습니다 (무제한 다중 서브넷 허용).',
-      license: entLicense,
+      success: false,
+      message: '환불 처리되었거나 무효화된 라이선스 키입니다. 정품 키를 재구입해 주세요.',
+      license: buildFreeLicense({ bindingStatus: 'revoked' }),
     };
   }
 
-  // Pro Tier Activation Token (Supports Annual 1-Year, Lifetime Perpetual, and Trial tokens)
-  if (
-    trimmed === 'GRID-PRO-TRIAL-2026' ||
-    trimmed === 'GRID-PRO-DEMO' ||
-    trimmed === 'PRO-DEMO' ||
-    trimmed === 'DEMO-PRO' ||
-    trimmed === 'DEMO-PRO-2026' ||
-    trimmed === 'GRID-PRO-DEMO-2026' ||
-    trimmed === 'PRO-GRID-2026-UNLIMITED' ||
-    trimmed.startsWith('PRO-') ||
-    trimmed.startsWith('GSCAN-PRO-') ||
-    trimmed.startsWith('DEMO-') ||
-    trimmed.startsWith('ANNUAL-')
-  ) {
-    const isTrial =
-      trimmed === 'GRID-PRO-TRIAL-2026' ||
-      trimmed === 'GRID-PRO-DEMO' ||
-      trimmed === 'PRO-DEMO' ||
-      trimmed === 'DEMO-PRO' ||
-      trimmed === 'DEMO-PRO-2026' ||
-      trimmed === 'GRID-PRO-DEMO-2026' ||
-      trimmed.includes('TRIAL') ||
-      trimmed.includes('DEMO');
-
-    const isAnnual =
-      trimmed.includes('ANNUAL') ||
-      trimmed.includes('1YR') ||
-      trimmed.includes('YEAR') ||
-      trimmed.startsWith('ANNUAL-');
-
-    const isLifetime =
-      trimmed.includes('LIFETIME') ||
-      trimmed.includes('PERPETUAL') ||
-      trimmed.includes('UNLIMITED') ||
-      (!isTrial && !isAnnual);
-
-    let expiresAt: string | undefined = undefined;
-    let licenseType: 'trial' | 'annual' | 'lifetime' = 'lifetime';
-
-    if (isTrial) {
-      licenseType = 'trial';
-      // Check if trial has already been used on this device
-      const trialHistory = getTrialHistory();
-      if (trialHistory.used) {
-        const usedDateStr = trialHistory.activatedAt ? new Date(trialHistory.activatedAt).toLocaleDateString() : '';
-        return {
-          success: false,
-          message: `이미 Pro 30일 무료 체험판을 이용하셨습니다. (${usedDateStr ? `${usedDateStr} 활성화됨` : '체험 이력 확인됨'}). 정품 사용을 원하시면 라이선스 키를 구매해 주세요.`,
-        };
-      }
-
-      const exp = new Date();
-      exp.setDate(exp.getDate() + 30); // 30-day trial license
-      expiresAt = exp.toISOString();
-      recordTrialUsage(expiresAt);
-    } else if (isAnnual) {
-      licenseType = 'annual';
-      const exp = new Date();
-      exp.setDate(exp.getDate() + 365); // 1-year annual subscription license
-      expiresAt = exp.toISOString();
-    } else {
-      licenseType = 'lifetime';
-      expiresAt = undefined; // Perpetual
-    }
-
-    const proLicense: LicenseInfo = {
-      tier: 'pro',
-      licenseType,
-      licensedTo: isTrial 
-        ? 'Registered Pro Trial User (30-Day Demo)' 
-        : isAnnual 
-        ? 'Registered Pro Subscriber (1-Year Pass)' 
-        : 'Registered Pro Lifetime Licensee',
-      licenseKey: trimmed,
-      issuedAt: new Date().toISOString(),
-      expiresAt,
-      maxSubnets: 5,
-      features: PRO_FEATURES,
-    };
-    saveLicense(proLicense);
-    return {
-      success: true,
-      message: isTrial 
-        ? 'Grid IP Scanner2 Pro 에디션(30일 체험 사용권)이 성공적으로 활성화되었습니다!'
-        : isAnnual 
-        ? 'Grid IP Scanner2 Pro 에디션(1년 정기 구독 이용권)이 성공적으로 활성화되었습니다! (365일간 최신 기능 무상 제공)'
-        : 'Grid IP Scanner2 Pro 에디션(영구 소장 정품 라이선스)이 성공적으로 활성화되었습니다! (만료일 없는 평생 소장)',
-      license: proLicense,
-    };
-  }
-
-  // Try parsing Ed25519 Signed Token or Base64 Encrypted Token
-  // Format 1: "PAYLOAD_BASE64.SIGNATURE_BASE64" or "GSCAN.<PAYLOAD_B64>.<SIG_B64>"
-  // Format 2: BASE64(JSON_PAYLOAD)
   try {
-    let payloadStr = '';
-    let signatureStr = '';
+    const res = await fetch(resolveUrl('/api/license/activate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: trimmed }),
+    });
+    const data = await res.json();
+    const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
+    saveLicense(normalized);
 
-    if (trimmed.includes('.')) {
-      const parts = trimmed.split('.');
-      if (parts.length === 2) {
-        payloadStr = parts[0];
-        signatureStr = parts[1];
-      } else if (parts.length === 3 && (parts[0] === 'GSCAN' || parts[0] === 'ED25519')) {
-        payloadStr = parts[1];
-        signatureStr = parts[2];
-      }
-    } else {
-      payloadStr = trimmed;
-    }
-
-    if (payloadStr) {
-      const decoded = atob(payloadStr);
-      let parsed = JSON.parse(decoded);
-
-      // Support wrapper: { data: {...}, sig: "..." }
-      if (parsed && parsed.data && typeof parsed.data === 'object') {
-        if (!signatureStr && parsed.sig) signatureStr = parsed.sig;
-        parsed = parsed.data;
-      }
-
-      if (parsed && (parsed.tier === 'pro' || parsed.tier === 'enterprise')) {
-        let expiresAt = parsed.expiresAt;
-        let licenseType: 'trial' | 'annual' | 'lifetime' = parsed.licenseType || 'lifetime';
-
-        if (licenseType === 'annual' && !expiresAt) {
-          const exp = new Date();
-          exp.setDate(exp.getDate() + 365);
-          expiresAt = exp.toISOString();
-        }
-
-        const verifiedLicense: LicenseInfo = {
-          tier: parsed.tier,
-          licenseType,
-          licensedTo: parsed.licensedTo || 'Verified Licensee',
-          licenseKey: trimmed,
-          issuedAt: parsed.issuedAt || new Date().toISOString(),
-          expiresAt,
-          maxSubnets: parsed.tier === 'enterprise' ? 999 : 5,
-          features: parsed.tier === 'enterprise' ? ENTERPRISE_FEATURES : PRO_FEATURES,
-        };
-        saveLicense(verifiedLicense);
-        return {
-          success: true,
-          message: signatureStr 
-            ? `Ed25519 디지털 서명 검증 완료: ${verifiedLicense.tier.toUpperCase()} ${licenseType === 'annual' ? '1년 정기 이용권' : '영구 정품 라이선스'}가 활성화되었습니다.`
-            : `인증 성공: ${verifiedLicense.tier.toUpperCase()} ${licenseType === 'annual' ? '1년 정기 이용권' : '영구 정품 라이선스'}가 활성화되었습니다.`,
-          license: verifiedLicense,
-        };
-      }
-    }
+    return {
+      success: Boolean(data?.success) && res.ok,
+      message: data?.message || (res.ok ? '라이선스가 활성화되었습니다.' : '라이선스 서명 또는 USB 바인딩 검증에 실패했습니다.'),
+      license: normalized,
+    };
   } catch (err) {
-    // Not a valid token payload, continue to failure
+    console.warn('Backend license activation request failed:', err);
+    return {
+      success: false,
+      message: '백엔드 보안 검증 엔진에 연결할 수 없습니다. 로컬 엔진 실행 상태를 확인해 주세요.',
+    };
   }
+};
 
-  return {
-    success: false,
-    message: '유효하지 않은 라이선스 키입니다. 공식 발급 키 또는 데모 키(GRID-PRO-TRIAL-2026 / DEMO-PRO)를 입력하세요.',
-  };
+export const refreshLicenseLeaseViaBackend = async (
+  resolveUrl: ApiUrlResolver
+): Promise<ActivationResult> => {
+  try {
+    const res = await fetch(resolveUrl('/api/license/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
+    saveLicense(normalized);
+    return {
+      success: Boolean(data?.success),
+      message: data?.message || '라이선스 상태 갱신 완료',
+      license: normalized,
+    };
+  } catch (err) {
+    console.warn('Backend lease refresh failed:', err);
+    return {
+      success: false,
+      message: '온라인 좌석 갱신 중 통신 오류가 발생했습니다.',
+    };
+  }
+};
+
+export const deactivateLicenseViaBackend = async (
+  resolveUrl: ApiUrlResolver
+): Promise<ActivationResult> => {
+  clearLicense();
+  try {
+    const res = await fetch(resolveUrl('/api/license/deactivate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
+    saveLicense(normalized);
+    return {
+      success: Boolean(data?.success ?? true),
+      message: data?.message || 'USB/단말기 라이선스 바인딩이 해제되었습니다.',
+      license: normalized,
+    };
+  } catch (err) {
+    console.warn('Backend deactivate failed:', err);
+    return {
+      success: true,
+      message: '로컬 라이선스 캐시가 초기화되었습니다.',
+      license: buildFreeLicense(),
+    };
+  }
 };

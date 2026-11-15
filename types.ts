@@ -135,15 +135,66 @@ export interface LicenseFeatures {
 
 export type LicenseType = 'lifetime' | 'annual' | 'trial' | 'free';
 
+export type StorageMediaType = 'removable_usb' | 'fixed_disk' | 'network_share' | 'unknown';
+
+export type StorageBindingStatus =
+  | 'unlicensed'
+  | 'verified_usb'
+  | 'verified_fixed_pc'
+  | 'clone_mismatch'
+  | 'clock_tamper'
+  | 'lease_expired'
+  | 'duplicate_seat'
+  | 'signature_invalid'
+  | 'revoked';
+
+export interface DuplicateSeatConflict {
+  detected: boolean;
+  conflictHost?: string;
+  conflictIp?: string;
+  detectedAt?: string;
+  message?: string;
+}
+
+export interface StorageBindingSnapshot {
+  mediaType: StorageMediaType;
+  deviceLabel?: string;
+  busType?: string;
+  vendorId?: string;
+  productId?: string;
+  hasHardwareSerial: boolean;
+  fingerprintHash?: string;
+  fingerprintShort?: string;
+  strictOnlineCapHours?: number;
+}
+
 export interface LicenseInfo {
   tier: LicenseTier;
   licenseType?: LicenseType;
   licensedTo?: string;
   licenseKey?: string;
+  licenseId?: string;
   issuedAt?: string;
   expiresAt?: string;
   maxSubnets: number;
   features: LicenseFeatures;
+  bindingStatus?: StorageBindingStatus;
+  bindingReason?: string;
+  boundMediaType?: StorageMediaType;
+  boundDeviceLabel?: string;
+  bindingHashShort?: string;
+  hasHardwareSerial?: boolean;
+  leaseIssuedAt?: string;
+  leaseExpiresAt?: string;
+  offlineGraceDaysLeft?: number;
+  hybridMode?: 'online_verified' | 'offline_grace' | 'local_sealed' | 'unverified';
+  signatureVerified?: boolean;
+  duplicateConflict?: DuplicateSeatConflict;
+  backendAuthoritative?: boolean;
+  trialUsed?: boolean;
+  trialActivatedAt?: string;
+  lastError?: string;
+  binding?: StorageBindingSnapshot;
 }
 
 export interface PortAuditItem {
