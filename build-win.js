@@ -7,12 +7,11 @@ const crypto = require('crypto');
 
 console.log('🚀 Grid IP Scanner2 - Windows Build Process Started');
 
-// Helper to download a file with redirect support and TLS bypass for sandbox environments
+// Helper to download a file with redirect support
 function downloadFile(url, dest) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   return new Promise((resolve, reject) => {
     const request = (currentUrl) => {
-      https.get(currentUrl, { rejectUnauthorized: false }, (response) => {
+      https.get(currentUrl, (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           // Handle redirect
           request(response.headers.location);

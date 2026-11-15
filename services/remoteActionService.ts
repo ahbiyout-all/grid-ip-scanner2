@@ -1,5 +1,6 @@
 import { RemoteActionType, RemoteActionResult } from '../types';
 import { getApiUrl } from './apiConfig';
+import { copyTextToClipboard } from './clipboard';
 
 export const executeRemoteAction = async (ip: string, action: RemoteActionType, port?: number): Promise<RemoteActionResult> => {
   const cleanIp = ip.trim();
@@ -108,14 +109,13 @@ export const executeRemoteAction = async (ip: string, action: RemoteActionType, 
 
     case 'smb': {
       const smbPath = `\\\\${cleanIp}`;
-      // In Windows browser, try file protocol or clipboard copy
-      try {
-        navigator.clipboard?.writeText(smbPath);
-      } catch (_) {}
+      const copied = await copyTextToClipboard(smbPath);
       return {
         success: true,
         action,
-        message: `SMB 공유 폴더 경로 (${smbPath})가 클립보드에 복사되었습니다. 파일 탐색기 주소창에 붙여넣어 연결하세요.`,
+        message: copied
+          ? `SMB 공유 폴더 경로 (${smbPath})가 클립보드에 복사되었습니다. 파일 탐색기 주소창에 붙여넣어 연결하세요.`
+          : `SMB 공유 폴더 경로: ${smbPath} (파일 탐색기 주소창에 입력하세요).`,
         command: `explorer.exe ${smbPath}`
       };
     }

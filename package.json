@@ -26,7 +26,7 @@
     "git:sync": "bash sync-github.sh",
     "git:mobile": "scripts\\github-mobile-sync.bat",
     "deploy:git": "bash sync-github.sh",
-    "dist": "npm run build && npx electron-builder --win"
+    "dist": "npm run build && node scripts/build-distribution.js"
   },
   "build": {
     "appId": "com.gridipscanner2",

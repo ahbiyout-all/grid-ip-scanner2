@@ -24,6 +24,18 @@ import { IntruderLogModal } from './components/IntruderLogModal';
 import { recordIntrudersFromDetection, getIntruderLogs } from './services/intruderLogService';
 import { classifyDeviceHybrid, ClassificationEvidence, OUIBlockType } from './services/ouiClassifier';
 import { getApiUrl, safeTimeout } from './services/apiConfig';
+import { copyTextToClipboard } from './services/clipboard';
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const formatLocalDateFilename = (now: Date): string =>
+  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
 export interface DeviceClassificationContext {
   ip?: string;
@@ -1336,52 +1348,20 @@ const App: React.FC = () => {
 
   const handleCopyIpAddress = useCallback((ip: string) => {
     if (!ip) return;
-    const onCopiedSuccess = () => {
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-      setCopiedIp(ip);
-      copiedTimerRef.current = setTimeout(() => {
-        setCopiedIp(null);
-        copiedTimerRef.current = null;
-      }, 2500);
-      showToast(lang === 'ko' ? `📋 IP 주소 (${ip})가 클립보드에 복사되었습니다.` : `📋 IP Address (${ip}) copied to clipboard.`);
-    };
-
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(ip)
-        .then(onCopiedSuccess)
-        .catch(() => {
-          try {
-            const textarea = document.createElement('textarea');
-            textarea.value = ip;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            onCopiedSuccess();
-          } catch {
-            showToast(lang === 'ko' ? "클립보드 복사에 실패했습니다." : "Failed to copy to clipboard.");
-          }
-        });
-    } else {
-      try {
-        const textarea = document.createElement('textarea');
-        textarea.value = ip;
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        onCopiedSuccess();
-      } catch {
+    copyTextToClipboard(ip).then((ok) => {
+      if (ok) {
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        setCopiedIp(ip);
+        copiedTimerRef.current = setTimeout(() => {
+          setCopiedIp(null);
+          copiedTimerRef.current = null;
+        }, 2500);
+        showToast(lang === 'ko' ? `📋 IP 주소 (${ip})가 클립보드에 복사되었습니다.` : `📋 IP Address (${ip}) copied to clipboard.`);
+      } else {
         showToast(lang === 'ko' ? "클립보드 복사에 실패했습니다." : "Failed to copy to clipboard.");
       }
-    }
-  }, [lang]);
+    });
+  }, [lang, showToast]);
 
   // 내보내기 및 리포트 메뉴 항목 클릭 시 메뉴를 즉각 닫고 선택한 액션을 즉시 실행
   const handleExportItemClick = (action: () => void | Promise<void>) => {
@@ -1557,7 +1537,9 @@ const App: React.FC = () => {
     }
     const nextVal = !intruderWatchMode;
     setIntruderWatchMode(nextVal);
-    localStorage.setItem('grid_intruder_watch_mode', String(nextVal));
+    try {
+      localStorage.setItem('grid_intruder_watch_mode', String(nextVal));
+    } catch {}
     if (nextVal) {
       const updated = new Set(trustedDevices);
       Object.values(results).forEach(r => {
@@ -1568,8 +1550,10 @@ const App: React.FC = () => {
       });
       setTrustedDevices(updated);
       const arr = Array.from(updated);
-      localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
-      localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+      try {
+        localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+        localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+      } catch {}
 
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -1586,8 +1570,10 @@ const App: React.FC = () => {
     if (ip) updated.add(ip);
     setTrustedDevices(updated);
     const arr = Array.from(updated);
-    localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
-    localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    try {
+      localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+      localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    } catch {}
     showToast(lang === 'ko' ? `신뢰하는 정상 기기 목록에 등록되었습니다 (${ip || mac}).` : `Registered to trusted devices list (${ip || mac}).`);
   };
 
@@ -1603,15 +1589,19 @@ const App: React.FC = () => {
     });
     setTrustedDevices(updated);
     const arr = Array.from(updated);
-    localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
-    localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    try {
+      localStorage.setItem('grid_trusted_devices', JSON.stringify(arr));
+      localStorage.setItem('grid_known_devices', JSON.stringify(arr));
+    } catch {}
     showToast(lang === 'ko' ? `현재 탐색된 ${count}개 활성 장치가 모두 신뢰/정상 기기로 등록되었습니다.` : `All ${count} active devices have been marked as trusted.`);
   };
 
   const handleResetTrustedDevices = () => {
     setTrustedDevices(new Set());
-    localStorage.removeItem('grid_trusted_devices');
-    localStorage.removeItem('grid_known_devices');
+    try {
+      localStorage.removeItem('grid_trusted_devices');
+      localStorage.removeItem('grid_known_devices');
+    } catch {}
     showToast(lang === 'ko' ? "신뢰 기기 목록이 초기화되었습니다." : "Trusted devices list has been reset.");
   };
 
@@ -2455,7 +2445,7 @@ const App: React.FC = () => {
               try {
                 new Notification(lang === 'ko' ? 'Grid IP Scanner2 - 정기 스케줄 완료' : 'Grid IP Scanner2 - Scheduled Scan Finished', {
                   body,
-                  icon: './icon.png'
+                  icon: './logo.png'
                 });
               } catch (_) {}
             }
@@ -2646,7 +2636,7 @@ const App: React.FC = () => {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     
-    const dateStr = now.toISOString().split('T')[0];
+    const dateStr = formatLocalDateFilename(now);
     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     
     link.setAttribute("download", `Grid_Scan_${mode}_${dateStr}_${timeStr}.csv`);
@@ -2672,7 +2662,7 @@ const App: React.FC = () => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Grid Scan2 Report - ${dateStr}</title>
+  <title>Grid Scan2 Report - ${escapeHtml(dateStr)}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -2780,9 +2770,9 @@ const App: React.FC = () => {
         <p>Network Infrastructure Scan</p>
       </div>
       <div class="meta-group">
-        <div class="meta-item">${s.csv.exportDate}: <span class="meta-value">${dateStr}</span></div>
-        <div class="meta-item">${s.subnet}: <span class="meta-value">${config.subnet}.0/24</span></div>
-        <div class="meta-item">${s.csv.totalActive}: <span class="meta-value">${activeCount}</span></div>
+        <div class="meta-item">${escapeHtml(s.csv.exportDate)}: <span class="meta-value">${escapeHtml(dateStr)}</span></div>
+        <div class="meta-item">${escapeHtml(s.subnet)}: <span class="meta-value">${escapeHtml(config.subnet)}.0/24</span></div>
+        <div class="meta-item">${escapeHtml(s.csv.totalActive)}: <span class="meta-value">${activeCount}</span></div>
       </div>
     </header>
 
@@ -2792,40 +2782,40 @@ const App: React.FC = () => {
         const lastOctet = ip.split('.').pop();
         const device = r.device;
         return `
-          <div class="cell ${r.status}">
-            ${lastOctet}
+          <div class="cell ${escapeHtml(r.status)}">
+            ${escapeHtml(lastOctet)}
             ${r.status === 'active' && device ? `
               <div class="tooltip">
                 <div class="tooltip-title">
-                  <span>${ip}</span>
+                  <span>${escapeHtml(ip)}</span>
                   <span style="color: #10b981;">●</span>
                 </div>
                 <div class="tooltip-row">
-                  <span class="tooltip-label">${s.networkIdentity}</span>
-                  <span class="tooltip-value">${device.hostname || 'Unknown'}</span>
+                  <span class="tooltip-label">${escapeHtml(s.networkIdentity)}</span>
+                  <span class="tooltip-value">${escapeHtml(device.hostname || 'Unknown')}</span>
                 </div>
                 <div class="tooltip-row">
-                  <span class="tooltip-label">${s.macInfo}</span>
-                  <span class="tooltip-value" style="color: #fff;">${device.vendor || 'Unknown'}</span>
+                  <span class="tooltip-label">${escapeHtml(s.macInfo)}</span>
+                  <span class="tooltip-value" style="color: #fff;">${escapeHtml(device.vendor || 'Unknown')}</span>
                 </div>
                 <div class="tooltip-row">
                   <span class="tooltip-label">MAC</span>
-                  <span class="tooltip-value" style="color: #fff; font-family: monospace;">${device.mac || 'Unknown'}</span>
+                  <span class="tooltip-value" style="color: #fff; font-family: monospace;">${escapeHtml(device.mac || 'Unknown')}</span>
                 </div>
                 ${device.mdns ? `
                 <div class="tooltip-row">
                   <span class="tooltip-label">mDNS</span>
-                  <span class="tooltip-value" style="color: #0ea5e9;">${device.mdns}</span>
+                  <span class="tooltip-value" style="color: #0ea5e9;">${escapeHtml(device.mdns)}</span>
                 </div>` : ''}
                 ${device.upnp ? `
                 <div class="tooltip-row">
                   <span class="tooltip-label">UPnP</span>
-                  <span class="tooltip-value" style="color: #a855f7;">${device.upnp}</span>
+                  <span class="tooltip-value" style="color: #a855f7;">${escapeHtml(device.upnp)}</span>
                 </div>` : ''}
                 ${device.snmp ? `
                 <div class="tooltip-row">
                   <span class="tooltip-label">SNMP</span>
-                  <span class="tooltip-value" style="color: #f59e0b;">${device.snmp}</span>
+                  <span class="tooltip-value" style="color: #f59e0b;">${escapeHtml(device.snmp)}</span>
                 </div>` : ''}
               </div>
             ` : ''}
@@ -2835,8 +2825,8 @@ const App: React.FC = () => {
     </div>
 
     <div class="legend">
-      <div class="legend-item"><div class="box" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4);"></div> ${s.active}</div>
-      <div class="legend-item"><div class="box" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);"></div> ${s.all}</div>
+      <div class="legend-item"><div class="box" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4);"></div> ${escapeHtml(s.active)}</div>
+      <div class="legend-item"><div class="box" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);"></div> ${escapeHtml(s.all)}</div>
     </div>
 
     <div class="footer">
@@ -2852,7 +2842,7 @@ const App: React.FC = () => {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     
-    const dateFileName = now.toISOString().split('T')[0];
+    const dateFileName = formatLocalDateFilename(now);
     const timeFileName = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     
     link.setAttribute("download", `Grid_${dateFileName}_${timeFileName}.html`);
@@ -2920,7 +2910,7 @@ const App: React.FC = () => {
           </td>`;
 
         // Bottom Cell (Hostname / description)
-        const infoText = r?.device?.hostname || '';
+        const infoText = escapeHtml(r?.device?.hostname || '');
         infoRowHtml += `
           <td style="border: 1px solid #ccc; border-top: none; width: 90px; height: 45px; text-align: center; vertical-align: top; background-color: ${bgColor}; color: #555555; font-family: sans-serif; font-size: 13px; font-weight: normal; padding-top: 2px; word-break: break-all;">
             ${infoText}
@@ -2958,9 +2948,9 @@ const App: React.FC = () => {
 <body>
   <table>
     <tr><td colspan="16" class="title">GRID SCAN2 REPORT</td></tr>
-    <tr><td colspan="16" class="meta">${s.csv.exportDate}: ${dateStr}</td></tr>
-    <tr><td colspan="16" class="meta">${s.subnet}: ${config.subnet}.0/24</td></tr>
-    <tr><td colspan="16" class="meta">${s.csv.totalActive}: ${activeCount}</td></tr>
+    <tr><td colspan="16" class="meta">${escapeHtml(s.csv.exportDate)}: ${escapeHtml(dateStr)}</td></tr>
+    <tr><td colspan="16" class="meta">${escapeHtml(s.subnet)}: ${escapeHtml(config.subnet)}.0/24</td></tr>
+    <tr><td colspan="16" class="meta">${escapeHtml(s.csv.totalActive)}: ${activeCount}</td></tr>
     <tr><td colspan="16"></td></tr>
     ${rows.join('')}
   </table>
@@ -2973,7 +2963,7 @@ const App: React.FC = () => {
     const link = document.createElement("a");
     link.setAttribute("href", url);
     
-    const dateFileName = now.toISOString().split('T')[0];
+    const dateFileName = formatLocalDateFilename(now);
     const timeFileName = now.toTimeString().split(' ')[0].replace(/:/g, '-');
     
     link.setAttribute("download", `Excel_Grid_${dateFileName}_${timeFileName}.xls`);
@@ -3184,7 +3174,6 @@ const App: React.FC = () => {
         w-72 md:w-64 border-r ${t.sidebar} flex flex-col shrink-0 
         transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${!isSidebarOpen && 'md:w-64'}
       `}>
         <div className="p-3.5 pb-16 md:pb-3.5 flex flex-col h-full overflow-y-auto min-h-0">
           <div className="flex items-center justify-between mb-4">
@@ -3570,7 +3559,10 @@ const App: React.FC = () => {
                   type="number" 
                   min="0" max="255"
                   value={config.start}
-                  onChange={(e) => setConfig({...config, start: parseInt(e.target.value) || 0})}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setConfig({ ...config, start: Number.isNaN(n) ? 0 : Math.min(255, Math.max(0, n)) });
+                  }}
                   className={`w-full ${t.input} rounded-md px-2.5 py-2 text-[12px] mono font-bold focus:outline-none transition-all`}
                 />
               </div>
@@ -3580,7 +3572,10 @@ const App: React.FC = () => {
                   type="number" 
                   min="0" max="255"
                   value={config.end}
-                  onChange={(e) => setConfig({...config, end: parseInt(e.target.value) || 0})}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setConfig({ ...config, end: Number.isNaN(n) ? 0 : Math.min(255, Math.max(0, n)) });
+                  }}
                   className={`w-full ${t.input} rounded-md px-2.5 py-2 text-[12px] mono font-bold focus:outline-none transition-all`}
                 />
               </div>
@@ -4149,6 +4144,11 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
+                    if (!license.features.diffCompare) {
+                      showToast(lang === 'ko' ? "스냅샷 비교(Diff) 기능은 PRO 이상에서 제공됩니다." : "Snapshot Diff feature requires PRO edition or higher.");
+                      setShowLicenseModal(true);
+                      return;
+                    }
                     if (snapshots.length === 0 && Object.values(results).some(r => r.status === 'active')) {
                       handleSaveSnapshot();
                     }
@@ -6951,8 +6951,11 @@ const App: React.FC = () => {
                             {iface.ip && (
                               <button
                                 onClick={() => {
-                                  navigator.clipboard.writeText(iface.ip);
-                                  showToast(`${iface.ip} 복사되었습니다.`);
+                                  copyTextToClipboard(iface.ip).then((ok) => {
+                                    showToast(ok
+                                      ? (lang === 'ko' ? `${iface.ip} 복사되었습니다.` : `Copied ${iface.ip}`)
+                                      : (lang === 'ko' ? '클립보드 복사에 실패했습니다.' : 'Failed to copy to clipboard.'));
+                                  });
                                 }}
                                 className="p-1 hover:text-white opacity-60 hover:opacity-100"
                                 title="IP 복사"
@@ -6979,8 +6982,11 @@ const App: React.FC = () => {
                             {iface.mac && (
                               <button
                                 onClick={() => {
-                                  navigator.clipboard.writeText(iface.mac!);
-                                  showToast(`${iface.mac} 복사되었습니다.`);
+                                  copyTextToClipboard(iface.mac!).then((ok) => {
+                                    showToast(ok
+                                      ? (lang === 'ko' ? `${iface.mac} 복사되었습니다.` : `Copied ${iface.mac}`)
+                                      : (lang === 'ko' ? '클립보드 복사에 실패했습니다.' : 'Failed to copy to clipboard.'));
+                                  });
                                 }}
                                 className="p-1 hover:text-white opacity-60 hover:opacity-100"
                                 title="MAC 복사"
@@ -6999,8 +7005,11 @@ const App: React.FC = () => {
                               <span className="truncate">{iface.ipv6}</span>
                               <button
                                 onClick={() => {
-                                  navigator.clipboard.writeText(iface.ipv6!);
-                                  showToast(`${iface.ipv6} 복사되었습니다.`);
+                                  copyTextToClipboard(iface.ipv6!).then((ok) => {
+                                    showToast(ok
+                                      ? (lang === 'ko' ? `${iface.ipv6} 복사되었습니다.` : `Copied ${iface.ipv6}`)
+                                      : (lang === 'ko' ? '클립보드 복사에 실패했습니다.' : 'Failed to copy to clipboard.'));
+                                  });
                                 }}
                                 className="p-1 hover:text-white opacity-60 hover:opacity-100 shrink-0"
                                 title="IPv6 복사"

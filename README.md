@@ -67,12 +67,12 @@
 ## 🏗️ 시스템 아키텍처 (System Architecture)
 
 ```
-[ Electron / Browser Frontend ]  <--- HTTP / SSE (Port 3031) --->  [ Embedded Go Backend Engine ]
-         │                                                                      │
-  React 19 + Vite                                                  12 Native C/C++ DLL Bridges (Path-Pinned)
-  Tailwind CSS v4                                                  - grid_topology_guard.dll (v2.6.1 O(N) Hash & Proxy-ARP)
-  OUI Semantic + Proxy-ARP UI                                      - grid_probe_engine.dll / grid_port_iocp.dll (Async/IOCP)
-  jsPDF & html2canvas (A4 Engine)                                  - grid_vault_driver.dll / secure_vault.dll (PBKDF2+GCM)
+[ Browser / Capacitor WebView ] <--- HTTP / SSE (Dev :3000 -> Go :8081 / Standalone :3031) ---> [ Go Backend Engine ]
+         │                                                                                            │
+  React 19 + Vite                                                                         12 Native C/C++ DLL Bridges (Path-Pinned)
+  Tailwind CSS v4                                                                         - grid_topology_guard.dll (v2.6.1 O(N) Hash & Proxy-ARP)
+  OUI Semantic + Proxy-ARP UI                                                             - grid_probe_engine.dll / grid_port_iocp.dll (Async/IOCP)
+  jsPDF & html2canvas (A4 Engine)                                                         - grid_vault_driver.dll / secure_vault.dll (PBKDF2+GCM)
 ```
 
 ---
@@ -102,14 +102,18 @@ npm run build:apk
 ```
 
 ### GitHub 동기화 및 자동 릴리스 (Clean Source Push)
-```bash
-# [방법 1] Linux / macOS / Git Bash 원터치 동기화
-./sync-github.sh
-# 또는 npm run deploy:git
+> **참고**: `sync-github.sh` 및 `github-push.bat`는 `.gitignore`에 의해 원격 저장소에 포함되지 않는 **로컬 관리자 전용 스크립트**입니다. 저장소를 클론한 환경에서는 아래 표준 `git` 명령으로 배포 워크플로우(`.github/workflows/build-and-release.yml`)를 트리거할 수 있습니다.
 
-# [방법 2] Windows 환경 원클릭 푸시 (배치 파일 더블클릭)
-github-push.bat
-# 또는 npm run git:push
+```bash
+# [표준 Git 배포] 소스 푸시 및 릴리스 태그 발행 (CI 자동 빌드 트리거)
+git add .
+git commit -m "chore: release v2.5.0"
+git tag v2.5.0
+git push origin main --tags
+
+# [로컬 관리자 전용] 유지보수 스크립트가 있는 로컬 환경
+./sync-github.sh    # Linux / macOS / Git Bash (또는 npm run deploy:git)
+github-push.bat     # Windows (또는 npm run git:push)
 ```
 
 ---

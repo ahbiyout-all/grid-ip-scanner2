@@ -30,7 +30,7 @@
 Grid IP Scanner2 개발팀은 상용 소프트웨어 패키징 및 유료 판매 시 발생할 수 있는 잠재적 법적 분쟁을 원천 방지하기 위해, 하부 구조를 이루는 모든 프레임워크와 의존성에 대해 철저한 라이선스 검증을 완료하였습니다.
 
 ### 1) MIT License 기반 완전 허용형 기술 요소
-* **대상 라이브러리**: `React 18`, `TypeScript`, `Tailwind CSS`, `Lucide Icons`, `framer-motion`, `Go (Golang) Runtime`
+* **대상 라이브러리**: `React 19`, `TypeScript`, `Tailwind CSS`, `Lucide Icons`, `Vite`, `jsPDF`, `html2canvas`, `Go (Golang) Runtime`, `Express`
 * **법적 효력**:
   - 본 프로그램의 뼈대와 기동 환경을 구성하는 상기 핵심 기술들은 초허용형 라이선스인 **MIT License** 표준에 의거하여 배포됩니다.
   - MIT 라이선스는 배포 대상물이 상용 목적으로 개작, 서브라이선스 발행, 재배포 및 **"독점적 유료 판매"**되는 행위를 100% 명시적으로 완벽히 허용하고 있습니다.

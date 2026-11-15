@@ -161,7 +161,11 @@ export const saveLicense = (license: LicenseInfo): void => {
 };
 
 export const clearLicense = (): LicenseInfo => {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.warn('Failed to clear license from localStorage:', e);
+  }
   return {
     tier: 'free',
     licensedTo: 'Community User',

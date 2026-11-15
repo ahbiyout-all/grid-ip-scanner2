@@ -5,7 +5,7 @@
  * Synchronizes semantic version (vX.Y.Z) across:
  * - package.json
  * - winres.json
- * - installer/Grid_IP_Scanner2_Setup.iss
+ * - installer/Grid_IP_Scanner2_Dedicated_Setup.iss
  * - App.tsx
  * - docs/PATCH_NOTE.md
  * - docs/WorkLog.md
@@ -29,7 +29,7 @@ if (!fs.existsSync(pkgPath)) {
 }
 
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-let currentVer = pkg.version || '2.3.2';
+let currentVer = pkg.version || '2.5.0';
 
 const args = process.argv.slice(2);
 let targetVer = currentVer;

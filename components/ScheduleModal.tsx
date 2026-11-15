@@ -149,16 +149,23 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     e.preventDefault();
     if (!subnet.trim()) return;
 
+    let normalizedStart = Math.max(0, Math.min(255, Number.isFinite(Number(start)) ? Math.trunc(Number(start)) : 1));
+    let normalizedEnd = Math.max(0, Math.min(255, Number.isFinite(Number(end)) ? Math.trunc(Number(end)) : 254));
+    if (normalizedStart > normalizedEnd) {
+      [normalizedStart, normalizedEnd] = [normalizedEnd, normalizedStart];
+    }
+    const normalizedMinutes = Math.max(1, Math.min(43200, Number.isFinite(Number(customMinutes)) ? Math.trunc(Number(customMinutes)) : 60));
+
     saveSchedule({
       id: editingScheduleId || undefined,
-      name: name.trim() || `${subnet}.0/24 ${lang === 'ko' ? '자동 스케줄' : 'Schedule'}`,
+      name: name.trim() || `${subnet.trim()}.0/24 ${lang === 'ko' ? '자동 스케줄' : 'Schedule'}`,
       subnet: subnet.trim(),
-      start: Number(start) || 1,
-      end: Number(end) || 254,
+      start: normalizedStart,
+      end: normalizedEnd,
       scanMode,
       deepScan,
       intervalType,
-      intervalMinutes: customMinutes,
+      intervalMinutes: normalizedMinutes,
       autoSaveSnapshot,
       snapshotPrefix: snapshotPrefix.trim() || '[Auto-Sched]',
       notifyOnCompletion,
@@ -542,10 +549,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      max={254}
+                      min={0}
+                      max={255}
                       value={start}
-                      onChange={(e) => setStart(parseInt(e.target.value) || 1)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setStart(Number.isNaN(val) ? 0 : Math.max(0, Math.min(255, val)));
+                      }}
                       className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-cyan-500 transition"
                     />
                   </div>
@@ -556,10 +566,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                     </label>
                     <input
                       type="number"
-                      min={1}
-                      max={254}
+                      min={0}
+                      max={255}
                       value={end}
-                      onChange={(e) => setEnd(parseInt(e.target.value) || 254)}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setEnd(Number.isNaN(val) ? 254 : Math.max(0, Math.min(255, val)));
+                      }}
                       className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-cyan-500 transition"
                     />
                   </div>
@@ -633,7 +646,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       className={`py-2 px-3 rounded-lg text-xs font-medium text-left border transition ${
                         intervalType === preset.type
                           ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-semibold'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-850'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800/70'
                       }`}
                     >
                       <div>{lang === 'ko' ? preset.labelKo : preset.labelEn}</div>
@@ -793,7 +806,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         <th className="py-2.5 px-3 text-right">{lang === 'ko' ? '상태' : 'Status'}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-850">
+                    <tbody className="divide-y divide-slate-800">
                       {history.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-900/50 transition">
                           <td className="py-2.5 px-3 font-mono text-slate-300 whitespace-nowrap">

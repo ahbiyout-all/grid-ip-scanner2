@@ -23,6 +23,7 @@ import {
 import { ScanSnapshot, ScanResult, DiffStatus, DiffItem } from '../types';
 import { computeSnapshotDiff, exportDiffToCSV, updateSnapshotLabel, deleteSnapshot } from '../services/diffEngine';
 import { getDeviceAlias } from '../services/deviceAliasManager';
+import { copyTextToClipboard } from '../services/clipboard';
 
 interface SnapshotDiffModalProps {
   isOpen: boolean;
@@ -191,7 +192,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   };
 
   // Copy Summary to Clipboard
-  const handleCopySummary = () => {
+  const handleCopySummary = async () => {
     const text = [
       isEn ? `=== Grid IP Scanner2 Snapshot Diff Summary ===` : `=== Grid IP Scanner2 스냅샷 비교 분석 요약 ===`,
       `${isEn ? '[Baseline A]' : '[기준점 A]'}: ${dataA.label} (${dataA.timestamp ? new Date(dataA.timestamp).toLocaleString() : 'Live'})`,
@@ -210,10 +211,14 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         .map((i) => `[${i.ip}] [${i.diffStatus.toUpperCase()}] ${i.changeDetails.join(' | ')}`),
     ].join('\n');
 
-    navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-    showToast(isEn ? 'Diff summary copied to clipboard.' : '비교 분석 요약이 클립보드에 복사되었습니다.');
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      showToast(isEn ? 'Diff summary copied to clipboard.' : '비교 분석 요약이 클립보드에 복사되었습니다.');
+    } else {
+      showToast(isEn ? 'Failed to copy summary to clipboard.' : '클립보드 복사에 실패했습니다.');
+    }
   };
 
   // Save live scan as snapshot

@@ -165,9 +165,9 @@ func resolveSMBName(ctx context.Context, ip string, timeoutMs int) string {
 
 	// SMB2 Header
 	copy(sessSetupReq[4:8], []byte{0xfe, 'S', 'M', 'B'})
-	sessSetupReq[8] = 0x40 // StructureSize
-	sessSetupReq[16] = 0x01 // Command 0x0001 (SESSION_SETUP)
-	sessSetupReq[18] = 0x1f // CreditsRequested
+	sessSetupReq[8] = 0x40                                // StructureSize
+	sessSetupReq[16] = 0x01                               // Command 0x0001 (SESSION_SETUP)
+	sessSetupReq[18] = 0x1f                               // CreditsRequested
 	binary.LittleEndian.PutUint64(sessSetupReq[28:36], 1) // MessageId 1
 	sessSetupReq[36] = 0xfe
 	sessSetupReq[37] = 0xff // ProcessId
@@ -485,23 +485,24 @@ func resolveUPnPExtended(ctx context.Context, ip string, timeoutMs int) UPnPProb
 	// If location URL is provided on local subnet, try fast XML description fetch (up to 8KB)
 	if locationURL != "" && strings.Contains(locationURL, ip) {
 		httpCli := &http.Client{Timeout: 350 * time.Millisecond}
-		req, _ := http.NewRequestWithContext(ctx, "GET", locationURL, nil)
-		if respXml, err := httpCli.Do(req); err == nil {
-			defer respXml.Body.Close()
-			body, _ := io.ReadAll(io.LimitReader(respXml.Body, 8192))
-			bodyStr := decodeNetworkBytes(body)
+		if req, reqErr := http.NewRequestWithContext(ctx, "GET", locationURL, nil); reqErr == nil {
+			if respXml, err := httpCli.Do(req); err == nil {
+				defer respXml.Body.Close()
+				body, _ := io.ReadAll(io.LimitReader(respXml.Body, 8192))
+				bodyStr := decodeNetworkBytes(body)
 
-			reMfr := regexp.MustCompile(`(?i)<manufacturer[^>]*>(.*?)</manufacturer>`)
-			if m := reMfr.FindStringSubmatch(bodyStr); len(m) > 1 {
-				details.Manufacturer = sanitizeDeviceName(m[1])
-			}
-			reModel := regexp.MustCompile(`(?i)<modelName[^>]*>(.*?)</modelName>`)
-			if m := reModel.FindStringSubmatch(bodyStr); len(m) > 1 {
-				details.ModelName = sanitizeDeviceName(m[1])
-			}
-			reFn := regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
-			if m := reFn.FindStringSubmatch(bodyStr); len(m) > 1 {
-				details.FriendlyName = sanitizeDeviceName(m[1])
+				reMfr := regexp.MustCompile(`(?i)<manufacturer[^>]*>(.*?)</manufacturer>`)
+				if m := reMfr.FindStringSubmatch(bodyStr); len(m) > 1 {
+					details.Manufacturer = sanitizeDeviceName(m[1])
+				}
+				reModel := regexp.MustCompile(`(?i)<modelName[^>]*>(.*?)</modelName>`)
+				if m := reModel.FindStringSubmatch(bodyStr); len(m) > 1 {
+					details.ModelName = sanitizeDeviceName(m[1])
+				}
+				reFn := regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
+				if m := reFn.FindStringSubmatch(bodyStr); len(m) > 1 {
+					details.FriendlyName = sanitizeDeviceName(m[1])
+				}
 			}
 		}
 	}

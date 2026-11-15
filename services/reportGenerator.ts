@@ -3,6 +3,29 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CURRENT_APP_VERSION } from './updateChecker';
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatLocalDate(now: Date): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatLocalTime(now: Date): string {
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
 export interface AuditReportExportResult {
   success: boolean;
   filename: string;
@@ -181,8 +204,8 @@ export async function exportSecurityAuditReportToPDF(
 ): Promise<AuditReportExportResult> {
   const { activeDevices, sortedVendors, highRiskDevices } = extractRiskAnalysis(results);
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const timeStr = now.toTimeString().split(' ')[0];
+  const dateStr = formatLocalDate(now);
+  const timeStr = formatLocalTime(now);
   const isKo = lang === 'ko';
   const filename = `GridIPScanner2_Security_Audit_${subnet.replace(/\./g, '_')}_${dateStr}.pdf`;
 
@@ -224,18 +247,18 @@ export async function exportSecurityAuditReportToPDF(
           ${isKo ? '네트워크 정밀 보안 진단 감사 보고서' : 'Network Security & Infrastructure Audit Report'}
         </h1>
         <p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">
-          ${isKo ? `로컬 서브넷 (${subnet}.0/24) 자산 식별 및 잠재적 보안 취약점 종합 진단서` : `Comprehensive Asset Discovery & Threat Vector Analysis for ${subnet}.0/24`}
+          ${isKo ? `로컬 서브넷 (${escapeHtml(subnet)}.0/24) 자산 식별 및 잠재적 보안 취약점 종합 진단서` : `Comprehensive Asset Discovery & Threat Vector Analysis for ${escapeHtml(subnet)}.0/24`}
         </p>
       </div>
       <div style="text-align: right;">
         <div style="display: inline-block; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 5px; text-transform: uppercase;">
-          ${license.tier.toUpperCase()} EDITION
+          ${escapeHtml(license.tier.toUpperCase())} EDITION
         </div>
         <div style="font-size: 9.5px; color: #64748b; margin-top: 4px; font-family: monospace;">
           ${dateStr} ${timeStr}
         </div>
         <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">
-          Lic: ${license.licensedTo || 'Authorized User'}
+          Lic: ${escapeHtml(license.licensedTo || 'Authorized User')}
         </div>
       </div>
     </div>
@@ -266,13 +289,13 @@ export async function exportSecurityAuditReportToPDF(
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px; text-align: center;">
             <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">${isKo ? '스캔 서브넷 대역' : 'Scanned Subnet'}</div>
-            <div style="font-size: 15px; font-weight: 900; color: #0284c7; margin-top: 3px; font-family: monospace;">${subnet}.0/24</div>
+            <div style="font-size: 15px; font-weight: 900; color: #0284c7; margin-top: 3px; font-family: monospace;">${escapeHtml(subnet)}.0/24</div>
             <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">Range: .${start} ~ .${end}</div>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px; text-align: center;">
             <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">${isKo ? '활성 단말 탐지' : 'Discovered Nodes'}</div>
-            <div style="font-size: 15px; font-weight: 900; color: #10b981; margin-top: 3px; font-family: monospace;">${activeDevices.length} <span style="font-size: 10px; color: #94a3b8;">/ ${end - start + 1}</span></div>
-            <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">Discovery: ${((activeDevices.length / (end - start + 1)) * 100).toFixed(1)}%</div>
+            <div style="font-size: 15px; font-weight: 900; color: #10b981; margin-top: 3px; font-family: monospace;">${activeDevices.length} <span style="font-size: 10px; color: #94a3b8;">/ ${Math.max(1, end - start + 1)}</span></div>
+            <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">Discovery: ${((activeDevices.length / Math.max(1, end - start + 1)) * 100).toFixed(1)}%</div>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 10px; text-align: center;">
             <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase;">${isKo ? '식별 제조사 (OUI)' : 'Identified Vendors'}</div>
@@ -301,11 +324,11 @@ export async function exportSecurityAuditReportToPDF(
               ${highRiskDevices.slice(0, 3).map((h) => `
                 <div style="background: #ffffff; border: 1px solid #ffe4e6; border-radius: 5px; padding: 6px 8px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 800; color: #be123c; font-family: monospace;">${h.ip} &bull; Port ${h.port} (${h.name})</span>
-                    <span style="font-size: 8px; font-weight: 800; color: #e11d48; background: #fff1f2; padding: 1px 5px; border-radius: 2px;">${h.severity}</span>
+                    <span style="font-weight: 800; color: #be123c; font-family: monospace;">${escapeHtml(h.ip)} &bull; Port ${h.port} (${escapeHtml(h.name)})</span>
+                    <span style="font-size: 8px; font-weight: 800; color: #e11d48; background: #fff1f2; padding: 1px 5px; border-radius: 2px;">${escapeHtml(h.severity)}</span>
                   </div>
-                  <div style="font-size: 9px; color: #475569; margin-top: 2px;"><b>${isKo ? '위협' : 'Threat'}:</b> ${h.threat}</div>
-                  <div style="font-size: 9px; color: #0284c7; margin-top: 1px;"><b>${isKo ? '조치' : 'Mitigation'}:</b> ${h.remediation}</div>
+                  <div style="font-size: 9px; color: #475569; margin-top: 2px;"><b>${isKo ? '위협' : 'Threat'}:</b> ${escapeHtml(h.threat)}</div>
+                  <div style="font-size: 9px; color: #0284c7; margin-top: 1px;"><b>${isKo ? '조치' : 'Mitigation'}:</b> ${escapeHtml(h.remediation)}</div>
                 </div>
               `).join('')}
               ${highRiskDevices.length > 3 ? `<div style="font-size: 8.5px; color: #be123c; text-align: right; font-weight: 700;">... 외 ${highRiskDevices.length - 3}건 추가 탐지</div>` : ''}
@@ -343,9 +366,9 @@ export async function exportSecurityAuditReportToPDF(
             <tbody>
               ${sortedVendors.slice(0, 5).map(([v, count], idx) => `
                 <tr style="background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                  <td style="padding: 4px 8px; font-weight: 700; color: #1e293b;">${v}</td>
+                  <td style="padding: 4px 8px; font-weight: 700; color: #1e293b;">${escapeHtml(v)}</td>
                   <td style="padding: 4px 8px; text-align: center; font-family: monospace; font-weight: 800; color: #0284c7;">${count}대</td>
-                  <td style="padding: 4px 8px; text-align: right; font-family: monospace; color: #64748b;">${((count / activeDevices.length) * 100).toFixed(1)}%</td>
+                  <td style="padding: 4px 8px; text-align: right; font-family: monospace; color: #64748b;">${activeDevices.length > 0 ? ((count / activeDevices.length) * 100).toFixed(1) : '0.0'}%</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -374,12 +397,12 @@ export async function exportSecurityAuditReportToPDF(
                 const hasHighRisk = dev?.openPorts?.some((p) => [21, 23, 445, 3389, 5900, 6379].includes(p));
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; line-height: 1.3;">${d.ip}</td>
-                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; line-height: 1.3;">${escapeHtml(d.ip)}</td>
+                    <td style="padding: 4px 8px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; line-height: 1.3;">${escapeHtml(dev?.mac || '-')}</td>
                     <td style="padding: 4px 8px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 24px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${escapeHtml(dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown'))}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.5px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${escapeHtml(dev.nameSource)}]</b> ` : ''}${escapeHtml(dev?.hostname || '')} ${dev?.webTitle ? `("${escapeHtml(dev.webTitle)}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 4px 8px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; line-height: 1.3;">${dev?.latency || 0}ms</td>
@@ -417,7 +440,7 @@ export async function exportSecurityAuditReportToPDF(
               </div>
             </div>
             <div style="text-align: right; font-size: 9px; color: #64748b; font-family: monospace;">
-              Subnet: ${subnet}.0/24 &bull; ${dateStr}
+              Subnet: ${escapeHtml(subnet)}.0/24 &bull; ${dateStr}
             </div>
           </div>
 
@@ -438,12 +461,12 @@ export async function exportSecurityAuditReportToPDF(
                 const hasHighRisk = dev?.openPorts?.some((p) => [21, 23, 445, 3389, 5900, 6379].includes(p));
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; font-size: 8px; line-height: 1.3;">${d.ip}</td>
-                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 800; color: #0284c7; font-size: 8px; line-height: 1.3;">${escapeHtml(d.ip)}</td>
+                    <td style="padding: 3.5px 7px; vertical-align: middle; font-family: monospace; font-weight: 700; color: #059669; font-size: 8px; line-height: 1.3;">${escapeHtml(dev?.mac || '-')}</td>
                     <td style="padding: 3.5px 7px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.2px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${escapeHtml(dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown'))}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7.2px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${escapeHtml(dev?.hostname || '')} ${dev?.webTitle ? `("${escapeHtml(dev.webTitle)}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 3.5px 7px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">${dev?.latency || 0}ms</td>
@@ -488,8 +511,8 @@ export async function exportDeviceListToPDF(
   } = options;
 
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const timeStr = now.toTimeString().split(' ')[0];
+  const dateStr = formatLocalDate(now);
+  const timeStr = formatLocalTime(now);
   const isKo = lang === 'ko';
 
   const safeScope = (searchQuery ? `Search_${searchQuery.replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}` : scopeLabel.replace(/[^a-zA-Z0-9가-힣_-]/g, '_'));
@@ -535,21 +558,21 @@ export async function exportDeviceListToPDF(
           <span style="font-size: 11px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 v${CURRENT_APP_VERSION}</span>
         </div>
         <h1 style="margin: 4px 0 2px 0; font-size: 19px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px;">
-          ${title}
+          ${escapeHtml(title)}
         </h1>
         <p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600;">
-          ${subtitle || (isKo ? `서브넷 ${subnet}.0/24 노드 상태 및 상세 인벤토리` : `Node inventory & status for ${subnet}.0/24`)}
+          ${escapeHtml(subtitle || (isKo ? `서브넷 ${subnet}.0/24 노드 상태 및 상세 인벤토리` : `Node inventory & status for ${subnet}.0/24`))}
         </p>
       </div>
       <div style="text-align: right;">
         <div style="display: inline-block; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 5px; text-transform: uppercase;">
-          ${license.tier.toUpperCase()} EDITION
+          ${escapeHtml(license.tier.toUpperCase())} EDITION
         </div>
         <div style="font-size: 9.5px; color: #64748b; margin-top: 4px; font-family: monospace;">
           ${dateStr} ${timeStr}
         </div>
         <div style="font-size: 8.5px; color: #94a3b8; margin-top: 1px;">
-          Lic: ${license.licensedTo || 'Authorized User'}
+          Lic: ${escapeHtml(license.licensedTo || 'Authorized User')}
         </div>
       </div>
     </div>
@@ -579,7 +602,7 @@ export async function exportDeviceListToPDF(
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px;">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; text-align: center;">
             <div style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">${isKo ? '대상 서브넷' : 'Target Subnet'}</div>
-            <div style="font-size: 13px; font-weight: 900; color: #0284c7; margin-top: 1px; font-family: monospace;">${subnet}.0/24</div>
+            <div style="font-size: 13px; font-weight: 900; color: #0284c7; margin-top: 1px; font-family: monospace;">${escapeHtml(subnet)}.0/24</div>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; text-align: center;">
             <div style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase;">${isKo ? '보고서 대상 노드' : 'Report Scope'}</div>
@@ -631,17 +654,17 @@ export async function exportDeviceListToPDF(
 
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${ip}</td>
+                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${escapeHtml(ip)}</td>
                     <td style="padding: 2.2px 6px; vertical-align: middle; text-align: center;">
                       <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; display: inline-block; line-height: 1.2; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
-                        ${(item?.status || 'idle').toUpperCase()}
+                        ${escapeHtml((item?.status || 'idle').toUpperCase())}
                       </span>
                     </td>
-                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 2.2px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${escapeHtml(dev?.mac || '-')}</td>
                     <td style="padding: 2.2px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-'))}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${escapeHtml(dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-')))}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${escapeHtml(dev.nameSource)}]</b> ` : ''}${escapeHtml(dev?.hostname || '')} ${dev?.webTitle ? `("${escapeHtml(dev.webTitle)}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 2.2px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
@@ -675,13 +698,13 @@ export async function exportDeviceListToPDF(
           <!-- Sub Page Header -->
           <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
-              <div style="font-size: 10px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 - ${scopeLabel.toUpperCase()} REPORT</div>
+              <div style="font-size: 10px; font-weight: 800; color: #0284c7; letter-spacing: 0.5px;">GRID IP SCANNER2 - ${escapeHtml(scopeLabel.toUpperCase())} REPORT</div>
               <div style="font-size: 15px; font-weight: 900; color: #0f172a; margin-top: 1px;">
-                ${title} (이어짐)
+                ${escapeHtml(title)} (이어짐)
               </div>
             </div>
             <div style="text-align: right; font-size: 9px; color: #64748b; font-family: monospace;">
-              Subnet: ${subnet}.0/24 &bull; ${dateStr}
+              Subnet: ${escapeHtml(subnet)}.0/24 &bull; ${dateStr}
             </div>
           </div>
 
@@ -706,17 +729,17 @@ export async function exportDeviceListToPDF(
 
                 return `
                   <tr style="background: ${hasHighRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${ip}</td>
+                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 800; color: ${isActive ? '#0284c7' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${escapeHtml(ip)}</td>
                     <td style="padding: 2.5px 6px; vertical-align: middle; text-align: center;">
                       <span style="font-size: 7.5px; font-weight: 800; padding: 0.5px 4px; border-radius: 2px; display: inline-block; line-height: 1.2; ${isActive ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #64748b;'}">
-                        ${(item?.status || 'idle').toUpperCase()}
+                        ${escapeHtml((item?.status || 'idle').toUpperCase())}
                       </span>
                     </td>
-                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${dev?.mac || '-'}</td>
+                    <td style="padding: 2.5px 6px; vertical-align: middle; font-family: monospace; font-weight: 700; color: ${dev?.mac ? '#059669' : '#94a3b8'}; font-size: 8px; line-height: 1.3;">${escapeHtml(dev?.mac || '-')}</td>
                     <td style="padding: 2.5px 6px; vertical-align: middle;">
                       <div style="display: flex; flex-direction: column; justify-content: center; min-height: 22px;">
-                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-'))}</div>
-                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${dev.nameSource}]</b> ` : ''}${dev?.hostname || ''} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>` : ''}
+                        <div style="font-weight: 800; color: #0f172a; font-size: 8px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${escapeHtml(dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || (isActive ? 'Unknown' : '-')))}</div>
+                        ${dev?.hostname || dev?.webTitle ? `<div style="font-size: 7px; color: #64748b; line-height: 1.25; margin-top: 1.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">${dev?.nameSource && dev.nameSource !== 'UNKNOWN' ? `<b style="color:#0284c7;">[${escapeHtml(dev.nameSource)}]</b> ` : ''}${escapeHtml(dev?.hostname || '')} ${dev?.webTitle ? `("${escapeHtml(dev.webTitle)}")` : ''}</div>` : ''}
                       </div>
                     </td>
                     <td style="padding: 2.5px 6px; vertical-align: middle; text-align: center; font-family: monospace; color: #64748b; font-size: 8px; line-height: 1.3;">
@@ -965,7 +988,7 @@ export const generateProfessionalAuditReport = (
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Grid IP Scanner2 - 네트워크 보안 진단 감사 보고서 (${subnet}.0/24)</title>
+  <title>Grid IP Scanner2 - 네트워크 보안 진단 감사 보고서 (${escapeHtml(subnet)}.0/24)</title>
   <style>
     @page {
       size: A4 portrait;
@@ -1177,19 +1200,19 @@ export const generateProfessionalAuditReport = (
       <p>Network Infrastructure & Security Topology Audit Report</p>
     </div>
     <div style="text-align: right;">
-      <span class="badge badge-pro">${license.tier.toUpperCase()} EDITION</span>
-      <div style="font-size: 9.5px; color: #64748b; margin-top: 4px;">발행: ${now.toLocaleString()}</div>
+      <span class="badge badge-pro">${escapeHtml(license.tier.toUpperCase())} EDITION</span>
+      <div style="font-size: 9.5px; color: #64748b; margin-top: 4px;">발행: ${escapeHtml(now.toLocaleString())}</div>
     </div>
   </div>
 
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-lbl">스캔 서브넷</div>
-      <div class="stat-val" style="font-size: 17px; color: #0284c7;">${subnet}.0/24</div>
+      <div class="stat-val" style="font-size: 17px; color: #0284c7;">${escapeHtml(subnet)}.0/24</div>
     </div>
     <div class="stat-card">
       <div class="stat-lbl">활성 노드 탐지</div>
-      <div class="stat-val" style="color: #10b981;">${activeDevices.length} <span style="font-size: 11px; color: #94a3b8;">/ ${end - start + 1}</span></div>
+      <div class="stat-val" style="color: #10b981;">${activeDevices.length} <span style="font-size: 11px; color: #94a3b8;">/ ${Math.max(1, end - start + 1)}</span></div>
     </div>
     <div class="stat-card">
       <div class="stat-lbl">식별된 제조사 수</div>
@@ -1206,7 +1229,7 @@ export const generateProfessionalAuditReport = (
       ? `<div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; padding: 12px; margin-bottom: 20px; page-break-inside: avoid;">
            <div style="font-weight: 800; font-size: 12px; color: #be123c; margin-bottom: 6px;">⚠️ 보안 주의 포트 개방 알림 (High-Risk Open Ports)</div>
            <div style="font-size: 10.5px; color: #9f1239; line-height: 1.6;">
-             ${highRiskDevices.map((h) => `• <b>${h.ip}</b> (포트 ${h.port} - ${h.name}): ${h.threat}`).join('<br>')}
+             ${highRiskDevices.map((h) => `• <b>${escapeHtml(h.ip)}</b> (포트 ${h.port} - ${escapeHtml(h.name)}): ${escapeHtml(h.threat)}`).join('<br>')}
            </div>
          </div>`
       : `<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; page-break-inside: avoid;">
@@ -1227,9 +1250,9 @@ export const generateProfessionalAuditReport = (
       ${sortedVendors
         .map(
           ([vendor, cnt]) => `<tr>
-            <td style="font-weight: 600;">${vendor}</td>
+            <td style="font-weight: 600;">${escapeHtml(vendor)}</td>
             <td style="text-align: right;" class="mono">${cnt}대</td>
-            <td style="text-align: right;" class="mono">${((cnt / activeDevices.length) * 100).toFixed(1)}%</td>
+            <td style="text-align: right;" class="mono">${activeDevices.length > 0 ? ((cnt / activeDevices.length) * 100).toFixed(1) : '0.0'}%</td>
           </tr>`
         )
         .join('')}
@@ -1252,12 +1275,12 @@ export const generateProfessionalAuditReport = (
         .map((d) => {
           const dev = d.device;
           return `<tr>
-            <td class="mono" style="color: #0284c7;">${d.ip}</td>
-            <td class="mono" style="color: #059669;">${dev?.mac || 'N/A'}</td>
+            <td class="mono" style="color: #0284c7;">${escapeHtml(d.ip)}</td>
+            <td class="mono" style="color: #059669;">${escapeHtml(dev?.mac || 'N/A')}</td>
             <td>
               <div style="display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-weight: 700; line-height: 1.3;">${dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown')}</div>
-                <div style="font-size: 9.5px; color: #64748b; line-height: 1.25; margin-top: 2px;">${dev?.hostname || '-'} ${dev?.webTitle ? `("${dev.webTitle}")` : ''}</div>
+                <div style="font-weight: 700; line-height: 1.3;">${escapeHtml(dev?.realVendor && dev.realVendor !== dev.vendor ? `${dev.realVendor} (${dev.vendor})` : (dev?.vendor || 'Unknown'))}</div>
+                <div style="font-size: 9.5px; color: #64748b; line-height: 1.25; margin-top: 2px;">${escapeHtml(dev?.hostname || '-')} ${dev?.webTitle ? `("${escapeHtml(dev.webTitle)}")` : ''}</div>
               </div>
             </td>
             <td class="mono" style="text-align: center;">${dev?.latency || 0} ms</td>
@@ -1286,7 +1309,7 @@ export const generateProfessionalAuditReport = (
       <div>개발자: AhBiYout | GitHub: <a href="https://github.com/AhBiYout-all" class="info-link" target="_blank">https://github.com/AhBiYout-all</a> | 기술 블로그: <a href="https://ahbiyoutvibe.blogspot.com/" class="info-link" target="_blank">ahbiyoutvibe.blogspot.com</a></div>
     </div>
     <div style="text-align: right;">
-      <div>Licensee: <b>${license.licensedTo || 'Pro Customer'}</b></div>
+      <div>Licensee: <b>${escapeHtml(license.licensedTo || 'Pro Customer')}</b></div>
       <div>Security: <b>CONFIDENTIAL &bull; A4 FORMATTED</b></div>
     </div>
   </div>
@@ -1297,7 +1320,7 @@ export const generateProfessionalAuditReport = (
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `GridIPScanner_Audit_Report_${subnet}_${now.toISOString().split('T')[0]}.html`;
+  link.download = `GridIPScanner_Audit_Report_${subnet.replace(/\./g, '_')}_${formatLocalDate(now)}.html`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

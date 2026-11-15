@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -69,15 +68,15 @@ type InterfaceInfo struct {
 }
 
 type LocalInfo struct {
-	IP                 string          `json:"ip"`
-	Subnet             string          `json:"subnet"`
-	Interfaces         []InterfaceInfo `json:"interfaces"`
-	IsAdmin            bool            `json:"isAdmin"`
-	OUICount           int             `json:"ouiCount"`
-	OUISource          string          `json:"ouiSource"`
-	OUICachePath       string          `json:"ouiCachePath"`
-	OUIDatabaseLocation string         `json:"ouiDatabaseLocation"`
-	ComputerName       string          `json:"computerName"`
+	IP                  string          `json:"ip"`
+	Subnet              string          `json:"subnet"`
+	Interfaces          []InterfaceInfo `json:"interfaces"`
+	IsAdmin             bool            `json:"isAdmin"`
+	OUICount            int             `json:"ouiCount"`
+	OUISource           string          `json:"ouiSource"`
+	OUICachePath        string          `json:"ouiCachePath"`
+	OUIDatabaseLocation string          `json:"ouiDatabaseLocation"`
+	ComputerName        string          `json:"computerName"`
 }
 
 type OUILookupDetail struct {
@@ -242,13 +241,13 @@ func parseOUIData(data string, m map[string]string) {
 	data = strings.ReplaceAll(data, "\r\n", "\n")
 	data = strings.ReplaceAll(data, "\r", "\n")
 	lines := strings.Split(data, "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		
+
 		// 1. Try IEEE standard format: "00-22-72   (hex)		American Micro-Fuel Device Corp."
 		if strings.Contains(line, "(hex)") {
 			parts := strings.SplitN(line, "(hex)", 2)
@@ -272,7 +271,7 @@ func parseOUIData(data string, m map[string]string) {
 				vendor = strings.TrimSpace(parts[1])
 			}
 			vendor = strings.Trim(vendor, "\"")
-			
+
 			maskLen := 0
 			if strings.Contains(rawPrefix, "/") {
 				subParts := strings.SplitN(rawPrefix, "/", 2)
@@ -283,9 +282,9 @@ func parseOUIData(data string, m map[string]string) {
 					}
 				}
 			}
-			
+
 			cleanPrefix := strings.ReplaceAll(strings.ReplaceAll(rawPrefix, "-", ""), ":", "")
-			
+
 			validHex := true
 			for _, c := range cleanPrefix {
 				if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F')) {
@@ -293,7 +292,7 @@ func parseOUIData(data string, m map[string]string) {
 					break
 				}
 			}
-			
+
 			if validHex && vendor != "" {
 				if maskLen > 0 && len(cleanPrefix) >= maskLen {
 					m[cleanPrefix[:maskLen]] = vendor
@@ -322,10 +321,10 @@ func parseOUIData(data string, m map[string]string) {
 
 func initOUIProvider() {
 	m := make(map[string]string)
-	
+
 	data := ouiData
 	cachePath := getOUICachePath()
-	
+
 	var newSource string
 	if cachedData, err := os.ReadFile(cachePath); err == nil && len(cachedData) > 0 {
 		data = string(cachedData)
@@ -341,25 +340,25 @@ func initOUIProvider() {
 	} else {
 		fmt.Println("DEBUG: data is empty!")
 	}
-	
+
 	// If we loaded from cache but got very few records (e.g., invalid file/HTML error page), fallback to embedded
 	if len(m) < 1000 && newSource != "Master OUI Database (master_oui.txt)" {
 		fmt.Printf("Warning: Local cache yielded only %d records. Falling back to embedded master data.\n", len(m))
 		data = ouiData
 		newSource = "Master OUI Database (master_oui.txt)"
-		
+
 		// Clear the invalid map
 		m = make(map[string]string)
 		if data != "" {
 			parseOUIData(data, m)
 		}
 	}
-	
+
 	ouiMutex.Lock()
 	currentOUIProvider = &MapOUIProvider{data: m}
 	currentOUISource = newSource
 	ouiMutex.Unlock()
-	
+
 	fmt.Printf("Initialized OUI Provider with %d entries\n", len(m))
 }
 
@@ -651,7 +650,7 @@ func getWebTitle(ctx context.Context, ip string) string {
 	client := http.Client{
 		Timeout: 1200 * time.Millisecond,
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+ip, nil)
 	if err != nil {
 		return ""
@@ -718,7 +717,7 @@ func getHostname(ctx context.Context, ip string) string {
 }
 
 func getAllInterfaces() []InterfaceInfo {
-	var results []InterfaceInfo
+	results := make([]InterfaceInfo, 0)
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return results
@@ -910,7 +909,7 @@ func getLocalIP() (string, string) {
 				strings.Contains(lowerName, "wl") || strings.Contains(lowerName, "eth") ||
 				strings.Contains(lowerName, "en") || strings.Contains(lowerName, "lan") ||
 				strings.Contains(lowerName, "무선") || strings.Contains(lowerName, "이더넷")
-			
+
 			if isWifiOrEth {
 				addrs, err := iface.Addrs()
 				if err != nil {
@@ -995,7 +994,7 @@ func isAlivePingWithTimeout(ctx context.Context, ip string, timeoutMs int) bool 
 
 	var cmd *exec.Cmd
 	timeoutStr := fmt.Sprintf("%d", timeoutMs)
-	
+
 	// Create a context with timeout to ensure ping doesn't hang indefinitely
 	pingCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs+500)*time.Millisecond)
 	defer cancel()
@@ -1011,16 +1010,16 @@ func isAlivePingWithTimeout(ctx context.Context, ip string, timeoutMs int) bool 
 		timeoutSec := fmt.Sprintf("%d", (timeoutMs+999)/1000)
 		cmd = exec.CommandContext(pingCtx, "ping", "-c", "1", "-W", timeoutSec, ip)
 	}
-	
+
 	out, _ := cmd.Output()
-	
+
 	// Fast check for TTL in output which confirms a real Echo Reply (bypasses "Destination net unreachable" bug in Ping exit codes)
 	outStr := strings.ToLower(string(out))
 	if strings.Contains(outStr, "ttl=") {
 		return true
 	}
-	
-	// Strictly no fallback to exit code 0 if TTL is missing, 
+
+	// Strictly no fallback to exit code 0 if TTL is missing,
 	// as Windows Ping often returns 0 even for unreachable or timed-out hosts in some environments.
 	return false
 }
@@ -1065,7 +1064,7 @@ func scanIPQuickWithHints(ctx context.Context, ip string, timeoutMs int, hint *N
 			mac = getMacFromArp(ctx, ip)
 		}
 		localIP, _ := getLocalIP()
-		
+
 		// Run Multi-protocol parallel device name resolution
 		nameRes := ResolveDeviceNamesParallel(ctx, ip, []int{445, 137, 80}, timeoutMs)
 		hostname := nameRes.BestName
@@ -1073,7 +1072,7 @@ func scanIPQuickWithHints(ctx context.Context, ip string, timeoutMs int, hint *N
 		hostnameSources := nameRes.HostnameSources
 
 		// SUSPICIOUS NODE FILTER:
-		// If it has NO MAC AND NO Hostname, and it's not the scanning machine, 
+		// If it has NO MAC AND NO Hostname, and it's not the scanning machine,
 		// it's almost certainly a ghost response or a non-LAN node responding via gateway proxy.
 		if mac == "" && hostname == "" && ip != localIP {
 			return ScanResult{IP: ip, Alive: false}
@@ -1083,12 +1082,12 @@ func scanIPQuickWithHints(ctx context.Context, ip string, timeoutMs int, hint *N
 		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
 		vendor := ouiDetail.Vendor
-		
+
 		mdnsName := hostnameSources[NameSourceMDNS]
 		upnpName := hostnameSources[NameSourceUPnP]
 		snmpName := hostnameSources[NameSourceSNMP]
 		webTitle := hostnameSources[NameSourceWeb]
-		
+
 		chipsetVendor := vendor
 		realVendor := nameRes.RealVendor
 		deviceModel := nameRes.DeviceModel
@@ -1155,9 +1154,9 @@ func scanIPWithTimeout(ctx context.Context, ip string, timeoutMs int) ScanResult
 
 func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *NativeProbeBatchHint, preOpenPorts []int, hasPrePorts bool) ScanResult {
 	start := time.Now()
-	
+
 	var openPorts []int
-	
+
 	aliveViaPing := false
 	aliveViaNetBIOS := false
 	aliveViaPort := false
@@ -1189,7 +1188,10 @@ func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *Native
 	} else {
 		aliveViaPort, openPorts = GlobalEngine.FastTCPVerify(ctx, ip, timeoutMs, targetPorts)
 	}
-	
+	if openPorts == nil {
+		openPorts = []int{}
+	}
+
 	// Check if context was cancelled
 	select {
 	case <-ctx.Done():
@@ -1198,7 +1200,7 @@ func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *Native
 	}
 
 	alive := aliveViaPing || aliveViaNetBIOS || aliveViaPort
-	
+
 	if alive {
 		mac := ""
 		if hint != nil && hint.MAC != "" {
@@ -1207,12 +1209,12 @@ func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *Native
 			mac = getMacFromArp(ctx, ip)
 		}
 		localIP, _ := getLocalIP()
-		
+
 		ouiMutex.RLock()
 		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
 		vendor := ouiDetail.Vendor
-		
+
 		// Run Multi-protocol parallel device name resolution (SMB, NetBIOS, mDNS, WSD, UPnP, SNMP, DNS, Web)
 		nameRes := ResolveDeviceNamesParallel(ctx, ip, openPorts, timeoutMs)
 		hostname := nameRes.BestName
@@ -1272,8 +1274,8 @@ func scanIPWithHints(ctx context.Context, ip string, timeoutMs int, hint *Native
 		snmpName := hostnameSources[NameSourceSNMP]
 
 		// SUSPICIOUS NODE FILTER:
-		// If it's not the local machine, and we have NO MAC address, NO Hostname, NO Web Title, 
-		// NO mDNS, NO UPnP, and NO SNMP... it's a "Zero Data Node". 
+		// If it's not the local machine, and we have NO MAC address, NO Hostname, NO Web Title,
+		// NO mDNS, NO UPnP, and NO SNMP... it's a "Zero Data Node".
 		if ip != localIP && mac == "" && hostname == "" && webTitle == "" && mdnsName == "" && upnpName == "" && snmpName == "" {
 			if len(openPorts) > 5 || len(openPorts) == 0 {
 				return ScanResult{IP: ip, Alive: false}
@@ -1344,7 +1346,7 @@ func getWebTitleWithTimeout(ctx context.Context, ip string, timeoutMs int) strin
 	client := http.Client{
 		Timeout: time.Duration(timeoutMs+400) * time.Millisecond,
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+ip, nil)
 	if err != nil {
 		return ""
@@ -1406,7 +1408,7 @@ func checkNetBIOSWithTimeout(ctx context.Context, ip string, timeoutMs int) bool
 	buffer := make([]byte, 512)
 	conn.SetReadDeadline(time.Now().Add(time.Duration(timeoutMs/2) * time.Millisecond))
 	n, err := conn.Read(buffer)
-	
+
 	return err == nil && n > 0
 }
 
@@ -1549,14 +1551,14 @@ func scanIPQuick(ctx context.Context, ip string, wg *sync.WaitGroup, results cha
 
 	if alive {
 		mac := getMacFromArp(ctx, ip)
-		
+
 		ouiMutex.RLock()
 		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
 		vendor := ouiDetail.Vendor
-		
+
 		hostname := getHostname(ctx, ip)
-		
+
 		results <- ScanResult{
 			IP:              ip,
 			Alive:           true,
@@ -1577,9 +1579,9 @@ func scanIPQuick(ctx context.Context, ip string, wg *sync.WaitGroup, results cha
 func scanIP(ctx context.Context, ip string, wg *sync.WaitGroup, results chan<- ScanResult) {
 	defer wg.Done()
 	start := time.Now()
-	
+
 	targetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
-	var openPorts []int
+	openPorts := make([]int, 0)
 	var portMu sync.Mutex
 	var portWg sync.WaitGroup
 	alive := false
@@ -1627,15 +1629,15 @@ func scanIP(ctx context.Context, ip string, wg *sync.WaitGroup, results chan<- S
 
 	if alive {
 		mac := getMacFromArp(ctx, ip)
-		
+
 		ouiMutex.RLock()
 		ouiDetail := currentOUIProvider.LookupDetailed(mac)
 		ouiMutex.RUnlock()
 		vendor := ouiDetail.Vendor
-		
+
 		hostname := getHostname(ctx, ip)
 		webTitle := ""
-		
+
 		hasWebPort := false
 		portMu.Lock()
 		for _, p := range openPorts {
@@ -1697,7 +1699,7 @@ func checkNetBIOS(ctx context.Context, ip string) bool {
 	buffer := make([]byte, 512)
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	n, err := conn.Read(buffer)
-	
+
 	return err == nil && n > 0
 }
 
@@ -1754,7 +1756,7 @@ func ensureFirewallRulesSilently() {
 func main() {
 	initOUIProvider()
 	ensureFirewallRulesSilently()
-	
+
 	// Heartbeat endpoint
 	http.HandleFunc("/api/heartbeat", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -1896,11 +1898,11 @@ func main() {
 			http.Error(w, "Failed to read body", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Save to cache
 		cachePath := getOUICachePath()
 		os.WriteFile(cachePath, body, 0644)
-		
+
 		initOUIProvider()
 		w.WriteHeader(http.StatusOK)
 	})
@@ -2364,14 +2366,32 @@ func main() {
 			return
 		}
 
-		aliasFilePath := "aliases.json"
+		portableAliasPath := ""
 		if exe, err := os.Executable(); err == nil {
-			aliasFilePath = filepath.Join(filepath.Dir(exe), "aliases.json")
+			exeDir := filepath.Dir(exe)
+			if !strings.HasPrefix(exeDir, os.TempDir()) {
+				portableAliasPath = filepath.Join(exeDir, "aliases.json")
+			}
+		}
+
+		fallbackAliasPath := "aliases.json"
+		if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+			fallbackAliasPath = filepath.Join(homeDir, ".grid_ip_scanner", "aliases.json")
 		}
 
 		if r.Method == http.MethodGet {
-			data, err := os.ReadFile(aliasFilePath)
-			if err != nil || len(data) == 0 {
+			var data []byte
+			if portableAliasPath != "" {
+				if b, err := os.ReadFile(portableAliasPath); err == nil && len(b) > 0 {
+					data = b
+				}
+			}
+			if len(data) == 0 {
+				if b, err := os.ReadFile(fallbackAliasPath); err == nil && len(b) > 0 {
+					data = b
+				}
+			}
+			if len(data) == 0 {
 				w.Write([]byte("{}"))
 				return
 			}
@@ -2390,17 +2410,41 @@ func main() {
 				http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
-			_ = os.WriteFile(aliasFilePath, body, 0644)
+			saved := false
+			if portableAliasPath != "" {
+				if err := os.WriteFile(portableAliasPath, body, 0644); err == nil {
+					saved = true
+				}
+			}
+			if fallbackAliasPath != "" {
+				_ = os.MkdirAll(filepath.Dir(fallbackAliasPath), 0755)
+				if err := os.WriteFile(fallbackAliasPath, body, 0644); err == nil {
+					saved = true
+				}
+			}
+			if !saved {
+				http.Error(w, `{"error":"Failed to persist aliases"}`, http.StatusInternalServerError)
+				return
+			}
 			w.Write([]byte(`{"success":true}`))
 			return
 		}
+
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 	})
 
 	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		ip, subnet := getLocalIP()
 		interfaces := getAllInterfaces()
-		
+
 		ouiMutex.RLock()
 		ouiCount := 0
 		if currentOUIProvider != nil {
@@ -2632,7 +2676,7 @@ func main() {
 					case sseChan <- fmt.Sprintf("{\"type\":\"scanning\",\"ip\":\"%s\"}", ip):
 					case <-ctx.Done():
 					}
-					
+
 					var pHintPtr *NativeProbeBatchHint
 					if probeHints != nil {
 						if h, ok := probeHints[ip]; ok {
@@ -2677,7 +2721,7 @@ func main() {
 							}
 						}
 					}
-					
+
 					select {
 					case resultsChan <- res:
 					case <-ctx.Done():
@@ -2738,7 +2782,7 @@ func main() {
 				return
 			}
 			data, _ := json.Marshal(res)
-			
+
 			// Try to send result, but don't block forever if context is done
 			select {
 			case sseChan <- fmt.Sprintf("{\"type\":\"result\",\"data\":%s}", string(data)):
@@ -2759,7 +2803,7 @@ func main() {
 		}
 
 		targetPorts := []int{21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 9100, 27017}
-		
+
 		type PortAuditResult struct {
 			Port        int    `json:"port"`
 			Service     string `json:"service"`
@@ -2801,7 +2845,7 @@ func main() {
 			27017: {"MongoDB", "medium", "MongoDB NoSQL 데이터베이스"},
 		}
 
-		var openList []PortAuditResult
+		openList := make([]PortAuditResult, 0)
 		start := time.Now()
 
 		// 1. Try Native IOCP High-Concurrency Port Scanner
@@ -3363,11 +3407,11 @@ func main() {
 				http.Error(w, "Failed to get executable path: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			
+
 			exeName := filepath.Base(exePath)
 			procName := strings.TrimSuffix(exeName, filepath.Ext(exeName))
 
-			// Send success status first and flush, so client receives the OK response 
+			// Send success status first and flush, so client receives the OK response
 			// before the backend gets terminated.
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"status":"success"}`))
@@ -3384,7 +3428,7 @@ func main() {
 			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", procName, os.Getpid(), exePath)
 			cmd := exec.Command("powershell", "-Command", cmdStr)
 			hideWindow(cmd)
-			
+
 			err = cmd.Start()
 			if err != nil {
 				fmt.Printf("Failed to elevate and restart process: %v\n", err)
@@ -3410,7 +3454,7 @@ func main() {
 	}
 
 	isPreview := os.Getenv("GRIDSCAN_MODE") == "preview"
-	
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -3418,18 +3462,18 @@ func main() {
 			port = "8080"
 		}
 	}
-	
+
 	listenAddr := "127.0.0.1:" + port
 	if isPreview {
 		listenAddr = "0.0.0.0:" + port
 	}
-	
+
 	if !isPreview {
 		// Initialize Windows Taskbar Native System Tray Icon (Shell_NotifyIconW)
 		initNativeSystemTray(port)
 
 		go func() {
-			time.Sleep(500 * time.Millisecond) 
+			time.Sleep(500 * time.Millisecond)
 			openAppWindow("http://127.0.0.1:" + port)
 		}()
 
@@ -3545,4 +3589,3 @@ func sendWakeOnLan(macStr string, targetIP string) (int, error) {
 	}
 	return sentCount, nil
 }
-

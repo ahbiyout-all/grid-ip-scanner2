@@ -26,25 +26,31 @@ export const sendWakeOnLanPacket = async (mac: string, ip?: string): Promise<WoL
       body: JSON.stringify({ mac: cleanMac, ip })
     });
 
-    if (res.ok) {
-      const data = await res.json();
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success !== false) {
       return {
-        success: data.success ?? true,
+        success: true,
         mac: cleanMac,
         ip,
-        packetsSent: data.packetsSent ?? 3,
-        message: data.message || `WoL 매직 패킷이 ${cleanMac}으로 전송되었습니다 (UDP 포트 9/7 브로드캐스트).`
+        packetsSent: data?.packetsSent ?? 3,
+        message: data?.message || `WoL 매직 패킷이 ${cleanMac}으로 전송되었습니다 (UDP 포트 9/7 브로드캐스트).`
       };
     }
-  } catch (err) {
-    // Backend unavailable or running standalone
-  }
 
-  return {
-    success: true,
-    mac: cleanMac,
-    ip,
-    packetsSent: 1,
-    message: `WoL 매직 패킷 브로드캐스트 요청이 완료되었습니다 (${cleanMac}). 대상 장비의 BIOS/랜카드 WoL 옵션이 활성화되어 있어야 켜집니다.`
-  };
+    return {
+      success: false,
+      mac: cleanMac,
+      ip,
+      packetsSent: 0,
+      message: data?.error || data?.message || `WoL 매직 패킷 전송에 실패했습니다 (HTTP ${res.status}).`
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      mac: cleanMac,
+      ip,
+      packetsSent: 0,
+      message: `백엔드 WoL 브로드캐스트 엔진에 연결할 수 없습니다 (${err?.message || 'Network Error'}).`
+    };
+  }
 };

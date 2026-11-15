@@ -11,37 +11,37 @@
 * **공식 저장소**: `https://github.com/AhBiYout-all/grid-ip-scanner2`
 * **빌드 런타임**: GitHub Actions 최신 권장 **Node.js 24**, Java 21 (Temurin), Android SDK 35
 * **배포 파일 목록 (Releases 탭)**:
-  1. **`Grid_IP_Scanner2_v2.4.13_Setup.exe`**: Windows 정식 인스톨러 (제어판 등록 지원)
-  2. **`Grid_IP_Scanner2_v2.4.13_Portable.exe`**: Windows 단일 무설치 포터블
-  3. **`Grid_IP_Scanner2_v2.4.13.apk`**: 안드로이드 스마트폰 설치 파일 (Native Go ARM64 엔진 내장)
-  4. **`Grid_IP_Scanner2_v2.4.13_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지
+  1. **`Grid_IP_Scanner2_v2.5.0_Setup.exe`**: Windows 정식 인스톨러 (제어판 등록 지원)
+  2. **`Grid_IP_Scanner2_v2.5.0_Portable.exe`**: Windows 단일 무설치 포터블
+  3. **`Grid_IP_Scanner2_v2.5.0.apk`**: 안드로이드 스마트폰 설치 파일 (Native Go ARM64 엔진 내장)
+  4. **`Grid_IP_Scanner2_v2.5.0_Mobile_PWA.zip`**: 모바일 웹 & iOS PWA 오프라인 패키지
 
 ---
 
 ## 🚀 배포 실행 방법
 
 ### 방법 1: 전체 통합 푸시 (PC + 모바일 동시 릴리스)
-로컬 PC에서 아래 명령어를 실행하면, 소스코드가 GitHub에 깔끔하게 커밋되고 `v2.4.13` 릴리스가 생성됩니다:
-```cmd
-github-push.bat
-:: 또는 npm run git:push
+표준 `git` 태그 푸시(또는 `.gitignore`에 의해 격리된 로컬 관리자 스크립트 `github-push.bat` / `npm run git:push`)를 실행하면 `v2.5.0` 릴리스가 생성됩니다:
+```bash
+git tag v2.5.0
+git push origin main --tags
 ```
 GitHub Actions가 클라우드 상에서 Windows 인스톨러, Android APK, Mobile PWA를 자동으로 빌드하여 GitHub Releases에 즉시 배포합니다.
 
 ### 방법 2: 모바일 전용 릴리스 태그 발행
-모바일 버전만을 명시적으로 릴리스하고 싶으실 경우:
-```cmd
-npm run git:mobile
-:: 또는 scripts\github-mobile-sync.bat
+모바일 버전만을 명시적으로 릴리스하고 싶으실 경우 `mobile-v*` 태그를 푸시하십시오 (로컬 관리자 환경에서는 `npm run git:mobile` / `scripts\github-mobile-sync.bat` 지원):
+```bash
+git tag mobile-v2.5.0
+git push origin mobile-v2.5.0
 ```
-`mobile-v2.4.12` 태그가 발행되며, GitHub Actions의 `mobile-release.yml` 워크플로우(Node.js 24)가 동작하여 모바일 패키지만 독립적으로 릴리스합니다.
+`mobile-v2.5.0` 태그가 발행되며, GitHub Actions의 `mobile-release.yml` 워크플로우(Node.js 24)가 동작하여 모바일 패키지만 독립적으로 릴리스합니다.
 
 ---
 
 ## 📲 스마트폰 사용자 다운로드 및 실행 방법
 
 ### 1. 안드로이드 (Android APK)
-1. GitHub 저장소의 **[Releases]** 페이지에서 `Grid_IP_Scanner2_v2.4.12.apk` 다운로드
+1. GitHub 저장소의 **[Releases]** 페이지에서 `Grid_IP_Scanner2_v2.5.0.apk` 다운로드
 2. 다운로드 완료 후 알림창을 터치하여 설치 (설정 -> '출처를 알 수 없는 앱 설치' 허용)
 3. 홈 화면에 설치된 **Grid IP Scanner2** 아이콘을 눌러 네이티브 성능으로 실행
 

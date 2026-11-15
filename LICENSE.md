@@ -30,8 +30,8 @@
 Grid IP Scanner2의 프론트엔드 및 백엔드 하부 구조를 이루는 오픈소스 라이브러리들은 검증된 허용형 오픈소스 라이선스 표준을 엄격히 준수합니다.
 
 ### 🛡️ MIT License 및 허용형 라이선스 준수 대상
-* **프론트엔드 구성 요소**: `React 18`, `TypeScript`, `Tailwind CSS`, `Lucide Icons`, `framer-motion`
-* **백엔드 구성 요소**: `Go (Golang) Runtime`, `Express (Node.js) dev dependency`
+* **프론트엔드 구성 요소**: `React 19`, `TypeScript`, `Tailwind CSS`, `Lucide Icons`, `Vite`, `jsPDF`, `html2canvas`
+* **백엔드 구성 요소**: `Go (Golang) Runtime`, `Express (Node.js) runtime/proxy`
 * **라이선스 법적 효력**:
   - 위의 핵심 프레임워크와 라이브러리들은 모두 극도의 유연성을 부여하는 **MIT License** 또는 이와 유사한 초허용형 라이선스(Permissive License)에 의거하여 배포됩니다.
   - MIT 라이선스는 **"상업적 목적의 재배포, 변경, 서브라이선스 부여, 유료 판매"**를 원천적으로 무제한 허용합니다.

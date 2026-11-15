@@ -29,6 +29,8 @@ dist/
 dist_installer/
 dist_releases/
 dist_electron/
+dist_android/
+mobile_releases/
 .vite/
 build/
 bin/
@@ -37,6 +39,15 @@ release_assets/
 release_files/
 go-build-artifacts/
 build_android_temp/
+installer/payload.zip
+android/local.properties
+android/app/build/
+android/.gradle/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+*.tsbuildinfo
 
 # ----------------------------------------------------------------------
 # 3. Compiled Executables, Binaries & Libraries

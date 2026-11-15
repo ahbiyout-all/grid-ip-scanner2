@@ -59,7 +59,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${{ github.ref_name }}"
           else
-            APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.7'}")
+            APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.5.0'}")
             TAG="mobile-v${APP_VER}"
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
@@ -91,7 +91,7 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: |
-          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.9'}")
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.5.0'}")
           echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
           if [ -d "android" ]; then
             chmod +x android/gradlew || true

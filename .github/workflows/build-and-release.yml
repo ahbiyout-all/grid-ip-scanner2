@@ -182,7 +182,7 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
           GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: |
-          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.4.9'}")
+          APP_VER=$(node -p "try{require('./package.json').version}catch(e){'2.5.0'}")
           echo "Building Android APK for Grid IP Scanner2 v${APP_VER}..."
           mkdir -p dist_android
           if [ -d "android" ]; then
@@ -249,7 +249,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             RELEASE_TAG="${{ github.ref_name }}"
           else
-            APP_VERSION=$(node -p "try{require('./package.json').version}catch(e){'2.4.6'}")
+            APP_VERSION=$(node -p "try{require('./package.json').version}catch(e){'2.5.0'}")
             RELEASE_TAG="v${APP_VERSION}"
           fi
           echo "tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
@@ -294,6 +294,11 @@ jobs:
           echo "Publishing release assets for tag: $TAG..."
           ls -la release_files/
           
+          if [ -z "$(ls -A release_files 2>/dev/null)" ]; then
+            echo "❌ Error: No release assets collected in release_files/."
+            exit 1
+          fi
+
           # Check if release already exists
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists. Overwriting/uploading assets..."
