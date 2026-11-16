@@ -31,7 +31,7 @@ func (e *ScanEngine) Prepare() {
 		return
 	}
 
-	arpCtx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	arpCtx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
 	defer cancel()
 
 	cmd := exec.CommandContext(arpCtx, "arp", "-a")

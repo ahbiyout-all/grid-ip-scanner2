@@ -2654,26 +2654,40 @@ func main() {
 			if probeTimeout > 600 {
 				probeTimeout = 600
 			}
-			if hints, ok := tryNativeProbeAsyncBatch(targetIPs, probeTimeout); ok {
-				probeHints = hints
-				if deepScan {
-					var liveIPs []string
-					for _, ip := range targetIPs {
-						if h, exists := hints[ip]; exists && h.IsAlive {
-							liveIPs = append(liveIPs, ip)
+			probeChan := make(chan map[string]NativeProbeBatchHint, 1)
+			go func() {
+				if hints, ok := tryNativeProbeAsyncBatch(targetIPs, probeTimeout); ok {
+					probeChan <- hints
+				} else {
+					probeChan <- nil
+				}
+			}()
+
+			select {
+			case hints := <-probeChan:
+				if hints != nil {
+					probeHints = hints
+					if deepScan {
+						var liveIPs []string
+						for _, ip := range targetIPs {
+							if h, exists := hints[ip]; exists && h.IsAlive {
+								liveIPs = append(liveIPs, ip)
+							}
 						}
-					}
-					if len(liveIPs) > 0 {
-						deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
-						iocpTimeout := timeoutMs
-						if iocpTimeout > 500 {
-							iocpTimeout = 500
-						}
-						if pMap, pOk := tryNativePortIocpMultiHost(liveIPs, deepTargetPorts, iocpTimeout, 256); pOk {
-							portHints = pMap
+						if len(liveIPs) > 0 {
+							deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
+							iocpTimeout := timeoutMs
+							if iocpTimeout > 500 {
+								iocpTimeout = 500
+							}
+							if pMap, pOk := tryNativePortIocpMultiHost(liveIPs, deepTargetPorts, iocpTimeout, 256); pOk {
+								portHints = pMap
+							}
 						}
 					}
 				}
+			case <-time.After(400 * time.Millisecond):
+				// Non-blocking timeout: proceed immediately with parallel workers
 			}
 		}
 
