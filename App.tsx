@@ -738,7 +738,20 @@ const App: React.FC = () => {
   const [interfaceSearch, setInterfaceSearch] = useState('');
   const [showInterfaceModal, setShowInterfaceModal] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
-  const [showSecurityNotice, setShowSecurityNotice] = useState(true);
+  const [showSecurityNotice, setShowSecurityNotice] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('grid_security_notice_dismissed') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleDismissSecurityNotice = () => {
+    setShowSecurityNotice(false);
+    try {
+      localStorage.setItem('grid_security_notice_dismissed', 'true');
+    } catch {}
+  };
   const [showHelp, setShowHelp] = useState(false);
   const [helpTab, setHelpTab] = useState<'guide' | 'update'>('guide');
   const [deepScan, setDeepScan] = useState(false);
@@ -6323,7 +6336,7 @@ const App: React.FC = () => {
                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
                   <h3 className="font-black text-sm uppercase tracking-tight">{s.securityNoticeTitle}</h3>
                 </div>
-                <button onClick={() => setShowSecurityNotice(false)} className="p-1 hover:opacity-50"><X className="w-5 h-5" /></button>
+                <button onClick={handleDismissSecurityNotice} className="p-1 hover:opacity-50"><X className="w-5 h-5" /></button>
               </div>
               
               <div className="space-y-4">
@@ -6363,7 +6376,7 @@ const App: React.FC = () => {
               </div>
 
               <button 
-                onClick={() => setShowSecurityNotice(false)}
+                onClick={handleDismissSecurityNotice}
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase transition-all shadow-xl"
               >
                 {s.understand}

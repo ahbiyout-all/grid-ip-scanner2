@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -644,11 +645,40 @@ var (
 	procLoadImageW          = moduser32.NewProc("LoadImageW")
 	procGetModuleHandleW    = modkernel32.NewProc("GetModuleHandleW")
 
+	procFindWindowW         = moduser32.NewProc("FindWindowW")
+	procShowWindow          = moduser32.NewProc("ShowWindow")
+	procIsWindowVisible     = moduser32.NewProc("IsWindowVisible")
+
 	nativeTrayHWnd   uintptr
 	nativeTrayIcon   uintptr
 	nativeTrayPort   string
 	nativeTrayActive bool
+
+	trayOpenMutex    sync.Mutex
+	lastTrayOpenTime time.Time
 )
+
+const (
+	SW_RESTORE = 9
+	SW_SHOW    = 5
+)
+
+func focusExistingAppWindow() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	titles := []string{"Grid IP Scanner2", "GRID IP 스캐너2", "Grid IP Scanner"}
+	for _, t := range titles {
+		tPtr, _ := syscall.UTF16PtrFromString(t)
+		hwnd, _, _ := procFindWindowW.Call(0, uintptr(unsafe.Pointer(tPtr)))
+		if hwnd != 0 {
+			procShowWindow.Call(hwnd, SW_RESTORE)
+			procSetForegroundWindow.Call(hwnd)
+			return true
+		}
+	}
+	return false
+}
 
 // showTrayBalloonNotification displays a native Windows Tray Balloon Tooltip (Shell_NotifyIconW with NIF_INFO)
 func showTrayBalloonNotification(title, message string) {
@@ -690,9 +720,20 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 	case WM_TRAY_CALLBACK:
 		switch lparam {
 		case WM_LBUTTONUP, WM_LBUTTONDBLCLK:
-			// Left click or double click: Open UI Window
-			if nativeTrayPort != "" {
-				go openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+			// Left click or double click: Bring existing window to front or open new instance if none exists (with 1500ms debounce)
+			trayOpenMutex.Lock()
+			if time.Since(lastTrayOpenTime) > 1500*time.Millisecond {
+				lastTrayOpenTime = time.Now()
+				trayOpenMutex.Unlock()
+				go func() {
+					if !focusExistingAppWindow() {
+						if nativeTrayPort != "" {
+							openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+						}
+					}
+				}()
+			} else {
+				trayOpenMutex.Unlock()
 			}
 			return 0
 

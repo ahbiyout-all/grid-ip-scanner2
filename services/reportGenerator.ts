@@ -217,11 +217,9 @@ export async function exportSecurityAuditReportToPDF(
     return { success: true, filename, pageCount: 1 };
   }
 
-  // Calculate layout pagination
-  // Page 1: Dashboard, Metrics, Threat Alerts, Top Vendors, and first chunk of devices
-  // Page 2+: Detailed inventory tables (up to 30 devices per page)
-  const DEVICES_PAGE_1 = highRiskDevices.length > 0 ? 6 : 10;
-  const DEVICES_PER_SUB_PAGE = 30;
+  // Calculate layout pagination with generous spacing to prevent bottom text clipping
+  const DEVICES_PAGE_1 = highRiskDevices.length > 0 ? 4 : 7;
+  const DEVICES_PER_SUB_PAGE = 22;
 
   const remainingDevices = activeDevices.slice(DEVICES_PAGE_1);
   const subPagesCount = remainingDevices.length > 0 ? Math.ceil(remainingDevices.length / DEVICES_PER_SUB_PAGE) : 0;
@@ -532,9 +530,9 @@ export async function exportDeviceListToPDF(
     }
   });
 
-  // Calculate clean A4 pagination (30 devices per page)
-  const DEVICES_PER_FIRST_PAGE = 30;
-  const DEVICES_PER_SUB_PAGE = 30;
+  // Calculate clean A4 pagination with generous bottom margins (22 devices per page)
+  const DEVICES_PER_FIRST_PAGE = 22;
+  const DEVICES_PER_SUB_PAGE = 22;
 
   const firstPageIps = targetIps.slice(0, DEVICES_PER_FIRST_PAGE);
   const remainingIps = targetIps.slice(DEVICES_PER_FIRST_PAGE);
@@ -1326,3 +1324,76 @@ export const generateProfessionalAuditReport = (
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+
+export interface BasicSummaryPdfOptions {
+  subnet: string;
+  activeDeviceCount: number;
+  totalScanDurationMs: number;
+  lang?: 'ko' | 'en';
+}
+
+export function exportBasicSummaryReportToPDF(options: BasicSummaryPdfOptions): AuditReportExportResult {
+  const { subnet, activeDeviceCount, totalScanDurationMs, lang = 'ko' } = options;
+  const isKo = lang === 'ko';
+  const now = new Date();
+  const dateStr = formatLocalDate(now);
+  const timeStr = formatLocalTime(now);
+  const filename = `GridIPScanner2_Summary_${subnet.replace(/\./g, '_')}_${dateStr}.pdf`;
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  // A4 dimensions: 210mm x 297mm
+  doc.setFillColor(2, 132, 199); // Sky blue primary
+  doc.rect(0, 0, 210, 35, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(isKo ? 'GRID IP 스캐너2 - 스캔 요약 보고서' : 'GRID IP SCANNER2 - SCAN SUMMARY REPORT', 15, 20);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${dateStr} ${timeStr} | v${CURRENT_APP_VERSION}`, 15, 28);
+
+  // Content Body
+  doc.setTextColor(15, 23, 42); // Dark slate
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(isKo ? '1. 네트워크 대상 정보' : '1. Target Network Information', 15, 50);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${isKo ? '타겟 서브넷' : 'Target Subnet'}: ${subnet}.0/24`, 20, 60);
+  doc.text(`${isKo ? '보고서 생성 일시' : 'Generated At'}: ${dateStr} ${timeStr}`, 20, 68);
+
+  // Summary Metrics Box
+  doc.setFillColor(241, 245, 249); // Slate 100
+  doc.setDrawColor(203, 213, 225); // Slate 300
+  doc.roundedRect(15, 80, 180, 50, 3, 3, 'FD');
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(2, 132, 199);
+  doc.text(isKo ? '핵심 스캔 요약 지표 (Executive Summary)' : 'Executive Scan Metrics', 20, 92);
+
+  const durationSec = (totalScanDurationMs / 1000).toFixed(2);
+
+  doc.setFontSize(14);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${isKo ? '온라인 활성 장비 수' : 'Active Devices'}: ${activeDeviceCount} ${isKo ? '대' : 'devices'}`, 20, 108);
+  doc.text(`${isKo ? '총 소요 시간' : 'Total Scan Duration'}: ${durationSec} ${isKo ? '초' : 'seconds'} (${totalScanDurationMs}ms)`, 20, 120);
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Grid IP Scanner2 - Professional Subnet Discovery & Security Asset Utility', 15, 285);
+  doc.text('Copyright (c) 2025-2026 AhBiYout. All rights reserved.', 15, 290);
+
+  doc.save(filename);
+  return { success: true, filename, pageCount: 1 };
+}
+
