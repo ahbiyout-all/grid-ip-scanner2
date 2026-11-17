@@ -1,4 +1,5 @@
 import { ScanSchedule, ScheduleInterval, ScheduledScanRunRecord } from '../types';
+import { sanitizeCsvCell } from './diffEngine';
 
 const SCHEDULES_STORAGE_KEY = 'grid_ip_scanner_schedules_v1';
 const HISTORY_STORAGE_KEY = 'grid_ip_scanner_schedule_history_v1';
@@ -108,6 +109,19 @@ export const saveSchedule = (
     target = {
       ...current,
       ...data,
+      autoExportEnabled: typeof data.autoExportEnabled === 'boolean' ? data.autoExportEnabled : Boolean(current.autoExportEnabled),
+      autoExportFormats:
+        Array.isArray(data.autoExportFormats) && data.autoExportFormats.length > 0
+          ? data.autoExportFormats
+          : current.autoExportFormats && current.autoExportFormats.length > 0
+          ? current.autoExportFormats
+          : ['pdf'],
+      autoExportOnChangesOnly:
+        typeof data.autoExportOnChangesOnly === 'boolean'
+          ? data.autoExportOnChangesOnly
+          : Boolean(current.autoExportOnChangesOnly),
+      autoDownloadFile:
+        typeof data.autoDownloadFile === 'boolean' ? data.autoDownloadFile : Boolean(current.autoDownloadFile),
       intervalMinutes: minutes,
       updatedAt: now,
       // If toggled or interval changed, recalculate nextRun
@@ -132,6 +146,11 @@ export const saveSchedule = (
       snapshotPrefix: data.snapshotPrefix?.trim() || '[Auto-Sched]',
       notifyOnCompletion: data.notifyOnCompletion !== false,
       notifyOnChangesOnly: data.notifyOnChangesOnly || false,
+      autoExportEnabled: Boolean(data.autoExportEnabled),
+      autoExportFormats:
+        Array.isArray(data.autoExportFormats) && data.autoExportFormats.length > 0 ? data.autoExportFormats : ['pdf'],
+      autoExportOnChangesOnly: Boolean(data.autoExportOnChangesOnly),
+      autoDownloadFile: Boolean(data.autoDownloadFile),
       createdAt: now,
       updatedAt: now,
       totalRuns: 0,
@@ -267,22 +286,20 @@ export const exportScheduleHistoryCSV = (history: ScheduledScanRunRecord[], lang
     lang === 'ko' ? '메시지' : 'Message',
   ];
 
-  const escapeCsv = (str: any) => `"${String(str || '').replace(/"/g, '""')}"`;
-
   const rows = history.map(item => [
-    item.id,
-    new Date(item.timestamp).toLocaleString(),
-    escapeCsv(item.scheduleName),
-    escapeCsv(`${item.subnet}.0/24`),
+    sanitizeCsvCell(item.id),
+    sanitizeCsvCell(new Date(item.timestamp).toLocaleString()),
+    sanitizeCsvCell(item.scheduleName),
+    sanitizeCsvCell(`${item.subnet}.0/24`),
     item.activeCount,
     item.totalCount,
     (item.durationMs / 1000).toFixed(1),
     item.newDevicesCount ?? 0,
     item.offlineDevicesCount ?? 0,
     item.changedDevicesCount ?? 0,
-    escapeCsv(item.snapshotId || '-'),
-    item.status.toUpperCase(),
-    escapeCsv(item.errorMessage || 'OK'),
+    sanitizeCsvCell(item.snapshotId || '-'),
+    sanitizeCsvCell(item.status.toUpperCase()),
+    sanitizeCsvCell(item.errorMessage || 'OK'),
   ].join(','));
 
   const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
@@ -294,5 +311,5 @@ export const exportScheduleHistoryCSV = (history: ScheduledScanRunRecord[], lang
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };

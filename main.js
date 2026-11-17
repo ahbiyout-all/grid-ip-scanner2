@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,6 +8,33 @@ let currentContextMenu = null;
 let isQuitting = false;
 let isExplicitExit = false;
 let closeToTrayEnabled = true;
+let lastTrayRestoreAt = 0;
+
+function restoreMainWindow(onReadyCallback) {
+  const now = Date.now();
+  if (!onReadyCallback && now - lastTrayRestoreAt < 300) {
+    return;
+  }
+  lastTrayRestoreAt = now;
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+    if (typeof onReadyCallback === 'function') {
+      if (mainWindow.webContents && !mainWindow.webContents.isLoading()) {
+        onReadyCallback();
+      } else {
+        mainWindow.once('ready-to-show', onReadyCallback);
+      }
+    }
+  } else {
+    createWindow();
+    if (typeof onReadyCallback === 'function' && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.once('ready-to-show', onReadyCallback);
+    }
+  }
+}
 
 function showTrayBalloon(title, content) {
   try {
@@ -72,13 +99,7 @@ function createTray() {
     {
       label: '🌐 Grid IP Scanner2 메인 화면 열기',
       click: () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        } else {
-          createWindow();
-        }
+        restoreMainWindow();
       }
     },
     {
@@ -91,7 +112,7 @@ function createTray() {
       id: 'intruder-watch-item',
       label: '🚨 24/7 백그라운드 침입 감시 (Enable Intruder Watch)',
       type: 'checkbox',
-      checked: true,
+      checked: false,
       click: (item) => {
         sendToMainWindow('tray-toggle-intruder', item.checked);
       }
@@ -107,35 +128,36 @@ function createTray() {
       id: 'show-intruder-log-item',
       label: '📜 낯선 기기 감시 로그 열기 (Show Intruder Log)',
       click: () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
+        restoreMainWindow(() => {
           sendToMainWindow('tray-open-intruder-log');
-        } else {
-          createWindow();
-          mainWindow.once('ready-to-show', () => {
-            sendToMainWindow('tray-open-intruder-log');
-          });
-        }
+        });
       }
     },
     {
       label: '🧹 DNS 캐시 플러시 (ipconfig /flushdns)',
       click: () => {
-        require('child_process').exec('ipconfig /flushdns', { windowsHide: true });
-        if (tray && tray.displayBalloon) {
-          tray.displayBalloon({
-            title: 'Grid IP Scanner2',
-            content: 'DNS 캐시가 성공적으로 초기화되었습니다.'
-          });
-        }
+        if (process.platform !== 'win32') return;
+        require('child_process').exec('ipconfig /flushdns', { windowsHide: true }, (err) => {
+          if (err) {
+            console.warn('DNS flush failed:', err);
+            return;
+          }
+          if (tray && tray.displayBalloon) {
+            tray.displayBalloon({
+              title: 'Grid IP Scanner2',
+              content: 'DNS 캐시가 성공적으로 초기화되었습니다.'
+            });
+          }
+        });
       }
     },
     {
       label: '⚙️ Windows 네트워크 어댑터 제어판 (ncpa.cpl)',
       click: () => {
-        require('child_process').exec('control.exe ncpa.cpl', { windowsHide: true });
+        if (process.platform !== 'win32') return;
+        require('child_process').exec('control.exe ncpa.cpl', { windowsHide: true }, (err) => {
+          if (err) console.warn('Failed to open ncpa.cpl:', err);
+        });
       }
     },
     { type: 'separator' },
@@ -151,13 +173,7 @@ function createTray() {
   tray.setContextMenu(currentContextMenu);
 
   const restoreWindow = () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    } else {
-      createWindow();
-    }
+    restoreMainWindow();
   };
 
   tray.on('double-click', restoreWindow);
@@ -173,6 +189,13 @@ function createTray() {
 }
 
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+    return mainWindow;
+  }
+
   const iconPath = getIconPath();
 
   mainWindow = new BrowserWindow({
@@ -193,7 +216,38 @@ function createWindow() {
   });
 
   const indexPath = path.join(__dirname, 'dist', 'index.html');
-  
+  const distDirResolved = path.resolve(path.join(__dirname, 'dist'));
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        shell.openExternal(parsed.toString()).catch((err) => {
+          console.warn('Failed to open external URL:', err);
+        });
+      }
+    } catch (_) {}
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'file:') {
+        const targetFile = path.resolve(decodeURIComponent(parsed.pathname.replace(/^\/([A-Za-z]:)/, '$1')));
+        if (targetFile.startsWith(distDirResolved + path.sep) || targetFile === path.resolve(indexPath)) {
+          return;
+        }
+      }
+      event.preventDefault();
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        shell.openExternal(parsed.toString()).catch(() => {});
+      }
+    } catch (_) {
+      event.preventDefault();
+    }
+  });
+
   mainWindow.loadFile(indexPath).catch(err => {
     console.error("Failed to load index.html:", err);
   });
@@ -353,17 +407,30 @@ ipcMain.on('exit-application', () => {
   terminateApplicationCleanly();
 });
 
-app.whenReady().then(() => {
-  // CRITICAL: Activate System Tray FROM THE BEGINNING (처음부터 시스템 트레이 활성화)
-  createTray();
-
-  // Create Main Window
-  createWindow();
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    restoreMainWindow();
   });
-});
+
+  app.whenReady().then(() => {
+    // CRITICAL: Activate System Tray FROM THE BEGINNING (처음부터 시스템 트레이 활성화)
+    createTray();
+
+    // Create Main Window
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      } else {
+        restoreMainWindow();
+      }
+    });
+  });
+}
 
 app.on('before-quit', (event) => {
   if (!isExplicitExit && closeToTrayEnabled) {

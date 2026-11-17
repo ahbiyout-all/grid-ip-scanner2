@@ -1,4 +1,5 @@
 import { IntruderLogRecord } from '../types';
+import { sanitizeCsvCell } from './diffEngine';
 
 const STORAGE_KEY = 'grid_intruder_detection_logs';
 
@@ -77,18 +78,22 @@ export const recordIntrudersFromDetection = (
 
   for (const item of intruderList) {
     const ip = item.ip || item.device?.ip;
-    const mac = item.mac || item.device?.mac;
+    const rawMac = item.mac || item.device?.mac;
+    const normMac = (rawMac || '-').trim().toUpperCase() || '-';
     if (!ip) continue;
 
-    // Check if duplicate within last 5 minutes
+    // Check if duplicate IP+MAC within last 5 minutes
     const isRecentDuplicate = existingLogs.some(
-      log => log.ip === ip && (now - log.timestamp < recentThresholdMs)
+      log =>
+        log.ip === ip &&
+        ((log.mac || '-').trim().toUpperCase() || '-') === normMac &&
+        now - log.timestamp < recentThresholdMs
     );
 
     if (!isRecentDuplicate) {
       const record = addIntruderLog({
         ip,
-        mac: mac || '-',
+        mac: rawMac || '-',
         vendor: item.device?.vendor || item.vendor || '알 수 없는 제조사',
         hostname: item.device?.hostname || item.hostname || '-',
         detectedBy,
@@ -96,6 +101,7 @@ export const recordIntrudersFromDetection = (
         status: 'new',
         notes: `24/7 침입 감시 모듈 자동 탐지`
       });
+      existingLogs.unshift(record);
       added.push(record);
     }
   }
@@ -145,16 +151,16 @@ export const exportIntruderLogsCSV = (logs: IntruderLogRecord[]): void => {
 
   const headers = ['ID', '감지 일시', 'IP 주소', 'MAC 주소', '제조사', '호스트명', '열린 포트', '감지 주체', '처리 상태', '비고'];
   const rows = logs.map(l => [
-    `"${l.id}"`,
-    `"${l.dateStr}"`,
-    `"${l.ip}"`,
-    `"${l.mac || ''}"`,
-    `"${(l.vendor || '').replace(/"/g, '""')}"`,
-    `"${(l.hostname || '').replace(/"/g, '""')}"`,
-    `"${(l.openPorts || []).join('; ')}"`,
-    `"${l.detectedBy === 'background_service' ? '24/7 백그라운드 서비스' : l.detectedBy === 'tray_agent' ? '트레이 에이전트' : '수동 스캔'}"`,
-    `"${l.status === 'new' ? '신규 감지' : l.status === 'trusted' ? '신뢰 승인' : l.status === 'blocked' ? '차단/격리' : '조사 중'}"`,
-    `"${(l.notes || '').replace(/"/g, '""')}"`
+    sanitizeCsvCell(l.id),
+    sanitizeCsvCell(l.dateStr),
+    sanitizeCsvCell(l.ip),
+    sanitizeCsvCell(l.mac || ''),
+    sanitizeCsvCell(l.vendor || ''),
+    sanitizeCsvCell(l.hostname || ''),
+    sanitizeCsvCell((l.openPorts || []).join('; ')),
+    sanitizeCsvCell(l.detectedBy === 'background_service' ? '24/7 백그라운드 서비스' : l.detectedBy === 'tray_agent' ? '트레이 에이전트' : '수동 스캔'),
+    sanitizeCsvCell(l.status === 'new' ? '신규 감지' : l.status === 'trusted' ? '신뢰 승인' : l.status === 'blocked' ? '차단/격리' : '조사 중'),
+    sanitizeCsvCell(l.notes || '')
   ]);
 
   const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
@@ -166,5 +172,5 @@ export const exportIntruderLogsCSV = (logs: IntruderLogRecord[]): void => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };

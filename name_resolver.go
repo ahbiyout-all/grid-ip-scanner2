@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -16,6 +17,26 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 )
+
+var (
+	reMdnsLocal        = regexp.MustCompile(`([^\s\x00-\x1f\x7f\.\,]{1,50})\.local`)
+	reWsdScopesComp    = regexp.MustCompile(`(?i)<wsd:Scopes[^>]*>.*?/computer/([^\/\s<]+).*?</wsd:Scopes>`)
+	reUPnPManufacturer = regexp.MustCompile(`(?i)<manufacturer[^>]*>(.*?)</manufacturer>`)
+	reUPnPModelName    = regexp.MustCompile(`(?i)<modelName[^>]*>(.*?)</modelName>`)
+	reUPnPFriendlyName = regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
+	reWebHTMLTitle     = regexp.MustCompile(`(?i)<title[^>]*>(.*?)</title>`)
+)
+
+func isValidLocalSSDPURL(rawURL, targetIP string) bool {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	return u.Hostname() == targetIP
+}
 
 // NameSourceType represents the protocol or method used to resolve a device's name
 type NameSourceType string
@@ -364,8 +385,7 @@ func resolveMDNSNameFast(ctx context.Context, ip string, timeoutMs int) string {
 
 	// Extract candidate printable string from response
 	respStr := decodeNetworkBytes(buf[:n])
-	re := regexp.MustCompile(`([^\s\x00-\x1f\x7f\.\,]{1,50})\.local`)
-	match := re.FindStringSubmatch(respStr)
+	match := reMdnsLocal.FindStringSubmatch(respStr)
 	if len(match) > 1 {
 		found := sanitizeDeviceName(match[1])
 		if !strings.EqualFold(found, "_services") && !strings.EqualFold(found, "_dns-sd") {
@@ -421,8 +441,7 @@ func resolveWSDNameFast(ctx context.Context, ip string, timeoutMs int) string {
 		}
 	}
 
-	reComp := regexp.MustCompile(`(?i)<wsd:Scopes[^>]*>.*?/computer/([^\/\s<]+).*?</wsd:Scopes>`)
-	if match := reComp.FindStringSubmatch(xmlStr); len(match) > 1 {
+	if match := reWsdScopesComp.FindStringSubmatch(xmlStr); len(match) > 1 {
 		return sanitizeDeviceName(match[1])
 	}
 
@@ -482,25 +501,27 @@ func resolveUPnPExtended(ctx context.Context, ip string, timeoutMs int) UPnPProb
 		}
 	}
 
-	// If location URL is provided on local subnet, try fast XML description fetch (up to 8KB)
-	if locationURL != "" && strings.Contains(locationURL, ip) {
-		httpCli := &http.Client{Timeout: 350 * time.Millisecond}
+	// If location URL is provided on the exact target host, try fast XML description fetch (up to 8KB)
+	if locationURL != "" && isValidLocalSSDPURL(locationURL, ip) {
+		httpCli := &http.Client{
+			Timeout: 350 * time.Millisecond,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 		if req, reqErr := http.NewRequestWithContext(ctx, "GET", locationURL, nil); reqErr == nil {
 			if respXml, err := httpCli.Do(req); err == nil {
 				defer respXml.Body.Close()
 				body, _ := io.ReadAll(io.LimitReader(respXml.Body, 8192))
 				bodyStr := decodeNetworkBytes(body)
 
-				reMfr := regexp.MustCompile(`(?i)<manufacturer[^>]*>(.*?)</manufacturer>`)
-				if m := reMfr.FindStringSubmatch(bodyStr); len(m) > 1 {
+				if m := reUPnPManufacturer.FindStringSubmatch(bodyStr); len(m) > 1 {
 					details.Manufacturer = sanitizeDeviceName(m[1])
 				}
-				reModel := regexp.MustCompile(`(?i)<modelName[^>]*>(.*?)</modelName>`)
-				if m := reModel.FindStringSubmatch(bodyStr); len(m) > 1 {
+				if m := reUPnPModelName.FindStringSubmatch(bodyStr); len(m) > 1 {
 					details.ModelName = sanitizeDeviceName(m[1])
 				}
-				reFn := regexp.MustCompile(`(?i)<friendlyName[^>]*>(.*?)</friendlyName>`)
-				if m := reFn.FindStringSubmatch(bodyStr); len(m) > 1 {
+				if m := reUPnPFriendlyName.FindStringSubmatch(bodyStr); len(m) > 1 {
 					details.FriendlyName = sanitizeDeviceName(m[1])
 				}
 			}
@@ -665,8 +686,7 @@ func resolveWebNameFast(ctx context.Context, ip string, openPorts []int, timeout
 			continue
 		}
 
-		re := regexp.MustCompile(`(?i)<title[^>]*>(.*?)</title>`)
-		if matches := re.FindStringSubmatch(decodeNetworkBytes(body)); len(matches) > 1 {
+		if matches := reWebHTMLTitle.FindStringSubmatch(decodeNetworkBytes(body)); len(matches) > 1 {
 			title := sanitizeDeviceName(matches[1])
 			if title != "" && !strings.EqualFold(title, "404 Not Found") && !strings.EqualFold(title, "403 Forbidden") {
 				if len(title) > 40 {

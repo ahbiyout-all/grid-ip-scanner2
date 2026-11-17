@@ -98,9 +98,20 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
 
   // Check if statusMessage indicates an active intruder threat or detection
   const hasThreatInStatus = Boolean(
-    statusMessage && 
-    (statusMessage.includes('낯선 기기') || statusMessage.includes('intruder') || statusMessage.includes('감지') || statusMessage.includes('Threat')) &&
-    !statusMessage.includes('0대') && !statusMessage.includes('0 intruder') && !statusMessage.includes('Clear') && !statusMessage.includes('정상')
+    statusMessage &&
+    (
+      statusMessage.includes('intruder(s) detected') ||
+      /낯선 기기\s*\d+대\s*감지/.test(statusMessage) ||
+      statusMessage.includes('Active Threat') ||
+      statusMessage.includes('침입 감지')
+    ) &&
+    !statusMessage.includes('0대') &&
+    !statusMessage.includes('0 intruder') &&
+    !statusMessage.includes('Clear') &&
+    !statusMessage.includes('정상') &&
+    !statusMessage.includes('이전 감지') &&
+    !statusMessage.includes('Last:') &&
+    !statusMessage.includes('비활성')
   );
 
   const hasActiveThreat = intruderCount > 0 || hasThreatInStatus;

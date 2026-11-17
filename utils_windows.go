@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -339,9 +340,10 @@ func showNativeMessageBox(title, message string, flags uint) int {
 	return int(ret)
 }
 
-// copyToClipboard copies plain text into Windows clipboard using clip.exe or powershell
+// copyToClipboard copies plain text into Windows clipboard via Stdin without shell interpolation
 func copyToClipboard(text string) {
-	cmd := exec.Command("cmd", "/c", "echo "+text+"| clip")
+	cmd := exec.Command("clip")
+	cmd.Stdin = strings.NewReader(text)
 	hideWindow(cmd)
 	_ = cmd.Run()
 }
@@ -648,6 +650,10 @@ var (
 	procFindWindowW         = moduser32.NewProc("FindWindowW")
 	procShowWindow          = moduser32.NewProc("ShowWindow")
 	procIsWindowVisible     = moduser32.NewProc("IsWindowVisible")
+	procIsIconic            = moduser32.NewProc("IsIconic")
+	procEnumWindows         = moduser32.NewProc("EnumWindows")
+	procGetWindowTextW      = moduser32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW = moduser32.NewProc("GetWindowTextLengthW")
 
 	nativeTrayHWnd   uintptr
 	nativeTrayIcon   uintptr
@@ -656,6 +662,11 @@ var (
 
 	trayOpenMutex    sync.Mutex
 	lastTrayOpenTime time.Time
+
+	enumWinMutex    sync.Mutex
+	enumWinOnce     sync.Once
+	enumWinCallback uintptr
+	enumMatchedHWnd uintptr
 )
 
 const (
@@ -663,21 +674,77 @@ const (
 	SW_SHOW    = 5
 )
 
-func focusExistingAppWindow() bool {
-	if runtime.GOOS != "windows" {
-		return false
+func enumAppWindowProc(hwnd uintptr, lparam uintptr) uintptr {
+	visible, _, _ := procIsWindowVisible.Call(hwnd)
+	if visible == 0 {
+		return 1
 	}
-	titles := []string{"Grid IP Scanner2", "GRID IP 스캐너2", "Grid IP Scanner"}
-	for _, t := range titles {
-		tPtr, _ := syscall.UTF16PtrFromString(t)
-		hwnd, _, _ := procFindWindowW.Call(0, uintptr(unsafe.Pointer(tPtr)))
-		if hwnd != 0 {
-			procShowWindow.Call(hwnd, SW_RESTORE)
-			procSetForegroundWindow.Call(hwnd)
-			return true
+	length, _, _ := procGetWindowTextLengthW.Call(hwnd)
+	if length == 0 {
+		return 1
+	}
+	buf := make([]uint16, length+1)
+	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	title := syscall.UTF16ToString(buf)
+	if strings.Contains(title, "Grid IP Scanner2") || strings.Contains(title, "GRID IP 스캐너2") {
+		enumMatchedHWnd = hwnd
+		return 0 // stop enumeration
+	}
+	return 1
+}
+
+func focusExistingAppWindow() bool {
+	enumWinOnce.Do(func() {
+		enumWinCallback = syscall.NewCallback(enumAppWindowProc)
+	})
+
+	enumWinMutex.Lock()
+	enumMatchedHWnd = 0
+	procEnumWindows.Call(enumWinCallback, 0)
+	matchedHWnd := enumMatchedHWnd
+	enumWinMutex.Unlock()
+
+	if matchedHWnd == 0 {
+		titles := []string{"Grid IP Scanner2", "GRID IP 스캐너2", "Grid IP Scanner"}
+		for _, t := range titles {
+			tPtr, _ := syscall.UTF16PtrFromString(t)
+			hwnd, _, _ := procFindWindowW.Call(0, uintptr(unsafe.Pointer(tPtr)))
+			if hwnd != 0 {
+				matchedHWnd = hwnd
+				break
+			}
 		}
 	}
+
+	if matchedHWnd != 0 {
+		iconic, _, _ := procIsIconic.Call(matchedHWnd)
+		if iconic != 0 {
+			procShowWindow.Call(matchedHWnd, SW_RESTORE)
+		} else {
+			procShowWindow.Call(matchedHWnd, SW_SHOW)
+		}
+		procSetForegroundWindow.Call(matchedHWnd)
+		return true
+	}
 	return false
+}
+
+func openOrFocusTrayWindow() {
+	trayOpenMutex.Lock()
+	if time.Since(lastTrayOpenTime) <= 1500*time.Millisecond {
+		trayOpenMutex.Unlock()
+		return
+	}
+	lastTrayOpenTime = time.Now()
+	trayOpenMutex.Unlock()
+
+	go func() {
+		if !focusExistingAppWindow() {
+			if nativeTrayPort != "" {
+				openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+			}
+		}
+	}()
 }
 
 // showTrayBalloonNotification displays a native Windows Tray Balloon Tooltip (Shell_NotifyIconW with NIF_INFO)
@@ -721,20 +788,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 		switch lparam {
 		case WM_LBUTTONUP, WM_LBUTTONDBLCLK:
 			// Left click or double click: Bring existing window to front or open new instance if none exists (with 1500ms debounce)
-			trayOpenMutex.Lock()
-			if time.Since(lastTrayOpenTime) > 1500*time.Millisecond {
-				lastTrayOpenTime = time.Now()
-				trayOpenMutex.Unlock()
-				go func() {
-					if !focusExistingAppWindow() {
-						if nativeTrayPort != "" {
-							openAppWindow("http://127.0.0.1:" + nativeTrayPort)
-						}
-					}
-				}()
-			} else {
-				trayOpenMutex.Unlock()
-			}
+			openOrFocusTrayWindow()
 			return 0
 
 		case WM_RBUTTONUP:
@@ -799,9 +853,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 
 				switch cmd {
 				case IDM_TRAY_OPEN, IDM_TRAY_SCAN:
-					if nativeTrayPort != "" {
-						go openAppWindow("http://127.0.0.1:" + nativeTrayPort)
-					}
+					openOrFocusTrayWindow()
 				case IDM_TRAY_EMERGENCY_SCAN:
 					go func() {
 						showTrayBalloonNotification("긴급 IP 스캔 시작", "브라우저 없이 고속 백그라운드 IP 스캔 및 보고서 작성을 진행합니다...")
@@ -846,6 +898,9 @@ func initNativeSystemTray(port string) {
 	nativeTrayActive = true
 
 	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
 		hInst, _, _ := procGetModuleHandleW.Call(0)
 		className, _ := syscall.UTF16PtrFromString("GridIPScanner2_TrayClass")
 
@@ -1033,14 +1088,17 @@ if ('%s' -ne '') {
 	return res
 }
 
+var (
+	reWinUsbVid = regexp.MustCompile(`VID_([0-9A-F]{4})`)
+	reWinUsbPid = regexp.MustCompile(`PID_([0-9A-F]{4})`)
+)
+
 func parseWinUsbVidPidSerial(pnpID string) (vid, pid, instSerial string) {
 	upper := strings.ToUpper(strings.TrimSpace(pnpID))
-	reVid := regexp.MustCompile(`VID_([0-9A-F]{4})`)
-	rePid := regexp.MustCompile(`PID_([0-9A-F]{4})`)
-	if m := reVid.FindStringSubmatch(upper); len(m) == 2 {
+	if m := reWinUsbVid.FindStringSubmatch(upper); len(m) == 2 {
 		vid = m[1]
 	}
-	if m := rePid.FindStringSubmatch(upper); len(m) == 2 {
+	if m := reWinUsbPid.FindStringSubmatch(upper); len(m) == 2 {
 		pid = m[1]
 	}
 	parts := strings.Split(upper, `\`)

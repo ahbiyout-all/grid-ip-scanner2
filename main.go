@@ -30,6 +30,8 @@ var defaultPort = "3031"
 //go:embed master_oui.txt
 var ouiData string
 
+var reHTMLTitle = regexp.MustCompile(`(?i)<title[^>]*>(.*?)</title>`)
+
 type ScanResult struct {
 	IP              string            `json:"ip"`
 	Alive           bool              `json:"alive"`
@@ -668,8 +670,7 @@ func getWebTitle(ctx context.Context, ip string) string {
 		return ""
 	}
 
-	re := regexp.MustCompile(`(?i)<title[^>]*>(.*?)</title>`)
-	matches := re.FindStringSubmatch(string(body))
+	matches := reHTMLTitle.FindStringSubmatch(string(body))
 	if len(matches) > 1 {
 		title := strings.TrimSpace(matches[1])
 		title = strings.ReplaceAll(title, "\n", " ")
@@ -1364,8 +1365,7 @@ func getWebTitleWithTimeout(ctx context.Context, ip string, timeoutMs int) strin
 		return ""
 	}
 
-	re := regexp.MustCompile(`(?i)<title[^>]*>(.*?)</title>`)
-	matches := re.FindStringSubmatch(string(body))
+	matches := reHTMLTitle.FindStringSubmatch(string(body))
 	if len(matches) > 1 {
 		title := strings.TrimSpace(matches[1])
 		title = strings.ReplaceAll(title, "\n", " ")
@@ -1885,26 +1885,82 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Method not allowed",
+			})
 			return
 		}
-		body, err := io.ReadAll(r.Body)
+		const maxOUIUploadBytes = 32 * 1024 * 1024
+		body, err := io.ReadAll(io.LimitReader(r.Body, maxOUIUploadBytes+1))
 		if err != nil {
-			http.Error(w, "Failed to read body", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Failed to read body",
+			})
+			return
+		}
+		if len(body) > maxOUIUploadBytes {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "OUI database payload exceeds 32MB limit",
+			})
+			return
+		}
+		if len(strings.TrimSpace(string(body))) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Empty OUI payload",
+			})
+			return
+		}
+
+		// Validate OUI syntax before overwriting local cache
+		testMap := make(map[string]string)
+		parseOUIData(string(body), testMap)
+		if len(testMap) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "유효한 OUI 레코드를 찾을 수 없습니다.",
+			})
 			return
 		}
 
 		// Save to cache
 		cachePath := getOUICachePath()
-		os.WriteFile(cachePath, body, 0644)
+		if err := os.WriteFile(cachePath, body, 0644); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to persist OUI cache: %v", err),
+			})
+			return
+		}
 
 		initOUIProvider()
+		ouiMutex.RLock()
+		newCount := 0
+		if currentOUIProvider != nil {
+			newCount = currentOUIProvider.EntryCount()
+		}
+		ouiMutex.RUnlock()
+
 		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"count":   newCount,
+		})
 	})
 
 	http.HandleFunc("/api/oui/auto-update", func(w http.ResponseWriter, r *http.Request) {
@@ -1944,7 +2000,7 @@ func main() {
 			if resp.StatusCode != http.StatusOK {
 				return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 			}
-			body, err := io.ReadAll(resp.Body)
+			body, err := io.ReadAll(io.LimitReader(resp.Body, 48*1024*1024))
 			if err != nil {
 				return nil, err
 			}
@@ -1996,7 +2052,20 @@ func main() {
 			return
 		}
 
-		finalBody := []byte(combinedData.String())
+		combinedStr := combinedData.String()
+		verifyMap := make(map[string]string)
+		parseOUIData(combinedStr, verifyMap)
+		if len(verifyMap) < 1000 {
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":          false,
+				"error":            fmt.Sprintf("Downloaded OUI data failed validation (%d entries parsed)", len(verifyMap)),
+				"sourcesAttempted": sourcesAttempted,
+			})
+			return
+		}
+
+		finalBody := []byte(combinedStr)
 		cachePath := getOUICachePath()
 		if err := os.WriteFile(cachePath, finalBody, 0644); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -2056,7 +2125,14 @@ func main() {
 		if ok && len(sanitized) > 0 {
 			// Save sanitized copy if requested
 			if r.URL.Query().Get("save") == "true" {
-				_ = os.WriteFile(cachePath, []byte(sanitized), 0644)
+				if writeErr := os.WriteFile(cachePath, []byte(sanitized), 0644); writeErr != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"success": false,
+						"error":   "Failed to save sanitized OUI cache: " + writeErr.Error(),
+					})
+					return
+				}
 				initOUIProvider()
 			}
 
@@ -2292,6 +2368,14 @@ func main() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Method not allowed",
+			})
+			return
+		}
 
 		var req struct {
 			MAC string `json:"mac"`
@@ -2299,7 +2383,7 @@ func main() {
 		}
 
 		if r.Method == http.MethodPost {
-			_ = json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(io.LimitReader(r.Body, 64*1024)).Decode(&req)
 		}
 		if req.MAC == "" {
 			req.MAC = r.URL.Query().Get("mac")
@@ -2346,17 +2430,33 @@ func main() {
 			return
 		}
 
-		action := r.URL.Query().Get("action")
-		ip := r.URL.Query().Get("ip")
-		port := r.URL.Query().Get("port")
+		action := strings.TrimSpace(r.URL.Query().Get("action"))
+		rawIP := strings.TrimSpace(r.URL.Query().Get("ip"))
+		rawPort := strings.TrimSpace(r.URL.Query().Get("port"))
 
-		if ip == "" {
+		parsedIP := net.ParseIP(rawIP)
+		if parsedIP == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
-				"error":   "Missing IP parameter",
+				"error":   "Invalid or missing IP address",
 			})
 			return
+		}
+		ip := parsedIP.String()
+
+		port := ""
+		if rawPort != "" {
+			parsedPort, err := strconv.Atoi(rawPort)
+			if err != nil || parsedPort < 1 || parsedPort > 65535 {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Invalid port number (must be 1-65535)",
+				})
+				return
+			}
+			port = strconv.Itoa(parsedPort)
 		}
 
 		var cmdStr string
@@ -2460,7 +2560,7 @@ func main() {
 		}
 
 		if r.Method == http.MethodPost {
-			body, err := io.ReadAll(r.Body)
+			body, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
 			if err != nil {
 				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusBadRequest)
 				return
@@ -2686,7 +2786,7 @@ func main() {
 						}
 					}
 				}
-			case <-time.After(400 * time.Millisecond):
+			case <-time.After(time.Duration(probeTimeout+150) * time.Millisecond):
 				// Non-blocking timeout: proceed immediately with parallel workers
 			}
 		}
@@ -3135,12 +3235,14 @@ func main() {
 	http.HandleFunc("/api/arp-spoof-check", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		ip := r.URL.Query().Get("ip")
-		expectedMac := r.URL.Query().Get("mac")
-		if ip == "" || expectedMac == "" {
-			http.Error(w, `{"error":"Missing IP or MAC"}`, http.StatusBadRequest)
+		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
+		expectedMac := strings.TrimSpace(r.URL.Query().Get("mac"))
+		parsedIP := net.ParseIP(ip)
+		if parsedIP == nil || expectedMac == "" {
+			http.Error(w, `{"error":"Missing or invalid IP or MAC"}`, http.StatusBadRequest)
 			return
 		}
+		ip = parsedIP.String()
 		if alert, ok := tryNativePcapDetectArpSpoof(ip, expectedMac); ok && alert != "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"spoofingDetected": true,
@@ -3167,8 +3269,16 @@ func main() {
 
 		var inJson string
 		if r.Method == http.MethodPost {
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err == nil && len(bodyBytes) > 0 {
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
+			if err != nil {
+				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusBadRequest)
+				return
+			}
+			if len(bodyBytes) > 0 {
+				if !json.Valid(bodyBytes) {
+					http.Error(w, `{"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+					return
+				}
 				inJson = string(bodyBytes)
 			}
 		}
@@ -3251,8 +3361,16 @@ func main() {
 
 		var inJson string
 		if r.Method == http.MethodPost {
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err == nil && len(bodyBytes) > 0 {
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
+			if err != nil {
+				http.Error(w, `{"error":"Failed to read request body"}`, http.StatusBadRequest)
+				return
+			}
+			if len(bodyBytes) > 0 {
+				if !json.Valid(bodyBytes) {
+					http.Error(w, `{"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+					return
+				}
 				inJson = string(bodyBytes)
 			}
 		}
@@ -3454,6 +3572,16 @@ func main() {
 
 	http.HandleFunc("/api/exit", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		go func() {
 			time.Sleep(500 * time.Millisecond)
 			cleanupAndExit()
@@ -3499,7 +3627,9 @@ func main() {
 			// 3. Kill all other running instances of this scanner to free up the socket port.
 			// 4. Explicitly kill the current process to release the port socket.
 			// 5. Relaunch the application with Administrator privileges (RunAs verb).
-			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", procName, os.Getpid(), exePath)
+			safeProcName := strings.ReplaceAll(procName, "'", "''")
+			safeExePath := strings.ReplaceAll(exePath, "'", "''")
+			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", safeProcName, os.Getpid(), safeExePath)
 			cmd := exec.Command("powershell", "-Command", cmdStr)
 			hideWindow(cmd)
 

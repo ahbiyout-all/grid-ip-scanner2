@@ -39,6 +39,159 @@ export const ENTERPRISE_FEATURES: LicenseFeatures = {
   intruderDetection: true,
 };
 
+export interface ResolvedFeatureGates {
+  isProOrHigher: boolean;
+  isEnterprise: boolean;
+  visualGrid: boolean;
+  fastPing: boolean;
+  ouiLookup: boolean;
+  deepPortAudit: boolean;
+  snapshotDiff: boolean;
+  autoScheduler: boolean;
+  autoReportArchive: boolean;
+  reportAuditExport: boolean;
+  reportExcelWorkbook: boolean;
+  reportBrandingLogo: boolean;
+  reportDiffCompare: boolean;
+  remoteBootWoL: boolean;
+  intruderGuard: boolean;
+  multiSubnetUnlimited: boolean;
+  maxSubnets: number;
+}
+
+export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates => {
+  const isEnterprise = license.tier === 'enterprise';
+  const isProOrHigher = license.tier === 'pro' || isEnterprise;
+  const f = license.features || DEFAULT_FREE_FEATURES;
+  const diffAllowed = isProOrHigher && Boolean(f.diffCompare);
+  const exportProAllowed = isProOrHigher && Boolean(f.exportReport);
+  const schedulerAllowed = isProOrHigher && Boolean(f.autoMonitor);
+
+  return {
+    isProOrHigher,
+    isEnterprise,
+    visualGrid: Boolean(f.visualGrid ?? true),
+    fastPing: Boolean(f.fastPing ?? true),
+    ouiLookup: Boolean(f.ouiLookup ?? true),
+    deepPortAudit: isProOrHigher && Boolean(f.portScanDeep),
+    snapshotDiff: diffAllowed,
+    autoScheduler: schedulerAllowed,
+    autoReportArchive: schedulerAllowed && exportProAllowed,
+    reportAuditExport: exportProAllowed,
+    reportExcelWorkbook: exportProAllowed,
+    reportBrandingLogo: exportProAllowed,
+    reportDiffCompare: diffAllowed,
+    remoteBootWoL: isProOrHigher && Boolean(f.remoteBoot),
+    intruderGuard: isProOrHigher && Boolean(f.intruderDetection),
+    multiSubnetUnlimited: isEnterprise && Boolean(f.multiSubnet),
+    maxSubnets: license.maxSubnets || (isEnterprise ? 999 : isProOrHigher ? 5 : 1),
+  };
+};
+
+export type EntitlementGateKey =
+  | 'visualGrid'
+  | 'ouiLookup'
+  | 'basicExport'
+  | 'autoScheduler'
+  | 'snapshotDiff'
+  | 'deepPortAudit'
+  | 'reportExcelWorkbook'
+  | 'reportBrandingLogo'
+  | 'intruderGuard'
+  | 'remoteBootWoL';
+
+export interface FeatureCatalogEntry {
+  key: EntitlementGateKey;
+  tier: 'free' | 'pro';
+  labelKo: string;
+  labelEn: string;
+  scopeKo: string;
+  scopeEn: string;
+}
+
+export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
+  {
+    key: 'visualGrid',
+    tier: 'free',
+    labelKo: '16×16 시각화 그리드 & 고속 스캔',
+    labelEn: '16×16 Visual Grid & Fast Scan',
+    scopeKo: 'Community 기본 제공',
+    scopeEn: 'Included in Free',
+  },
+  {
+    key: 'ouiLookup',
+    tier: 'free',
+    labelKo: '9만 건 OUI 제조사 · 장치 식별',
+    labelEn: '90k OUI Vendor & Device Classifier',
+    scopeKo: 'Community 기본 제공',
+    scopeEn: 'Included in Free',
+  },
+  {
+    key: 'basicExport',
+    tier: 'free',
+    labelKo: '기본 내보내기 (PDF · CSV · JSON · MD · HTML 그리드)',
+    labelEn: 'Basic Export (PDF · CSV · JSON · MD · HTML Grid)',
+    scopeKo: 'Community 기본 제공',
+    scopeEn: 'Included in Free',
+  },
+  {
+    key: 'autoScheduler',
+    tier: 'pro',
+    labelKo: '정기 자동 스케줄러 & 자동 리포트 저장',
+    labelEn: 'Recurring Scan Scheduler & Auto Archive',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'snapshotDiff',
+    tier: 'pro',
+    labelKo: '스냅샷 비교 (Diff · 1:1 스튜디오 · 비교 리포트)',
+    labelEn: 'Snapshot Diff (Engine · 1:1 Studio · Diff Report)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'deepPortAudit',
+    tier: 'pro',
+    labelKo: '심층 포트 정밀 보안 감사',
+    labelEn: 'Deep Port Security Audit',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'reportExcelWorkbook',
+    tier: 'pro',
+    labelKo: 'Excel 5-Sheet 통합문서 & 보안 감사 보고서',
+    labelEn: '5-Sheet Excel Workbook & Audit Reports',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'reportBrandingLogo',
+    tier: 'pro',
+    labelKo: '리포트 화이트라벨 브랜딩 & 로고 업로드',
+    labelEn: 'White-Label Report Branding & Logo',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'intruderGuard',
+    tier: 'pro',
+    labelKo: '낯선 기기 감시 & Soft Trust 침입 탐지',
+    labelEn: 'Intruder Watch & Soft Trust Guard',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'remoteBootWoL',
+    tier: 'pro',
+    labelKo: '원격 부팅 (Wake-on-LAN)',
+    labelEn: 'Remote Boot (Wake-on-LAN)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+];
+
 const STORAGE_KEY = 'grid_ip_scanner_license_v2';
 const TRIAL_HISTORY_KEY = 'grid_ip_scanner_trial_history_v1';
 

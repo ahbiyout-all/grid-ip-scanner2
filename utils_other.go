@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -15,6 +16,12 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
+)
+
+var (
+	reNvmePart = regexp.MustCompile(`^(nvme\d+n\d+|mmcblk\d+)p\d+$`)
+	reSdPart   = regexp.MustCompile(`^([a-zA-Z]+)\d+$`)
 )
 
 const (
@@ -149,7 +156,9 @@ func GetStorageBindingContext(targetDir string) StorageBindingInfo {
 	// 1. Inspect mount source via findmnt on Linux
 	sourceDev := ""
 	fsType := ""
-	if out, err := exec.Command("findmnt", "-n", "-o", "SOURCE,FSTYPE", "--target", absDir).Output(); err == nil {
+	findCtx, findCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer findCancel()
+	if out, err := exec.CommandContext(findCtx, "findmnt", "-n", "-o", "SOURCE,FSTYPE", "--target", absDir).Output(); err == nil {
 		fields := strings.Fields(strings.TrimSpace(string(out)))
 		if len(fields) >= 1 {
 			sourceDev = fields[0]
@@ -254,12 +263,10 @@ func GetStorageBindingContext(targetDir string) StorageBindingInfo {
 }
 
 func stripLinuxPartitionSuffix(dev string) string {
-	reNvme := regexp.MustCompile(`^(nvme\d+n\d+|mmcblk\d+)p\d+$`)
-	if m := reNvme.FindStringSubmatch(dev); len(m) == 2 {
+	if m := reNvmePart.FindStringSubmatch(dev); len(m) == 2 {
 		return m[1]
 	}
-	reSd := regexp.MustCompile(`^([a-zA-Z]+)\d+$`)
-	if m := reSd.FindStringSubmatch(dev); len(m) == 2 {
+	if m := reSdPart.FindStringSubmatch(dev); len(m) == 2 {
 		return m[1]
 	}
 	return dev

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Layers,
@@ -29,6 +29,7 @@ interface SnapshotDiffModalProps {
   isOpen: boolean;
   onClose: () => void;
   snapshots: ScanSnapshot[];
+  activeBaselineSnapshotId?: string | null;
   onSnapshotsChange: (updated: ScanSnapshot[]) => void;
   currentResults: Record<string, ScanResult>;
   currentSubnet: string;
@@ -44,6 +45,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   isOpen,
   onClose,
   snapshots,
+  activeBaselineSnapshotId,
   onSnapshotsChange,
   currentResults,
   currentSubnet,
@@ -60,6 +62,9 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   // Source A (Before) and Source B (After) selection
   // 'live' means current active scan results
   const [sourceAId, setSourceAId] = useState<string>(() => {
+    if (activeBaselineSnapshotId && snapshots.some((snap) => snap.id === activeBaselineSnapshotId)) {
+      return activeBaselineSnapshotId;
+    }
     return snapshots.length > 0 ? snapshots[0].id : 'live';
   });
   const [sourceBId, setSourceBId] = useState<string>('live');
@@ -74,6 +79,50 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const [editLabelInput, setEditLabelInput] = useState('');
   const [newSnapLabelInput, setNewSnapLabelInput] = useState('');
   const [showSavePrompt, setShowSavePrompt] = useState(false);
+
+  // Sync baseline Source A when modal opens or snapshots change
+  useEffect(() => {
+    if (!isOpen) return;
+    if (activeBaselineSnapshotId && snapshots.some((snap) => snap.id === activeBaselineSnapshotId)) {
+      setSourceAId(activeBaselineSnapshotId);
+      return;
+    }
+    setSourceAId((prev) => {
+      if (prev !== 'live' && snapshots.some((snap) => snap.id === prev)) return prev;
+      if (snapshots.length > 0 && (prev === 'live' && sourceBId === 'live' || prev !== 'live')) {
+        return snapshots[0].id;
+      }
+      return 'live';
+    });
+  }, [isOpen, activeBaselineSnapshotId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSourceAId((prev) => (prev === 'live' || snapshots.some((snap) => snap.id === prev) ? prev : snapshots[0]?.id || 'live'));
+    setSourceBId((prev) => (prev === 'live' || snapshots.some((snap) => snap.id === prev) ? prev : 'live'));
+  }, [isOpen, snapshots]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        if (document.querySelector('[aria-labelledby="pro-locked-modal-title"], [data-modal-layer="license"]')) {
+          return;
+        }
+        if (showSavePrompt) {
+          setShowSavePrompt(false);
+          return;
+        }
+        if (editingSnapId) {
+          setEditingSnapId(null);
+          return;
+        }
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, showSavePrompt, editingSnapId, onClose]);
 
   // Resolve results dataset for Source A and Source B
   const resolveDataset = (id: string): { label: string; results: Record<string, ScanResult>; timestamp?: number; count: number } => {
@@ -243,7 +292,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const totalChanges = diffResult.summary.newCount + diffResult.summary.offlineCount + diffResult.summary.changedCount;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in duration-200"
+      onClick={() => {
+        if (!showSavePrompt && !editingSnapId) onClose();
+      }}
+    >
       <div
         className={`w-full max-w-6xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${modalBg} ${borderCol} overflow-hidden`}
         onClick={(e) => e.stopPropagation()}

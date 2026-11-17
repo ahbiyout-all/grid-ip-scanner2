@@ -22,22 +22,25 @@ import {
   History,
   Sparkles,
   ShieldAlert,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from 'lucide-react';
-import { ScanSchedule, ScheduleInterval, ScheduledScanRunRecord, NetworkConfig } from '../types';
-import { 
-  INTERVAL_PRESETS, 
-  formatIntervalLabel, 
-  formatCountdown, 
-  getSchedules, 
-  saveSchedule, 
-  deleteSchedule, 
-  toggleSchedule, 
-  getScheduleHistory, 
-  clearScheduleHistory, 
+import { ScanSchedule, ScheduleInterval, ScheduledScanRunRecord, NetworkConfig, AutoExportFormat, LicenseInfo } from '../types';
+import { resolveFeatureGates } from '../services/licenseManager';
+import { ProLockedFeatureId } from './ProFeatureLockedModal';
+import {
+  INTERVAL_PRESETS,
+  formatIntervalLabel,
+  formatCountdown,
+  getSchedules,
+  saveSchedule,
+  deleteSchedule,
+  toggleSchedule,
+  getScheduleHistory,
+  clearScheduleHistory,
   exportScheduleHistoryCSV,
-  calculateNextRunTime
 } from '../services/schedulerService';
+import { getAutoReports, downloadAutoReportRecord } from '../services/reportCenterService';
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -46,9 +49,12 @@ interface ScheduleModalProps {
   currentDeepScan: boolean;
   currentScanMode: 'fast' | 'standard' | 'precision';
   isScanning: boolean;
+  license: LicenseInfo;
   lang: 'ko' | 'en';
   onTriggerScanNow: (schedule: ScanSchedule) => void;
   onViewSnapshot?: (snapshotId: string) => void;
+  onOpenReportArchive?: () => void;
+  onRequireProLicense: (featureId?: ProLockedFeatureId) => void;
 }
 
 export const ScheduleModal: React.FC<ScheduleModalProps> = ({
@@ -58,10 +64,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   currentDeepScan,
   currentScanMode,
   isScanning,
+  license,
   lang,
   onTriggerScanNow,
   onViewSnapshot,
+  onOpenReportArchive,
+  onRequireProLicense,
 }) => {
+  const gates = resolveFeatureGates(license);
+  const isSchedulerUnlocked = gates.autoScheduler;
   const [activeTab, setActiveTab] = useState<'schedules' | 'edit' | 'history'>('schedules');
   const [schedules, setSchedules] = useState<ScanSchedule[]>([]);
   const [history, setHistory] = useState<ScheduledScanRunRecord[]>([]);
@@ -82,6 +93,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [snapshotPrefix, setSnapshotPrefix] = useState('[Auto-Sched]');
   const [notifyOnCompletion, setNotifyOnCompletion] = useState(true);
   const [notifyOnChangesOnly, setNotifyOnChangesOnly] = useState(false);
+  const [autoExportEnabled, setAutoExportEnabled] = useState(false);
+  const [autoExportFormats, setAutoExportFormats] = useState<AutoExportFormat[]>(['excel', 'json']);
+  const [autoExportOnChangesOnly, setAutoExportOnChangesOnly] = useState(false);
+  const [autoDownloadFile, setAutoDownloadFile] = useState(false);
 
   // Ticker for live countdowns
   const [now, setNow] = useState(Date.now());
@@ -100,6 +115,20 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       setConfirmClearHistory(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        if (document.querySelector('[aria-labelledby="pro-locked-modal-title"], [data-modal-layer="license"]')) {
+          return;
+        }
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const refreshData = () => {
     setSchedules(getSchedules());
@@ -120,15 +149,27 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     setSnapshotPrefix('[Auto-Sched]');
     setNotifyOnCompletion(true);
     setNotifyOnChangesOnly(false);
+    setAutoExportEnabled(false);
+    setAutoExportFormats(['excel', 'json']);
+    setAutoExportOnChangesOnly(false);
+    setAutoDownloadFile(false);
   };
 
   const handleOpenCreate = () => {
+    if (!isSchedulerUnlocked) {
+      onRequireProLicense('autoScheduler');
+      return;
+    }
     resetForm();
     setName(lang === 'ko' ? `${currentConfig.subnet || '192.168.0'} 1시간 정기 자동 스캔` : `${currentConfig.subnet || '192.168.0'} Hourly Routine Scan`);
     setActiveTab('edit');
   };
 
   const handleOpenEdit = (sched: ScanSchedule) => {
+    if (!isSchedulerUnlocked) {
+      onRequireProLicense('autoScheduler');
+      return;
+    }
     setEditingScheduleId(sched.id);
     setName(sched.name);
     setSubnet(sched.subnet);
@@ -142,11 +183,28 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     setSnapshotPrefix(sched.snapshotPrefix || '[Auto-Sched]');
     setNotifyOnCompletion(sched.notifyOnCompletion);
     setNotifyOnChangesOnly(sched.notifyOnChangesOnly);
+    setAutoExportEnabled(Boolean(sched.autoExportEnabled));
+    setAutoExportFormats(sched.autoExportFormats && sched.autoExportFormats.length > 0 ? sched.autoExportFormats : ['excel', 'json']);
+    setAutoExportOnChangesOnly(Boolean(sched.autoExportOnChangesOnly));
+    setAutoDownloadFile(Boolean(sched.autoDownloadFile));
     setActiveTab('edit');
+  };
+
+  const toggleAutoExportFormat = (fmt: AutoExportFormat) => {
+    setAutoExportFormats((prev) => {
+      if (prev.includes(fmt)) {
+        return prev.length > 1 ? prev.filter((f) => f !== fmt) : prev;
+      }
+      return [...prev, fmt];
+    });
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSchedulerUnlocked) {
+      onRequireProLicense('autoScheduler');
+      return;
+    }
     if (!subnet.trim()) return;
 
     let normalizedStart = Math.max(0, Math.min(255, Number.isFinite(Number(start)) ? Math.trunc(Number(start)) : 1));
@@ -170,6 +228,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       snapshotPrefix: snapshotPrefix.trim() || '[Auto-Sched]',
       notifyOnCompletion,
       notifyOnChangesOnly,
+      autoExportEnabled,
+      autoExportFormats: autoExportFormats.length > 0 ? autoExportFormats : ['excel'],
+      autoExportOnChangesOnly,
+      autoDownloadFile,
     });
 
     refreshData();
@@ -178,6 +240,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   };
 
   const handleToggle = (id: string) => {
+    if (!isSchedulerUnlocked) {
+      onRequireProLicense('autoScheduler');
+      return;
+    }
     toggleSchedule(id);
     refreshData();
   };
@@ -209,7 +275,12 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const activeCount = schedules.filter(s => s.enabled).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div
+      className="fixed inset-0 z-[215] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-sm animate-fade-in"
+      onClick={() => {
+        if (activeTab !== 'edit') onClose();
+      }}
+    >
       <div 
         className="w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl bg-slate-900 border border-cyan-500/30 shadow-2xl shadow-cyan-950/50 overflow-hidden text-slate-100 font-sans"
         onClick={(e) => e.stopPropagation()}
@@ -225,9 +296,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                 <h2 className="text-lg font-bold text-white tracking-wide">
                   {lang === 'ko' ? '네트워크 정기 자동 스케줄러' : 'Automated Network Scan Scheduler'}
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-950 border border-cyan-600/40 text-cyan-300">
-                  {activeCount} {lang === 'ko' ? '개 활성' : 'Active'}
-                </span>
+                {isSchedulerUnlocked ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-950 border border-cyan-600/40 text-cyan-300">
+                    {activeCount} {lang === 'ko' ? '개 활성' : 'Active'}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> PRO
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400">
                 {lang === 'ko' 
@@ -332,6 +409,33 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {!isSchedulerUnlocked && (
+            <div className="p-3.5 rounded-xl border border-amber-500/35 bg-amber-500/10 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-0.5 min-w-0">
+                <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {lang === 'ko'
+                      ? '정기 자동 스케줄러 & 자동 리포트 저장은 PRO 이상 라이선스 전용 기능입니다.'
+                      : 'Recurring Automated Scheduler & Auto Report Export require PRO edition or higher.'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  {lang === 'ko'
+                    ? '무료 버전에서는 백그라운드 예약 스캔이 일시 정지됩니다. PRO 정품 키 또는 30일 체험을 활성화하면 즉시 재개됩니다.'
+                    : 'Scheduled background runs are paused in Free mode. Activate PRO or a 30-day trial to enable automation.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRequireProLicense('autoScheduler')}
+                className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shrink-0 cursor-pointer transition-colors"
+              >
+                {lang === 'ko' ? 'PRO 활성화 / 30일 체험' : 'Unlock PRO Features'}
+              </button>
+            </div>
+          )}
+
           {/* TAB 1: Schedules List */}
           {activeTab === 'schedules' && (
             <div className="space-y-3">
@@ -401,7 +505,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-slate-500">{lang === 'ko' ? '누적 실행:' : 'Runs:'}</span>
-                              <span className="text-slate-300 font-mono">{sched.totalRuns || 0}회</span>
+                              <span className="text-slate-300 font-mono">
+                                {sched.totalRuns || 0}
+                                {lang === 'ko' ? '회' : ''}
+                              </span>
                             </div>
                             {sched.lastRun && (
                               <div className="flex items-center gap-1.5">
@@ -419,6 +526,12 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                               <span className="flex items-center gap-1 text-[11px] text-indigo-400 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-800/30">
                                 <Bell className="w-3 h-3" />
                                 <span>{sched.notifyOnChangesOnly ? (lang === 'ko' ? '변동시 알림' : 'On Changes') : (lang === 'ko' ? '알림' : 'Notify')}</span>
+                              </span>
+                            )}
+                            {sched.autoExportEnabled && (
+                              <span className="flex items-center gap-1 text-[11px] text-sky-400 bg-sky-950/40 px-1.5 py-0.5 rounded border border-sky-800/30 font-mono">
+                                <Download className="w-3 h-3" />
+                                <span>{(sched.autoExportFormats || ['pdf']).map(f => f.toUpperCase()).join('/')}</span>
                               </span>
                             )}
                           </div>
@@ -445,12 +558,18 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                           {/* Run Now Button */}
                           <button
                             type="button"
-                            onClick={() => onTriggerScanNow(sched)}
+                            onClick={() => {
+                              if (!isSchedulerUnlocked) {
+                                onRequireProLicense('autoScheduler');
+                                return;
+                              }
+                              onTriggerScanNow(sched);
+                            }}
                             disabled={isScanning}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition disabled:opacity-40"
                             title={lang === 'ko' ? '지금 즉시 스케줄 스캔 실행' : 'Trigger this scan now'}
                           >
-                            <Play className="w-3.5 h-3.5 fill-current" />
+                            {isSchedulerUnlocked ? <Play className="w-3.5 h-3.5 fill-current" /> : <Lock className="w-3.5 h-3.5 text-amber-400" />}
                             <span>{lang === 'ko' ? '즉시 실행' : 'Run'}</span>
                           </button>
 
@@ -753,6 +872,74 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       </label>
                     </div>
                   )}
+
+                  {/* Auto-Report Export Section */}
+                  <div className="pt-2 border-t border-slate-800 space-y-2.5">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoExportEnabled}
+                        onChange={(e) => setAutoExportEnabled(e.target.checked)}
+                        className="mt-0.5 rounded text-cyan-500 focus:ring-0 bg-slate-800 border-slate-600 w-4 h-4"
+                      />
+                      <div>
+                        <span className="text-xs font-medium text-slate-200">
+                          {lang === 'ko' ? '스캔 완료 시 자동 리포트 저장 (Auto-Report Archive)' : 'Automatically generate & archive reports on completion'}
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          {lang === 'ko'
+                            ? '정기 스캔 종료 시 선택한 포맷의 리포트를 자동 생성하여 리포트 센터 보관함에 저장합니다.'
+                            : 'Generate reports in selected formats and archive them in the Unified Report Center.'}
+                        </p>
+                      </div>
+                    </label>
+
+                    {autoExportEnabled && (
+                      <div className="pl-6 space-y-2.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['pdf', 'excel', 'csv', 'json', 'markdown', 'html'] as AutoExportFormat[]).map((fmt) => {
+                            const active = autoExportFormats.includes(fmt);
+                            return (
+                              <button
+                                key={fmt}
+                                type="button"
+                                onClick={() => toggleAutoExportFormat(fmt)}
+                                className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold border transition ${
+                                  active
+                                    ? 'bg-cyan-600/30 border-cyan-400 text-cyan-200'
+                                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                {fmt.toUpperCase()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoExportOnChangesOnly}
+                            onChange={(e) => setAutoExportOnChangesOnly(e.target.checked)}
+                            className="rounded text-cyan-500 focus:ring-0 bg-slate-800 border-slate-600 w-3.5 h-3.5"
+                          />
+                          <span className="text-xs text-slate-300">
+                            {lang === 'ko' ? '기준 스냅샷 대비 네트워크 변동이 감지된 경우에만 리포트 생성' : 'Only generate report when changes vs baseline are detected'}
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoDownloadFile}
+                            onChange={(e) => setAutoDownloadFile(e.target.checked)}
+                            className="rounded text-cyan-500 focus:ring-0 bg-slate-800 border-slate-600 w-3.5 h-3.5"
+                          />
+                          <span className="text-xs text-slate-300">
+                            {lang === 'ko' ? '완료 즉시 브라우저 파일 다운로드도 함께 실행' : 'Also trigger browser file download immediately'}
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -839,18 +1026,38 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                             {(item.durationMs / 1000).toFixed(1)}s
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {item.snapshotId ? (
-                              <button
-                                type="button"
-                                onClick={() => onViewSnapshot?.(item.snapshotId!)}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 px-2 py-0.5 rounded border border-cyan-800/40 transition"
-                              >
-                                <Camera className="w-3 h-3" />
-                                <span>{lang === 'ko' ? '스냅샷 보기' : 'View'}</span>
-                              </button>
-                            ) : (
-                              <span className="text-slate-600">-</span>
-                            )}
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                              {item.snapshotId ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onViewSnapshot?.(item.snapshotId!)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 px-2 py-0.5 rounded border border-cyan-800/40 transition"
+                                >
+                                  <Camera className="w-3 h-3" />
+                                  <span>{lang === 'ko' ? '스냅샷' : 'Snap'}</span>
+                                </button>
+                              ) : (
+                                <span className="text-slate-600">-</span>
+                              )}
+                              {item.autoReportIds && item.autoReportIds.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const stored = getAutoReports().find((r) => item.autoReportIds!.includes(r.id) && r.contentText);
+                                    if (stored && stored.contentText) {
+                                      downloadAutoReportRecord(stored);
+                                    } else {
+                                      onOpenReportArchive?.();
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/40 transition"
+                                  title={lang === 'ko' ? '자동 생성된 리포트 다운로드 / 보관함 열기' : 'Download auto-generated report'}
+                                >
+                                  <Download className="w-3 h-3" />
+                                  <span>{item.autoReportIds.length}</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 text-right">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
@@ -874,14 +1081,22 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-3 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-            </span>
+            {isSchedulerUnlocked ? (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+              </span>
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+            )}
             <span>
-              {lang === 'ko' 
-                ? '스케줄러 백그라운드 엔진 가동 중 (브라우저 또는 앱 실행 상태 유지)' 
-                : 'Scheduler engine active in background while app is running'}
+              {isSchedulerUnlocked
+                ? (lang === 'ko'
+                    ? '스케줄러 백그라운드 엔진 가동 중 (브라우저 또는 앱 실행 상태 유지)'
+                    : 'Scheduler engine active in background while app is running')
+                : (lang === 'ko'
+                    ? 'PRO 라이선스 미인증 상태 — 예약 스캔 백그라운드 실행이 일시 중지되었습니다'
+                    : 'Free tier active — scheduled background runs are paused until PRO is activated')}
             </span>
           </div>
           <button

@@ -334,6 +334,12 @@ export const computeSnapshotDiff = (
   };
 };
 
+export const sanitizeCsvCell = (value: unknown): string => {
+  const raw = String(value ?? '');
+  const safe = raw !== '-' && /^[\s\uFEFF\xA0]*[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replace(/"/g, '""')}"`;
+};
+
 /**
  * Exports snapshot diff analysis to CSV spreadsheet format.
  */
@@ -361,25 +367,23 @@ export const exportDiffToCSV = (diffResult: DiffAnalysisResult, filename?: strin
     const prevDev = item.previous?.device;
     const curDev = item.current?.device;
 
-    const escapeCsv = (str: string | undefined) => `"${(str || '').replace(/"/g, '""')}"`;
-
     return [
-      item.ip,
-      item.diffStatus.toUpperCase(),
-      item.category || 'general',
-      item.previous?.status || 'inactive',
-      escapeCsv(prevDev?.mac),
-      escapeCsv(prevDev?.hostname),
-      escapeCsv(prevDev?.vendor),
-      escapeCsv(prevDev?.openPorts?.join(', ')),
-      prevDev?.latency ? `${prevDev.latency}ms` : '-',
-      item.current?.status || 'inactive',
-      escapeCsv(curDev?.mac),
-      escapeCsv(curDev?.hostname),
-      escapeCsv(curDev?.vendor),
-      escapeCsv(curDev?.openPorts?.join(', ')),
-      curDev?.latency ? `${curDev.latency}ms` : '-',
-      escapeCsv(item.changeDetails.join(' | ')),
+      sanitizeCsvCell(item.ip),
+      sanitizeCsvCell(item.diffStatus.toUpperCase()),
+      sanitizeCsvCell(item.category || 'general'),
+      sanitizeCsvCell(item.previous?.status || 'inactive'),
+      sanitizeCsvCell(prevDev?.mac),
+      sanitizeCsvCell(prevDev?.hostname),
+      sanitizeCsvCell(prevDev?.vendor),
+      sanitizeCsvCell(prevDev?.openPorts?.join(', ')),
+      sanitizeCsvCell(prevDev?.latency ? `${prevDev.latency}ms` : '-'),
+      sanitizeCsvCell(item.current?.status || 'inactive'),
+      sanitizeCsvCell(curDev?.mac),
+      sanitizeCsvCell(curDev?.hostname),
+      sanitizeCsvCell(curDev?.vendor),
+      sanitizeCsvCell(curDev?.openPorts?.join(', ')),
+      sanitizeCsvCell(curDev?.latency ? `${curDev.latency}ms` : '-'),
+      sanitizeCsvCell(item.changeDetails.join(' | ')),
     ].join(',');
   });
 
@@ -392,5 +396,5 @@ export const exportDiffToCSV = (diffResult: DiffAnalysisResult, filename?: strin
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };

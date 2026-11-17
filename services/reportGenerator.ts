@@ -1,7 +1,17 @@
-import { ScanResult, LicenseInfo } from '../types';
+import { ScanResult, LicenseInfo, ReportColumnKey } from '../types';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CURRENT_APP_VERSION } from './updateChecker';
+import {
+  PreparedReportDataset,
+  DEFAULT_SELECTED_COLUMNS,
+  getColumnHeader,
+  getColumnValue,
+  formatTimestampLocal,
+  buildReportFilename,
+  sanitizeImageDataUrl,
+  sanitizeHexColor,
+} from './reportCenterService';
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '')
@@ -218,8 +228,8 @@ export async function exportSecurityAuditReportToPDF(
   }
 
   // Calculate layout pagination with generous spacing to prevent bottom text clipping
-  const DEVICES_PAGE_1 = highRiskDevices.length > 0 ? 4 : 7;
-  const DEVICES_PER_SUB_PAGE = 22;
+  const DEVICES_PAGE_1 = highRiskDevices.length > 0 ? 4 : 6;
+  const DEVICES_PER_SUB_PAGE = 20;
 
   const remainingDevices = activeDevices.slice(DEVICES_PAGE_1);
   const subPagesCount = remainingDevices.length > 0 ? Math.ceil(remainingDevices.length / DEVICES_PER_SUB_PAGE) : 0;
@@ -427,7 +437,7 @@ export async function exportSecurityAuditReportToPDF(
     const pageDevices = remainingDevices.slice(p * DEVICES_PER_SUB_PAGE, (p + 1) * DEVICES_PER_SUB_PAGE);
 
     const subPageHtml = `
-      <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 24px 36px 20px 36px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+      <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 34px 38px 36px 38px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
         <div style="display: flex; flex-direction: column;">
           <!-- Page Header -->
           <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -530,9 +540,16 @@ export async function exportDeviceListToPDF(
     }
   });
 
-  // Calculate clean A4 pagination with generous bottom margins (22 devices per page)
-  const DEVICES_PER_FIRST_PAGE = 22;
-  const DEVICES_PER_SUB_PAGE = 22;
+  if (typeof document === 'undefined') {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    generateVectorPdfFallback(doc, subnet, start, end, results, license);
+    doc.save(filename);
+    return { success: true, filename, pageCount: 1 };
+  }
+
+  // Calculate clean A4 pagination with generous bottom margins to avoid clipping even when ports wrap
+  const DEVICES_PER_FIRST_PAGE = 18;
+  const DEVICES_PER_SUB_PAGE = 20;
 
   const firstPageIps = targetIps.slice(0, DEVICES_PER_FIRST_PAGE);
   const remainingIps = targetIps.slice(DEVICES_PER_FIRST_PAGE);
@@ -590,9 +607,9 @@ export async function exportDeviceListToPDF(
     </div>
   `;
 
-  // Page 1: Dashboard, Scope & First Batch of Devices (30 Devices)
+  // Page 1: Dashboard, Scope & First Batch of Devices
   const page1Html = `
-    <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 24px 36px 20px 36px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+    <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 34px 38px 36px 38px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
       <div style="display: flex; flex-direction: column;">
         ${renderHeader(1)}
 
@@ -685,13 +702,13 @@ export async function exportDeviceListToPDF(
 
   container.innerHTML = page1Html;
 
-  // Render Subsequent Pages (30 Devices per Page)
+  // Render Subsequent Pages
   for (let p = 0; p < subPagesCount; p++) {
     const pageNum = p + 2;
     const pageIps = remainingIps.slice(p * DEVICES_PER_SUB_PAGE, (p + 1) * DEVICES_PER_SUB_PAGE);
 
     const subPageHtml = `
-      <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 24px 36px 20px 36px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+      <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 34px 38px 36px 38px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
         <div style="display: flex; flex-direction: column;">
           <!-- Sub Page Header -->
           <div style="border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -1304,7 +1321,7 @@ export const generateProfessionalAuditReport = (
   <div class="footer">
     <div>
       <div><b>Grid IP Scanner2</b> | 네트워크 진단 보고서</div>
-      <div>개발자: AhBiYout | GitHub: <a href="https://github.com/AhBiYout-all" class="info-link" target="_blank">https://github.com/AhBiYout-all</a> | 기술 블로그: <a href="https://ahbiyoutvibe.blogspot.com/" class="info-link" target="_blank">ahbiyoutvibe.blogspot.com</a></div>
+      <div>개발자: AhBiYout | GitHub: <a href="https://github.com/AhBiYout-all" class="info-link" target="_blank" rel="noopener noreferrer">https://github.com/AhBiYout-all</a> | 기술 블로그: <a href="https://ahbiyoutvibe.blogspot.com/" class="info-link" target="_blank" rel="noopener noreferrer">ahbiyoutvibe.blogspot.com</a></div>
     </div>
     <div style="text-align: right;">
       <div>Licensee: <b>${escapeHtml(license.licensedTo || 'Pro Customer')}</b></div>
@@ -1325,75 +1342,556 @@ export const generateProfessionalAuditReport = (
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+function formatTimestampLabel(ts: number | string | null | undefined): string {
+  if (ts === null || ts === undefined || ts === '') return '-';
+  const date = typeof ts === 'number' ? new Date(ts) : new Date(String(ts));
+  if (Number.isNaN(date.getTime())) return '-';
+  return `${formatLocalDate(date)} ${formatLocalTime(date)}`;
+}
+
 export interface BasicSummaryPdfOptions {
   subnet: string;
   activeDeviceCount: number;
+  totalDeviceCount?: number;
+  totalScannedIpCount?: number;
   totalScanDurationMs: number;
+  scanStartTimestamp?: number | string | null;
+  scanEndTimestamp?: number | string | null;
+  isScanning?: boolean;
+  start?: number;
+  end?: number;
   lang?: 'ko' | 'en';
 }
 
-export function exportBasicSummaryReportToPDF(options: BasicSummaryPdfOptions): AuditReportExportResult {
-  const { subnet, activeDeviceCount, totalScanDurationMs, lang = 'ko' } = options;
+export async function exportBasicSummaryReportToPDF(
+  options: BasicSummaryPdfOptions
+): Promise<AuditReportExportResult> {
+  const {
+    subnet,
+    activeDeviceCount,
+    totalDeviceCount,
+    totalScannedIpCount,
+    totalScanDurationMs,
+    scanStartTimestamp,
+    scanEndTimestamp,
+    isScanning = false,
+    start,
+    end,
+    lang = 'ko',
+  } = options;
   const isKo = lang === 'ko';
   const now = new Date();
   const dateStr = formatLocalDate(now);
   const timeStr = formatLocalTime(now);
+  const safeDurationMs = Number.isFinite(totalScanDurationMs) && totalScanDurationMs >= 0 ? totalScanDurationMs : 0;
+  const durationSec = (safeDurationMs / 1000).toFixed(2);
+  const resolvedTotalDevices = Math.max(
+    activeDeviceCount,
+    typeof totalDeviceCount === 'number' && Number.isFinite(totalDeviceCount)
+      ? Math.max(0, Math.round(totalDeviceCount))
+      : typeof start === 'number' && typeof end === 'number' && end >= start
+        ? end - start + 1
+        : activeDeviceCount
+  );
+  const resolvedScannedIps = Math.max(
+    activeDeviceCount,
+    typeof totalScannedIpCount === 'number' && Number.isFinite(totalScannedIpCount)
+      ? Math.max(0, Math.round(totalScannedIpCount))
+      : resolvedTotalDevices
+  );
+  const inactiveOrOfflineCount = Math.max(0, resolvedScannedIps - activeDeviceCount);
+  const activeRatioPct = resolvedTotalDevices > 0 ? ((activeDeviceCount / resolvedTotalDevices) * 100).toFixed(1) : '0.0';
+  const scannedCoveragePct = resolvedTotalDevices > 0 ? Math.min(100, (resolvedScannedIps / resolvedTotalDevices) * 100).toFixed(1) : '0.0';
+  const startLabel = formatTimestampLabel(scanStartTimestamp);
+  const endLabel =
+    isScanning && scanStartTimestamp && !scanEndTimestamp
+      ? (isKo ? '진행 중 (스캔 중)' : 'In Progress')
+      : formatTimestampLabel(scanEndTimestamp);
+  const endLabelAscii =
+    isScanning && scanStartTimestamp && !scanEndTimestamp
+      ? 'In Progress'
+      : formatTimestampLabel(scanEndTimestamp);
+  const rangeLabel =
+    typeof start === 'number' && typeof end === 'number'
+      ? `${subnet}.${start} ~ ${subnet}.${end}`
+      : `${subnet}.0/24`;
   const filename = `GridIPScanner2_Summary_${subnet.replace(/\./g, '_')}_${dateStr}.pdf`;
 
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
+  // Pure ASCII jsPDF fallback when DOM is unavailable (avoids helvetica WinAnsi mojibake)
+  if (typeof document === 'undefined') {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
 
-  // A4 dimensions: 210mm x 297mm
-  doc.setFillColor(2, 132, 199); // Sky blue primary
-  doc.rect(0, 0, 210, 35, 'F');
+    doc.setFillColor(2, 132, 199);
+    doc.rect(0, 0, 210, 34, 'F');
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text(isKo ? 'GRID IP 스캐너2 - 스캔 요약 보고서' : 'GRID IP SCANNER2 - SCAN SUMMARY REPORT', 15, 20);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('GRID IP SCANNER2 - SCAN SUMMARY REPORT', 15, 19);
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${dateStr} ${timeStr} | v${CURRENT_APP_VERSION}`, 15, 28);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated: ${dateStr} ${timeStr} | v${CURRENT_APP_VERSION}`, 15, 27);
 
-  // Content Body
-  doc.setTextColor(15, 23, 42); // Dark slate
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(isKo ? '1. 네트워크 대상 정보' : '1. Target Network Information', 15, 50);
+    // Top Summary Statistics Block
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(15, 42, 180, 60, 3, 3, 'FD');
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${isKo ? '타겟 서브넷' : 'Target Subnet'}: ${subnet}.0/24`, 20, 60);
-  doc.text(`${isKo ? '보고서 생성 일시' : 'Generated At'}: ${dateStr} ${timeStr}`, 20, 68);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(2, 132, 199);
+    doc.text('TOP EXECUTIVE SCAN SUMMARY', 20, 52);
 
-  // Summary Metrics Box
-  doc.setFillColor(241, 245, 249); // Slate 100
-  doc.setDrawColor(203, 213, 225); // Slate 300
-  doc.roundedRect(15, 80, 180, 50, 3, 3, 'FD');
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Total Scanned IP Count: ${resolvedScannedIps} IPs (${scannedCoveragePct}% of target)`, 20, 63);
+    doc.text(`Active vs Total Devices: ${activeDeviceCount} / ${resolvedTotalDevices} (${activeRatioPct}% active)`, 20, 73);
+    doc.text(`Total Scan Duration: ${durationSec} seconds (${safeDurationMs}ms)`, 20, 83);
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(2, 132, 199);
-  doc.text(isKo ? '핵심 스캔 요약 지표 (Executive Summary)' : 'Executive Scan Metrics', 20, 92);
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Scan Start: ${startLabel}   |   Scan End: ${endLabelAscii}`, 20, 95);
 
-  const durationSec = (totalScanDurationMs / 1000).toFixed(2);
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Target Network Information', 15, 118);
 
-  doc.setFontSize(14);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${isKo ? '온라인 활성 장비 수' : 'Active Devices'}: ${activeDeviceCount} ${isKo ? '대' : 'devices'}`, 20, 108);
-  doc.text(`${isKo ? '총 소요 시간' : 'Total Scan Duration'}: ${durationSec} ${isKo ? '초' : 'seconds'} (${totalScanDurationMs}ms)`, 20, 120);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Target Subnet: ${subnet}.0/24`, 20, 128);
+    doc.text(`Scan Range: ${rangeLabel}`, 20, 136);
+    doc.text(`Inactive / Non-Responding Scanned IPs: ${inactiveOrOfflineCount}`, 20, 144);
+    doc.text(`Report Generated At: ${dateStr} ${timeStr}`, 20, 152);
 
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Grid IP Scanner2 - Professional Subnet Discovery & Security Asset Utility', 15, 285);
-  doc.text('Copyright (c) 2025-2026 AhBiYout. All rights reserved.', 15, 290);
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Grid IP Scanner2 - Professional Subnet Discovery & Security Asset Utility', 15, 280);
+    doc.text('Copyright (c) 2025-2026 AhBiYout. All rights reserved.', 15, 285);
 
-  doc.save(filename);
-  return { success: true, filename, pageCount: 1 };
+    doc.save(filename);
+    return { success: true, filename, pageCount: 1 };
+  }
+
+  const container = document.createElement('div');
+  container.id = 'grid-ip-scanner-a4-basic-summary-container';
+  container.style.position = 'fixed';
+  container.style.top = '-99999px';
+  container.style.left = '0';
+  container.style.width = '794px';
+  container.style.zIndex = '-9999';
+
+  container.innerHTML = `
+    <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 40px 44px 36px 44px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+      <div>
+        <!-- Header Banner -->
+        <div style="background: #0284c7; color: #ffffff; border-radius: 10px; padding: 22px 26px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; opacity: 0.9; margin-bottom: 5px;">GRID IP SCANNER2 v${CURRENT_APP_VERSION}</div>
+            <h1 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.4px;">
+              ${isKo ? '그리드 스캔 요약 보고서' : 'Grid Scan Summary Report'}
+            </h1>
+          </div>
+          <div style="text-align: right; font-family: monospace; font-size: 11px; opacity: 0.95;">
+            ${dateStr} ${timeStr}
+          </div>
+        </div>
+
+        <!-- Top Executive Summary Statistics (Integrated at Top of Summary PDF) -->
+        <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 18px 20px; margin-bottom: 22px;">
+          <div style="font-size: 12px; font-weight: 900; color: #0284c7; letter-spacing: 0.4px; margin-bottom: 12px; text-transform: uppercase;">
+            ${isKo ? '핵심 스캔 요약 통계' : 'Executive Summary Statistics'}
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; min-width: 0;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isKo ? '총 스캔 IP 수' : 'Total Scanned IPs'}</div>
+              <div style="font-size: 23px; font-weight: 900; color: #0f172a; font-family: monospace;">${resolvedScannedIps} <span style="font-size: 12px; color: #64748b;">IP</span></div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace;">${isKo ? `대상 범위의 ${scannedCoveragePct}%` : `${scannedCoveragePct}% of target range`}</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; min-width: 0;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isKo ? '활성 / 전체 단말' : 'Active vs Total Devices'}</div>
+              <div style="font-size: 23px; font-weight: 900; color: #10b981; font-family: monospace;">${activeDeviceCount} <span style="font-size: 15px; color: #94a3b8;">/ ${resolvedTotalDevices}</span></div>
+              <div style="font-size: 10px; color: #059669; margin-top: 4px; font-weight: 700; font-family: monospace;">${isKo ? `활성 응답률 ${activeRatioPct}%` : `${activeRatioPct}% active rate`}</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; min-width: 0;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isKo ? '총 스캔 소요 시간' : 'Total Scan Duration'}</div>
+              <div style="font-size: 23px; font-weight: 900; color: #0284c7; font-family: monospace;">${durationSec} <span style="font-size: 12px; color: #64748b;">${isKo ? '초' : 'sec'}</span></div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-family: monospace;">(${safeDurationMs} ms)</div>
+            </div>
+          </div>
+
+          <!-- Scan Start / End Timestamps Row -->
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; min-width: 0;">
+              <span style="font-size: 11px; font-weight: 800; color: #475569;">${isKo ? '스캔 시작 일시' : 'Scan Start Timestamp'}</span>
+              <span style="font-size: 11.5px; font-weight: 800; color: #0f172a; font-family: monospace;">${escapeHtml(startLabel)}</span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; min-width: 0;">
+              <span style="font-size: 11px; font-weight: 800; color: #475569;">${isKo ? '스캔 종료 일시' : 'Scan End Timestamp'}</span>
+              <span style="font-size: 11.5px; font-weight: 800; color: #0f172a; font-family: monospace;">${escapeHtml(endLabel)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: Target Network Information -->
+        <div style="margin-bottom: 22px;">
+          <div style="font-size: 13px; font-weight: 800; color: #0f172a; border-left: 4px solid #0284c7; padding-left: 10px; margin-bottom: 10px;">
+            ${isKo ? '1. 네트워크 대상 정보' : '1. Target Network Information'}
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; font-size: 12px; line-height: 1.85; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px;">
+            <div><b>${isKo ? '타겟 서브넷' : 'Target Subnet'}:</b> <span style="font-family: monospace; color: #0284c7; font-weight: 800;">${escapeHtml(subnet)}.0/24</span></div>
+            <div><b>${isKo ? '스캔 IP 대역' : 'Scan IP Range'}:</b> <span style="font-family: monospace; font-weight: 700;">${escapeHtml(rangeLabel)}</span></div>
+            <div><b>${isKo ? '비응답 / 오프라인 수' : 'Inactive / Offline IPs'}:</b> <span style="font-family: monospace; font-weight: 700;">${inactiveOrOfflineCount} IP</span></div>
+            <div><b>${isKo ? '보고서 생성 일시' : 'Generated At'}:</b> <span style="font-family: monospace;">${dateStr} ${timeStr}</span></div>
+          </div>
+        </div>
+
+        <!-- Section 2: Active vs Total Discovery Breakdown -->
+        <div>
+          <div style="font-size: 13px; font-weight: 800; color: #0f172a; border-left: 4px solid #0284c7; padding-left: 10px; margin-bottom: 10px;">
+            ${isKo ? '2. 단말 응답률 및 스캔 완료 현황' : '2. Device Discovery Ratio & Completion Breakdown'}
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 700; margin-bottom: 8px;">
+              <span>${isKo ? `활성 장비 ${activeDeviceCount}대 / 전체 대상 ${resolvedTotalDevices}대` : `${activeDeviceCount} Active Devices / ${resolvedTotalDevices} Total Target Devices`}</span>
+              <span style="font-family: monospace; color: #059669; font-weight: 900;">${activeRatioPct}%</span>
+            </div>
+            <div style="width: 100%; height: 12px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-bottom: 12px;">
+              <div style="width: ${Math.min(100, Math.max(0, Number(activeRatioPct)))}%; height: 100%; background: #10b981;"></div>
+            </div>
+            <div style="font-size: 11px; color: #475569; line-height: 1.6;">
+              ${isKo
+                ? `총 ${resolvedScannedIps}개 IP에 대한 스캔이 ${durationSec}초 만에 완료되었으며, 이 중 ${activeDeviceCount}대의 온라인 활성 단말이 식별되었습니다.`
+                : `Completed scanning ${resolvedScannedIps} IP addresses in ${durationSec} seconds, identifying ${activeDeviceCount} active online devices out of ${resolvedTotalDevices} configured targets.`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding-top: 12px; border-top: 1px solid #cbd5e1; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+        <div><b>Grid IP Scanner2</b> &bull; Professional Subnet Discovery &amp; Security Asset Utility</div>
+        <div>Copyright (c) 2025-2026 AhBiYout</div>
+      </div>
+    </div>
+  `;
+
+  return renderA4PagesToPdf(container, filename);
 }
+
+/**
+ * Unified Report Center PDF Exporter
+ * Honors white-label branding, logo, top executive KPI stats, dynamic columns,
+ * security alerts, and snapshot diff breakdown on clean 210mm x 297mm A4 pages.
+ */
+export async function exportDatasetToPDF(
+  dataset: PreparedReportDataset,
+  selectedColumns: ReportColumnKey[] = DEFAULT_SELECTED_COLUMNS,
+  options?: { filename?: string }
+): Promise<AuditReportExportResult> {
+  const isKo = dataset.lang === 'ko';
+  const cols = selectedColumns.length > 0 ? selectedColumns : DEFAULT_SELECTED_COLUMNS;
+  const filename = options?.filename || buildReportFilename(dataset, 'pdf');
+  const accent = sanitizeHexColor(dataset.branding.accentColor, '#0284c7');
+  const durationSec = (dataset.kpis.totalScanDurationMs / 1000).toFixed(2);
+  const startLabel = formatTimestampLocal(dataset.kpis.scanStartTimestamp);
+  const endLabel =
+    dataset.kpis.isScanning && !dataset.kpis.scanEndTimestamp
+      ? isKo
+        ? '진행 중'
+        : 'In Progress'
+      : formatTimestampLocal(dataset.kpis.scanEndTimestamp);
+  const endLabelAscii =
+    dataset.kpis.isScanning && !dataset.kpis.scanEndTimestamp
+      ? 'In Progress'
+      : formatTimestampLocal(dataset.kpis.scanEndTimestamp);
+
+  // Pure ASCII jsPDF fallback when browser DOM is unavailable
+  if (typeof document === 'undefined') {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('GRID IP SCANNER2 - UNIFIED NETWORK REPORT', 14, 12);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Subnet: ${dataset.subnet}.0/24 | Scope: ${dataset.scope.toUpperCase()} | Classification: ${dataset.branding.classificationLabel}`,
+      14,
+      19
+    );
+    doc.text(
+      `Scanned IPs: ${dataset.kpis.totalScannedIpCount} | Active/Total: ${dataset.kpis.activeDeviceCount}/${dataset.kpis.totalDeviceCount} | Duration: ${durationSec}s`,
+      14,
+      24
+    );
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(9);
+    doc.text(`Scan Start: ${startLabel} | Scan End: ${endLabelAscii}`, 14, 36);
+
+    let y = 44;
+    dataset.rows.slice(0, 35).forEach((row) => {
+      doc.setFontSize(7.5);
+      doc.text(
+        `${row.ip}  [${row.status.toUpperCase()}]  ${row.mac}  ${row.hostname}  Ports: ${row.openPorts.join(',') || '-'}`,
+        14,
+        y
+      );
+      y += 6;
+    });
+    doc.save(filename);
+    return { success: true, filename, pageCount: 1 };
+  }
+
+  // Summary-only 1-page layout when scope is 'summary'
+  const isSummaryScope = dataset.scope === 'summary';
+  const hasAlertsBanner = dataset.highRiskAlerts.length > 0 && (dataset.scope === 'audit' || dataset.highRiskAlerts.length > 0);
+  const hasDiffBanner = Boolean(dataset.diffAnalysis);
+
+  const page1MaxRows = isSummaryScope
+    ? 0
+    : hasAlertsBanner && hasDiffBanner
+    ? 8
+    : hasAlertsBanner || hasDiffBanner
+    ? 11
+    : 15;
+  const subPageMaxRows = 20;
+
+  const page1Rows = dataset.rows.slice(0, page1MaxRows);
+  const remainingRows = isSummaryScope ? [] : dataset.rows.slice(page1MaxRows);
+  const subPagesCount = remainingRows.length > 0 ? Math.ceil(remainingRows.length / subPageMaxRows) : 0;
+  const totalPages = 1 + subPagesCount;
+
+  const container = document.createElement('div');
+  container.id = 'grid-ip-scanner-a4-unified-container';
+  container.style.position = 'fixed';
+  container.style.top = '-99999px';
+  container.style.left = '0';
+  container.style.width = '794px';
+  container.style.zIndex = '-9999';
+
+  const renderPageHeader = (continued = false) => `
+    <div style="border-bottom: 2px solid ${escapeHtml(accent)}; padding-bottom: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+        ${
+          sanitizeImageDataUrl(dataset.branding.logoDataUrl)
+            ? `<img src="${escapeHtml(sanitizeImageDataUrl(dataset.branding.logoDataUrl))}" alt="Logo" style="max-height: 44px; max-width: 110px; object-fit: contain; border-radius: 4px;" />`
+            : ''
+        }
+        <div style="min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+            <span style="background: ${escapeHtml(accent)}; color: #ffffff; font-size: 8.5px; font-weight: 800; padding: 1.5px 6px; border-radius: 3px; letter-spacing: 0.4px;">${escapeHtml(dataset.branding.classificationLabel || 'CONFIDENTIAL')}</span>
+            <span style="font-size: 10px; font-weight: 700; color: #475569;">${escapeHtml(dataset.branding.organizationName)}</span>
+          </div>
+          <h1 style="margin: 0; font-size: ${continued ? '15px' : '18px'}; font-weight: 900; color: #0f172a; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 470px;">
+            ${escapeHtml(dataset.branding.reportTitle)}${continued ? (isKo ? ' (이어짐)' : ' (Continued)') : ''}
+          </h1>
+          ${
+            !continued && dataset.branding.reportSubtitle
+              ? `<p style="margin: 2px 0 0; font-size: 9.5px; color: #64748b; font-weight: 600;">${escapeHtml(dataset.branding.reportSubtitle)}</p>`
+              : ''
+          }
+        </div>
+      </div>
+      <div style="text-align: right; shrink-0;">
+        <div style="font-size: 9px; font-weight: 800; color: ${escapeHtml(accent)};">${escapeHtml(dataset.scopeLabel)}</div>
+        <div style="font-size: 9px; color: #475569; margin-top: 2px; font-family: monospace;">${escapeHtml(dataset.subnet)}.0/24 &bull; ${escapeHtml(dataset.generatedDateStr)} ${escapeHtml(dataset.generatedTimeStr)}</div>
+        <div style="font-size: 8.5px; color: #64748b; margin-top: 1px;">${isKo ? '담당:' : 'Auditor:'} ${escapeHtml(dataset.branding.auditorName)}</div>
+      </div>
+    </div>
+  `;
+
+  const renderPageFooter = (pageNum: number) => `
+    <div style="margin-top: auto; padding-top: 8px; border-top: 1px solid #cbd5e1; font-size: 8.5px; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+      <div>${escapeHtml(dataset.branding.footerNote)}</div>
+      <div style="font-family: monospace; font-weight: 800; color: #0f172a;">${isKo ? '페이지' : 'Page'} ${pageNum} / ${totalPages}</div>
+    </div>
+  `;
+
+  const renderInventoryTable = (rowsToRender: typeof dataset.rows) => `
+    <table style="width: 100%; border-collapse: collapse; font-size: 7.8px; table-layout: auto;">
+      <thead>
+        <tr style="background: #f1f5f9; color: #334155; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+          ${cols
+            .map(
+              (c) =>
+                `<th style="padding: 4px 5px; text-align: left; font-weight: 800; white-space: nowrap;">${escapeHtml(getColumnHeader(c, dataset.lang))}</th>`
+            )
+            .join('')}
+          ${dataset.diffAnalysis ? '<th style="padding: 4px 5px; text-align: center; font-weight: 800;">DIFF</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsToRender
+          .map((row, idx) => {
+            const isRisk = row.riskLevel === 'CRITICAL' || row.riskLevel === 'HIGH';
+            const rowBg = isRisk ? '#fff1f2' : idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+            return `<tr style="background: ${rowBg}; border-bottom: 1px solid #f1f5f9;">
+              ${cols
+                .map((c) => {
+                  const val = getColumnValue(row, c, dataset.lang);
+                  const isMono = c === 'ip' || c === 'mac' || c === 'latency' || c === 'openPorts';
+                  const color =
+                    c === 'ip'
+                      ? '#0284c7'
+                      : c === 'mac'
+                      ? '#059669'
+                      : c === 'riskLevel' && isRisk
+                      ? '#be123c'
+                      : '#1e293b';
+                  return `<td style="padding: 3px 5px; vertical-align: middle; ${isMono ? 'font-family: monospace;' : ''} color: ${color}; font-weight: ${
+                    c === 'ip' || (c === 'riskLevel' && isRisk) ? '800' : '500'
+                  }; max-width: 155px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(val)}</td>`;
+                })
+                .join('')}
+              ${
+                dataset.diffAnalysis
+                  ? `<td style="padding: 3px 5px; text-align: center; font-family: monospace; font-weight: 800; color: ${
+                      row.diffStatus === 'new'
+                        ? '#059669'
+                        : row.diffStatus === 'offline'
+                        ? '#e11d48'
+                        : row.diffStatus === 'changed'
+                        ? '#d97706'
+                        : '#64748b'
+                    };">${escapeHtml(row.diffStatus ? row.diffStatus.toUpperCase() : '-')}</td>`
+                  : ''
+              }
+            </tr>`;
+          })
+          .join('')}
+      </tbody>
+    </table>
+  `;
+
+  // Page 1 HTML
+  const page1Html = `
+    <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 32px 38px 28px 38px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+      <div style="display: flex; flex-direction: column;">
+        ${renderPageHeader(false)}
+
+        <!-- Executive Top Summary Strip -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 7px; padding: 10px 12px; margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px;">
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 9px;">
+              <div style="font-size: 8.5px; font-weight: 800; color: #64748b;">${isKo ? '총 스캔 IP 수' : 'Total Scanned IPs'}</div>
+              <div style="font-size: 16px; font-weight: 900; font-family: monospace; color: #0f172a; margin-top: 2px;">${dataset.kpis.totalScannedIpCount} <span style="font-size: 9px; color: #64748b;">IP</span></div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 9px;">
+              <div style="font-size: 8.5px; font-weight: 800; color: #64748b;">${isKo ? '활성 / 전체 단말' : 'Active / Total'}</div>
+              <div style="font-size: 16px; font-weight: 900; font-family: monospace; color: #059669; margin-top: 2px;">${dataset.kpis.activeDeviceCount} <span style="font-size: 10px; color: #94a3b8;">/ ${dataset.kpis.totalDeviceCount}</span></div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 9px;">
+              <div style="font-size: 8.5px; font-weight: 800; color: #64748b;">${isKo ? '총 스캔 소요 시간' : 'Scan Duration'}</div>
+              <div style="font-size: 16px; font-weight: 900; font-family: monospace; color: ${escapeHtml(accent)}; margin-top: 2px;">${durationSec}s</div>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 9px;">
+              <div style="font-size: 8.5px; font-weight: 800; color: #64748b;">${isKo ? '보안 주의 포트' : 'Risk Alerts'}</div>
+              <div style="font-size: 16px; font-weight: 900; font-family: monospace; color: ${dataset.kpis.highRiskAlertCount > 0 ? '#e11d48' : '#059669'}; margin-top: 2px;">${dataset.kpis.highRiskAlertCount}</div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #475569; font-family: monospace; border-top: 1px solid #e2e8f0; padding-top: 6px;">
+            <span><b>${isKo ? '시작:' : 'Start:'}</b> ${escapeHtml(startLabel)}</span>
+            <span><b>${isKo ? '종료:' : 'End:'}</b> ${escapeHtml(endLabel)}</span>
+            <span><b>${isKo ? '대역:' : 'Range:'}</b> ${escapeHtml(dataset.subnet)}.${dataset.start}~.${dataset.end}</span>
+          </div>
+        </div>
+
+        ${
+          dataset.diffAnalysis
+            ? `<div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 9.5px; font-weight: 800; color: #3730a3;">
+                  ${isKo ? '스냅샷 변화 비교' : 'Snapshot Diff'}: ${escapeHtml(dataset.diffAnalysis.baselineName)}
+                </div>
+                <div style="font-family: monospace; font-size: 9.5px; font-weight: 800; color: #1e1b4b;">
+                  +NEW ${dataset.diffAnalysis.summary.newCount} &bull; -OFF ${dataset.diffAnalysis.summary.offlineCount} &bull; !CHG ${dataset.diffAnalysis.summary.changedCount} &bull; =SAME ${dataset.diffAnalysis.summary.sameCount}
+                </div>
+              </div>`
+            : ''
+        }
+
+        ${
+          hasAlertsBanner
+            ? `<div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px; padding: 8px 11px; margin-bottom: 10px;">
+                <div style="font-size: 9.5px; font-weight: 900; color: #be123c; margin-bottom: 4px;">
+                  ${isKo ? `보안 주의 포트 개방 알림 (${dataset.highRiskAlerts.length}건)` : `High-Risk Port Alerts (${dataset.highRiskAlerts.length})`}
+                </div>
+                <div style="font-size: 8.5px; color: #881337; line-height: 1.45;">
+                  ${dataset.highRiskAlerts
+                    .slice(0, 3)
+                    .map((h) => `&bull; <b style="font-family:monospace;">${escapeHtml(h.ip)}:${h.port}</b> (${escapeHtml(h.severity)}) — ${escapeHtml(h.remediation)}`)
+                    .join('<br/>')}
+                  ${dataset.highRiskAlerts.length > 3 ? `<div style="font-weight:700;margin-top:2px;">... +${dataset.highRiskAlerts.length - 3}</div>` : ''}
+                </div>
+              </div>`
+            : ''
+        }
+
+        ${
+          isSummaryScope
+            ? `<div style="margin-top: 6px;">
+                <div style="font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">${isKo ? '상위 하드웨어 제조사 분포' : 'Top Hardware Vendors'}</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 14px;">
+                  <thead>
+                    <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                      <th style="padding: 5px 8px; text-align: left;">${isKo ? '제조사' : 'Vendor'}</th>
+                      <th style="padding: 5px 8px; text-align: center;">${isKo ? '대수' : 'Units'}</th>
+                      <th style="padding: 5px 8px; text-align: right;">${isKo ? '점유율' : 'Share'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${dataset.vendorBreakdown
+                      .slice(0, 10)
+                      .map(
+                        (v, i) => `<tr style="background:${i % 2 === 1 ? '#f8fafc' : '#fff'};border-bottom:1px solid #f1f5f9;">
+                          <td style="padding: 4px 8px; font-weight: 700;">${escapeHtml(v.vendor)}</td>
+                          <td style="padding: 4px 8px; text-align: center; font-family: monospace;">${v.count}</td>
+                          <td style="padding: 4px 8px; text-align: right; font-family: monospace;">${v.sharePct}%</td>
+                        </tr>`
+                      )
+                      .join('')}
+                  </tbody>
+                </table>
+              </div>`
+            : `<div>
+                <div style="font-size: 10px; font-weight: 800; color: #0f172a; margin-bottom: 5px; display: flex; justify-content: space-between;">
+                  <span>${isKo ? '장비 인벤토리 상세' : 'Device Inventory'} (${dataset.rows.length})</span>
+                  <span style="font-size: 8.5px; color: #64748b; font-family: monospace;">${cols.length} Columns</span>
+                </div>
+                ${renderInventoryTable(page1Rows)}
+              </div>`
+        }
+      </div>
+
+      ${renderPageFooter(1)}
+    </div>
+  `;
+
+  container.innerHTML = page1Html;
+
+  for (let p = 0; p < subPagesCount; p++) {
+    const pageNum = p + 2;
+    const chunk = remainingRows.slice(p * subPageMaxRows, (p + 1) * subPageMaxRows);
+    container.innerHTML += `
+      <div class="a4-report-page" style="width: 794px; height: 1123px; min-height: 1123px; max-height: 1123px; padding: 32px 38px 28px 38px; box-sizing: border-box; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', Roboto, sans-serif; color: #0f172a;">
+        <div style="display: flex; flex-direction: column;">
+          ${renderPageHeader(true)}
+          ${renderInventoryTable(chunk)}
+        </div>
+        ${renderPageFooter(pageNum)}
+      </div>
+    `;
+  }
+
+  return renderA4PagesToPdf(container, filename);
+}
+
 
