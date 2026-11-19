@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   X, RefreshCw, ExternalLink, CheckCircle2, Sparkles, ArrowRight, Smartphone, Download, Globe, Zap, Package
 } from 'lucide-react';
@@ -23,8 +23,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   theme,
   lang = 'ko'
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
   const isEn = lang === 'en';
+  const isLight = theme === 'white' || theme === 'beige';
 
   const hasUpdate = updateInfo?.hasUpdate ?? false;
   const latestVer = updateInfo?.latestVersion || CURRENT_APP_VERSION;
@@ -97,11 +109,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   }[theme];
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-4 sm:p-6 pb-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col`}>
+    <div
+      className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className={`w-full max-w-xl ${t.bg} ${t.text} rounded-2xl shadow-2xl border ${t.border} p-4 sm:p-6 pb-6 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90dvh] flex flex-col`}
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Modal Header */}
-        <div className="flex justify-between items-start pb-3 border-b border-white/10 shrink-0">
+        <div className={`flex justify-between items-start pb-3 border-b ${t.border} shrink-0`}>
           <div className="flex items-center space-x-3 min-w-0">
             <div className="relative shrink-0">
               <img 
@@ -123,7 +141,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 </h3>
                 <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase ${
                   hasUpdate 
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30' 
+                    : isLight
+                    ? 'bg-slate-200/80 text-slate-700 border border-slate-300'
                     : 'bg-white/10 text-zinc-300'
                 }`}>
                   {hasUpdate 
@@ -155,7 +175,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg text-zinc-300 transition-all cursor-pointer"
+              aria-label={isEn ? 'Close' : '닫기'}
+              className={`p-2 rounded-lg transition-all cursor-pointer ${
+                isLight ? 'hover:bg-black/5 text-slate-600 hover:text-slate-900' : 'hover:bg-white/10 text-zinc-300'
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -197,7 +220,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             href={updateInfo?.htmlUrl || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all text-sky-400 hover:text-sky-300"
+            className={`px-3 py-1.5 rounded-lg border text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 transition-all ${
+              isLight ? `${t.border} hover:bg-black/5 ${t.accent}` : 'border-white/10 hover:bg-white/10 text-sky-400 hover:text-sky-300'
+            }`}
           >
             <span>{isEn ? 'GitHub Releases' : 'GitHub 릴리즈'}</span>
             <ExternalLink className="w-3 h-3 opacity-70" />
@@ -304,14 +329,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
             {/* Android APK for Desktop (Optional fallback) */}
             {!isMobile && fallbackApkUrl && (
-              <div className="p-2.5 px-3.5 rounded-xl border border-white/5 bg-black/10 flex items-center justify-between gap-3">
+              <div className={`p-2.5 px-3.5 rounded-xl border flex items-center justify-between gap-3 ${t.card}`}>
                 <div className="flex items-center gap-2 min-w-0">
-                  <Smartphone className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="text-[10px] font-bold text-zinc-300">
+                  <Smartphone className={`w-3.5 h-3.5 ${t.textMuted}`} />
+                  <span className={`text-[10px] font-bold ${t.text}`}>
                     {isEn ? 'Android APK package also available' : 'Android APK 패키지도 제공됨'}
                   </span>
                 </div>
-                <a href={fallbackApkUrl} target="_blank" rel="noreferrer" className="text-[10px] font-black text-sky-400 hover:underline">
+                <a href={fallbackApkUrl} target="_blank" rel="noreferrer" className={`text-[10px] font-black hover:underline ${t.accent}`}>
                   {isEn ? 'Download APK' : 'APK 다운로드'}
                 </a>
               </div>
@@ -321,8 +346,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
         {/* Patch Notes Preview */}
         {updateInfo?.releaseNotes && (
-          <div className="flex-1 overflow-y-auto space-y-2 p-3.5 rounded-xl bg-black/20 border border-white/5 text-[11px]">
-            <div className="font-bold text-zinc-300 flex items-center justify-between">
+          <div className={`flex-1 overflow-y-auto space-y-2 p-3.5 rounded-xl border text-[11px] ${t.card}`}>
+            <div className={`font-bold flex items-center justify-between ${t.text}`}>
               <span>{isEn ? '📋 Release Notes' : '📋 릴리즈 패치 노트 (Release Notes)'}</span>
               <span className="text-[10px] opacity-50 font-mono">GitHub Releases SSOT</span>
             </div>
@@ -333,20 +358,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         )}
 
         {/* Repository & Channel Info Footer */}
-        <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-400 font-mono shrink-0">
+        <div className={`pt-2 border-t ${t.border} flex flex-wrap items-center justify-between gap-2 text-[10px] ${t.textMuted} font-mono shrink-0`}>
           <div>
             <span>{isEn ? 'Repository: ' : '저장소: '}</span>
             <a 
               href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`} 
               target="_blank" 
               rel="noreferrer" 
-              className="text-sky-400 hover:underline font-bold"
+              className={`${t.accent} hover:underline font-bold`}
             >
               github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}
             </a>
           </div>
           <div>
-            <span>{isEn ? 'Author: ' : '개발자: '}<b className="text-zinc-200">AhBiYout</b> ({isEn ? 'Namespace: ' : '네임스페이스: '}{GITHUB_REPO_OWNER})</span>
+            <span>{isEn ? 'Author: ' : '개발자: '}<b className={t.text}>AhBiYout</b> ({isEn ? 'Namespace: ' : '네임스페이스: '}{GITHUB_REPO_OWNER})</span>
           </div>
         </div>
 

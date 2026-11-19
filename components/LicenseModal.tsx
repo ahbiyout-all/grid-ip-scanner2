@@ -541,7 +541,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               {license.trialUsed || getTrialHistory().used ? (
-                <span className="text-[10.5px] text-amber-600 dark:text-amber-500/80 font-semibold">
+                <span className={`text-[10.5px] font-semibold ${isWhite || isBeige ? 'text-amber-700' : 'text-amber-400/90'}`}>
                   {lang === 'ko'
                     ? '이 장치의 30일 체험판 이용 완료 (정품 Ed25519 서명 키 필요)'
                     : '30-Day Trial used on this device (Requires Ed25519 key)'}

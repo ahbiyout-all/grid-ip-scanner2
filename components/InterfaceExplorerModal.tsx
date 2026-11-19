@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   X,
   Search,
@@ -63,6 +63,17 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
   panelClass,
   showToast,
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const isBeige = theme === 'beige';
@@ -103,7 +114,9 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isWhite || isBeige ? 'hover:bg-black/10' : 'hover:bg-white/10'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -129,7 +142,9 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
             {interfaceSearch && (
               <button
                 onClick={() => setInterfaceSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer ${
+                  isWhite || isBeige ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -200,6 +215,8 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
                         className={`p-2 rounded-lg shrink-0 ${
                           iface.status === 'up'
                             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                            : isWhite || isBeige
+                            ? 'bg-slate-200/70 text-slate-500 border border-slate-300'
                             : 'bg-zinc-800/40 text-zinc-400 border border-zinc-700/50'
                         }`}
                       >
@@ -390,8 +407,14 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
               );
             })
           ) : (
-            <div className="p-8 text-center space-y-3 rounded-2xl bg-black/10 border border-white/10">
-              <AlertCircle className="w-8 h-8 text-amber-400 mx-auto opacity-75" />
+            <div className={`p-8 text-center space-y-3 rounded-2xl border ${
+              isBeige
+                ? 'bg-[#f5ebd6]/50 border-[#e6d0a7]'
+                : isWhite
+                ? 'bg-slate-50 border-slate-200'
+                : 'bg-black/10 border-white/10'
+            }`}>
+              <AlertCircle className="w-8 h-8 text-amber-500 mx-auto opacity-80" />
               <div className="font-bold text-sm">{s.noMatchingAdapters}</div>
               <button
                 onClick={() => {
@@ -419,7 +442,13 @@ export const InterfaceExplorerModal: React.FC<InterfaceExplorerModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer"
+            className={`px-5 py-2 rounded-xl font-bold text-xs transition-all shadow-sm shrink-0 cursor-pointer ${
+              isBeige
+                ? 'bg-[#5c4a37] hover:bg-[#493a2a] text-white'
+                : isWhite
+                ? 'bg-slate-800 hover:bg-slate-700 text-white'
+                : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+            }`}
           >
             {s.done || 'Done'}
           </button>

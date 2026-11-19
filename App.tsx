@@ -52,7 +52,7 @@ import { executeRemoteAction } from './services/remoteActionService';
 import { sendWakeOnLanPacket } from './services/wolService';
 import { getStoredAliases, saveDeviceAlias, removeDeviceAlias, getDeviceAlias, normalizeMacKey } from './services/deviceAliasManager';
 import { analyzeNetworkConflicts, findNewIntruderDevices, isConflictAlert, ConflictInfo } from './services/conflictDetector';
-import { getSchedules, recordScheduleRunCompletion, addHistoryRecord } from './services/schedulerService';
+import { getSchedules, recordScheduleRunCompletion, addHistoryRecord, reconcileSchedulesFromTray } from './services/schedulerService';
 import { IntruderLogModal } from './components/IntruderLogModal';
 import { recordIntrudersFromDetection, getIntruderLogs } from './services/intruderLogService';
 import { classifyDeviceHybrid, ClassificationEvidence, OUIBlockType } from './services/ouiClassifier';
@@ -824,8 +824,10 @@ const App: React.FC = () => {
   };
   const [scanningIPs, setScanningIPs] = useState<Set<string>>(new Set());
   const [goEngineAlive, setGoEngineAlive] = useState(false);
+  const [trayHydrated, setTrayHydrated] = useState(false);
   const [localIpInfo, setLocalIpInfo] = useState<{ip: string, subnet: string, computerName?: string} | null>(null);
   const [interfaces, setInterfaces] = useState<InterfaceInfo[]>(DEFAULT_PREVIEW_INTERFACES);
+  const [selectedInterfaceKey, setSelectedInterfaceKey] = useState<string>('');
   const [interfaceFilter, setInterfaceFilter] = useState<'all' | 'up' | 'physical' | 'virtual' | 'vpn' | 'has_ipv4'>('physical');
   const [interfaceSearch, setInterfaceSearch] = useState('');
   const [showInterfaceModal, setShowInterfaceModal] = useState(false);
@@ -1283,15 +1285,26 @@ const App: React.FC = () => {
 
   const applyTraySnapshot = useCallback((snapshot: TrayRuntimeSnapshot | null) => {
     if (!snapshot) return;
-    setTrayRuntime(snapshot);
+    setTrayRuntime(prev => (prev && JSON.stringify(prev) === JSON.stringify(snapshot) ? prev : snapshot));
     if (snapshot.policy) {
-      setTrayPolicy(snapshot.policy);
-      try {
-        localStorage.setItem('grid_tray_alert_policy', JSON.stringify(snapshot.policy));
-      } catch {}
+      const nextPolicyJson = JSON.stringify(snapshot.policy);
+      setTrayPolicy(prev => {
+        if (JSON.stringify(prev) === nextPolicyJson) return prev;
+        try {
+          localStorage.setItem('grid_tray_alert_policy', nextPolicyJson);
+        } catch {}
+        return snapshot.policy!;
+      });
     }
     if (Array.isArray(snapshot.recentEvents)) {
-      setTrayEvents(snapshot.recentEvents);
+      const nextEventsJson = JSON.stringify(snapshot.recentEvents);
+      setTrayEvents(prev => (JSON.stringify(prev) === nextEventsJson ? prev : snapshot.recentEvents));
+    }
+    if (Array.isArray(snapshot.schedules) && snapshot.schedules.length > 0) {
+      const reconciled = reconcileSchedulesFromTray(snapshot.schedules);
+      if (reconciled.updated) {
+        setActiveScheduleCount(reconciled.enabledCount);
+      }
     }
     if (snapshot.serviceState && snapshot.serviceState !== 'unknown') {
       setWindowsServiceState(snapshot.serviceState);
@@ -1369,18 +1382,31 @@ const App: React.FC = () => {
   }, [lang, showToast]);
 
   const handleExitApplication = useCallback(async () => {
-    if (isWindowsDesktop) {
+    if (isWindowsDesktop && isWindowsServiceInstalled && windowsServiceState === 'running') {
       try {
-        await executeWindowsUtility('service-stop');
-        setWindowsServiceState('stopped');
+        const res = await executeWindowsUtility('service-stop');
+        if (res.serviceState) {
+          setWindowsServiceState(res.serviceState);
+          setIsWindowsServiceInstalled(res.serviceState !== 'not_installed');
+        } else if (res.success) {
+          setWindowsServiceState('stopped');
+        }
       } catch (_) {}
     }
     if (typeof window !== 'undefined' && (window as any).electronAPI?.exitApplication) {
       (window as any).electronAPI.exitApplication();
     } else {
-      showToast(lang === 'ko' ? '🛑 백그라운드 서비스가 정지되었습니다.' : '🛑 Background service stopped.');
+      try {
+        await fetch(getApiUrl('/api/exit'), { method: 'POST' });
+      } catch (_) {}
+      showToast(lang === 'ko' ? '🛑 프로그램을 완전 종료합니다.' : '🛑 Exiting application cleanly.');
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch (_) {}
+      }, 250);
     }
-  }, [isWindowsDesktop, lang, showToast]);
+  }, [isWindowsDesktop, isWindowsServiceInstalled, windowsServiceState, lang, showToast]);
 
   // Initialize Windows-specific service, autostart, and Go tray runtime state on startup
   useEffect(() => {
@@ -1681,7 +1707,11 @@ const App: React.FC = () => {
       }
     };
 
-    const handlePageHideOrUnload = () => {
+    let hasNotifiedClose = false;
+
+    const handlePageHideOrUnload = (ev: Event) => {
+      const isPersistedBfcache = 'persisted' in ev && Boolean((ev as PageTransitionEvent).persisted);
+
       try {
         const ui = persistedUiStateRef.current;
         if (resultsRef.current && Object.keys(resultsRef.current).length > 0) {
@@ -1708,8 +1738,9 @@ const App: React.FC = () => {
         }
       } catch {}
 
-      // If closeToTray is enabled, notify backend so it triggers tray balloon and keeps engine alive
-      if (closeToTray) {
+      // If closeToTray is enabled, notify backend once so it triggers tray balloon and keeps engine alive
+      if (closeToTray && !hasNotifiedClose && !isPersistedBfcache) {
+        hasNotifiedClose = true;
         try {
           if (navigator.sendBeacon) {
             navigator.sendBeacon(getApiUrl('/api/window-closed'));
@@ -1751,15 +1782,15 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (isScanning && scanStartTime) {
       interval = setInterval(() => {
         setElapsedTime(Math.floor((Date.now() - scanStartTime) / 1000));
       }, 1000);
-    } else if (!isScanning) {
-      if (interval!) clearInterval(interval);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [isScanning, scanStartTime]);
 
   // Permanently suppress browser / Chromium / Edge auto-translate popups
@@ -2190,7 +2221,11 @@ const App: React.FC = () => {
                null);
 
           if (chosenIface) {
-            setLocalIpInfo({ ip: chosenIface.ip, subnet: chosenIface.subnet, computerName: data.computerName });
+            setLocalIpInfo(prev =>
+              prev && prev.ip === chosenIface.ip && prev.subnet === chosenIface.subnet && prev.computerName === data.computerName
+                ? prev
+                : { ip: chosenIface.ip, subnet: chosenIface.subnet, computerName: data.computerName }
+            );
             setConfig(prev => {
               let hasSavedOrUserConfig = false;
               try {
@@ -2215,7 +2250,11 @@ const App: React.FC = () => {
               }
             }
 
-            setLocalIpInfo({ ip: activeIp, subnet: activeSubnet, computerName: data.computerName });
+            setLocalIpInfo(prev =>
+              prev && prev.ip === activeIp && prev.subnet === activeSubnet && prev.computerName === data.computerName
+                ? prev
+                : { ip: activeIp, subnet: activeSubnet, computerName: data.computerName }
+            );
             setConfig(prev => {
               let hasSavedOrUserConfig = false;
               try {
@@ -2257,7 +2296,11 @@ const App: React.FC = () => {
           // Try client-side WebRTC Wi-Fi IP detection when backend is offline
           const webRtcRes = await getClientLocalIP().catch(() => null);
           if (webRtcRes) {
-            setLocalIpInfo({ ip: webRtcRes.ip, subnet: webRtcRes.subnet, computerName: 'Mobile Device (Wi-Fi)' });
+            setLocalIpInfo(prev =>
+              prev && prev.ip === webRtcRes.ip && prev.subnet === webRtcRes.subnet && prev.computerName === 'Mobile Device (Wi-Fi)'
+                ? prev
+                : { ip: webRtcRes.ip, subnet: webRtcRes.subnet, computerName: 'Mobile Device (Wi-Fi)' }
+            );
             setConfig(prev => {
               let hasSavedOrUserConfig = false;
               try {
@@ -2277,7 +2320,8 @@ const App: React.FC = () => {
     checkEngine();
     const timer = setInterval(checkEngine, 8000);
     
-    // Heartbeat to keep backend alive
+    // Heartbeat to keep backend alive (fire immediately on mount + every 3s)
+    fetch(getApiUrl('/api/heartbeat')).catch(() => {});
     const heartbeatTimer = setInterval(() => {
       fetch(getApiUrl('/api/heartbeat')).catch(() => {});
     }, 3000);
@@ -2309,6 +2353,7 @@ const App: React.FC = () => {
     setInterfaces(prevList => {
       let hasMatchingIp = false;
       let wifiIndex = -1;
+      let changed = false;
 
       const nextList: InterfaceInfo[] = prevList.map((iface, index) => {
         const lowerName = (iface.name || '').toLowerCase();
@@ -2316,6 +2361,10 @@ const App: React.FC = () => {
 
         if (iface.ip === localIpInfo.ip) {
           hasMatchingIp = true;
+          if (iface.isDefault && iface.status === 'up') {
+            return iface;
+          }
+          changed = true;
           return { ...iface, isDefault: true, status: 'up' as const };
         }
         if (isWifi) {
@@ -2353,7 +2402,7 @@ const App: React.FC = () => {
         }
       }
 
-      return nextList;
+      return changed ? nextList : prevList;
     });
   }, [localIpInfo]);
 
@@ -2493,6 +2542,54 @@ const App: React.FC = () => {
     showToast(s.stateResetComplete);
   };
 
+  useEffect(() => {
+    if (!showSourceInfo && !showSecurityNotice) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (
+        lockedFeaturePrompt ||
+        showLicenseModal ||
+        showUpdateModal ||
+        showNativeModal ||
+        showIntruderLogModal ||
+        showWindowsUtilModal ||
+        showDiffStudioModal ||
+        showScheduleModal ||
+        showPdfExportModal ||
+        showInterfaceModal ||
+        showHelp
+      ) {
+        return;
+      }
+      if (showSecurityNotice) {
+        setShowSecurityNotice(false);
+        try {
+          localStorage.setItem('grid_security_notice_dismissed', 'true');
+        } catch {}
+        return;
+      }
+      if (showSourceInfo) {
+        setShowSourceInfo(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    showSourceInfo,
+    showSecurityNotice,
+    lockedFeaturePrompt,
+    showLicenseModal,
+    showUpdateModal,
+    showNativeModal,
+    showIntruderLogModal,
+    showWindowsUtilModal,
+    showDiffStudioModal,
+    showScheduleModal,
+    showPdfExportModal,
+    showInterfaceModal,
+    showHelp,
+  ]);
+
   const startScan = async (scheduledTask?: ScanSchedule) => {
     if (isScanningRef.current) return;
 
@@ -2595,6 +2692,7 @@ const App: React.FC = () => {
     const localProcessedIPs = new Set<string>();
 
     const syncResultsToUI = () => {
+      if (scanSessionIdRef.current !== sessionId) return;
       setResults({ ...resultsRef.current });
       setScanningIPs(new Set(localScanningIPs));
       setProcessedIPs(new Set(localProcessedIPs));
@@ -2604,6 +2702,7 @@ const App: React.FC = () => {
     let receivedComplete = false;
 
     const processSsePayload = (jsonStr: string) => {
+      if (scanSessionIdRef.current !== sessionId) return;
       try {
         const msg = JSON.parse(jsonStr);
         if (msg.type === 'scanning') {
@@ -2748,12 +2847,14 @@ const App: React.FC = () => {
       
       if (!response.ok) {
         let errText = response.statusText;
-        try {
-          const errJson = await response.json();
-          if (errJson && errJson.error) errText = errJson.error;
-        } catch (_) {
-          const txt = await response.text().catch(() => '');
-          if (txt) errText = txt;
+        const rawBody = await response.text().catch(() => '');
+        if (rawBody) {
+          try {
+            const errJson = JSON.parse(rawBody);
+            errText = (errJson && errJson.error) ? errJson.error : rawBody.trim();
+          } catch (_) {
+            errText = rawBody.trim();
+          }
         }
         throw new Error(lang === 'ko' ? `스캔 시작 실패 (${response.status}): ${errText}` : `Scan start failed (${response.status}): ${errText}`);
       }
@@ -2768,6 +2869,10 @@ const App: React.FC = () => {
       let buffer = '';
       while (true) {
         const { value, done } = await reader.read();
+        if (scanSessionIdRef.current !== sessionId) {
+          try { reader.cancel(); } catch (_) {}
+          break;
+        }
         if (done) {
           if (buffer.trim()) {
             processSseBlocks(buffer.split(/\r?\n\r?\n/));
@@ -2786,7 +2891,7 @@ const App: React.FC = () => {
         processSseBlocks(blocks);
       }
 
-      if (!stopScanRef.current && !receivedComplete) {
+      if (scanSessionIdRef.current === sessionId && !stopScanRef.current && !receivedComplete) {
         if (localProcessedIPs.size > 0) {
           setShowSummary(true);
           const activeCount = Object.values(resultsRef.current).filter(r => r.status === 'active').length;
@@ -3199,6 +3304,7 @@ const App: React.FC = () => {
   const prevConflictKeysRef = useRef<Set<string>>(new Set());
   const prevScanWasRunningRef = useRef<boolean>(false);
   const prevCompletedActiveCountRef = useRef<number>(0);
+  const prevCompletedRangeKeyRef = useRef<string>('');
 
   useEffect(() => {
     if (!intruderWatchMode || !featureGates.intruderGuard) return;
@@ -3259,14 +3365,12 @@ const App: React.FC = () => {
       }
     } else if (detectedIntruders.length > 0) {
       recordIntrudersFromDetection(detectedIntruders, 'manual_scan');
-      if (!latestIntruderTimestamp) {
-        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        setLatestIntruderTimestamp(nowStr);
-      }
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLatestIntruderTimestamp(prev => prev || nowStr);
     }
 
     prevIntruderKeysRef.current = currentKeys;
-  }, [intruderWatchMode, featureGates.intruderGuard, isScanning, detectedIntruders, latestIntruderTimestamp, lang, trayPolicy, showToast, handleRefreshTrayState]);
+  }, [intruderWatchMode, featureGates.intruderGuard, isScanning, detectedIntruders, lang, trayPolicy, showToast, handleRefreshTrayState]);
 
   // Event-driven IP conflict notifications routed to Go native tray engine & DND guard
   useEffect(() => {
@@ -3366,6 +3470,13 @@ const App: React.FC = () => {
     prevScanWasRunningRef.current = isScanning;
     if (!wasRunning || isScanning || !hasStartedScan) return;
 
+    const currentRangeKey = `${config.subnet}:${config.start}-${config.end}`;
+    if (stopScanRef.current || prevCompletedRangeKeyRef.current !== currentRangeKey) {
+      prevCompletedRangeKeyRef.current = currentRangeKey;
+      prevCompletedActiveCountRef.current = activeCount;
+      return;
+    }
+
     const prevOnline = prevCompletedActiveCountRef.current;
     prevCompletedActiveCountRef.current = activeCount;
     if (prevOnline < Math.max(2, trayPolicy.massOfflineMinCount || 3)) return;
@@ -3418,8 +3529,9 @@ const App: React.FC = () => {
       : `System Tray Standby · ${activeCount} online`;
   }, [isScanning, progressPercent, completedCount, totalCount, detectedIntruders.length, realConflictCount, activeCount, latestIntruderTimestamp, intruderWatchMode, featureGates.intruderGuard, lang]);
 
+  const isTrayDndActive = isClientTrayDndActive(trayPolicy);
+
   useEffect(() => {
-    const dndNow = isClientTrayDndActive(trayPolicy);
     if (typeof window !== 'undefined' && (window as any).electronAPI?.updateTrayStatus) {
       (window as any).electronAPI.updateTrayStatus({
         intruderWatch: intruderWatchMode && featureGates.intruderGuard,
@@ -3428,11 +3540,11 @@ const App: React.FC = () => {
         conflictCount: realConflictCount,
         schedulerPaused,
         activeScheduleCount,
-        dndActive: dndNow,
+        dndActive: isTrayDndActive,
         statusMessage: trayStatusMessage
       });
     }
-    if (!goEngineAlive) return;
+    if (!goEngineAlive || !trayHydrated) return;
     const scheduleSummaries: TrayScheduleSummary[] = (() => {
       try {
         return getSchedules().map(sc => ({
@@ -3480,8 +3592,9 @@ const App: React.FC = () => {
     detectedIntruders.length,
     realConflictCount,
     trayStatusMessage,
-    trayPolicy,
+    isTrayDndActive,
     goEngineAlive,
+    trayHydrated,
     config.subnet,
     config.start,
     config.end,
@@ -3500,6 +3613,8 @@ const App: React.FC = () => {
     setShowScheduleModal,
     showToast,
     lang,
+    intruderWatchMode,
+    intruderGuardUnlocked: featureGates.intruderGuard,
   });
   trayActionHandlersRef.current = {
     handleQuickBackgroundScan,
@@ -3511,51 +3626,78 @@ const App: React.FC = () => {
     setShowScheduleModal,
     showToast,
     lang,
+    intruderWatchMode,
+    intruderGuardUnlocked: featureGates.intruderGuard,
   };
 
   useEffect(() => {
-    if (!goEngineAlive) return;
-    const poller = setInterval(async () => {
-      const snap = await fetchTrayRuntimeState({ consumeActions: true });
-      if (!snap) return;
-      const h = trayActionHandlersRef.current;
-      h.applyTraySnapshot(snap);
+    if (!goEngineAlive) {
+      setTrayHydrated(false);
+      return;
+    }
 
-      const actions = snap.pendingActions || [];
-      for (const act of actions) {
-        if (act.action === 'quick_scan') {
-          h.handleQuickBackgroundScan();
-        } else if (act.action === 'toggle_watch') {
-          const desired = act.payload === 'true' ? true : act.payload === 'false' ? false : !intruderWatchMode;
-          if (desired !== intruderWatchMode) {
-            h.handleToggleIntruderWatch();
+    let cancelled = false;
+    const pollTrayActions = async () => {
+      try {
+        const snap = await fetchTrayRuntimeState({ consumeActions: true });
+        if (cancelled || !snap) return;
+        const h = trayActionHandlersRef.current;
+        h.applyTraySnapshot(snap);
+
+        const actions = snap.pendingActions || [];
+        for (const act of actions) {
+          if (act.action === 'quick_scan') {
+            h.handleQuickBackgroundScan();
+          } else if (act.action === 'toggle_watch') {
+            const desired = act.payload === 'true' ? true : act.payload === 'false' ? false : !h.intruderWatchMode;
+            if (desired && !h.intruderGuardUnlocked) {
+              syncTrayRuntimeState({ watchEnabled: false }).catch(() => {});
+              if (typeof window !== 'undefined' && (window as any).electronAPI?.updateTrayStatus) {
+                (window as any).electronAPI.updateTrayStatus({ intruderWatch: false });
+              }
+              h.handleToggleIntruderWatch();
+            } else if (desired !== h.intruderWatchMode) {
+              h.handleToggleIntruderWatch();
+            }
+          } else if (act.action === 'toggle_scheduler_pause') {
+            const desired = act.payload === 'true';
+            h.setSchedulerPaused(desired);
+            try { localStorage.setItem('grid_scheduler_paused', String(desired)); } catch {}
+            h.showToast(
+              desired
+                ? (h.lang === 'ko' ? '⏸️ 트레이에서 정기 스케줄러 일시정지됨' : '⏸️ Scheduler paused from tray')
+                : (h.lang === 'ko' ? '▶️ 트레이에서 정기 스케줄러 재개됨' : '▶️ Scheduler resumed from tray')
+            );
+          } else if (act.action === 'run_schedule_now') {
+            h.handleRunNextScheduleNow();
+          } else if (act.action === 'toggle_dnd') {
+            h.showToast(
+              snap.dndActive
+                ? (h.lang === 'ko' ? '🔕 트레이 방해금지(DND) 활성화됨' : '🔕 Tray DND enabled')
+                : (h.lang === 'ko' ? '🔔 트레이 방해금지(DND) 해제됨' : '🔔 Tray DND disabled')
+            );
+          } else if (act.action === 'open_intruder_log') {
+            h.setShowIntruderLogModal(true);
+          } else if (act.action === 'open_scheduler') {
+            h.setShowScheduleModal(true);
           }
-        } else if (act.action === 'toggle_scheduler_pause') {
-          const desired = act.payload === 'true';
-          h.setSchedulerPaused(desired);
-          try { localStorage.setItem('grid_scheduler_paused', String(desired)); } catch {}
-          h.showToast(
-            desired
-              ? (h.lang === 'ko' ? '⏸️ 트레이에서 정기 스케줄러 일시정지됨' : '⏸️ Scheduler paused from tray')
-              : (h.lang === 'ko' ? '▶️ 트레이에서 정기 스케줄러 재개됨' : '▶️ Scheduler resumed from tray')
-          );
-        } else if (act.action === 'run_schedule_now') {
-          h.handleRunNextScheduleNow();
-        } else if (act.action === 'toggle_dnd') {
-          h.showToast(
-            snap.dndActive
-              ? (h.lang === 'ko' ? '🔕 트레이 방해금지(DND) 활성화됨' : '🔕 Tray DND enabled')
-              : (h.lang === 'ko' ? '🔔 트레이 방해금지(DND) 해제됨' : '🔔 Tray DND disabled')
-          );
-        } else if (act.action === 'open_intruder_log') {
-          h.setShowIntruderLogModal(true);
-        } else if (act.action === 'open_scheduler') {
-          h.setShowScheduleModal(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setTrayHydrated(true);
         }
       }
+    };
+
+    void pollTrayActions();
+    const poller = setInterval(() => {
+      void pollTrayActions();
     }, 3000);
-    return () => clearInterval(poller);
-  }, [goEngineAlive, intruderWatchMode]);
+    return () => {
+      cancelled = true;
+      clearInterval(poller);
+    };
+  }, [goEngineAlive]);
 
   const allIps = useMemo(() => Object.keys(results).sort((a, b) => parseInt(a.split('.').pop()!) - parseInt(b.split('.').pop()!)), [results]);
   const resolveAlias = useCallback((mac?: string, ip?: string): DeviceAlias | undefined => {
@@ -3752,7 +3894,11 @@ const App: React.FC = () => {
                   </button>
 
                   {/* KO / EN Toggle Moved Below Title */}
-                  <div className="flex bg-black/15 dark:bg-white/10 rounded-md p-0.5 shrink-0 border border-black/10 dark:border-white/10 shadow-inner">
+                  <div className={`flex rounded-md p-0.5 shrink-0 border shadow-inner ${
+                    theme === 'beige' || theme === 'white'
+                      ? 'bg-black/10 border-black/10'
+                      : 'bg-white/10 border-white/10'
+                  }`}>
                     <button 
                       onClick={() => setLang('ko')} 
                       className={`px-1.5 py-0.5 text-[9px] font-black rounded transition-all cursor-pointer ${lang === 'ko' ? 'bg-sky-500 text-white shadow-sm' : 'opacity-60 hover:opacity-100'}`}
@@ -3786,13 +3932,17 @@ const App: React.FC = () => {
                   <button
                     onClick={handleElevateAdmin}
                     disabled={isElevating}
-                    className="px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap cursor-pointer bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1 shadow-xs"
+                    className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap cursor-pointer bg-amber-500/10 border-amber-500/30 ${
+                      theme === 'beige' || theme === 'white' ? 'text-amber-700' : 'text-amber-400'
+                    } hover:bg-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1 shadow-xs`}
                   >
                     <Key className="w-3 h-3 text-amber-400 shrink-0" />
                     <span>{s.standardMode}</span>
                   </button>
                 ) : (
-                  <div className="px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shadow-xs">
+                  <div className={`px-2.5 py-1 border rounded-lg text-[10px] font-black uppercase tracking-tight whitespace-nowrap bg-emerald-500/10 border-emerald-500/30 ${
+                    theme === 'beige' || theme === 'white' ? 'text-emerald-700' : 'text-emerald-400'
+                  } flex items-center gap-1 shadow-xs`}>
                     <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
                     <span>{s.adminMode}</span>
                   </div>
@@ -3843,7 +3993,9 @@ const App: React.FC = () => {
                 {localIpInfo.computerName && (
                   <div className="flex justify-between items-center">
                     <span className={theme === 'beige' ? 'text-[#422e1b] font-bold' : theme === 'white' ? 'text-slate-600 font-bold' : 'opacity-70'}>{s.computerName}</span>
-                    <span className="font-extrabold text-sky-600 dark:text-sky-400 max-w-[130px] truncate" title={localIpInfo.computerName}>{localIpInfo.computerName}</span>
+                    <span className={`font-extrabold ${
+                      theme === 'beige' || theme === 'white' ? 'text-sky-700' : 'text-sky-400'
+                    } max-w-[130px] truncate`} title={localIpInfo.computerName}>{localIpInfo.computerName}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center">
@@ -3888,7 +4040,7 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('fast')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'fast' 
-                        ? 'bg-sky-500/20 border-sky-500/60 text-sky-600 dark:text-sky-400 font-black shadow-sm' 
+                        ? `bg-sky-500/20 border-sky-500/60 ${theme === 'beige' || theme === 'white' ? 'text-sky-700' : 'text-sky-400'} font-black shadow-sm` 
                         : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
@@ -3899,7 +4051,7 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('standard')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'standard' 
-                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-700 dark:text-emerald-400 font-black shadow-sm' 
+                        ? `bg-emerald-500/20 border-emerald-500/60 ${theme === 'beige' || theme === 'white' ? 'text-emerald-700' : 'text-emerald-400'} font-black shadow-sm` 
                         : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
@@ -3910,7 +4062,7 @@ const App: React.FC = () => {
                     onClick={() => setScanMode('precision')}
                     className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
                       scanMode === 'precision' 
-                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-700 dark:text-amber-400 font-black shadow-sm' 
+                        ? `bg-amber-500/20 border-amber-500/60 ${theme === 'beige' || theme === 'white' ? 'text-amber-700' : 'text-amber-400'} font-black shadow-sm` 
                         : (theme === 'beige' ? 'bg-[#ffffff] border-[#d4be9c] text-[#422e1b] hover:bg-[#faf5eb] font-bold' : theme === 'white' ? 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100 font-bold shadow-xs' : 'bg-zinc-800/60 border-white/5 text-zinc-300 hover:bg-zinc-800')
                     }`}
                   >
@@ -4017,31 +4169,49 @@ const App: React.FC = () => {
               </div>
 
               {/* Interface Select Dropdown */}
-              {filteredInterfaces.length > 0 ? (
-                <select 
-                  onChange={(e) => {
-                    const iface = interfaces.find(i => i.ip === e.target.value || i.name === e.target.value);
-                    if (iface) {
-                      if (iface.subnet) {
-                        try { localStorage.setItem('grid_config_user_set', 'true'); } catch {}
-                        setConfig(prev => ({ ...prev, subnet: iface.subnet }));
+              {filteredInterfaces.length > 0 ? (() => {
+                const selectedSelectValue =
+                  selectedInterfaceKey && filteredInterfaces.some(i => (i.ip || i.name) === selectedInterfaceKey)
+                    ? selectedInterfaceKey
+                    : localIpInfo?.ip && filteredInterfaces.some(i => i.ip === localIpInfo.ip)
+                    ? localIpInfo.ip
+                    : (filteredInterfaces[0]?.ip || filteredInterfaces[0]?.name || '');
+                return (
+                  <select 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const iface =
+                        filteredInterfaces.find(i => (i.ip || i.name) === val) ||
+                        interfaces.find(i => (i.ip || i.name) === val);
+                      if (iface) {
+                        setSelectedInterfaceKey(iface.ip || iface.name);
+                        if (iface.subnet) {
+                          try { localStorage.setItem('grid_config_user_set', 'true'); } catch {}
+                          setConfig(prev => ({ ...prev, subnet: iface.subnet }));
+                        }
+                        if (iface.ip) {
+                          setLocalIpInfo(prev => ({ ip: iface.ip, subnet: iface.subnet || prev?.subnet || '', computerName: prev?.computerName }));
+                          selectedInterfaceIpRef.current = iface.ip;
+                        } else {
+                          selectedInterfaceIpRef.current = null;
+                        }
+                        showToast(`${iface.name} (${iface.ip || 'No IP'}) 선택됨`);
                       }
-                      setLocalIpInfo(prev => ({ ip: iface.ip || prev?.ip || '', subnet: iface.subnet || prev?.subnet || '', computerName: prev?.computerName }));
-                      selectedInterfaceIpRef.current = iface.ip || null;
-                      showToast(`${iface.name} (${iface.ip || 'No IP'}) 선택됨`);
-                    }
-                  }}
-                  value={localIpInfo?.ip || (filteredInterfaces[0]?.ip || '')}
-                  className={`w-full ${t.input} rounded-lg px-2.5 py-2 text-[11px] font-bold focus:outline-none transition-all cursor-pointer truncate shadow-sm`}
-                >
-                  {filteredInterfaces.map(iface => (
-                    <option key={`${iface.name}-${iface.ip}`} value={iface.ip || iface.name}>
-                      {iface.status === 'up' ? '●' : '○'} [{iface.type.toUpperCase()}] {iface.name} {iface.ip ? `(${iface.ip})` : '(No IPv4)'}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                    }}
+                    value={selectedSelectValue}
+                    className={`w-full ${t.input} rounded-lg px-2.5 py-2 text-[11px] font-bold focus:outline-none transition-all cursor-pointer truncate shadow-sm`}
+                  >
+                    {filteredInterfaces.map(iface => (
+                      <option key={`${iface.name}-${iface.ip}`} value={iface.ip || iface.name}>
+                        {iface.status === 'up' ? '●' : '○'} [{iface.type.toUpperCase()}] {iface.name} {iface.ip ? `(${iface.ip})` : '(No IPv4)'}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })() : (
+                <div className={`p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] ${
+                  theme === 'beige' || theme === 'white' ? 'text-amber-700' : 'text-amber-400'
+                } flex items-center justify-between`}>
                   <span>{s.noMatchingAdapters}</span>
                   <button 
                     onClick={() => setInterfaceFilter('all')}
@@ -5207,9 +5377,11 @@ const App: React.FC = () => {
                         </span>
                       </div>
                       <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded shrink-0 ${
-                        vendorPriorityMode === 'auto' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                        vendorPriorityMode === 'real' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' :
-                        'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        vendorPriorityMode === 'auto'
+                          ? (theme === 'beige' || theme === 'white' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30')
+                          : vendorPriorityMode === 'real'
+                          ? (theme === 'beige' || theme === 'white' ? 'bg-sky-100 text-sky-800 border border-sky-300' : 'bg-sky-500/20 text-sky-300 border border-sky-500/30')
+                          : (theme === 'beige' || theme === 'white' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30')
                       }`}>
                         {vendorPriorityMode === 'auto' ? (lang === 'ko' ? '⭐ 자동 최적' : '⭐ Auto Smart') :
                          vendorPriorityMode === 'real' ? (lang === 'ko' ? '완제품 98%' : 'Real Brand') :
@@ -5218,14 +5390,20 @@ const App: React.FC = () => {
                     </div>
 
                     {/* 3-Way Segmented Control Switch */}
-                    <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-black/30 dark:bg-black/50 border border-white/5 text-[10px] font-black">
+                    <div className={`grid grid-cols-3 gap-1 p-1 rounded-lg border text-[10px] font-black ${
+                      theme === 'beige'
+                        ? 'bg-[#efe4d2] border-[#dcc7a1]'
+                        : theme === 'white'
+                        ? 'bg-slate-200/80 border-slate-300'
+                        : 'bg-black/45 border-white/5'
+                    }`}>
                       <button
                         type="button"
                         onClick={() => setVendorPriorityMode('auto')}
                         className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
                           vendorPriorityMode === 'auto'
                             ? 'bg-emerald-500 text-black shadow-md font-black ring-1 ring-emerald-300'
-                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            : (theme === 'beige' ? 'text-[#5c4a37] hover:text-[#2c1d11] hover:bg-white/60' : theme === 'white' ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' : 'text-zinc-400 hover:text-white hover:bg-white/5')
                         }`}
                         title={lang === 'ko' ? '신뢰도 점수 기반 자동 최적 강조 (추천)' : 'Auto-select highest confidence source'}
                       >
@@ -5239,7 +5417,7 @@ const App: React.FC = () => {
                         className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
                           vendorPriorityMode === 'real'
                             ? 'bg-sky-500 text-black shadow-md font-black ring-1 ring-sky-300'
-                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            : (theme === 'beige' ? 'text-[#5c4a37] hover:text-[#2c1d11] hover:bg-white/60' : theme === 'white' ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' : 'text-zinc-400 hover:text-white hover:bg-white/5')
                         }`}
                         title={lang === 'ko' ? 'SSDP/mDNS 기반 실제 완제품 브랜드 강조 (신뢰도 98%)' : 'Focus on SSDP/mDNS real product brand (98% confidence)'}
                       >
@@ -5253,7 +5431,7 @@ const App: React.FC = () => {
                         className={`py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
                           vendorPriorityMode === 'oui'
                             ? 'bg-amber-500 text-black shadow-md font-black ring-1 ring-amber-300'
-                            : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                            : (theme === 'beige' ? 'text-[#5c4a37] hover:text-[#2c1d11] hover:bg-white/60' : theme === 'white' ? 'text-slate-600 hover:text-slate-900 hover:bg-white/80' : 'text-zinc-400 hover:text-white hover:bg-white/5')
                         }`}
                         title={lang === 'ko' ? 'IEEE OUI 기반 하드웨어 칩셋 제조사 강조 (신뢰도 85%)' : 'Focus on IEEE OUI hardware chipset (85% confidence)'}
                       >
@@ -5306,13 +5484,13 @@ const App: React.FC = () => {
                           </div>
                         </div>
                         <span className={`px-2 py-0.5 rounded ${isLgText ? 'text-[10px]' : 'text-[9px]'} font-black uppercase tracking-wider ${
-                          selectedDiffStatus === 'new' ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' :
-                          selectedDiffStatus === 'offline' ? 'bg-rose-500/30 text-rose-400 border border-rose-500/40' :
-                          selectedDiffStatus === 'changed' ? 'bg-amber-500/30 text-amber-400 border border-amber-500/40 animate-pulse' :
-                          diffBaselineColor === 'sky' ? 'bg-sky-500/30 text-sky-300 border border-sky-500/40' :
-                          diffBaselineColor === 'indigo' ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/40' :
-                          diffBaselineColor === 'teal' ? 'bg-teal-500/30 text-teal-300 border border-teal-500/40' :
-                          'bg-slate-500/30 text-slate-400 border border-slate-500/40'
+                          selectedDiffStatus === 'new' ? ((theme === 'beige' || theme === 'white') ? 'bg-emerald-200/80 text-emerald-900 border border-emerald-400' : 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40') :
+                          selectedDiffStatus === 'offline' ? ((theme === 'beige' || theme === 'white') ? 'bg-rose-200/80 text-rose-900 border border-rose-400' : 'bg-rose-500/30 text-rose-400 border border-rose-500/40') :
+                          selectedDiffStatus === 'changed' ? ((theme === 'beige' || theme === 'white') ? 'bg-amber-200/80 text-amber-900 border border-amber-400 animate-pulse' : 'bg-amber-500/30 text-amber-400 border border-amber-500/40 animate-pulse') :
+                          diffBaselineColor === 'sky' ? ((theme === 'beige' || theme === 'white') ? 'bg-sky-200/80 text-sky-900 border border-sky-400' : 'bg-sky-500/30 text-sky-300 border border-sky-500/40') :
+                          diffBaselineColor === 'indigo' ? ((theme === 'beige' || theme === 'white') ? 'bg-indigo-200/80 text-indigo-900 border border-indigo-400' : 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/40') :
+                          diffBaselineColor === 'teal' ? ((theme === 'beige' || theme === 'white') ? 'bg-teal-200/80 text-teal-900 border border-teal-400' : 'bg-teal-500/30 text-teal-300 border border-teal-500/40') :
+                          ((theme === 'beige' || theme === 'white') ? 'bg-slate-200 text-slate-800 border border-slate-400' : 'bg-slate-500/30 text-slate-400 border border-slate-500/40')
                         }`}>
                           {selectedDiffStatus.toUpperCase()}
                         </span>
@@ -5326,8 +5504,8 @@ const App: React.FC = () => {
                               ? '기준 스냅샷 캡처 당시에는 존재하지 않았던 새로운 기기입니다. 정상 접속 기기인지 확인 후 신뢰 등록을 진행하세요.'
                               : 'This device was not present when the baseline was captured. Verify if authorized and add to trusted list.'}
                           </p>
-                          <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 mt-1 border border-white/5`}>
-                            <div>• {lang === 'ko' ? '현재 응답:' : 'Status:'} <span className="text-emerald-400 font-bold">{lang === 'ko' ? `온라인 활성 (${selectedDevice?.latency || 1}ms)` : `Online (${selectedDevice?.latency || 1}ms)`}</span></div>
+                          <div className={`${theme === 'beige' || theme === 'white' ? 'bg-white/85 border-emerald-300 text-slate-800' : 'bg-black/25 border-white/5'} p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 mt-1 border`}>
+                            <div>• {lang === 'ko' ? '현재 응답:' : 'Status:'} <span className={`${theme === 'beige' || theme === 'white' ? 'text-emerald-700' : 'text-emerald-400'} font-bold`}>{lang === 'ko' ? `온라인 활성 (${selectedDevice?.latency || 1}ms)` : `Online (${selectedDevice?.latency || 1}ms)`}</span></div>
                             <div>• MAC: {selectedDevice?.mac || 'Unknown'}</div>
                             <div>• {lang === 'ko' ? '제조사:' : 'Vendor:'} {selectedDevice?.vendor || 'Unknown'}</div>
                           </div>
@@ -5341,8 +5519,8 @@ const App: React.FC = () => {
                               ? '기준 스냅샷에서는 정상 작동 중이었으나, 현재 네트워크 스캔에서 응답하지 않습니다. (장비 전원 차단, LAN 케이블 분리 또는 IP 변경 의심)'
                               : 'Device was active in the baseline snapshot, but does not respond in current scan (Powered off, cable disconnected, or IP changed).'}
                           </p>
-                          <div className={`bg-black/25 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
-                            <div className="text-rose-400 font-bold">• {lang === 'ko' ? '이전 기준 상태: 정상 작동 중이었음' : 'Baseline Status: Active'}</div>
+                          <div className={`${theme === 'beige' || theme === 'white' ? 'bg-white/85 border-rose-300 text-slate-800' : 'bg-black/25 border-white/5'} p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border`}>
+                            <div className={`${theme === 'beige' || theme === 'white' ? 'text-rose-700' : 'text-rose-400'} font-bold`}>• {lang === 'ko' ? '이전 기준 상태: 정상 작동 중이었음' : 'Baseline Status: Active'}</div>
                             <div>• {lang === 'ko' ? '이전 MAC:' : 'Baseline MAC:'} {selectedBaselineDevice?.mac || 'N/A'}</div>
                             <div>• {lang === 'ko' ? '이전 제조사:' : 'Baseline Vendor:'} {selectedBaselineDevice?.vendor || 'Unknown'}</div>
                             <div>• {lang === 'ko' ? '이전 호스트:' : 'Baseline Host:'} {selectedBaselineDevice?.hostname || 'Unknown'}</div>
@@ -5352,27 +5530,27 @@ const App: React.FC = () => {
 
                       {selectedDiffStatus === 'changed' && (
                         <div className={`${isLgText ? 'text-xs' : 'text-[11px]'} space-y-1.5`}>
-                          <p className="leading-relaxed font-bold text-amber-300">
+                          <p className={`leading-relaxed font-bold ${theme === 'beige' || theme === 'white' ? 'text-amber-900' : 'text-amber-300'}`}>
                             ⚠️ {lang === 'ko' ? '동일한 IP에서 기준 스냅샷과 다른 하드웨어 식별자가 감지되었습니다!' : 'Different hardware identifier detected on the same IP address compared to baseline!'}
                           </p>
-                          <div className={`bg-black/30 p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border border-white/5`}>
+                          <div className={`${theme === 'beige' || theme === 'white' ? 'bg-white/85 border-amber-300 text-slate-800' : 'bg-black/30 border-white/5'} p-2.5 rounded-lg font-mono ${isLgText ? 'text-[11px]' : 'text-[10px]'} space-y-1 border`}>
                             {selectedDiffItem?.changeDetails && selectedDiffItem.changeDetails.length > 0 ? (
                               selectedDiffItem.changeDetails.map((detail, idx) => (
-                                <div key={idx} className="text-amber-200 leading-tight">
+                                <div key={idx} className={`${theme === 'beige' || theme === 'white' ? 'text-amber-900' : 'text-amber-200'} leading-tight`}>
                                   {detail}
                                 </div>
                               ))
                             ) : (
-                              <div className="text-amber-200">{lang === 'ko' ? 'MAC 주소 또는 호스트명 변동 감지됨' : 'MAC address or hostname change detected'}</div>
+                              <div className={theme === 'beige' || theme === 'white' ? 'text-amber-900' : 'text-amber-200'}>{lang === 'ko' ? 'MAC 주소 또는 호스트명 변동 감지됨' : 'MAC address or hostname change detected'}</div>
                             )}
-                            <div className={`grid grid-cols-2 gap-2 pt-2 border-t border-white/10 ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'}`}>
+                            <div className={`grid grid-cols-2 gap-2 pt-2 border-t ${theme === 'beige' || theme === 'white' ? 'border-amber-200' : 'border-white/10'} ${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'}`}>
                               <div>
-                                <span className="opacity-60 block">{lang === 'ko' ? '기준점 MAC:' : 'Baseline MAC:'}</span>
+                                <span className="opacity-70 block">{lang === 'ko' ? '기준점 MAC:' : 'Baseline MAC:'}</span>
                                 <span className="font-bold">{selectedBaselineDevice?.mac || 'N/A'}</span>
                               </div>
                               <div>
-                                <span className="opacity-60 block text-amber-400">{lang === 'ko' ? '현재 MAC:' : 'Current MAC:'}</span>
-                                <span className="font-bold text-amber-300">{selectedDevice?.mac || 'N/A'}</span>
+                                <span className={`opacity-80 block ${theme === 'beige' || theme === 'white' ? 'text-amber-700' : 'text-amber-400'}`}>{lang === 'ko' ? '현재 MAC:' : 'Current MAC:'}</span>
+                                <span className={`font-bold ${theme === 'beige' || theme === 'white' ? 'text-amber-900' : 'text-amber-300'}`}>{selectedDevice?.mac || 'N/A'}</span>
                               </div>
                             </div>
                           </div>
@@ -5398,9 +5576,13 @@ const App: React.FC = () => {
                           }
                           setShowDiffStudioModal(true);
                         }}
-                        className={`w-full mt-1.5 ${isLgText ? 'py-2 text-xs' : 'py-1.5 text-[11px]'} px-3 rounded-lg bg-black/20 hover:bg-black/35 dark:bg-white/10 dark:hover:bg-white/20 border border-current border-opacity-15 font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm`}
+                        className={`w-full mt-1.5 ${isLgText ? 'py-2 text-xs' : 'py-1.5 text-[11px]'} px-3 rounded-lg ${
+                          theme === 'beige' || theme === 'white'
+                            ? 'bg-white/80 hover:bg-white border-black/15 text-slate-900'
+                            : 'bg-white/10 hover:bg-white/20 border-white/15'
+                        } border font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm`}
                       >
-                        <Layers className="w-4 h-4 text-indigo-400" />
+                        <Layers className={`w-4 h-4 ${theme === 'beige' || theme === 'white' ? 'text-indigo-600' : 'text-indigo-400'}`} />
                         <span>{lang === 'ko' ? '스냅샷 1:1 대조 스튜디오 열기' : 'Open Snapshot Diff Studio'}</span>
                       </button>
                     </div>
@@ -5428,13 +5610,21 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="p-3.5 rounded-xl border border-rose-500/60 bg-rose-500/20 text-rose-200 space-y-1.5 animate-pulse shadow-lg">
-                        <div className={`flex items-center gap-1.5 text-rose-400 font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
+                      <div className={`p-3.5 rounded-xl border space-y-1.5 animate-pulse shadow-lg ${
+                        theme === 'beige' || theme === 'white'
+                          ? 'border-rose-400 bg-rose-50 text-rose-950'
+                          : 'border-rose-500/60 bg-rose-500/20 text-rose-200'
+                      }`}>
+                        <div className={`flex items-center gap-1.5 ${
+                          theme === 'beige' || theme === 'white' ? 'text-rose-700' : 'text-rose-400'
+                        } font-black ${isLgText ? 'text-sm' : 'text-xs'}`}>
                           <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                           <span>⚠️ {lang === 'ko' ? 'IP 충돌 경고 (IP Conflict)' : 'IP Conflict Warning'}</span>
                         </div>
                         <p className={`${isLgText ? 'text-xs' : 'text-[11px]'} leading-relaxed opacity-95`}>{selectedConflict.reason}</p>
-                        <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} text-rose-300/90 bg-black/30 p-2 rounded mt-1`}>
+                        <div className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} ${
+                          theme === 'beige' || theme === 'white' ? 'bg-rose-100 text-rose-900' : 'text-rose-300/90 bg-black/30'
+                        } p-2 rounded mt-1`}>
                           💡 {lang === 'ko' ? '해결 가이드: 고정 IP 중복 여부 확인 또는 DHCP 라우터 임대 목록을 갱신하세요.' : 'Resolution: Check for static IP duplication or renew DHCP router lease.'}
                         </div>
                       </div>
@@ -5792,10 +5982,16 @@ const App: React.FC = () => {
                       disabled={isSendingWol || (featureGates.remoteBootWoL && (!effectiveMac || effectiveMac === 'Unknown'))}
                       className={`w-full ${isLgText ? 'py-3 text-sm' : 'py-2.5 text-xs'} px-3 rounded-xl border font-black uppercase flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer ${
                         !featureGates.remoteBootWoL
-                          ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 hover:border-amber-400 text-amber-300 hover:shadow-amber-500/10 active:scale-98'
+                          ? (theme === 'beige' || theme === 'white'
+                              ? 'border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-800 active:scale-98'
+                              : 'border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 hover:border-amber-400 text-amber-300 hover:shadow-amber-500/10 active:scale-98')
                           : !effectiveMac || effectiveMac === 'Unknown'
-                            ? 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400'
-                            : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300'
+                            ? (theme === 'beige' || theme === 'white'
+                                ? 'opacity-50 cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500'
+                                : 'opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-800 text-zinc-400')
+                            : (theme === 'beige' || theme === 'white'
+                                ? 'border-amber-400 bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-900'
+                                : 'border-amber-500/50 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300')
                       }`}
                       title={
                         !featureGates.remoteBootWoL
@@ -5818,7 +6014,9 @@ const App: React.FC = () => {
                       )}
                     </button>
                     {!featureGates.remoteBootWoL ? (
-                      <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} text-amber-500/80 dark:text-amber-400/80 text-center`}>
+                      <div className={`${isLgText ? 'text-[10.5px]' : 'text-[9.5px]'} ${
+                        theme === 'beige' || theme === 'white' ? 'text-amber-700' : 'text-amber-400/80'
+                      } text-center`}>
                         💡 {lang === 'ko' ? 'PC/서버 원격 부팅(WoL)은 PRO 에디션 이상에서 이용하실 수 있습니다.' : 'Remote Boot (WoL) is available in PRO edition.'}
                       </div>
                     ) : (
@@ -6393,8 +6591,14 @@ const App: React.FC = () => {
 
       {/* Source Info Modal */}
       {showSourceInfo && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6`}>
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          onClick={() => setShowSourceInfo(false)}
+        >
+           <div
+             className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6`}
+             onClick={(e) => e.stopPropagation()}
+           >
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <Database className="w-5 h-5 text-sky-500" />
@@ -6472,8 +6676,14 @@ const App: React.FC = () => {
 
       {/* Security Notice Modal */}
       {showSecurityNotice && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-           <div className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6 animate-in zoom-in-95 duration-200`}>
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          onClick={handleDismissSecurityNotice}
+        >
+           <div
+             className={`w-full max-w-md ${theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37]' : theme === 'white' ? 'bg-white text-slate-900 border-slate-200' : 'bg-zinc-900 text-zinc-100'} rounded-2xl shadow-2xl border ${t.panel} p-6 space-y-6 animate-in zoom-in-95 duration-200`}
+             onClick={(e) => e.stopPropagation()}
+           >
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
@@ -6557,14 +6767,19 @@ const App: React.FC = () => {
         interfaceStats={interfaceStats}
         localIpInfo={localIpInfo}
         onSelectInterface={(iface) => {
+          setSelectedInterfaceKey(iface.ip || iface.name);
           if (iface.subnet) {
             setConfig(prev => ({ ...prev, subnet: iface.subnet }));
           }
           try { localStorage.setItem('grid_config_user_set', 'true'); } catch {}
-          setLocalIpInfo(prev => ({ ip: iface.ip, subnet: iface.subnet, computerName: prev?.computerName }));
-          selectedInterfaceIpRef.current = iface.ip;
+          if (iface.ip) {
+            setLocalIpInfo(prev => ({ ip: iface.ip, subnet: iface.subnet || prev?.subnet || '', computerName: prev?.computerName }));
+            selectedInterfaceIpRef.current = iface.ip;
+          } else {
+            selectedInterfaceIpRef.current = null;
+          }
           setShowInterfaceModal(false);
-          showToast(`${iface.name} (${iface.subnet}.0/24) 대역으로 스캔 대상이 설정되었습니다.`);
+          showToast(`${iface.name} (${iface.ip ? `${iface.subnet}.0/24` : 'No IPv4'}) 대역으로 스캔 대상이 설정되었습니다.`);
         }}
         theme={theme}
         lang={lang as 'ko' | 'en'}
@@ -6792,9 +7007,10 @@ const App: React.FC = () => {
         lang={lang as 'ko' | 'en'}
         theme={theme}
         onTrustDevice={(macOrIp) => {
+          const isIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(macOrIp);
           handleTrustDevice(
-            macOrIp.includes(':') || macOrIp.includes('-') ? macOrIp : undefined,
-            macOrIp.includes('.') ? macOrIp : undefined
+            !isIpv4 ? macOrIp : undefined,
+            isIpv4 ? macOrIp : undefined
           );
         }}
       />

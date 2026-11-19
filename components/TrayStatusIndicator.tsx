@@ -75,11 +75,19 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
         if (updated) setMenuCoords(updated);
       };
 
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) {
+          setIsOpen(false);
+        }
+      };
+
       window.addEventListener('resize', handleResizeOrScroll);
       window.addEventListener('scroll', handleResizeOrScroll, true);
+      window.addEventListener('keydown', handleKeyDown);
       return () => {
         window.removeEventListener('resize', handleResizeOrScroll);
         window.removeEventListener('scroll', handleResizeOrScroll, true);
+        window.removeEventListener('keydown', handleKeyDown);
       };
     }
   }, [isOpen, align]);
@@ -116,16 +124,20 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
 
   const hasActiveThreat = intruderCount > 0 || hasThreatInStatus;
 
+  const isLightTheme = theme === 'white' || theme === 'beige';
+
   // Status computation for visual indicator (Pulsing green for idle watch, pulsing red for active threats)
   const getStatusConfig = () => {
     // 1. Active Threat Detected (Pulsing Red)
     if (hasActiveThreat) {
       return {
-        bg: 'bg-rose-500/25 hover:bg-rose-500/35 text-rose-300 border-rose-500/50 shadow-md shadow-rose-500/20 animate-pulse',
+        bg: isLightTheme
+          ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 border-rose-400 shadow-md shadow-rose-500/15 animate-pulse'
+          : 'bg-rose-500/25 hover:bg-rose-500/35 text-rose-300 border-rose-500/50 shadow-md shadow-rose-500/20 animate-pulse',
         badgeBg: 'bg-rose-500 text-white',
-        pulseBg: 'bg-rose-400',
+        pulseBg: 'bg-rose-500',
         ringBg: 'bg-rose-500',
-        icon: <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-bounce" />,
+        icon: <ShieldAlert className={`w-3.5 h-3.5 ${isLightTheme ? 'text-rose-600' : 'text-rose-400'} animate-bounce`} />,
         label: lang === 'ko' ? `🚨 낯선 기기 감지 (${intruderCount || 1})` : `🚨 Threats (${intruderCount || 1})`,
         statusText: lang === 'ko' ? '🚨 미확인 기기 접근 감지됨' : '🚨 Active Threat Detected'
       };
@@ -133,11 +145,13 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
     // 2. Grid Network Scan Active (Spinning Amber)
     if (isScanning) {
       return {
-        bg: 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10',
+        bg: isLightTheme
+          ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-400 shadow-sm shadow-amber-500/10'
+          : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10',
         badgeBg: 'bg-amber-500 text-zinc-950',
-        pulseBg: 'bg-amber-400',
+        pulseBg: 'bg-amber-500',
         ringBg: 'bg-amber-400',
-        icon: <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />,
+        icon: <RefreshCw className={`w-3.5 h-3.5 ${isLightTheme ? 'text-amber-700' : 'text-amber-400'} animate-spin`} />,
         label: lang === 'ko' ? '⚡ 스캔 가동 중' : '⚡ Scan Active',
         statusText: lang === 'ko' ? '실시간 스캔 진행 중' : 'Scanning Network'
       };
@@ -145,22 +159,28 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
     // 3. 24/7 Intruder Watch Active - Idle / Clean (Pulsing Green)
     if (intruderWatchMode) {
       return {
-        bg: 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10',
+        bg: isLightTheme
+          ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-400 shadow-sm shadow-emerald-500/10'
+          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10',
         badgeBg: 'bg-emerald-500 text-zinc-950',
-        pulseBg: 'bg-emerald-400',
+        pulseBg: 'bg-emerald-500',
         ringBg: 'bg-emerald-400',
-        icon: <BellRing className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />,
+        icon: <BellRing className={`w-3.5 h-3.5 ${isLightTheme ? 'text-emerald-700' : 'text-emerald-400'} animate-pulse`} />,
         label: lang === 'ko' ? '🚨 24/7 감시 활성' : '🚨 24/7 Watch Active',
         statusText: lang === 'ko' ? '🟢 24시간 무인 침입 감시 중 (정상)' : '🟢 24/7 Watch Active (Idle)'
       };
     }
-    // 4. Standby / Watch Mode Disabled (Zinc / Gray)
+    // 4. Standby / Watch Mode Disabled
     return {
-      bg: 'bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-400 border-zinc-700/60',
-      badgeBg: 'bg-zinc-600 text-zinc-200',
-      pulseBg: 'bg-zinc-500',
-      ringBg: 'bg-zinc-500',
-      icon: <Bell className="w-3.5 h-3.5 text-zinc-400" />,
+      bg: theme === 'beige'
+        ? 'bg-[#f5ebd6] hover:bg-[#ebd9b8] text-[#5c4a37] border-[#d8be91]'
+        : theme === 'white'
+        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+        : 'bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 border-zinc-700/60',
+      badgeBg: isLightTheme ? 'bg-slate-600 text-white' : 'bg-zinc-600 text-zinc-200',
+      pulseBg: isLightTheme ? 'bg-slate-500' : 'bg-zinc-500',
+      ringBg: isLightTheme ? 'bg-slate-500' : 'bg-zinc-500',
+      icon: <Bell className={`w-3.5 h-3.5 ${isLightTheme ? 'text-slate-600' : 'text-zinc-400'}`} />,
       label: lang === 'ko' ? '📌 트레이 대기' : '📌 Tray Standby',
       statusText: lang === 'ko' ? '백그라운드 감시 비활성' : 'Watch Mode Disabled'
     };
@@ -279,7 +299,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
       {/* Floating Hover Tooltip: Displays Scan Progress or Intruder Timestamp on Badge Hover */}
       {isHovered && !isOpen && statusMessage && (
         <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 w-64 max-w-[calc(100vw-2rem)] p-2.5 rounded-xl backdrop-blur-md border text-xs pointer-events-none animate-in fade-in zoom-in-95 duration-150 z-50 ${tm.tooltipBg}`}>
-          <div className={`flex items-center justify-between pb-1.5 border-b text-[10px] uppercase font-black tracking-wider text-cyan-500 dark:text-cyan-400 ${tm.divider}`}>
+          <div className={`flex items-center justify-between pb-1.5 border-b text-[10px] uppercase font-black tracking-wider ${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'} ${tm.divider}`}>
             <span className="flex items-center gap-1">
               <Activity className="w-3 h-3 animate-pulse" />
               <span>{lang === 'ko' ? '트레이 실시간 툴팁' : 'Live Tray Tooltip'}</span>
@@ -296,7 +316,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
 
             {/* Mini Progress Bar in Hover Tooltip if scanning */}
             {isScanning && scanPercent !== null && (
-              <div className="w-full bg-zinc-800/30 rounded-full h-1.5 overflow-hidden">
+              <div className={`w-full ${isLightTheme ? 'bg-slate-200' : 'bg-zinc-800/40'} rounded-full h-1.5 overflow-hidden`}>
                 <div 
                   className="bg-amber-400 h-full rounded-full transition-all duration-300"
                   style={{ width: `${Math.min(100, Math.max(0, scanPercent))}%` }}
@@ -311,9 +331,11 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                 ? (lang === 'ko' ? '🚨 침입 위협 감지됨' : '🚨 Active Threat Detected')
                 : isScanning
                 ? (lang === 'ko' ? '⚡ 그리드 스캔 진행' : '⚡ Scanning Network')
-                : (lang === 'ko' ? '🟢 24/7 무인 침입 감시 (정상)' : '🟢 24/7 Watch Active (Idle)')}
+                : intruderWatchMode
+                ? (lang === 'ko' ? '🟢 24/7 무인 침입 감시 (정상)' : '🟢 24/7 Watch Active (Idle)')
+                : (lang === 'ko' ? '⚪ 백그라운드 감시 비활성' : '⚪ Watch Mode Disabled')}
             </span>
-            <span className="text-cyan-500 dark:text-cyan-400 font-mono text-[9px]">{hasElectron ? 'OS Tray Sync' : 'App Tray'}</span>
+            <span className={`${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'} font-mono text-[9px]`}>{hasElectron ? 'OS Tray Sync' : 'App Tray'}</span>
           </div>
           {/* Arrow pointing up towards the badge */}
           <div className={`absolute bottom-full ${align === 'right' ? 'right-4' : 'left-4'} mb-[-1px] border-4 border-transparent ${tm.tooltipArrow}`} />
@@ -353,8 +375,8 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
             {statusMessage && (
               <div className={`p-2.5 rounded-lg border text-[11px] flex flex-col gap-1.5 shadow-sm ${tm.bannerBg}`}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-cyan-500 dark:text-cyan-400 font-bold text-[10px] uppercase tracking-wider">
-                    <Activity className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400 shrink-0 animate-pulse" />
+                  <div className={`flex items-center gap-1.5 ${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'} font-bold text-[10px] uppercase tracking-wider`}>
+                    <Activity className={`w-3.5 h-3.5 ${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'} shrink-0 animate-pulse`} />
                     <span>
                       {isScanning
                         ? (lang === 'ko' ? '⚡ 실시간 스캔 진행률 툴팁' : '⚡ Current Scan Progress Tooltip')
@@ -364,7 +386,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                     </span>
                   </div>
                   {isScanning && scanPercent !== null && (
-                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/40">
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 ${isLightTheme ? 'text-amber-800' : 'text-amber-300'} border border-amber-500/40`}>
                       {scanPercent}%
                     </span>
                   )}
@@ -376,7 +398,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
 
                 {/* Visual Progress Bar inside tray menu */}
                 {isScanning && scanPercent !== null && (
-                  <div className="w-full bg-zinc-800/20 rounded-full h-1.5 overflow-hidden mt-0.5">
+                  <div className={`w-full ${isLightTheme ? 'bg-slate-200' : 'bg-zinc-800/40'} rounded-full h-1.5 overflow-hidden mt-0.5`}>
                     <div 
                       className="bg-amber-400 h-full rounded-full transition-all duration-300"
                       style={{ width: `${Math.min(100, Math.max(0, scanPercent))}%` }}
@@ -385,7 +407,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                 )}
 
                 <div className={`text-[9.5px] flex items-center gap-1 mt-0.5 ${tm.subText}`}>
-                  <Check className="w-3 h-3 text-cyan-500 dark:text-cyan-400 shrink-0" />
+                  <Check className={`w-3 h-3 ${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'} shrink-0`} />
                   <span>
                     {lang === 'ko'
                       ? 'Windows 작업표시줄 트레이 아이콘에 표시되는 동일한 툴팁입니다.'
@@ -399,24 +421,24 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
             <div className={`space-y-2 p-2.5 rounded-lg border text-[11px] ${tm.cardBg}`}>
               <div className="flex items-center justify-between">
                 <span className={tm.subText}>{lang === 'ko' ? '24/7 침입 감시' : '24/7 Watch'}:</span>
-                <span className={`font-bold ${intruderWatchMode ? 'text-emerald-500 dark:text-emerald-400' : tm.subText}`}>
+                <span className={`font-bold ${intruderWatchMode ? (isLightTheme ? 'text-emerald-700' : 'text-emerald-400') : tm.subText}`}>
                   {intruderWatchMode ? (lang === 'ko' ? '🟢 활성화됨' : '🟢 Active') : (lang === 'ko' ? '⚪ 비활성화' : '⚪ Disabled')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className={tm.subText}>{lang === 'ko' ? '그리드 스캔 상태' : 'Scan Engine'}:</span>
-                <span className={`font-bold ${isScanning ? 'text-amber-500 dark:text-amber-400' : tm.headerTitle}`}>
+                <span className={`font-bold ${isScanning ? (isLightTheme ? 'text-amber-700' : 'text-amber-400') : tm.headerTitle}`}>
                   {isScanning ? (lang === 'ko' ? '⚡ 탐색 중...' : '⚡ Scanning...') : (lang === 'ko' ? '💤 대기 (Idle)' : '💤 Idle')}
                 </span>
               </div>
               {intruderCount > 0 && (
-                <div className={`flex items-center justify-between text-rose-500 dark:text-rose-400 font-bold border-t pt-1.5 ${tm.divider}`}>
+                <div className={`flex items-center justify-between ${isLightTheme ? 'text-rose-700' : 'text-rose-400'} font-bold border-t pt-1.5 ${tm.divider}`}>
                   <span>{lang === 'ko' ? '감지된 미확인 기기' : 'Intruders Found'}:</span>
                   <span>{intruderCount} {lang === 'ko' ? '대' : 'devs'}</span>
                 </div>
               )}
               {statusMessage && (
-                <div className={`flex items-center justify-between text-cyan-500 dark:text-cyan-300 font-medium border-t pt-1.5 ${tm.divider}`}>
+                <div className={`flex items-center justify-between ${isLightTheme ? 'text-cyan-700' : 'text-cyan-300'} font-medium border-t pt-1.5 ${tm.divider}`}>
                   <span className={tm.subText}>
                     {isScanning
                       ? (lang === 'ko' ? '스캔 진척' : 'Scan Progress')
@@ -440,13 +462,13 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                 }}
                 className={`w-full py-2.5 px-3 rounded-lg border text-left font-bold transition-all cursor-pointer flex items-center justify-between ${
                   intruderWatchMode
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/25 shadow-sm shadow-emerald-500/10'
+                    ? `bg-emerald-500/15 border-emerald-500/40 ${isLightTheme ? 'text-emerald-800' : 'text-emerald-300'} hover:bg-emerald-500/25 shadow-sm shadow-emerald-500/10`
                     : tm.toggleWatchInactive
                 }`}
                 title={lang === 'ko' ? '24/7 낯선 기기 무인 감시 모드 켜기/끄기' : 'Enable or Disable 24/7 Intruder Watch Mode'}
               >
                 <div className="flex items-center gap-2">
-                  <Shield className={`w-4 h-4 ${intruderWatchMode ? 'text-emerald-500 dark:text-emerald-400' : tm.subText}`} />
+                  <Shield className={`w-4 h-4 ${intruderWatchMode ? (isLightTheme ? 'text-emerald-700' : 'text-emerald-400') : tm.subText}`} />
                   <div>
                     <div className="text-[11.5px] font-bold">
                       {lang === 'ko' ? '🚨 24/7 침입 감시 (Enable Intruder Watch)' : '🚨 Enable 24/7 Intruder Watch'}
@@ -458,7 +480,7 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                     </div>
                   </div>
                 </div>
-                <div className={`w-9 h-5 rounded-full transition-all relative shrink-0 ${intruderWatchMode ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}>
+                <div className={`w-9 h-5 rounded-full transition-all relative shrink-0 ${intruderWatchMode ? 'bg-emerald-500' : isLightTheme ? 'bg-slate-400' : 'bg-zinc-600'}`}>
                   <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-xs ${intruderWatchMode ? 'left-4.5' : 'left-0.5'}`} />
                 </div>
               </button>
@@ -471,13 +493,13 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                   }}
                   className={`w-full py-2.5 px-3 rounded-lg border text-left font-bold transition-all cursor-pointer flex items-center justify-between ${
                     isScanning
-                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-300 hover:bg-amber-500/25 shadow-sm shadow-amber-500/10'
+                      ? `bg-amber-500/15 border-amber-500/40 ${isLightTheme ? 'text-amber-800' : 'text-amber-300'} hover:bg-amber-500/25 shadow-sm shadow-amber-500/10`
                       : tm.toggleScanInactive
                   }`}
                   title={lang === 'ko' ? '그리드 스캔 시작 또는 중지' : 'Toggle Grid Scan Mode (Start / Stop)'}
                 >
                   <div className="flex items-center gap-2">
-                    <RefreshCw className={`w-4 h-4 ${isScanning ? 'text-amber-500 dark:text-amber-400 animate-spin' : 'text-cyan-500 dark:text-cyan-400'}`} />
+                    <RefreshCw className={`w-4 h-4 ${isScanning ? (isLightTheme ? 'text-amber-700' : 'text-amber-400') + ' animate-spin' : (isLightTheme ? 'text-cyan-700' : 'text-cyan-400')}`} />
                     <div>
                       <div className="text-[11.5px] font-bold">
                         {isScanning
@@ -505,9 +527,13 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                   setIsOpen(false);
                   onOpenIntruderLog();
                 }}
-                className="w-full py-2 px-3 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2"
+                className={`w-full py-2 px-3 rounded-lg border font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  isLightTheme
+                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300'
+                    : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                <ShieldAlert className={`w-3.5 h-3.5 ${isLightTheme ? 'text-rose-600' : 'text-rose-400'}`} />
                 <span>{lang === 'ko' ? '📜 낯선 기기 감시 로그 열기' : '📜 Show Intruder Log'}</span>
               </button>
             )}
@@ -519,9 +545,13 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                   setIsOpen(false);
                   onMinimizeToTray();
                 }}
-                className="w-full py-2 px-3 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40 font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2"
+                className={`w-full py-2 px-3 rounded-lg border font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  isLightTheme
+                    ? 'bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border-cyan-300'
+                    : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border-cyan-500/40'
+                }`}
               >
-                <Monitor className="w-3.5 h-3.5 text-cyan-400" />
+                <Monitor className={`w-3.5 h-3.5 ${isLightTheme ? 'text-cyan-700' : 'text-cyan-400'}`} />
                 <span>{lang === 'ko' ? '📌 즉시 시스템 트레이로 최소화' : '📌 Minimize to Tray Now'}</span>
               </button>
             )}
@@ -536,10 +566,14 @@ export const TrayStatusIndicator: React.FC<TrayStatusIndicatorProps> = ({
                   (window as any).electronAPI.exitApplication();
                 }
               }}
-              className="w-full py-2 px-3 rounded-lg bg-red-500/15 hover:bg-red-500/25 active:scale-98 text-red-300 border border-red-500/30 font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2"
+              className={`w-full py-2 px-3 rounded-lg active:scale-98 border font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                isLightTheme
+                  ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
+                  : 'bg-red-500/15 hover:bg-red-500/25 text-red-300 border-red-500/30'
+              }`}
               title={lang === 'ko' ? '백그라운드 서비스 및 앱 완전 종료' : 'Exit Application & Terminate Background Service'}
             >
-              <Power className="w-3.5 h-3.5 text-red-400" />
+              <Power className={`w-3.5 h-3.5 ${isLightTheme ? 'text-red-600' : 'text-red-400'}`} />
               <span>{lang === 'ko' ? '🛑 애플리케이션 완전 종료 (Exit Application)' : '🛑 Exit Application'}</span>
             </button>
           </div>

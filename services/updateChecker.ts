@@ -101,14 +101,17 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const response = await fetch(GITHUB_API_URL, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-    clearTimeout(timeoutId);
+    let response: Response;
+    try {
+      response = await fetch(GITHUB_API_URL, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (response.status === 404) {
       // Repository has no releases yet

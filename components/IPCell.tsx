@@ -171,20 +171,26 @@ const IPCell: React.FC<IPCellProps> = ({
       case 'inactive': 
         return isDark 
           ? 'bg-slate-900/40 border-slate-700/30 opacity-70 hover:opacity-100'
-          : theme === 'white'
-          ? 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100'
+          : theme === 'beige'
+          ? 'bg-[#efe4d2]/80 border-[#dcc7a1] opacity-85 hover:opacity-100'
           : 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100';
       default: 
         return isDark 
           ? 'bg-zinc-800/60 border-zinc-700/50'
-          : theme === 'white'
-          ? 'bg-slate-100 border-slate-200'
-          : 'bg-slate-200 border-slate-300';
+          : theme === 'beige'
+          ? 'bg-[#f3eadb] border-[#dcc7a1]'
+          : 'bg-slate-100 border-slate-200';
     }
   };
 
+  const usesBlackSelectedText = Boolean(
+    isSelected &&
+    (diffStatus === 'changed' ||
+      (diffStatus === 'same' && (theme === 'dark' || theme === 'gray') && ((baselineColor || 'sky') === 'sky' || baselineColor === 'teal')))
+  );
+
   const getTextColor = () => {
-    if (isSelected) return 'text-white font-black';
+    if (isSelected) return usesBlackSelectedText ? 'text-black font-black' : 'text-white font-black';
 
     // In Diff Mode, give distinct, high-contrast text colors matching the diff status
     if (diffStatus) {
@@ -404,7 +410,7 @@ const IPCell: React.FC<IPCellProps> = ({
       <span className={`
         text-[11px] md:text-[13px] font-black mono tracking-tight leading-none select-none z-10
         ${getTextColor()}
-        drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]
+        ${(theme === 'dark' || theme === 'gray' || (isSelected && !usesBlackSelectedText)) ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : ''}
       `}>
         {lastOctet}
       </span>

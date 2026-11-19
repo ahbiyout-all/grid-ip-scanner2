@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session, shell } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session, shell, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -49,8 +49,8 @@ function showTrayBalloon(title, content) {
   }
 }
 
-// Set userData to a temporary directory to leave no traces
-const tempUserData = path.join(app.getPath('temp'), `grid_ip_scanner_electron_${Date.now()}`);
+// Use a deterministic temp userData path so Chromium's single-instance lock works reliably across launches
+const tempUserData = path.join(app.getPath('temp'), 'grid_ip_scanner_electron');
 app.setPath('userData', tempUserData);
 
 // Disable Chromium translation prompts and force Korean locale
@@ -218,11 +218,13 @@ function createTray() {
   }
 }
 
-function createWindow() {
+function createWindow(showOnStart = true) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.focus();
+    if (showOnStart) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
     return mainWindow;
   }
 
@@ -233,6 +235,7 @@ function createWindow() {
     height: 700,
     minWidth: 800,
     minHeight: 600,
+    show: showOnStart,
     title: "Grid IP Scanner2",
     icon: iconPath,
     backgroundColor: '#020617',
@@ -297,6 +300,7 @@ function createWindow() {
         );
         return false;
       } else {
+        event.preventDefault();
         terminateApplicationCleanly();
       }
     }
@@ -420,16 +424,20 @@ ipcMain.on('update-tray-status', (event, status) => {
   }
 });
 
-function terminateApplicationCleanly() {
+async function terminateApplicationCleanly() {
   if (isExplicitExit) return;
   isExplicitExit = true;
   isQuitting = true;
+
+  const cleanupTasks = [];
 
   // 1. Terminate Windows Background Service cleanly if running
   try {
     const cp = require('child_process');
     if (process.platform === 'win32') {
-      cp.exec('sc.exe stop GridIPScannerService', { windowsHide: true }, () => {});
+      cleanupTasks.push(new Promise((resolve) => {
+        cp.exec('sc.exe stop GridIPScannerService', { windowsHide: true, timeout: 1500 }, () => resolve());
+      }));
     }
   } catch (e) {
     console.warn('Failed to stop GridIPScannerService:', e);
@@ -444,19 +452,26 @@ function terminateApplicationCleanly() {
   }
 
   // 3. Cleanly close and destroy main window
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     try {
       mainWindow.removeAllListeners('close');
-      mainWindow.close();
+      mainWindow.destroy();
       mainWindow = null;
     } catch (e) {}
+  } else {
+    mainWindow = null;
   }
 
   // 4. Clear storage data and temp directory
   if (session.defaultSession) {
-    session.defaultSession.clearStorageData().catch(() => {});
-    session.defaultSession.clearCache().catch(() => {});
+    cleanupTasks.push(session.defaultSession.clearStorageData().catch(() => {}));
+    cleanupTasks.push(session.defaultSession.clearCache().catch(() => {}));
   }
+
+  await Promise.race([
+    Promise.allSettled(cleanupTasks),
+    new Promise((resolve) => setTimeout(resolve, 800))
+  ]);
 
   try {
     if (fs.existsSync(tempUserData)) {
@@ -464,10 +479,8 @@ function terminateApplicationCleanly() {
     }
   } catch (e) {}
 
-  setTimeout(() => {
-    app.quit();
-    process.exit(0);
-  }, 200);
+  app.quit();
+  process.exit(0);
 }
 
 ipcMain.on('exit-application', () => {
@@ -476,7 +489,9 @@ ipcMain.on('exit-application', () => {
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
-  app.quit();
+  isExplicitExit = true;
+  isQuitting = true;
+  app.exit(0);
 } else {
   app.on('second-instance', () => {
     restoreMainWindow();
@@ -485,14 +500,18 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     const startInTray = process.argv.some((arg) => arg.toLowerCase() === '--tray');
 
+    try {
+      powerMonitor.on('shutdown', () => {
+        isExplicitExit = true;
+        isQuitting = true;
+      });
+    } catch (_) {}
+
     // CRITICAL: Activate System Tray FROM THE BEGINNING (처음부터 시스템 트레이 활성화)
     createTray();
 
-    // Create Main Window (keep hidden when started silently via --tray)
-    createWindow();
-    if (startInTray && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.hide();
-    }
+    // Create Main Window (keep hidden without flash when started silently via --tray)
+    createWindow(!startInTray);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -503,6 +522,11 @@ if (!gotSingleInstanceLock) {
     });
   });
 }
+
+app.on('session-end', () => {
+  isExplicitExit = true;
+  isQuitting = true;
+});
 
 app.on('before-quit', (event) => {
   if (!isExplicitExit && closeToTrayEnabled) {
@@ -520,10 +544,13 @@ app.on('before-quit', (event) => {
 });
 
 app.on('window-all-closed', async () => {
+  if (isExplicitExit) {
+    return;
+  }
   if (isQuitting || process.platform === 'darwin') {
     if (session.defaultSession) {
-      await session.defaultSession.clearStorageData();
-      await session.defaultSession.clearCache();
+      await session.defaultSession.clearStorageData().catch(() => {});
+      await session.defaultSession.clearCache().catch(() => {});
     }
     try {
       if (fs.existsSync(tempUserData)) {

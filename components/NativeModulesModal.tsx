@@ -61,7 +61,22 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
     }
   }, [isOpen, currentSelectedIp, currentSelectedMac]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const isBeige = theme === 'beige';
+  const isWhite = theme === 'white';
+  const isLight = isBeige || isWhite;
 
   const modules = [
     {
@@ -301,14 +316,24 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
   const areAllExpanded = modules.length > 0 && modules.every((m) => expandedModules[m.id]);
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${
-        theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37] border-[#d4be9c]' : theme === 'white' ? 'bg-white text-slate-800 border-slate-200' : 'bg-zinc-900 text-zinc-100 border-zinc-800'
-      } overflow-hidden`}>
+    <div
+      className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className={`w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-2xl shadow-2xl border ${
+          isBeige ? 'bg-[#fcf8f2] text-[#5c4a37] border-[#d4be9c]' : isWhite ? 'bg-white text-slate-800 border-slate-200' : 'bg-zinc-900 text-zinc-100 border-zinc-800'
+        } overflow-hidden`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10 shrink-0">
+        <div className={`flex items-center justify-between p-5 border-b shrink-0 ${
+          isBeige ? 'border-[#d4be9c]' : isWhite ? 'border-slate-200' : 'border-white/10'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30">
+            <div className={`p-2.5 rounded-xl border ${
+              isLight ? 'bg-sky-500/15 text-sky-600 border-sky-500/30' : 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+            }`}>
               <Cpu className="w-6 h-6" />
             </div>
             <div>
@@ -316,7 +341,9 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
                 <h3 className="font-black text-lg tracking-tight">
                   {isEn ? 'Grid IP Scanner2 Native Engine Hub' : 'Grid IP Scanner2 네이티브 가속 엔진 허브'}
                 </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                  isLight ? 'bg-sky-500/15 text-sky-700 border-sky-500/30' : 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                }`}>
                   C / Win32 Native DLLs
                 </span>
               </div>
@@ -331,14 +358,22 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
             <button
               onClick={loadStatus}
               disabled={loading}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-sky-400 border border-white/10 transition-colors cursor-pointer"
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                isBeige
+                  ? 'bg-[#f5ebd6] hover:bg-[#ebdcc0] text-sky-700 border-[#d4be9c]'
+                  : isWhite
+                  ? 'bg-slate-100 hover:bg-slate-200 text-sky-600 border-slate-200'
+                  : 'bg-white/5 hover:bg-white/10 text-sky-400 border-white/10'
+              }`}
               title={isEn ? "Refresh status" : "상태 새로고침"}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl hover:bg-white/10 opacity-70 hover:opacity-100 transition-colors cursor-pointer"
+              className={`p-2 rounded-xl opacity-75 hover:opacity-100 transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-black/5' : 'hover:bg-white/10'
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -350,11 +385,15 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
           {/* Modules Section Header & Expand/Collapse Toggle */}
           <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                isLight ? 'text-sky-700' : 'text-sky-400'
+              }`}>
                 <Layers className="w-3.5 h-3.5" />
                 <span>{isEn ? 'Dedicated Acceleration Modules (8)' : '전용 네이티브 가속 DLL (8대 모듈)'}</span>
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-sky-500/15 text-sky-400 border border-sky-500/30">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+                isLight ? 'bg-sky-500/10 text-sky-700 border-sky-500/30' : 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+              }`}>
                 {status ? `${modules.filter((m) => m.active).length}/8 ${isEn ? 'Loaded' : '정상 로드'}` : 'Checking...'}
               </span>
             </div>
@@ -418,7 +457,9 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs font-black text-sky-400 group-hover:text-sky-300 transition-colors">
+                        <span className={`font-mono text-xs font-black transition-colors ${
+                          isLight ? 'text-sky-700 group-hover:text-sky-600' : 'text-sky-400 group-hover:text-sky-300'
+                        }`}>
                           {m.name}
                         </span>
                         <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
@@ -451,8 +492,8 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
                       <div 
                         className={`p-1 rounded-md transition-all ${
                           isExpanded 
-                            ? 'bg-sky-500/20 text-sky-400' 
-                            : 'text-zinc-400 group-hover:text-zinc-200 group-hover:bg-white/5'
+                            ? isLight ? 'bg-sky-500/15 text-sky-600' : 'bg-sky-500/20 text-sky-400'
+                            : isLight ? 'text-slate-500 group-hover:text-slate-800 group-hover:bg-black/5' : 'text-zinc-400 group-hover:text-zinc-200 group-hover:bg-white/5'
                         }`}
                         title={isExpanded ? (isEn ? 'Collapse details' : '접기') : (isEn ? 'Expand details' : '펼치기')}
                       >
@@ -494,11 +535,17 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
           </div>
 
           {/* Interactive Native Diagnostics Console */}
-          <div className="p-4 rounded-xl border border-sky-500/30 bg-black/30 space-y-3">
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            isBeige
+              ? 'border-[#d4be9c] bg-[#f5ebd6]/60'
+              : isWhite
+              ? 'border-slate-200 bg-slate-50'
+              : 'border-sky-500/30 bg-black/30'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-sky-400" />
-                <h4 className="font-black text-xs uppercase tracking-wider text-sky-400">
+                <Terminal className={`w-4 h-4 ${isLight ? 'text-sky-600' : 'text-sky-400'}`} />
+                <h4 className={`font-black text-xs uppercase tracking-wider ${isLight ? 'text-sky-700' : 'text-sky-400'}`}>
                   {isEn ? 'Live Native Module Diagnostics Console (Live Probe)' : '실시간 네이티브 모듈 진단 콘솔 (Live Probe)'}
                 </h4>
               </div>
@@ -512,7 +559,13 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
                   type="text"
                   value={testIp}
                   onChange={(e) => setTestIp(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 font-mono text-xs focus:outline-none focus:border-sky-500"
+                  className={`flex-1 px-2.5 py-1.5 rounded-lg border font-mono text-xs focus:outline-none focus:border-sky-500 ${
+                    isBeige
+                      ? 'bg-white border-[#c8ae95] text-[#2c1d0e] placeholder-[#8f7458]'
+                      : isWhite
+                      ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-100 placeholder-zinc-500'
+                  }`}
                   placeholder="192.168.0.1"
                 />
               </div>
@@ -522,7 +575,13 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
                   type="text"
                   value={testMac}
                   onChange={(e) => setTestMac(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 font-mono text-xs focus:outline-none focus:border-sky-500"
+                  className={`flex-1 px-2.5 py-1.5 rounded-lg border font-mono text-xs focus:outline-none focus:border-sky-500 ${
+                    isBeige
+                      ? 'bg-white border-[#c8ae95] text-[#2c1d0e] placeholder-[#8f7458]'
+                      : isWhite
+                      ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-100 placeholder-zinc-500'
+                  }`}
                   placeholder="00:11:22:33:44:55"
                 />
               </div>
@@ -572,7 +631,13 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
             </div>
 
             {testOutput && (
-              <pre className="mt-2 p-3 rounded-lg bg-black/60 border border-white/10 text-emerald-400 font-mono text-xs whitespace-pre-wrap leading-relaxed">
+              <pre className={`mt-2 p-3 rounded-lg border font-mono text-xs whitespace-pre-wrap leading-relaxed ${
+                isBeige
+                  ? 'bg-[#fcf8f2] border-[#d4be9c] text-emerald-900'
+                  : isWhite
+                  ? 'bg-white border-slate-200 text-emerald-800'
+                  : 'bg-black/60 border-white/10 text-emerald-400'
+              }`}>
                 {testOutput}
               </pre>
             )}
@@ -580,15 +645,27 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs shrink-0 bg-black/20">
-          <div className="opacity-60 text-[11px]">
+        <div className={`p-4 border-t flex items-center justify-between text-xs shrink-0 ${
+          isBeige
+            ? 'border-[#d4be9c] bg-[#f5ebd6]/40'
+            : isWhite
+            ? 'border-slate-200 bg-slate-50'
+            : 'border-white/10 bg-black/20'
+        }`}>
+          <div className="opacity-65 text-[11px]">
             {isEn 
               ? '* On Windows, direct C/Win32 kernel DLLs are invoked. Other environments gracefully fallback to high-speed socket stacks.'
               : '* Windows 환경에서는 C/Win32 커널 DLL이 직접 호출되며, 기타 환경은 Go 고속 소켓 스택으로 그레이스풀 폴백됩니다.'}
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 font-black transition-colors cursor-pointer"
+            className={`px-4 py-1.5 rounded-xl font-black transition-colors cursor-pointer ${
+              isBeige
+                ? 'bg-[#e6d5b8] hover:bg-[#d8c19e] text-[#3d2711]'
+                : isWhite
+                ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                : 'bg-white/10 hover:bg-white/20 text-zinc-100'
+            }`}
           >
             {isEn ? 'Close' : '닫기'}
           </button>

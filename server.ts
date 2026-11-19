@@ -291,11 +291,15 @@ async function startServer() {
         }
       },
       error: (_err: any, _req: any, res: any) => {
-        if (res && typeof res.writeHead === 'function') {
+        if (res && typeof res.writeHead === 'function' && !res.headersSent && !res.writableEnded) {
           res.writeHead(503, {
             'Content-Type': 'application/json',
           });
           res.end(JSON.stringify({ error: 'Go backend is initializing, please retry shortly.' }));
+        } else if (res && !res.writableEnded && typeof res.end === 'function') {
+          try {
+            res.end();
+          } catch {}
         }
       }
     }

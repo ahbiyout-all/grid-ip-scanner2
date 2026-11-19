@@ -230,6 +230,9 @@ func tryNativeBatchScanPorts(ip string, ports []int, timeoutMs int) ([]int, bool
 			)
 			count := int(int32(ret))
 			if count >= 0 {
+				if count > len(outPorts) {
+					count = len(outPorts)
+				}
 				openPorts := make([]int, count)
 				for i := 0; i < count; i++ {
 					openPorts[i] = int(outPorts[i])
@@ -271,6 +274,9 @@ func tryNativeValidateAndSanitizeOUI(rawText string) (string, OUISanitizerStats,
 
 		written := int(int32(ret))
 		if written > 0 {
+			if written > len(outBuf) {
+				written = len(outBuf)
+			}
 			sanitizedText := string(outBuf[:written])
 			stats := OUISanitizerStats{
 				TotalLines:        int(total),
@@ -547,6 +553,8 @@ const (
 	NIF_INFO    = 0x00000010
 
 	WM_TRAY_CALLBACK = 0x8000 + 101 // WM_APP + 101
+	WM_DESTROY       = 0x0002
+	WM_CLOSE         = 0x0010
 	WM_LBUTTONUP     = 0x0202
 	WM_LBUTTONDBLCLK = 0x0203
 	WM_RBUTTONUP     = 0x0205
@@ -696,6 +704,7 @@ var (
 	procGetMessageW         = moduser32.NewProc("GetMessageW")
 	procTranslateMessage    = moduser32.NewProc("TranslateMessage")
 	procDispatchMessageW    = moduser32.NewProc("DispatchMessageW")
+	procPostMessageW        = moduser32.NewProc("PostMessageW")
 	procPostQuitMessage     = moduser32.NewProc("PostQuitMessage")
 	procGetCursorPos        = moduser32.NewProc("GetCursorPos")
 	procSetForegroundWindow = moduser32.NewProc("SetForegroundWindow")
@@ -1057,6 +1066,9 @@ func appendWinMenuString(hMenu uintptr, flags uintptr, id uintptr, label string)
 
 func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 	switch msg {
+	case WM_DESTROY:
+		procPostQuitMessage.Call(0)
+		return 0
 	case WM_TRAY_CALLBACK:
 		switch lparam {
 		case WM_LBUTTONUP, WM_LBUTTONDBLCLK:
@@ -1233,8 +1245,11 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					}()
 				case IDM_TRAY_EMERGENCY_SCAN:
 					go func() {
+						nativeTrayMu.RLock()
+						port := nativeTrayPort
+						nativeTrayMu.RUnlock()
 						showTrayBalloonNotification("긴급 IP 스캔 시작", "브라우저 없이 고속 백그라운드 IP 스캔 및 보고서 작성을 진행합니다...")
-						runEmergencyScanAndReport(nativeTrayPort)
+						runEmergencyScanAndReport(port)
 					}()
 				case IDM_TRAY_FLUSH_DNS:
 					go func() {
@@ -1371,14 +1386,52 @@ func initNativeSystemTray(port string) {
 		// Cleanup icons and tray on exit
 		procShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
 		nativeTrayMu.Lock()
+		nativeTrayActive = false
+		nativeTrayHWnd = 0
 		for _, ic := range trayBadgeIcons {
 			if ic != 0 && ic != nativeTrayIcon {
 				procDestroyIcon.Call(ic)
 			}
 		}
 		trayBadgeIcons = make(map[string]uintptr)
+		if nativeTrayIcon != 0 {
+			procDestroyIcon.Call(nativeTrayIcon)
+			nativeTrayIcon = 0
+		}
 		nativeTrayMu.Unlock()
 	}()
+}
+
+// shutdownNativeTray removes the taskbar notification icon and tears down the hidden tray message loop cleanly.
+func shutdownNativeTray() {
+	nativeTrayMu.Lock()
+	hwnd := nativeTrayHWnd
+	active := nativeTrayActive
+	nativeTrayActive = false
+	nativeTrayHWnd = 0
+	baseIcon := nativeTrayIcon
+	nativeTrayIcon = 0
+	oldBadges := trayBadgeIcons
+	trayBadgeIcons = make(map[string]uintptr)
+	nativeTrayMu.Unlock()
+
+	if active && hwnd != 0 {
+		var nid NOTIFYICONDATAW
+		nid.CbSize = uint32(unsafe.Sizeof(nid))
+		nid.HWnd = hwnd
+		nid.UID = 1001
+		procShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
+		procPostMessageW.Call(hwnd, WM_CLOSE, 0, 0)
+	}
+
+	for _, ic := range oldBadges {
+		if ic != 0 && ic != baseIcon {
+			procDestroyIcon.Call(ic)
+		}
+	}
+	if baseIcon != 0 {
+		procDestroyIcon.Call(baseIcon)
+	}
 }
 
 // =====================================================================
@@ -1389,6 +1442,7 @@ func initNativeSystemTray(port string) {
 var (
 	winSvcStatusHandle uintptr
 	winSvcStopChan     chan struct{}
+	winSvcStopOnce     sync.Once
 	winSvcOnStart      func()
 	winSvcOnStop       func()
 )
@@ -1412,17 +1466,17 @@ func setWinServiceState(state uint32, win32Exit uint32, checkPoint uint32, waitH
 func winServiceCtrlHandler(ctrlCode uint32) uintptr {
 	switch ctrlCode {
 	case SERVICE_CONTROL_STOP, SERVICE_CONTROL_SHUTDOWN:
-		setWinServiceState(SERVICE_STOP_PENDING, 0, 1, 3000)
-		if winSvcStopChan != nil {
-			select {
-			case <-winSvcStopChan:
-			default:
-				close(winSvcStopChan)
-			}
-		}
-		if winSvcOnStop != nil {
-			go winSvcOnStop()
-		}
+		setWinServiceState(SERVICE_STOP_PENDING, 0, 1, 5000)
+		winSvcStopOnce.Do(func() {
+			go func() {
+				if winSvcOnStop != nil {
+					winSvcOnStop()
+				}
+				if winSvcStopChan != nil {
+					close(winSvcStopChan)
+				}
+			}()
+		})
 	}
 	return 0
 }
@@ -1435,6 +1489,7 @@ func winServiceMain(argc uint32, argv uintptr) uintptr {
 		return 0
 	}
 	winSvcStatusHandle = handle
+	winSvcStopOnce = sync.Once{}
 	winSvcStopChan = make(chan struct{})
 
 	setWinServiceState(SERVICE_START_PENDING, 0, 1, 3000)

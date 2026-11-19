@@ -140,6 +140,10 @@ func syncNativeTrayVisuals() {
 	// Stub for non-Windows platforms
 }
 
+func shutdownNativeTray() {
+	// Stub for non-Windows platforms
+}
+
 func showTrayBalloonNotification(title, message string) {
 	// Stub for non-Windows platforms
 }

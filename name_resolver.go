@@ -689,10 +689,7 @@ func resolveWebNameFast(ctx context.Context, ip string, openPorts []int, timeout
 		if matches := reWebHTMLTitle.FindStringSubmatch(decodeNetworkBytes(body)); len(matches) > 1 {
 			title := sanitizeDeviceName(matches[1])
 			if title != "" && !strings.EqualFold(title, "404 Not Found") && !strings.EqualFold(title, "403 Forbidden") {
-				if len(title) > 40 {
-					title = title[:37] + "..."
-				}
-				return title
+				return truncateUTF8(title, 40)
 			}
 		}
 	}

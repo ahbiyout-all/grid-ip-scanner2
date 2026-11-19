@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ShieldAlert, 
   X, 
@@ -47,14 +47,40 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'investigating' | 'trusted' | 'blocked'>('all');
   const [copiedIp, setCopiedIp] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reload logs whenever modal opens
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    };
+  }, []);
+
+  // Reload logs whenever modal opens and listen for Escape
   useEffect(() => {
     if (isOpen) {
       setLogs(getIntruderLogs());
       setConfirmClear(false);
+    } else {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+        clearTimerRef.current = null;
+      }
     }
-  }, [isOpen]);
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const refreshLogs = () => {
     setLogs(getIntruderLogs());
@@ -63,8 +89,12 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
   const handleCopy = async (ip: string) => {
     const ok = await copyTextToClipboard(ip);
     if (ok) {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       setCopiedIp(ip);
-      setTimeout(() => setCopiedIp(null), 2000);
+      copyTimerRef.current = setTimeout(() => {
+        setCopiedIp(null);
+        copyTimerRef.current = null;
+      }, 2000);
     }
   };
 
@@ -86,9 +116,17 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
 
   const handleClearAll = () => {
     if (!confirmClear) {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
       setConfirmClear(true);
-      setTimeout(() => setConfirmClear(false), 4000);
+      clearTimerRef.current = setTimeout(() => {
+        setConfirmClear(false);
+        clearTimerRef.current = null;
+      }, 4000);
       return;
+    }
+    if (clearTimerRef.current) {
+      clearTimeout(clearTimerRef.current);
+      clearTimerRef.current = null;
     }
     clearIntruderLogs();
     setLogs([]);
@@ -130,12 +168,18 @@ export const IntruderLogModal: React.FC<IntruderLogModalProps> = ({
   const toolbarSurface = theme === 'beige' ? 'bg-[#f1e4cc] border-[#d4be9c]' : theme === 'white' ? 'bg-slate-100 border-slate-200' : 'bg-zinc-950/60 border-zinc-800';
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border ${
-        theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37] border-[#d4be9c]' :
-        theme === 'white' ? 'bg-white text-slate-900 border-slate-200' :
-        'bg-zinc-900 text-zinc-100 border-zinc-700/80'
-      } animate-in zoom-in-95 duration-200`}>
+    <div
+      className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className={`w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl shadow-2xl border ${
+          theme === 'beige' ? 'bg-[#fcf8f2] text-[#5c4a37] border-[#d4be9c]' :
+          theme === 'white' ? 'bg-white text-slate-900 border-slate-200' :
+          'bg-zinc-900 text-zinc-100 border-zinc-700/80'
+        } animate-in zoom-in-95 duration-200`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className={`flex items-center justify-between p-4 sm:p-5 border-b ${dividerCol} shrink-0`}>
           <div className="flex items-center space-x-3">

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -259,6 +260,9 @@ func (m *trayManager) loadFromDisk() {
 		norm := strings.ToUpper(strings.TrimSpace(k))
 		if norm != "" {
 			m.trustedKeys[norm] = true
+			if macKey := normalizeTrayMac(norm); macKey != "" {
+				m.trustedKeys[macKey] = true
+			}
 		}
 	}
 	if len(cfg.Schedules) > 0 {
@@ -524,9 +528,10 @@ func (m *trayManager) recordAndEvaluateEvent(
 	if len(m.events) > 100 {
 		m.events = m.events[:100]
 	}
+	isService := m.runningAsService
 	m.mu.Unlock()
 
-	if shouldNotify && runtime.GOOS == "windows" && !m.runningAsService {
+	if shouldNotify && runtime.GOOS == "windows" && !isService {
 		showTrayBalloonNotificationWithSeverity(title, message, severity)
 	}
 	return rec, shouldNotify
@@ -583,6 +588,36 @@ func queryWindowsServiceState() (state string, installed bool, running bool) {
 	return "stopped", true, false
 }
 
+// normalizeTrayMac normalizes MAC strings (removing ':', '-', '.') to 12 uppercase hex chars while ignoring IPs and placeholders.
+func normalizeTrayMac(raw string) string {
+	s := strings.ToUpper(strings.TrimSpace(raw))
+	if s == "" || s == "UNKNOWN" {
+		return ""
+	}
+	if strings.Contains(s, ".") && strings.Count(s, ".") == 3 {
+		parts := strings.Split(s, ".")
+		isCiscoMac := len(parts) == 3 && len(parts[0]) == 4 && len(parts[1]) == 4 && len(parts[2]) == 4
+		if !isCiscoMac {
+			return ""
+		}
+	}
+	var b strings.Builder
+	b.Grow(12)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') {
+			b.WriteByte(c)
+		} else if c != ':' && c != '-' && c != '.' && c != ' ' {
+			return ""
+		}
+	}
+	hexStr := b.String()
+	if len(hexStr) != 12 || hexStr == "000000000000" || hexStr == "FFFFFFFFFFFF" {
+		return ""
+	}
+	return hexStr
+}
+
 // evaluateSweepAnomalies detects unknown devices, IP/MAC conflicts, and mass offline drops comparing current online hosts against trusted baseline & previous sweep.
 func evaluateSweepAnomalies(
 	currentOnline map[string]observedHostSnapshot,
@@ -590,17 +625,29 @@ func evaluateSweepAnomalies(
 	trustedKeys map[string]bool,
 	policy TrayAlertPolicy,
 ) (intruders []observedHostSnapshot, conflicts []string, offlineCount int, offlinePercent int) {
+	// Deterministic IP iteration ensures intruders[0] and conflicts[0] remain stable across sweeps for cooldown deduplication.
+	ips := make([]string, 0, len(currentOnline))
+	for ip := range currentOnline {
+		ips = append(ips, ip)
+	}
+	sort.Strings(ips)
+
 	// 1. Detect IP->MAC change (conflict) & unknown/untrusted devices
-	for ip, cur := range currentOnline {
+	for _, ip := range ips {
+		cur := currentOnline[ip]
 		normMac := strings.ToUpper(strings.TrimSpace(cur.MAC))
+		curMacKey := normalizeTrayMac(normMac)
 		if prev, hadPrev := prevOnline[ip]; hadPrev {
 			prevMac := strings.ToUpper(strings.TrimSpace(prev.MAC))
-			if prevMac != "" && normMac != "" && prevMac != "UNKNOWN" && normMac != "UNKNOWN" && prevMac != normMac {
+			prevMacKey := normalizeTrayMac(prevMac)
+			if prevMacKey != "" && curMacKey != "" && prevMacKey != curMacKey {
 				conflicts = append(conflicts, fmt.Sprintf("%s (%s -> %s)", ip, prevMac, normMac))
 			}
 		}
 
-		isTrusted := trustedKeys[strings.ToUpper(ip)] || (normMac != "" && trustedKeys[normMac])
+		isTrusted := trustedKeys[strings.ToUpper(ip)] ||
+			(curMacKey != "" && trustedKeys[curMacKey]) ||
+			(normMac != "" && trustedKeys[normMac])
 		if len(trustedKeys) > 0 && !isTrusted {
 			intruders = append(intruders, cur)
 		}
@@ -635,7 +682,7 @@ func evaluateSweepAnomalies(
 }
 
 // runAutonomousTraySweep executes a fast headless subnet scan directly inside Go when triggered by tray/service/background loop.
-func (m *trayManager) runAutonomousTraySweep(reason string, triggerScheduleName string) {
+func (m *trayManager) runAutonomousTraySweep(reason string, triggerScheduleName string, subnetOverride string, startOverride int, endOverride int) {
 	m.mu.Lock()
 	if m.sweepInProgress {
 		m.mu.Unlock()
@@ -644,9 +691,18 @@ func (m *trayManager) runAutonomousTraySweep(reason string, triggerScheduleName 
 	m.sweepInProgress = true
 	m.isScanning = true
 	m.scanProgressPercent = 5
-	targetSubnet := m.subnet
+	targetSubnet := strings.TrimSpace(subnetOverride)
+	if targetSubnet == "" {
+		targetSubnet = m.subnet
+	}
 	startIP := m.startIP
 	endIP := m.endIP
+	if startOverride >= 1 && startOverride <= 254 {
+		startIP = startOverride
+	}
+	if endOverride >= 1 && endOverride <= 254 {
+		endIP = endOverride
+	}
 	if targetSubnet == "" {
 		ifaces := getAllInterfaces()
 		if len(ifaces) > 0 && ifaces[0].Subnet != "" {
@@ -741,9 +797,10 @@ func (m *trayManager) runAutonomousTraySweep(reason string, triggerScheduleName 
 				resMu.Lock()
 				completed++
 				pct := 5 + (completed*90)/total
+				shouldSyncProgress := completed%20 == 0
 				resMu.Unlock()
 
-				if completed%20 == 0 {
+				if shouldSyncProgress {
 					m.mu.Lock()
 					m.scanProgressPercent = pct
 					m.mu.Unlock()
@@ -788,7 +845,11 @@ func (m *trayManager) runAutonomousTraySweep(reason string, triggerScheduleName 
 		if len(intruders) > 1 {
 			msg += fmt.Sprintf(" 외 %d대", len(intruders)-1)
 		}
-		dedupKey := "intruder:" + strings.ToUpper(first.MAC+"|"+first.IP)
+		macPart := normalizeTrayMac(first.MAC)
+		if macPart == "" {
+			macPart = strings.ToUpper(strings.TrimSpace(first.MAC))
+		}
+		dedupKey := "intruder:" + macPart + "|" + strings.ToUpper(first.IP)
 		m.recordAndEvaluateEvent(
 			"intruder",
 			"critical",
@@ -895,9 +956,6 @@ func startAutonomousTrayLoop() {
 						}
 						sc.LastRunMs = nowMs
 						sc.NextRunMs = nowMs + intervalMs
-						if strings.TrimSpace(sc.Subnet) != "" {
-							globalTrayMgr.subnet = strings.TrimSpace(sc.Subnet)
-						}
 						copySc := *sc
 						dueSched = &copySc
 						break
@@ -910,7 +968,7 @@ func startAutonomousTrayLoop() {
 				globalTrayMgr.mu.Unlock()
 
 				if dueSched != nil {
-					globalTrayMgr.runAutonomousTraySweep("scheduler", dueSched.Name)
+					globalTrayMgr.runAutonomousTraySweep("scheduler", dueSched.Name, dueSched.Subnet, dueSched.Start, dueSched.End)
 					continue
 				}
 			}
@@ -922,7 +980,7 @@ func startAutonomousTrayLoop() {
 					intervalMs = 60000
 				}
 				if snap.LastAutonomousSweepMs == 0 || (nowMs-snap.LastAutonomousSweepMs) >= intervalMs {
-					globalTrayMgr.runAutonomousTraySweep("watch", "")
+					globalTrayMgr.runAutonomousTraySweep("watch", "", "", 0, 0)
 				}
 			}
 		}
@@ -941,7 +999,7 @@ func (m *trayManager) executeTrayCommand(action string, payload string, fromNati
 			m.enqueueAction("quick_scan", "")
 			msg = "메인 UI에 즉시 스캔 명령을 전달했습니다."
 		} else {
-			go m.runAutonomousTraySweep("manual_tray", "")
+			go m.runAutonomousTraySweep("manual_tray", "", "", 0, 0)
 			msg = "백그라운드 즉시 네트워크 스캔을 시작했습니다."
 		}
 
@@ -981,7 +1039,46 @@ func (m *trayManager) executeTrayCommand(action string, payload string, fromNati
 			m.enqueueAction("run_schedule_now", payload)
 			msg = "예약 스케줄 즉시 실행을 요청했습니다."
 		} else {
-			go m.runAutonomousTraySweep("scheduler", snap.NextScheduleName)
+			nowMs := now.UnixMilli()
+			targetName := snap.NextScheduleName
+			targetSubnet := ""
+			targetStart := 0
+			targetEnd := 0
+
+			m.mu.Lock()
+			targetIdx := -1
+			for i := range m.schedules {
+				if payload != "" && m.schedules[i].ID == payload {
+					targetIdx = i
+					break
+				}
+				if m.schedules[i].Enabled {
+					if targetIdx == -1 || (m.schedules[i].NextRunMs > 0 && (m.schedules[targetIdx].NextRunMs == 0 || m.schedules[i].NextRunMs < m.schedules[targetIdx].NextRunMs)) {
+						targetIdx = i
+					}
+				}
+			}
+			if targetIdx != -1 {
+				sc := &m.schedules[targetIdx]
+				intervalMs := int64(sc.IntervalMinutes) * 60 * 1000
+				if intervalMs <= 0 {
+					intervalMs = 60 * 60 * 1000
+				}
+				sc.LastRunMs = nowMs
+				sc.NextRunMs = nowMs + intervalMs
+				targetName = sc.Name
+				targetSubnet = sc.Subnet
+				targetStart = sc.Start
+				targetEnd = sc.End
+				m.recomputeNextScheduleLocked()
+				m.saveToDiskLocked()
+			}
+			m.mu.Unlock()
+
+			if targetName == "" {
+				targetName = "예약 스케줄"
+			}
+			go m.runAutonomousTraySweep("scheduler", targetName, targetSubnet, targetStart, targetEnd)
 			msg = "트레이 백그라운드에서 예약 스케줄을 즉시 실행합니다."
 		}
 
@@ -1100,18 +1197,37 @@ func registerTrayHTTPHandlers() {
 				globalTrayMgr.endIP = *payload.EndIP
 			}
 			if payload.TrustedKeys != nil {
-				nextSet := make(map[string]bool, len(payload.TrustedKeys))
+				nextSet := make(map[string]bool, len(payload.TrustedKeys)*2)
 				for _, k := range payload.TrustedKeys {
 					norm := strings.ToUpper(strings.TrimSpace(k))
 					if norm != "" {
 						nextSet[norm] = true
+						if macKey := normalizeTrayMac(norm); macKey != "" {
+							nextSet[macKey] = true
+						}
 					}
 				}
 				globalTrayMgr.trustedKeys = nextSet
 				needSave = true
 			}
 			if payload.Schedules != nil {
-				globalTrayMgr.schedules = payload.Schedules
+				prevById := make(map[string]TrayScheduleSummary, len(globalTrayMgr.schedules))
+				for _, prev := range globalTrayMgr.schedules {
+					prevById[prev.ID] = prev
+				}
+				merged := make([]TrayScheduleSummary, len(payload.Schedules))
+				for i, sc := range payload.Schedules {
+					if prev, ok := prevById[sc.ID]; ok {
+						if prev.Enabled == sc.Enabled && prev.IntervalMinutes == sc.IntervalMinutes && prev.LastRunMs > sc.LastRunMs {
+							sc.LastRunMs = prev.LastRunMs
+							if prev.NextRunMs > sc.NextRunMs {
+								sc.NextRunMs = prev.NextRunMs
+							}
+						}
+					}
+					merged[i] = sc
+				}
+				globalTrayMgr.schedules = merged
 				globalTrayMgr.recomputeNextScheduleLocked()
 				needSave = true
 			}

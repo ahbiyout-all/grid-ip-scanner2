@@ -1,4 +1,4 @@
-import { ScanSchedule, ScheduleInterval, ScheduledScanRunRecord } from '../types';
+import { ScanSchedule, ScheduleInterval, ScheduledScanRunRecord, TrayScheduleSummary } from '../types';
 import { sanitizeCsvCell } from './diffEngine';
 
 const SCHEDULES_STORAGE_KEY = 'grid_ip_scanner_schedules_v1';
@@ -223,6 +223,58 @@ export const recordScheduleRunCompletion = (
   }
 
   return schedule;
+};
+
+export const reconcileSchedulesFromTray = (
+  traySchedules: TrayScheduleSummary[]
+): { updated: boolean; enabledCount: number } => {
+  const schedules = getSchedules();
+  if (!Array.isArray(traySchedules) || traySchedules.length === 0 || schedules.length === 0) {
+    return { updated: false, enabledCount: schedules.filter(s => s.enabled).length };
+  }
+
+  const trayById = new Map<string, TrayScheduleSummary>();
+  for (const ts of traySchedules) {
+    if (ts && ts.id) {
+      trayById.set(ts.id, ts);
+    }
+  }
+
+  let updated = false;
+  for (const local of schedules) {
+    const remote = trayById.get(local.id);
+    if (!remote) continue;
+    if (
+      local.enabled === remote.enabled &&
+      local.intervalMinutes === remote.intervalMinutes &&
+      typeof remote.lastRunMs === 'number' &&
+      remote.lastRunMs > (local.lastRun || 0)
+    ) {
+      local.lastRun = remote.lastRunMs;
+      local.totalRuns = (local.totalRuns || 0) + 1;
+      local.updatedAt = Date.now();
+      if (local.enabled) {
+        local.nextRun =
+          typeof remote.nextRunMs === 'number' && remote.nextRunMs > remote.lastRunMs
+            ? remote.nextRunMs
+            : calculateNextRunTime(local.intervalMinutes, remote.lastRunMs);
+      }
+      updated = true;
+    }
+  }
+
+  if (updated) {
+    try {
+      localStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(schedules));
+    } catch (e) {
+      console.error('Failed to reconcile tray schedule runs:', e);
+    }
+  }
+
+  return {
+    updated,
+    enabledCount: schedules.filter(s => s.enabled).length,
+  };
 };
 
 export const getScheduleHistory = (): ScheduledScanRunRecord[] => {

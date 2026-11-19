@@ -644,13 +644,32 @@ func runEmergencyScanAndReport(port string) {
 	}
 }
 
-func cleanupAndExit() {
+func cleanupTempDir() {
 	if tempDir != "" {
 		fmt.Printf("Cleaning up temp directory: %s\n", tempDir)
 		os.RemoveAll(tempDir)
 	}
 	fmt.Println("Grid IP Scanner2 Engine Exiting...")
+}
+
+func cleanupAndExit() {
+	shutdownNativeTray()
+	cleanupTempDir()
 	os.Exit(0)
+}
+
+func truncateUTF8(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
 }
 
 func isAlivePing(ctx context.Context, ip string) bool {
@@ -697,10 +716,7 @@ func getWebTitle(ctx context.Context, ip string) string {
 		title = strings.ReplaceAll(title, "\n", " ")
 		title = strings.ReplaceAll(title, "\r", "")
 		title = strings.Join(strings.Fields(title), " ")
-		if len(title) > 50 {
-			title = title[:47] + "..."
-		}
-		return title
+		return truncateUTF8(title, 50)
 	}
 	return ""
 }
@@ -1392,10 +1408,7 @@ func getWebTitleWithTimeout(ctx context.Context, ip string, timeoutMs int) strin
 		title = strings.ReplaceAll(title, "\n", " ")
 		title = strings.ReplaceAll(title, "\r", "")
 		title = strings.Join(strings.Fields(title), " ")
-		if len(title) > 50 {
-			title = title[:47] + "..."
-		}
-		return title
+		return truncateUTF8(title, 50)
 	}
 	return ""
 }
@@ -1786,7 +1799,7 @@ func main() {
 		case lower == "--service" || lower == "/service":
 			runAsService = true
 		case strings.HasPrefix(lower, "--port="):
-			cliPort = strings.TrimSpace(strings.TrimPrefix(arg, "--port="))
+			cliPort = strings.TrimSpace(strings.TrimSpace(arg)[len("--port="):])
 		}
 	}
 
@@ -2838,7 +2851,12 @@ func main() {
 			}()
 
 			select {
+			case <-ctx.Done():
+				return
 			case hints := <-probeChan:
+				if ctx.Err() != nil {
+					return
+				}
 				if hints != nil {
 					probeHints = hints
 					if deepScan {
@@ -2848,7 +2866,7 @@ func main() {
 								liveIPs = append(liveIPs, ip)
 							}
 						}
-						if len(liveIPs) > 0 {
+						if len(liveIPs) > 0 && ctx.Err() == nil {
 							deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
 							iocpTimeout := timeoutMs
 							if iocpTimeout > 500 {
@@ -3624,7 +3642,13 @@ func main() {
 			if alreadyInstalled {
 				cfgCmd := exec.Command("sc.exe", "config", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto")
 				hideWindow(cfgCmd)
-				_ = cfgCmd.Run()
+				if err := cfgCmd.Run(); err != nil {
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"success": false,
+						"error":   "윈도우 서비스 설정 업데이트 실패 (관리자 권한 확인 필요): " + err.Error(),
+					})
+					return
+				}
 			} else {
 				cmd := exec.Command("sc.exe", "create", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto", "DisplayName=", "Grid IP Scanner2 24/7 Background Service")
 				hideWindow(cmd)
@@ -3638,10 +3662,25 @@ func main() {
 			}
 			startCmd := exec.Command("sc.exe", "start", "GridIPScannerService")
 			hideWindow(startCmd)
-			_ = startCmd.Run()
+			startErr := startCmd.Run()
 			svcState, isInstalled, isRunning := queryWindowsServiceState()
 			globalTrayMgr.refreshWindowsSystemState(true)
 			syncNativeTrayVisuals()
+
+			if !isRunning {
+				errMsg := "윈도우 백그라운드 서비스 시작 실패 (관리자 권한 확인 필요)"
+				if startErr != nil {
+					errMsg += ": " + startErr.Error()
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success":      false,
+					"installed":    isInstalled,
+					"running":      isRunning,
+					"serviceState": svcState,
+					"error":        errMsg,
+				})
+				return
+			}
 
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success":      true,
@@ -3654,10 +3693,20 @@ func main() {
 		case "service-stop":
 			stopCmd := exec.Command("sc.exe", "stop", "GridIPScannerService")
 			hideWindow(stopCmd)
-			_ = stopCmd.Run()
+			stopErr := stopCmd.Run()
 			svcState, isInstalled, isRunning := queryWindowsServiceState()
 			globalTrayMgr.refreshWindowsSystemState(true)
 			syncNativeTrayVisuals()
+			if stopErr != nil && isRunning {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success":      false,
+					"installed":    isInstalled,
+					"running":      isRunning,
+					"serviceState": svcState,
+					"error":        "윈도우 백그라운드 서비스 정지 실패 (관리자 권한 확인 필요): " + stopErr.Error(),
+				})
+				return
+			}
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success":      true,
 				"installed":    isInstalled,
@@ -3863,12 +3912,16 @@ func main() {
 
 	if runAsService && runtime.GOOS == "windows" {
 		fmt.Printf("Grid IP Scanner2 starting as Windows Service on %s\n", listenAddr)
+		srv := &http.Server{Addr: listenAddr}
 		handled := runAsWindowsService("GridIPScannerService", func() {
-			if err := http.ListenAndServe(listenAddr, nil); err != nil {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				fmt.Printf("Service HTTP server stopped: %v\n", err)
 			}
 		}, func() {
-			cleanupAndExit()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			_ = srv.Shutdown(shutdownCtx)
+			cancel()
+			cleanupTempDir()
 		})
 		if handled {
 			return

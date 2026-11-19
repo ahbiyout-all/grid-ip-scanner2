@@ -424,13 +424,21 @@ export const activateLicenseViaBackend = async (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ licenseKey: trimmed }),
     });
-    const data = await res.json();
-    const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
-    saveLicense(normalized);
+    const data = await res.json().catch(() => null);
+    if (!data) {
+      return {
+        success: false,
+        message: `HTTP ${res.status} — 백엔드 라이선스 검증 응답을 해석할 수 없습니다.`,
+      };
+    }
+    const normalized = data.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
+    if (data.license || res.ok) {
+      saveLicense(normalized);
+    }
 
     return {
-      success: Boolean(data?.success) && res.ok,
-      message: data?.message || (res.ok ? '라이선스가 활성화되었습니다.' : '라이선스 서명 또는 USB 바인딩 검증에 실패했습니다.'),
+      success: Boolean(data.success) && res.ok,
+      message: data.message || (res.ok ? '라이선스가 활성화되었습니다.' : `HTTP ${res.status} — 라이선스 서명 또는 USB 바인딩 검증에 실패했습니다.`),
       license: normalized,
     };
   } catch (err) {
@@ -450,12 +458,20 @@ export const refreshLicenseLeaseViaBackend = async (
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
-    const data = await res.json();
-    const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
-    saveLicense(normalized);
+    const data = await res.json().catch(() => null);
+    if (!data) {
+      return {
+        success: false,
+        message: `HTTP ${res.status} — 라이선스 갱신 응답을 해석할 수 없습니다.`,
+      };
+    }
+    const normalized = data.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
+    if (data.license || res.ok) {
+      saveLicense(normalized);
+    }
     return {
-      success: Boolean(data?.success),
-      message: data?.message || '라이선스 상태 갱신 완료',
+      success: Boolean(data.success) && res.ok,
+      message: data.message || (res.ok ? '라이선스 상태 갱신 완료' : `HTTP ${res.status} — 라이선스 상태 갱신 실패`),
       license: normalized,
     };
   } catch (err) {
@@ -476,11 +492,11 @@ export const deactivateLicenseViaBackend = async (
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
     const normalized = data?.license ? normalizeAuthoritativeLicense(data.license) : buildFreeLicense();
     saveLicense(normalized);
     return {
-      success: Boolean(data?.success ?? true),
+      success: data ? Boolean(data.success ?? res.ok) : res.ok,
       message: data?.message || 'USB/단말기 라이선스 바인딩이 해제되었습니다.',
       license: normalized,
     };

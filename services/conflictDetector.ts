@@ -146,18 +146,20 @@ export const analyzeNetworkConflicts = (
 
       const base = baselineResults[ip];
       if (base && base.status === 'active' && base.device) {
-        const curMac = (cur.device.mac || '').trim().toUpperCase();
-        const baseMac = (base.device.mac || '').trim().toUpperCase();
+        const curMacDisplay = (cur.device.mac || '').trim().toUpperCase();
+        const baseMacDisplay = (base.device.mac || '').trim().toUpperCase();
+        const curMacKey = cleanMacKey(curMacDisplay);
+        const baseMacKey = cleanMacKey(baseMacDisplay);
 
-        if (curMac && baseMac && curMac !== baseMac && curMac !== 'UNKNOWN' && baseMac !== 'UNKNOWN') {
+        if (curMacKey && baseMacKey && curMacKey !== baseMacKey) {
           conflicts.set(ip, {
             ip,
-            mac: curMac,
+            mac: curMacDisplay,
             severity: 'conflict',
             category: 'ip_takeover',
             isGatewayProxyArp: false,
             isAlert: true,
-            reason: `IP 충돌 의심: 기존 점유 기기(${baseMac}, ${base.device.vendor || '알 수 없음'})와 다른 신규 MAC(${curMac}, ${cur.device.vendor || '알 수 없음'})이 동일 IP를 점유 중입니다.`
+            reason: `IP 충돌 의심: 기존 점유 기기(${baseMacDisplay}, ${base.device.vendor || '알 수 없음'})와 다른 신규 MAC(${curMacDisplay}, ${cur.device.vendor || '알 수 없음'})이 동일 IP를 점유 중입니다.`
           });
         }
       }
@@ -165,18 +167,22 @@ export const analyzeNetworkConflicts = (
   }
 
   // 2. Check for duplicate MAC addresses across different active IPs in current scan
-  const macToIps = new Map<string, string[]>();
+  const macToCluster = new Map<string, { displayMac: string; ips: string[] }>();
   Object.entries(currentResults).forEach(([ip, item]) => {
     if (item.status !== 'active' || !item.device?.mac) return;
-    const mac = item.device.mac.trim().toUpperCase();
-    if (!mac || mac === 'UNKNOWN' || mac === '00:00:00:00:00:00' || mac === 'FF:FF:FF:FF:FF:FF') return;
+    const displayMac = item.device.mac.trim().toUpperCase();
+    const macKey = cleanMacKey(displayMac);
+    if (!macKey) return;
 
-    const list = macToIps.get(mac) || [];
-    list.push(ip);
-    macToIps.set(mac, list);
+    const existing = macToCluster.get(macKey);
+    if (existing) {
+      existing.ips.push(ip);
+    } else {
+      macToCluster.set(macKey, { displayMac, ips: [ip] });
+    }
   });
 
-  macToIps.forEach((ips, mac) => {
+  macToCluster.forEach(({ displayMac: mac, ips }) => {
     if (ips.length > 1) {
       const isNonRandom = !isRandomizedMacAddress(mac);
       const isProxyArpInfraCluster =

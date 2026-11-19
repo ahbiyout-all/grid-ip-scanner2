@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   HelpCircle,
   X,
@@ -50,10 +50,22 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
   s,
   panelClass,
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const isBeige = theme === 'beige';
   const isWhite = theme === 'white';
+  const isLight = isBeige || isWhite;
 
   return (
     <div
@@ -225,7 +237,9 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                     <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                   </a>
                 </div>
-                <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                <div className={`flex items-center justify-between pt-1 border-t ${
+                  isWhite ? 'border-slate-200' : isBeige ? 'border-[#e6d0a7]' : 'border-white/5'
+                }`}>
                   <span className="opacity-70">{lang === 'ko' ? '저장소:' : 'Repository:'}</span>
                   <a
                     href="https://github.com/AhBiYout-all/grid-ip-scanner2"
@@ -248,7 +262,9 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                     ahbiyoutvibe.blogspot.com
                   </a>
                 </div>
-                <div className="pt-2 border-t border-white/5 text-[10px] opacity-60 text-center font-mono">
+                <div className={`pt-2 border-t text-[10px] opacity-60 text-center font-mono ${
+                  isWhite ? 'border-slate-200' : isBeige ? 'border-[#e6d0a7]' : 'border-white/5'
+                }`}>
                   Copyright (c) 2025-2026 AhBiYout. All rights reserved.
                 </div>
               </div>
@@ -296,7 +312,11 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div
                   className={`p-3 rounded-xl border flex flex-col justify-between ${
-                    isWhite ? 'bg-white border-slate-200 text-slate-800' : 'bg-white/5 border-white/10'
+                    isBeige
+                      ? 'bg-white border-[#e6d0a7] text-[#5c4a37]'
+                      : isWhite
+                      ? 'bg-white border-slate-200 text-slate-800'
+                      : 'bg-white/5 border-white/10'
                   }`}
                 >
                   <span className="text-[10px] opacity-60 font-semibold">
@@ -316,6 +336,8 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                   className={`p-3 rounded-xl border flex flex-col justify-between ${
                     updateInfo?.hasUpdate
                       ? 'bg-emerald-500/10 border-emerald-500/30'
+                      : isBeige
+                      ? 'bg-white border-[#e6d0a7] text-[#5c4a37]'
                       : isWhite
                       ? 'bg-white border-slate-200 text-slate-800'
                       : 'bg-white/5 border-white/10'
@@ -379,13 +401,17 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                     }
                     target="_blank"
                     rel="noreferrer"
-                    className="p-3 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-400 flex items-center justify-between group transition-all cursor-pointer"
+                    className={`p-3 rounded-xl border flex items-center justify-between group transition-all cursor-pointer ${
+                      isLight
+                        ? 'bg-sky-500/15 hover:bg-sky-500/25 border-sky-500/35 text-sky-700'
+                        : 'bg-sky-600/20 hover:bg-sky-600/30 border-sky-500/40 text-sky-400'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <Download className="w-4 h-4 shrink-0" />
                       <div className="text-left">
                         <div className="font-bold text-[11px]">Windows Setup</div>
-                        <div className="text-[9.5px] opacity-65">인스톨러 (.exe)</div>
+                        <div className="text-[9.5px] opacity-70">인스톨러 (.exe)</div>
                       </div>
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
@@ -398,13 +424,19 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                     }
                     target="_blank"
                     rel="noreferrer"
-                    className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between group transition-all cursor-pointer"
+                    className={`p-3 rounded-xl border flex items-center justify-between group transition-all cursor-pointer ${
+                      isBeige
+                        ? 'bg-white hover:bg-[#f5ebd6]/70 border-[#e6d0a7] text-[#5c4a37]'
+                        : isWhite
+                        ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                        : 'bg-white/5 hover:bg-white/10 border-white/10'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Package className="w-4 h-4 text-indigo-400 shrink-0" />
+                      <Package className={`w-4 h-4 shrink-0 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
                       <div className="text-left">
                         <div className="font-bold text-[11px]">Windows Portable</div>
-                        <div className="text-[9.5px] opacity-65">단일 무설치 (.exe)</div>
+                        <div className="text-[9.5px] opacity-70">단일 무설치 (.exe)</div>
                       </div>
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
@@ -417,13 +449,17 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                     }
                     target="_blank"
                     rel="noreferrer"
-                    className="p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 flex items-center justify-between group transition-all cursor-pointer"
+                    className={`p-3 rounded-xl border flex items-center justify-between group transition-all cursor-pointer ${
+                      isLight
+                        ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/35 text-emerald-700'
+                        : 'bg-emerald-600/20 hover:bg-emerald-600/30 border-emerald-500/40 text-emerald-400'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <Smartphone className="w-4 h-4 shrink-0" />
                       <div className="text-left">
                         <div className="font-bold text-[11px]">Android Mobile</div>
-                        <div className="text-[9.5px] opacity-65">안드로이드 APK (.apk)</div>
+                        <div className="text-[9.5px] opacity-70">안드로이드 APK (.apk)</div>
                       </div>
                     </div>
                     <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
@@ -431,13 +467,17 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
 
                   <button
                     onClick={onSyncPwaNow}
-                    className="p-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-400 flex items-center justify-between group transition-all cursor-pointer"
+                    className={`p-3 rounded-xl border flex items-center justify-between group transition-all cursor-pointer ${
+                      isLight
+                        ? 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/35 text-amber-800'
+                        : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/30 text-amber-400'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <Zap className="w-4 h-4 shrink-0" />
                       <div className="text-left">
                         <div className="font-bold text-[11px]">PWA / Web 즉시 적용</div>
-                        <div className="text-[9.5px] opacity-65">캐시 초기화 & 갱신</div>
+                        <div className="text-[9.5px] opacity-70">캐시 초기화 & 갱신</div>
                       </div>
                     </div>
                     <RefreshCw className="w-3.5 h-3.5 opacity-60" />
@@ -445,8 +485,16 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                 </div>
 
                 {updateInfo.releaseNotes && (
-                  <div className="p-3 rounded-xl bg-black/25 border border-white/5 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-sky-400">
+                  <div className={`p-3 rounded-xl border space-y-1.5 ${
+                    isBeige
+                      ? 'bg-white border-[#e6d0a7]'
+                      : isWhite
+                      ? 'bg-white border-slate-200'
+                      : 'bg-black/25 border-white/5'
+                  }`}>
+                    <div className={`flex items-center justify-between text-[10px] font-bold ${
+                      isLight ? 'text-sky-700' : 'text-sky-400'
+                    }`}>
                       <span>{lang === 'ko' ? '릴리스 변경 사항' : 'Release Notes'}</span>
                       <span className="font-mono opacity-70 font-normal">
                         {updateInfo.publishedAt
@@ -454,7 +502,13 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                           : ''}
                       </span>
                     </div>
-                    <pre className="text-[10px] font-mono whitespace-pre-wrap max-h-32 overflow-y-auto opacity-80 leading-relaxed no-scrollbar bg-black/20 p-2 rounded-lg border border-white/5">
+                    <pre className={`text-[10px] font-mono whitespace-pre-wrap max-h-32 overflow-y-auto opacity-85 leading-relaxed no-scrollbar p-2 rounded-lg border ${
+                      isBeige
+                        ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#3d2711]'
+                        : isWhite
+                        ? 'bg-slate-50 border-slate-200 text-slate-800'
+                        : 'bg-black/20 border-white/5'
+                    }`}>
                       {updateInfo.releaseNotes}
                     </pre>
                   </div>
@@ -490,7 +544,9 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
               <div className="font-bold text-[10.5px] opacity-70 mb-1">
                 {lang === 'ko' ? '공식 GitHub 릴리스 배포 채널' : 'Official GitHub Channels'}
               </div>
-              <div className="flex items-center justify-between py-1 border-b border-white/5">
+              <div className={`flex items-center justify-between py-1 border-b ${
+                isWhite ? 'border-slate-200' : isBeige ? 'border-[#e6d0a7]' : 'border-white/5'
+              }`}>
                 <span className="opacity-70">
                   {lang === 'ko' ? 'GitHub 릴리스:' : 'GitHub Releases:'}
                 </span>
@@ -504,7 +560,9 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
                   <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                 </a>
               </div>
-              <div className="flex items-center justify-between py-1 border-b border-white/5">
+              <div className={`flex items-center justify-between py-1 border-b ${
+                isWhite ? 'border-slate-200' : isBeige ? 'border-[#e6d0a7]' : 'border-white/5'
+              }`}>
                 <span className="opacity-70">{lang === 'ko' ? '저장소:' : 'Repository:'}</span>
                 <a
                   href={`https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`}

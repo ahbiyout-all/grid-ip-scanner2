@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   X,
   Layers,
@@ -74,6 +74,26 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const [activeTab, setActiveTab] = useState<'all' | 'changes' | 'new' | 'offline' | 'changed' | 'security' | 'same'>('changes');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+      setIsCopied(false);
+    }
+  }, [isOpen]);
 
   // Snapshot label editing state
   const [editingSnapId, setEditingSnapId] = useState<string | null>(null);
@@ -264,8 +284,12 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
 
     const ok = await copyTextToClipboard(text);
     if (ok) {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      copyTimerRef.current = setTimeout(() => {
+        setIsCopied(false);
+        copyTimerRef.current = null;
+      }, 2000);
       showToast(isEn ? 'Diff summary copied to clipboard.' : '비교 분석 요약이 클립보드에 복사되었습니다.');
     } else {
       showToast(isEn ? 'Failed to copy summary to clipboard.' : '클립보드 복사에 실패했습니다.');
@@ -284,6 +308,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const isDark = theme === 'dark';
   const isGray = theme === 'gray';
   const isBeige = theme === 'beige';
+  const isDarkOrGray = isDark || isGray;
 
   // Base styling classes
   const modalBg = isBeige ? 'bg-[#fcf7ee] text-[#3d2711]' : isDark ? 'bg-zinc-950 text-zinc-100' : isGray ? 'bg-[#2b2d31] text-[#dbdee1]' : 'bg-white text-slate-800';
@@ -332,8 +357,8 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               onClick={() => setShowGuide(!showGuide)}
               className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 showGuide
-                  ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400'
-                  : 'hover:bg-black/5 dark:hover:bg-white/5 border-current/15 opacity-80 hover:opacity-100'
+                  ? `bg-indigo-500/20 border-indigo-500/50 ${isDarkOrGray ? 'text-indigo-400' : 'text-indigo-700'}`
+                  : `${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'} border-current/15 opacity-80 hover:opacity-100`
               }`}
               title={isEn ? 'How to use Snapshot Diff & Color Legend' : '스냅샷 비교 사용법 및 색상 범례'}
             >
@@ -350,7 +375,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors opacity-70 hover:opacity-100 cursor-pointer"
+              className={`p-1.5 rounded-lg ${isDarkOrGray ? 'hover:bg-white/10' : 'hover:bg-black/10'} transition-colors opacity-70 hover:opacity-100 cursor-pointer`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -361,19 +386,19 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         {showGuide && (
           <div className={`px-5 py-3 border-b ${cardBg} text-xs space-y-2.5 animate-in fade-in duration-150`}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+              <div className={`p-2.5 rounded-lg border border-current/10 ${isDarkOrGray ? 'bg-black/20' : 'bg-black/5'}`}>
                 <div className="font-bold text-indigo-400">01. {isEn ? 'Capture Baseline' : '정상 기준점 저장'}</div>
                 <p className="text-[11px] opacity-75 mt-0.5">
                   {isEn ? 'Save a snapshot when your network state is healthy.' : '정상 상태일 때 새 스냅샷을 저장해 기준점을 만듭니다.'}
                 </p>
               </div>
-              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+              <div className={`p-2.5 rounded-lg border border-current/10 ${isDarkOrGray ? 'bg-black/20' : 'bg-black/5'}`}>
                 <div className="font-bold text-sky-400">02. {isEn ? 'Re-scan & Compare' : '재스캔 후 시점 대조'}</div>
                 <p className="text-[11px] opacity-75 mt-0.5">
                   {isEn ? 'Run a later scan and select Baseline [A] vs Target [B].' : '이후 재스캔 뒤 기준점[A]과 대조 대상[B]을 선택합니다.'}
                 </p>
               </div>
-              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+              <div className={`p-2.5 rounded-lg border border-current/10 ${isDarkOrGray ? 'bg-black/20' : 'bg-black/5'}`}>
                 <div className="font-bold text-purple-400">03. {isEn ? 'Review Color Legend' : '색상별 변동 진단'}</div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10.5px] font-bold">
                   <span className="text-emerald-500">+NEW {isEn ? 'New' : '신규'}</span>
@@ -414,7 +439,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               </button>
               <button
                 onClick={() => setShowSavePrompt(false)}
-                className="px-2.5 py-1 bg-black/10 dark:bg-white/10 hover:opacity-80 rounded text-xs cursor-pointer"
+                className={`px-2.5 py-1 ${isDarkOrGray ? 'bg-white/10' : 'bg-black/10'} hover:opacity-80 rounded text-xs cursor-pointer`}
               >
                 {isEn ? 'Cancel' : '취소'}
               </button>
@@ -465,7 +490,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               {/* Swap Button */}
               <button
                 onClick={handleSwapSources}
-                className="self-end mb-0.5 p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-indigo-600 hover:text-white border border-current border-opacity-15 transition-all shadow-sm active:scale-95 cursor-pointer"
+                className={`self-end mb-0.5 p-2 rounded-xl ${isDarkOrGray ? 'bg-white/5' : 'bg-black/5'} hover:bg-indigo-600 hover:text-white border border-current border-opacity-15 transition-all shadow-sm active:scale-95 cursor-pointer`}
                 title={isEn ? "Swap baseline (A) and comparison target (B)" : "기준점(A)과 비교대상(B)을 서로 맞바꿉니다"}
               >
                 <ArrowRightLeft className="w-4 h-4" />
@@ -511,7 +536,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <div className="flex items-center gap-2 self-end lg:self-center">
               <button
                 onClick={handleExportCSV}
-                className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer shadow-sm"
+                className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'} transition-all cursor-pointer shadow-sm`}
                 title={isEn ? "Download detailed comparison records as CSV" : "비교 분석 상세 내역을 CSV 파일로 다운로드합니다"}
               >
                 <Download className="w-3.5 h-3.5 text-emerald-500" />
@@ -520,7 +545,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
 
               <button
                 onClick={handleCopySummary}
-                className="px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer shadow-sm"
+                className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'} transition-all cursor-pointer shadow-sm`}
                 title={isEn ? "Copy text report summary to clipboard" : "보고용 텍스트 요약을 클립보드에 복사합니다"}
               >
                 {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
@@ -536,7 +561,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeTab === 'changes'
                   ? 'ring-2 ring-indigo-500 bg-indigo-500/15 border-indigo-500 shadow-sm'
-                  : 'bg-black/5 dark:bg-white/5 hover:bg-black/10'
+                  : (isDarkOrGray ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10')
               }`}
             >
               <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">
@@ -622,7 +647,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
               className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 activeTab === 'same'
                   ? 'ring-2 ring-sky-500 bg-sky-500/15 border-sky-500 shadow-sm'
-                  : 'bg-black/5 dark:bg-white/5 hover:bg-black/10'
+                  : (isDarkOrGray ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10')
               }`}
             >
               <div className="text-[10px] font-bold opacity-70 uppercase tracking-tight">
@@ -642,7 +667,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <button
               onClick={() => setActiveTab('changes')}
               className={`px-3 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'changes' ? 'bg-indigo-600 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
+                activeTab === 'changes' ? 'bg-indigo-600 text-white shadow' : `opacity-70 hover:opacity-100 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'}`
               }`}
             >
               {isEn ? `Changes (${totalChanges})` : `변동 사항만 (${totalChanges})`}
@@ -683,7 +708,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <button
               onClick={() => setActiveTab('same')}
               className={`px-3 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'same' ? 'bg-sky-600 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
+                activeTab === 'same' ? 'bg-sky-600 text-white shadow' : `opacity-70 hover:opacity-100 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'}`
               }`}
             >
               {isEn ? `Unchanged (${diffResult.summary.sameCount})` : `동일 유지 (${diffResult.summary.sameCount})`}
@@ -691,7 +716,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             <button
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'all' ? 'bg-zinc-700 text-white shadow' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'
+                activeTab === 'all' ? 'bg-zinc-700 text-white shadow' : `opacity-70 hover:opacity-100 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'}`
               }`}
             >
               {isEn ? `All (${diffResult.items.length})` : `전체 대조 (${diffResult.items.length})`}
@@ -721,7 +746,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
         </div>
 
         {/* Subtle Guidance Strip */}
-        <div className="px-4 py-1.5 bg-black/5 dark:bg-white/5 border-b border-current border-opacity-5 flex items-center justify-between text-[10.5px] opacity-75">
+        <div className={`px-4 py-1.5 ${isDarkOrGray ? 'bg-white/5' : 'bg-black/5'} border-b border-current border-opacity-5 flex items-center justify-between text-[10.5px] opacity-75`}>
           <div className="flex items-center gap-1.5">
             <span className="text-amber-400">💡</span>
             <span>
@@ -783,7 +808,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                     return (
                       <tr
                         key={item.ip}
-                        className={`transition-colors hover:bg-black/5 dark:hover:bg-white/5 ${
+                        className={`transition-colors ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'} ${
                           item.hasSecurityRisk
                             ? 'bg-red-500/10'
                             : item.diffStatus === 'new'
@@ -850,7 +875,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                               <div className="text-[11px] opacity-80 truncate" title={prevDev?.hostname}>
                                 {prevDev?.hostname ? `${isEn ? 'Host' : '호스트'}: ${prevDev.hostname}` : (isEn ? 'No hostname' : '호스트명 없음')}
                               </div>
-                              <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                              <div className={`text-[10px] font-mono ${isDarkOrGray ? 'text-emerald-400' : 'text-emerald-700'}`}>
                                 MAC: {prevDev?.mac || 'Unknown'}
                               </div>
                               {prevDev?.openPorts && prevDev.openPorts.length > 0 && (
@@ -858,7 +883,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                                   {prevDev.openPorts.slice(0, 5).map((p) => (
                                     <span
                                       key={p}
-                                      className="px-1 py-0.2 rounded text-[9px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                                      className={`px-1 py-0.2 rounded text-[9px] font-mono bg-sky-500/10 ${isDarkOrGray ? 'text-sky-400' : 'text-sky-700'} border border-sky-500/20`}
                                     >
                                       {p}
                                     </span>
@@ -895,7 +920,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                                 className={`text-[10px] font-mono ${
                                   item.macChanged
                                     ? 'text-red-500 font-black bg-red-500/15 px-1 rounded inline-block'
-                                    : 'text-emerald-600 dark:text-emerald-400'
+                                    : (isDarkOrGray ? 'text-emerald-400' : 'text-emerald-700')
                                 }`}
                               >
                                 MAC: {curDev?.mac || 'Unknown'}
@@ -980,8 +1005,8 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
                   key={snap.id}
                   className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] shrink-0 ${
                     sourceAId === snap.id || sourceBId === snap.id
-                      ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
-                      : 'border-current border-opacity-15 bg-black/5 dark:bg-white/5 opacity-80'
+                      ? `border-indigo-500 bg-indigo-500/20 ${isDarkOrGray ? 'text-indigo-300' : 'text-indigo-800'} font-bold`
+                      : `border-current border-opacity-15 ${isDarkOrGray ? 'bg-white/5' : 'bg-black/5'} opacity-80`
                   }`}
                 >
                   {editingSnapId === snap.id ? (
@@ -1024,7 +1049,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-1.5 rounded-xl border border-current border-opacity-20 hover:bg-black/5 dark:hover:bg-white/5 font-bold text-xs transition-all cursor-pointer"
+              className={`px-4 py-1.5 rounded-xl border border-current border-opacity-20 ${isDarkOrGray ? 'hover:bg-white/5' : 'hover:bg-black/5'} font-bold text-xs transition-all cursor-pointer`}
             >
               {isEn ? 'Close' : '닫기'}
             </button>

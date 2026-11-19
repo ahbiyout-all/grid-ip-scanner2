@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Clock, 
   Calendar, 
@@ -79,6 +79,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);
+  const deleteConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHistoryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
+      if (clearHistoryTimerRef.current) clearTimeout(clearHistoryTimerRef.current);
+    };
+  }, []);
 
   // Form State
   const [name, setName] = useState('');
@@ -113,6 +122,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       setHistory(getScheduleHistory());
       setConfirmDeleteId(null);
       setConfirmClearHistory(false);
+    } else {
+      if (deleteConfirmTimerRef.current) {
+        clearTimeout(deleteConfirmTimerRef.current);
+        deleteConfirmTimerRef.current = null;
+      }
+      if (clearHistoryTimerRef.current) {
+        clearTimeout(clearHistoryTimerRef.current);
+        clearHistoryTimerRef.current = null;
+      }
     }
   }, [isOpen]);
 
@@ -250,9 +268,17 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
   const handleDelete = (id: string) => {
     if (confirmDeleteId !== id) {
+      if (deleteConfirmTimerRef.current) clearTimeout(deleteConfirmTimerRef.current);
       setConfirmDeleteId(id);
-      setTimeout(() => setConfirmDeleteId(prev => (prev === id ? null : prev)), 4000);
+      deleteConfirmTimerRef.current = setTimeout(() => {
+        setConfirmDeleteId(prev => (prev === id ? null : prev));
+        deleteConfirmTimerRef.current = null;
+      }, 4000);
       return;
+    }
+    if (deleteConfirmTimerRef.current) {
+      clearTimeout(deleteConfirmTimerRef.current);
+      deleteConfirmTimerRef.current = null;
     }
     deleteSchedule(id);
     setConfirmDeleteId(null);
@@ -261,9 +287,17 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
   const handleClearHistory = () => {
     if (!confirmClearHistory) {
+      if (clearHistoryTimerRef.current) clearTimeout(clearHistoryTimerRef.current);
       setConfirmClearHistory(true);
-      setTimeout(() => setConfirmClearHistory(false), 4000);
+      clearHistoryTimerRef.current = setTimeout(() => {
+        setConfirmClearHistory(false);
+        clearHistoryTimerRef.current = null;
+      }, 4000);
       return;
+    }
+    if (clearHistoryTimerRef.current) {
+      clearTimeout(clearHistoryTimerRef.current);
+      clearHistoryTimerRef.current = null;
     }
     clearScheduleHistory();
     setConfirmClearHistory(false);
