@@ -572,7 +572,10 @@ func (g *LicenseGuard) buildFreeStatus(hw StorageBindingInfo, statusCode, reason
 func (g *LicenseGuard) EvaluateStatus() LicenseStatusResponse {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	return g.evaluateStatusLocked()
+}
 
+func (g *LicenseGuard) evaluateStatusLocked() LicenseStatusResponse {
 	now := g.nowFunc()
 	hw := g.hwProvider(g.storageDir)
 
@@ -877,11 +880,7 @@ func (g *LicenseGuard) ActivateLicense(rawInputKey string) (LicenseStatusRespons
 			msg := fmt.Sprintf("봉인된 라이선스 저장 실패: %v", err)
 			return g.buildFreeStatus(hw, "unlicensed", msg, false, "", err.Error()), msg, false
 		}
-		// Unlock and evaluate consistently
-		g.mu.Unlock()
-		st := g.EvaluateStatus()
-		g.mu.Lock()
-		return st, "Pro 30일 무료 체험판이 현재 하드웨어에 안전하게 바인딩되었습니다.", true
+		return g.evaluateStatusLocked(), "Pro 30일 무료 체험판이 현재 하드웨어에 안전하게 바인딩되었습니다.", true
 	}
 
 	// Strictly verify Ed25519 cryptographically signed token (NO unsigned PRO-/DEMO-/ANNUAL-/ENT- bypass!)
@@ -1010,9 +1009,7 @@ func (g *LicenseGuard) ActivateLicense(rawInputKey string) (LicenseStatusRespons
 	g.conflict = nil
 	g.conflictMu.Unlock()
 
-	g.mu.Unlock()
-	st := g.EvaluateStatus()
-	g.mu.Lock()
+	st := g.evaluateStatusLocked()
 
 	msg := fmt.Sprintf("Ed25519 서명 검증 및 %s 바인딩 완료 (%s)", hw.MediaTypeLabel(), strings.ToUpper(signed.Tier))
 	return st, msg, true
@@ -1044,10 +1041,7 @@ func (g *LicenseGuard) RefreshLease() (LicenseStatusResponse, string, bool) {
 	if g.leaseServerURL == "" {
 		payload.LastVerifiedMonoUtc = now.Unix()
 		_ = g.writeSealedPayload(*payload, hw, now)
-		g.mu.Unlock()
-		st := g.EvaluateStatus()
-		g.mu.Lock()
-		return st, "로컬 Ed25519 서명 및 USB 하드웨어 바인딩 무결성 점검을 완료했습니다 (폐쇄망 모드).", true
+		return g.evaluateStatusLocked(), "로컬 Ed25519 서명 및 USB 하드웨어 바인딩 무결성 점검을 완료했습니다 (폐쇄망 모드).", true
 	}
 
 	serverResp, contacted, serverErr := g.callOnlineLeaseEndpoint("refresh", leaseServerRequest{
@@ -1060,10 +1054,7 @@ func (g *LicenseGuard) RefreshLease() (LicenseStatusResponse, string, bool) {
 		SeatToken:           payload.SeatToken,
 	})
 	if !contacted {
-		g.mu.Unlock()
-		st := g.EvaluateStatus()
-		g.mu.Lock()
-		return st, "온라인 라이선스 서버에 연결할 수 없어 오프라인 유예 상태가 유지됩니다.", false
+		return g.evaluateStatusLocked(), "온라인 라이선스 서버에 연결할 수 없어 오프라인 유예 상태가 유지됩니다.", false
 	}
 	if serverErr != nil {
 		if serverResp != nil && serverResp.Revoked {
@@ -1071,10 +1062,7 @@ func (g *LicenseGuard) RefreshLease() (LicenseStatusResponse, string, bool) {
 			_ = g.writeSealedPayload(*payload, hw, now)
 			return g.buildFreeStatus(hw, "revoked", serverErr.Error(), payload.TrialUsed, payload.TrialActivatedAt, serverErr.Error()), serverErr.Error(), false
 		}
-		g.mu.Unlock()
-		st := g.EvaluateStatus()
-		g.mu.Lock()
-		return st, serverErr.Error(), false
+		return g.evaluateStatusLocked(), serverErr.Error(), false
 	}
 
 	leaseDays := defaultOfflineGraceDay
@@ -1102,10 +1090,7 @@ func (g *LicenseGuard) RefreshLease() (LicenseStatusResponse, string, bool) {
 	g.conflict = nil
 	g.conflictMu.Unlock()
 
-	g.mu.Unlock()
-	st := g.EvaluateStatus()
-	g.mu.Lock()
-	return st, "온라인 좌석 인증 및 오프라인 유예 임대(Lease)가 성공적으로 갱신되었습니다.", true
+	return g.evaluateStatusLocked(), "온라인 좌석 인증 및 오프라인 유예 임대(Lease)가 성공적으로 갱신되었습니다.", true
 }
 
 func (g *LicenseGuard) DeactivateLicense() (LicenseStatusResponse, string, bool) {

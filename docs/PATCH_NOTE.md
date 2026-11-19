@@ -35,6 +35,23 @@
    - `grid_topology_guard.c` & `native_modules_bridge_other.go`: `+NEW` 호스트의 정상 Proxy-ARP 판정이 `SoftTrust`/`HardIntruder`에 의해 덮어써지지 않도록 `isBenignProxyArp` 보호, `ports_changed` 양방향(추가/제거) 비교, 소비자 벤더 제외 및 음수 포트 JSON 방어.
    - `name_resolver.go` & `components/IPCell.tsx`: mDNS `"lg"` 단문자 매칭 오탐을 `lg-`/`lge`/`webos`/`tv`/`electronics`로 엄격 제한하고, `IPCell.tsx`의 `getDeviceIcon()`이 `deviceCategory` 및 `MacBook`/`Smart TV`/`CCTV`/`Router` 단서를 일반 `apple`/`samsung` 브랜드보다 우선 판별하도록 개선했습니다.
 
+5. **자율 시스템 트레이 · Windows SCM 서비스 & 이벤트 기반 OS 알림 고도화 (`tray_engine.go`, `utils_windows.go`, `utils_other.go`, `main.go`, `main.js`, `preload.js`, `PreferencesTrayModal.tsx`, `App.tsx`) — *2026-11-18 반영***
+   - **동적 상태 배지 `HICON` & 실시간 요약 메뉴 (`utils_windows.go`)**:
+     - GDI32/User32 기반 32×32 ARGB 동적 아이콘 합성(`standby` 회색, `watching` 에메랄드, `scanning` 호박색, `alert` 적색)과 활성 호스트·침입·충돌·다음 예약 스캔 요약 툴팁 및 컨텍스트 메뉴를 구현했습니다.
+   - **자율 백그라운드 스윕 & 스케줄러 제어 (`tray_engine.go`, `main.go`)**:
+     - UI 창 미연결 또는 최소화 시 10초 주기 자율 스윕 및 만기 예약 스캔을 수행하며 `/api/tray/state`, `/api/tray/config`, `/api/tray/action`, `/api/tray/report-events`, `/api/tray/events`, `/api/tray/test-notify` API와 `tray_config.json` 영구 설정 저장을 추가했습니다.
+     - 트레이 우클릭 메뉴 및 모달·Electron에서 **정기 스케줄러 일시정지/재개(`toggle_scheduler_pause`)**, **즉시 실행(`run_schedule_now`)**, **빠른 백그라운드 스캔(`quick_scan`)**을 양방향 제어할 수 있습니다.
+   - **조용한 시작(`--tray`) & Windows SCM 네이티브 서비스(`--service`)**:
+     - HKCU 자동 시작 및 `--tray` 실행 시 브라우저 창을 열지 않고 시스템 트레이로 즉시 상주합니다.
+     - `--service` 실행 시 `advapi32.dll` `StartServiceCtrlDispatcherW` / `RegisterServiceCtrlHandlerW` / `SetServiceStatus` 핸들러를 구동하여 `GridIPScannerService` 실행 시 Error 1053을 방지하고 `sc.exe` 상태(`running`/`stopped`/`not_installed`)를 정확히 동기화합니다.
+   - **이벤트 기반 OS 알림 고도화 (`PreferencesTrayModal.tsx`, `App.tsx`)**:
+     - **신규 미확인 기기(침입)**, **IP/MAC 충돌**, **대량 호스트 오프라인 급감(최소 대수/감소율 임계치)** 이벤트에 대해서만 선택적으로 OS 풍선(`NIIF_ERROR`/`NIIF_WARNING`/`NIIF_INFO`) 및 브라우저 알림을 발송합니다.
+     - 동일 이벤트 키 쿨다운 중복 억제(`dedupCooldownMinutes`), 상시/30분 일시 해제/야간 조용한 시간(DND), 테스트 OS 알림 발송 및 최근 100건 이벤트 피드를 제공합니다.
+
+6. **중복 내보내기·스냅샷 비교 흐름 통합, 모달 분리 및 데드코드 정리 (`ReportCenterModal.tsx`, `reportCenterService.ts`, `PreferencesTrayModal.tsx`, `HelpUpdateModal.tsx`, `InterfaceExplorerModal.tsx`, `LicenseModal.tsx`, `ProFeatureLockedModal.tsx`) — *2026-11-18 반영***
+   - 분산되어 있던 다중 포맷 내보내기(PDF·Excel XML·CSV·JSON·Markdown·HTML) 및 스냅샷 비교 진입점을 전용 **`ReportCenterModal`** 과 **`SnapshotDiffModal`** 중심으로 통합해 상단 헤더·설정 복잡도를 축소했습니다.
+   - 미사용 레거시 Vault 브리지 파일(`ouiValidatorBridge.ts`, `secureVaultBridge.ts`, `electronVaultBridge.ts`, `vaultService.ts`) 데드코드를 제거하고, 레거시 Windows 네트워크 유틸리티(`flushdns`, `ncpa.cpl`, `firewall`)를 환경설정 모달 내 접이식 고급 영역으로 정리했습니다.
+
 ---
 
 ## 🚀 [v2.4.47] - 2026-11-11

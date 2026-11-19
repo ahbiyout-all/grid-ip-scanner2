@@ -24,6 +24,10 @@ export interface ScanSchedule {
   snapshotPrefix?: string;         // 스냅샷 라벨 접두어 (기본값: '[Auto-Sched]')
   notifyOnCompletion: boolean;     // 스캔 완료 시 브라우저/시스템 알림 전송
   notifyOnChangesOnly: boolean;    // 신규 장비(+NEW) 또는 오프라인(-OFF) 변동 시에만 알림
+  autoExportEnabled?: boolean;     // 스캔 완료 시 다중 포맷 보고서 자동 생성 여부
+  autoExportFormats?: AutoExportFormat[]; // 'pdf' | 'excel' | 'csv' | 'json' | 'markdown' | 'html'
+  autoExportOnChangesOnly?: boolean; // 변동 시에만 자동 내보내기
+  autoDownloadFile?: boolean;      // 파일 자동 다운로드 트리거
   lastRun?: number;                // 최근 실행 타임스탬프 (ms)
   nextRun?: number;                // 다음 실행 예정 타임스탬프 (ms)
   createdAt: number;               // 생성 일시
@@ -44,6 +48,7 @@ export interface ScheduledScanRunRecord {
   totalCount: number;              // 전체 검사 대상 수
   durationMs: number;              // 스캔 소요 시간 (밀리초)
   snapshotId?: string;             // 생성된 스냅샷 ID (Diff 모달 바로가기 연동)
+  autoReportIds?: string[];        // 자동 생성된 ReportCenter 아카이브 ID 목록
   newDevicesCount?: number;        // 기준점 대비 신규 발견 장치 수
   offlineDevicesCount?: number;    // 기준점 대비 오프라인 전환 장치 수
   changedDevicesCount?: number;    // MAC/포트 변조 장치 수
@@ -56,22 +61,26 @@ export interface ScheduledScanRunRecord {
 
 ## 3. 주요 기능 명세
 
-### 3.1 비간섭 무중단 백그라운드 엔진 (`schedulerService.ts`)
-- **실시간 주기적 타이머 (5초 Ticker)**: 앱이 브라우저나 데스크톱에서 실행되는 동안 5초 주기로 활성화된 스케줄의 `nextRun` 상태를 검사합니다.
+### 3.1 비간섭 무중단 백그라운드 엔진 (`schedulerService.ts` + `tray_engine.go`)
+- **실시간 주기적 타이머 (5초 Ticker)**: 앱이 브라우저나 데스크톱에서 실행되는 동안 5초 주기로 활성화된 스케줄의 `nextRun` 상태를 검사하며, 일시정지(`schedulerPaused`) 시 만기 실행을 안전하게 보류합니다.
+- **창 종료 시 무인 트레이 백그라운드 실행 (`tray_engine.go`)**: `TrayScheduleSummary` 목록이 Go 백엔드에 실시간 동기화되므로 UI 창이 닫힌 상태(`--tray` 또는 `--service`)에서도 만기 스케줄을 Go 엔진이 단독으로 실행하고 이상 이벤트를 기록합니다.
+- **트레이 빠른 제어 (일시정지/재개 & 즉시 실행)**: Windows 네이티브 트레이 메뉴, Electron 트레이, 환경설정/트레이 모달(`PreferencesTrayModal.tsx`) 어디서든 스케줄러 일시정지/재개(`toggle_scheduler_pause`) 및 다음 스케줄 즉시 실행(`run_schedule_now`)을 양방향 동기화합니다.
 - **스마트 스케줄링 락 (Busy Avoidance)**: 사용자가 수동으로 스캔 중이거나 엔진이 응답하지 않을 때는 무리하게 중복 실행하지 않고 대기 후 안전하게 처리합니다.
-- **영구 보존**: 브라우저 로컬 스토리지(`grid_ip_scanner_schedules_v1`, `grid_ip_scanner_schedule_history_v1`)에 안전하게 저장되어 앱을 껐다 켜도 스케줄과 다음 실행 시각이 유지됩니다.
+- **영구 보존**: 브라우저 로컬 스토리지(`grid_ip_scanner_schedules_v1`, `grid_ip_scanner_schedule_history_v1`, `grid_scheduler_paused`)와 Go 영구 설정(`tray_config.json`)에 안전하게 저장됩니다.
 
-### 3.2 스냅샷 자동 생성 및 Diff 모드 연동
-- 스케줄 완료 시 자동으로 `[Auto-Sched] 스케줄명 (HH:MM)` 형태의 스냅샷을 캡처하여 최대 25개까지 히스토리에 보존합니다.
-- 저장된 스냅샷은 언제든 상단 `[Diff 모드]` 또는 `[1:1 스튜디오]`에서 기준점이나 비교 타겟으로 불러와 신규 침입 장비 및 네트워크 변경점을 시각적으로 분석할 수 있습니다.
+### 3.2 스냅샷 · 보고서 센터 자동 생성 및 Diff 모드 연동
+- 스케줄 완료 시 자동으로 `[Auto-Sched] 스케줄명 (HH:MM)` 형태의 스냅샷을 캡처하여 최대 25개까지 보존하며, 설정된 포맷(`autoExportFormats`)으로 `ReportCenterModal` 이력에도 자동 저장됩니다.
+- 저장된 스냅샷은 언제든 `[Diff 모드]` 또는 `[1:1 스튜디오]`에서 기준점이나 비교 타겟으로 불러와 신규 침입 장비 및 네트워크 변경점을 시각적으로 분석할 수 있습니다.
 
-### 3.3 사용자 친화적 UI (`components/ScheduleModal.tsx`)
+### 3.3 사용자 친화적 UI (`components/ScheduleModal.tsx`, `PreferencesTrayModal.tsx`)
+- **사이드바 빠른 진입 & 상태 배지**: 활성 스케줄 수 또는 일시정지(`일시정지`/`PAUSED`) 배지를 실시간 표시합니다.
 - **스케줄 목록 탭**: 활성 스케줄 개수, 실시간 남은 시간 카운트다운("24분 12초 후", "대기 중"), 즉시 실행(Run Now) 버튼, 수정 및 삭제.
-- **새 스케줄 등록 탭**: 현재 스캐너 서브넷 원클릭 복사, 8종 주기 프리셋 버튼, 사용자 정의 분/시간 입력, 정밀 포트 스캔 및 알림 옵션.
+- **새 스케줄 등록 탭**: 현재 스캐너 서브넷 원클릭 복사, 주기 프리셋 버튼, 사용자 정의 분/시간 입력, 정밀 포트 스캔 및 자동 보고서/알림 옵션.
 - **실행 이력 탭**: 실행 시각, 소요 시간, 발견된 활성 장비 수, +신규/-오프라인 통계, 스냅샷 바로가기 링크, CSV 다운로드 내보내기.
 
 ---
 
 ## 4. 검증 결과
-- TypeScript 컴파일 검사: 0 Errors (Strict Type-Safe)
-- Vite 빌드 검사: `npm run build` 통과 완료
+- Go 백엔드 단위 테스트 (`go test -count=1 -v .`): 11개 테스트 통과 (`tray_engine.go` 자율 스윕/쿨다운/야간 DND 포함)
+- TypeScript 검사 (`tsc --noEmit`): 0 Errors (Strict Type-Safe)
+- Vite 빌드 검사 (`npm run build`): 프로덕션 번들 통과 완료

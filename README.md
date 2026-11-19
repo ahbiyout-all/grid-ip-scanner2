@@ -23,11 +23,10 @@
     - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치로 백신 오탐지 예방
     - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 배포 자산 표준 관리 (`v2.5.0`)
 
-2. **📄 A4 규격 최적화 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**
-   - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델로 테이블 행 및 텍스트 줄 잘림 원천 방지
-   - **프린터 안전 여백 (11mm Margin)**: 일반 사무용 레이저/잉크젯 프린터에서 출력해도 글자 잘림 없는 안전 여백 확보
-   - **동적 페이지 번호**: 모든 페이지에 `페이지 X / Y` 형태의 전체 대비 현재 페이지 번호 및 실제 브랜드·칩셋 OUI 분리 인벤토리 반영
-   - **브라우저 직접 인쇄(Ctrl+P) 지원**: `@media print` 고해상도 스타일시트를 통한 배경색 및 뱃지 완벽 보존
+2. **📄 통합 보고서 센터 & A4 규격 최적화 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
+   - **다중 포맷 통합 내보내기 센터**: PDF 보안 감사 보고서, 다중 시트 Excel XML, CSV, JSON, Markdown, 인쇄/그리드 HTML 및 스냅샷 Diff 연계를 전용 모달로 통합
+   - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델 및 11mm 안전 여백으로 테이블 행·텍스트 줄 잘림 원천 방지
+   - **동적 페이지 번호 & 직접 인쇄**: 모든 페이지에 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 스타일시트 지원
 
 3. **📸 딥 스냅샷 비교 엔진(Deep Diff v2) & 1:1 대조 스튜디오 (`components/SnapshotDiffModal.tsx`)**
    - **임의 시점 간 1:1 자유 교차 대조**: 보관된 스냅샷 2개 간(A ↔ B) 또는 실시간 스캔과 자유롭게 교차 비교 및 1클릭 소스 맞바꿈(Swap)
@@ -36,43 +35,52 @@
    - **잘림 없는 고정 서브헤더 툴바**: 스크롤 간섭 없는 독립 서브헤더 배치로 상단 잘림 원천 방지 및 극상의 공간 활용성 제공
    - **4색 컬러 진단**: 🟢 신규 접속(`+NEW`), 🔴 오프라인(`-OFF`), 🟠 식별자/포트 변동(`!CHG`), 🔵 기준 유지(`=SAME`) 실시간 카운터 및 필터링
 
-4. **🛡️ 낯선 기기 감시(24/7 Service & Close-to-Tray) 및 Soft Trust 유예 시스템 (`PRO`)**
-   - **24/7 무인 백그라운드 서비스 & 트레이 상주**: `Close-to-Tray` 창 닫기 최소화 시에도 백그라운드 침입 감시 및 정기 스케줄러 무중단 실행, Win32 트레이 서브메뉴(`flushdns`, `ncpa.cpl`, 방화벽 복원, 긴급 스캔) 및 풍선 도움말 제공
-   - **Soft Trust Grace Period & `grid_topology_guard.dll`**: C99 O(N) FNV-1a 해시 & 비트 수준 LAA/VM NIC 분리를 통한 사설 랜덤 MAC 오경보 방지
+4. **⏰ 정기 자동 네트워크 스캔 스케줄러 (`services/schedulerService.ts`, `components/ScheduleModal.tsx`)**
+   - **무인 백그라운드 주기적 스캔**: 15분, 30분, 1시간, 2시간, 6시간, 12시간, 매일/매주 및 사용자 지정 분 단위 주기 자동 실행
+   - **5초 Ticker · Busy Lock & 트레이 일시정지 제어**: 수동 스캔 시 중복 방지 안전 가드, 트레이/UI 양방향 **일시정지·재개 및 즉시 실행(`run_schedule_now`)** 제어
+   - **스냅샷 자동 캡처 (`[Auto-Sched]`) & 자동 내보내기**: 스캔 완료 시 시점별 스냅샷 아카이빙 및 다중 포맷 자동 보고서 저장 연계
 
-5. **⚠️ 게이트웨이 Proxy-ARP 정상 분리 & IP/MAC 충돌 감지 (`services/conflictDetector.ts`, `components/IPCell.tsx`)**
+5. **📌 자율 시스템 트레이 · Windows SCM 서비스 & 이벤트 기반 OS 알림 고도화 (`tray_engine.go`, `utils_windows.go`, `PreferencesTrayModal.tsx`)**
+   - **동적 4색 배지 아이콘 & 실시간 요약 메뉴**: 상태(`standby` / `watching` / `scanning` / `alert`)에 맞춘 GDI32/User32 32×32 ARGB 동적 배지 `HICON` 및 활성 호스트·침입·충돌·다음 스케줄 요약 메뉴
+   - **창 없는 조용한 시작(`--tray`) & 10초 무인 자율 스윕**: Windows 부팅 자동 시작(`--tray`) 또는 UI 창 종료 상태에서도 Go 자율 루프가 24/7 감시·만기 스케줄 실행을 유지
+   - **Windows SCM 네이티브 서비스(`--service`)**: `advapi32.dll` `StartServiceCtrlDispatcherW` 구현으로 `GridIPScannerService` 서비스 제어 관리자 무결성 확보(Error 1053 방지)
+   - **이벤트별 OS 알림 · 쿨다운 · 방해금지(DND)**: 신규 침입, IP/MAC 충돌, 대량 호스트 오프라인 급감(대수/% 임계치) 알림 및 동일 키 쿨다운 중복 억제, 상시/30분 일시 해제/야간 조용한 시간 지원
+   - **Pro 라이선스 & Soft Trust Grace Period**: 사설 랜덤 MAC 또는 DHCP 재할당 단말에 대한 오경보 방지 유예 평가
+
+6. **⚠️ 게이트웨이 Proxy-ARP 정상 분리 & IP/MAC 충돌 감지 (`services/conflictDetector.ts`, `components/IPCell.tsx`)**
    - 학교/캠퍼스/기업망 게이트웨이(`.254`/`.1`) L3 스위치 Proxy-ARP 동일 MAC 다중 IP 응답을 **`Gateway Proxy-ARP (비알림 Info)`** 로 안전 판별하여 스카이블루 **`Proxy-ARP`** 뱃지로 시각화하고 실제 MAC 복제/스푸핑 경보(`⚠️`)와 명확히 분리
 
-6. **🔒 12대 C/C++ 네이티브 DLL 가속 & PBKDF2+AES-256-GCM Secure Vault (`v2.6.0`)**
+7. **🔒 12대 C/C++ 네이티브 DLL 가속 & PBKDF2+AES-256-GCM Secure Vault (`v2.6.0`)**
    - 순수 창작 `grid_topology_guard.dll` (`v2.6.1`), `Probe_SweepCidrAsyncBatch` 비동기 ICMP/ARP 스위프, `PortScan_IocpMultiHostSweep` Win32 IOCP 포트 스위프 탑재
    - `LoadLibraryExW(LOAD_LIBRARY_SEARCH_APPLICATION_DIR)` 경로 고정, `GVAULT11` 16B 솔트 + PBKDF2-HMAC-SHA256(10,000회) 256B 스택 고속 경로 및 JSON 음수 포트 방어 적용
 
-7. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권**
+8. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
    - Ed25519 비대칭 암호키 기반 100% 오프라인 라이선스 검증 (폐쇄망 완벽 대응)
    - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
 
-8. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
-   - 단일 무설치 포터블 실행 파일 및 Inno Setup 6 정식 인스톨러(`Grid_IP_Scanner2_v2.5.0_Setup.exe`)
+9. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
+   - 단일 무설치 포터블 실행 파일 및 Inno Setup 6 정식 인스톨러(`Grid_IP_Scanner2_v2.5.0_Setup.exe`, `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
    - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.5.0.apk`) 및 PWA 모바일 패키지 동시 제공
    - 로컬 푸시 스크립트 격리 및 클린 소스코드 전용 `.gitignore` 체계
 
-9. **🚫 브라우저 자동 번역 팝업 원천 차단**
-   - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 인자 주입으로 번역 제안 팝업 차단
+10. **🚫 브라우저 자동 번역 팝업 원천 차단**
+    - `index.html` 내 `notranslate` 및 `lang="ko"` 명시, 브라우저 실행 시 `--disable-features=Translate`, `--disable-translate`, `--lang=ko` 인자 주입으로 번역 제안 팝업 차단
 
-10. **🚀 원클릭 GitHub 동기화 파이프라인 (`sync-github.sh` & `github-push.bat`)**
+11. **🚀 원클릭 GitHub 동기화 파이프라인 (`sync-github.sh` & `github-push.bat`)**
     - CLI/Bash 및 Windows 환경 모두에서 단 1회 명령으로 로컬 변경 사항을 커밋하고 GitHub Actions CI/CD를 호출하여 빌드 자동화
 
 ---
 
 ## 🏗️ 시스템 아키텍처 (System Architecture)
 
-```
-[ Browser / Capacitor WebView ] <--- HTTP / SSE (Dev :3000 -> Go :8081 / Standalone :3031) ---> [ Go Backend Engine ]
-         │                                                                                            │
-  React 19 + Vite                                                                         12 Native C/C++ DLL Bridges (Path-Pinned)
-  Tailwind CSS v4                                                                         - grid_topology_guard.dll (v2.6.1 O(N) Hash & Proxy-ARP)
-  OUI Semantic + Proxy-ARP UI                                                             - grid_probe_engine.dll / grid_port_iocp.dll (Async/IOCP)
-  jsPDF & html2canvas (A4 Engine)                                                         - grid_vault_driver.dll / secure_vault.dll (PBKDF2+GCM)
+```text
+[ Browser / Electron / Capacitor ] <--- HTTP / SSE / Tray Sync ---> [ Go Backend & Autonomous Tray Core ]
+          │                                                                     │
+  React 19 + Vite + Tailwind v4                                   tray_engine.go (10s Daemon, DND/Cooldown)
+  ReportCenterModal & Diff v2                                     utils_windows.go (ARGB Badge HICON & SCM)
+  PreferencesTrayModal (Alert/Service)                            12 Native C/C++ DLL Bridges (Path-Pinned)
+  OUI Semantic + Proxy-ARP UI                                     - grid_topology_guard.dll (v2.6.1 O(N) Hash)
+  jsPDF & Multi-Sheet Excel Engine                                - grid_probe_engine / port_iocp / vault v2.6
 ```
 
 ---
@@ -83,6 +91,15 @@
 ```bash
 npm install
 npm run dev
+```
+
+### 무인 트레이 / Windows 서비스 실행 옵션
+```cmd
+:: 창 없이 시스템 트레이로 조용히 시작 (Windows 부팅 자동 시작 기본 인자)
+Grid_IP_Scanner2.exe --tray
+
+:: Windows 서비스 제어 관리자(SCM) 모드
+Grid_IP_Scanner2.exe --service
 ```
 
 ### 버전에 따른 동기화 빌드 (SSOT Version Sync & Build)
@@ -120,16 +137,19 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (v2.5.0 최신화)
-- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.5.0)
+- [`docs/README.md`](docs/README.md) : 전체 기술 문서 저장소 총괄 허브 (v2.5.0)
+- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-18 최신화)
+- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (트레이·서비스·모달 구조 개선 반영)
+- [`docs/SCHEDULED_SCAN_SPEC.md`](docs/SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
+- [`docs/SNAPSHOT_DIFF_SPEC.md`](docs/SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2 및 1:1 대조 스튜디오 명세서
 - [`docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`](docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md) : 순수 창작 `grid_topology_guard.dll` 명세 및 12대 DLL 감사·하드닝 보고서
 - [`docs/GOOGLE_BLOGGER_POST.md`](docs/GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`)
 - [`docs/GOOGLE_BLOGGER_POST.html`](docs/GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]`)
-- [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.5.0)
+- [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](docs/MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](docs/A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](docs/FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.5.0)
-- [`docs/GRID_IP_SCANNER_2.md`](docs/GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.5.0)
+- [`docs/FILE_STRUCTURE_GUIDE.md`](docs/FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (모듈 분리·데드코드 정리 반영)
+- [`docs/GRID_IP_SCANNER_2.md`](docs/GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (최신화)
 - [`docs/VERSIONING_POLICY.md`](docs/VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
 - [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](docs/DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](docs/V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드

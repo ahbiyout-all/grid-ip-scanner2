@@ -19,6 +19,7 @@ import {
   WifiOff,
   Server,
   Zap,
+  HelpCircle,
 } from 'lucide-react';
 import { ScanSnapshot, ScanResult, DiffStatus, DiffItem } from '../types';
 import { computeSnapshotDiff, exportDiffToCSV, updateSnapshotLabel, deleteSnapshot } from '../services/diffEngine';
@@ -79,6 +80,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
   const [editLabelInput, setEditLabelInput] = useState('');
   const [newSnapLabelInput, setNewSnapLabelInput] = useState('');
   const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Sync baseline Source A when modal opens or snapshots change
   useEffect(() => {
@@ -327,6 +329,18 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowGuide(!showGuide)}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                showGuide
+                  ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400'
+                  : 'hover:bg-black/5 dark:hover:bg-white/5 border-current/15 opacity-80 hover:opacity-100'
+              }`}
+              title={isEn ? 'How to use Snapshot Diff & Color Legend' : '스냅샷 비교 사용법 및 색상 범례'}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Guide' : '사용법'}</span>
+            </button>
+            <button
               onClick={() => setShowSavePrompt(!showSavePrompt)}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               title={isEn ? "Save current live scan results as a new snapshot" : "현재 스캔 상태를 새 스냅샷으로 즉시 저장"}
@@ -342,6 +356,35 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Collapsible 3-Step Guide & Color Legend */}
+        {showGuide && (
+          <div className={`px-5 py-3 border-b ${cardBg} text-xs space-y-2.5 animate-in fade-in duration-150`}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+                <div className="font-bold text-indigo-400">01. {isEn ? 'Capture Baseline' : '정상 기준점 저장'}</div>
+                <p className="text-[11px] opacity-75 mt-0.5">
+                  {isEn ? 'Save a snapshot when your network state is healthy.' : '정상 상태일 때 새 스냅샷을 저장해 기준점을 만듭니다.'}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+                <div className="font-bold text-sky-400">02. {isEn ? 'Re-scan & Compare' : '재스캔 후 시점 대조'}</div>
+                <p className="text-[11px] opacity-75 mt-0.5">
+                  {isEn ? 'Run a later scan and select Baseline [A] vs Target [B].' : '이후 재스캔 뒤 기준점[A]과 대조 대상[B]을 선택합니다.'}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-lg border border-current/10 bg-black/5 dark:bg-black/20">
+                <div className="font-bold text-purple-400">03. {isEn ? 'Review Color Legend' : '색상별 변동 진단'}</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10.5px] font-bold">
+                  <span className="text-emerald-500">+NEW {isEn ? 'New' : '신규'}</span>
+                  <span className="text-rose-500">-OFF {isEn ? 'Gone' : '이탈'}</span>
+                  <span className="text-amber-500">!CHG {isEn ? 'Changed' : '변동'}</span>
+                  <span className="opacity-65">=SAME {isEn ? 'Same' : '동일'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Snapshot Save Prompt Bar */}
         {showSavePrompt && (

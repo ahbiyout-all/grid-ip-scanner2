@@ -247,13 +247,44 @@ export async function getClientLocalIP(): Promise<{ ip: string; subnet: string }
   });
 }
 
+import type {
+  TrayAlertPolicy,
+  TrayEventRecord,
+  TrayRuntimeSnapshot,
+  TrayScheduleSummary,
+  WindowsServiceRuntimeState,
+} from '../types';
+
+export const DEFAULT_TRAY_ALERT_POLICY: TrayAlertPolicy = {
+  notifyOnIntruder: true,
+  notifyOnIpConflict: true,
+  notifyOnMassOffline: true,
+  massOfflineMinCount: 3,
+  massOfflineDropPercent: 30,
+  dedupCooldownMinutes: 5,
+  dndEnabled: false,
+  dndUntilMs: 0,
+  quietHoursEnabled: false,
+  quietStart: '23:00',
+  quietEnd: '07:00',
+  silentBoot: false,
+};
+
 /**
  * Triggers legacy Windows OS network utility endpoints (ipconfig /flushdns, ncpa.cpl, firewall, autostart registry, windows service).
  */
 export async function executeWindowsUtility(
   action: 'flushdns' | 'ncpa.cpl' | 'firewall' | 'autostart' | 'service-status' | 'service-install' | 'service-stop',
   enable?: boolean
-): Promise<{ success: boolean; message: string; enabled?: boolean; installed?: boolean }> {
+): Promise<{
+  success: boolean;
+  message: string;
+  enabled?: boolean;
+  installed?: boolean;
+  running?: boolean;
+  serviceState?: WindowsServiceRuntimeState;
+  error?: string;
+}> {
   try {
     let url = getApiUrl(`/api/windows-util?action=${action}`);
     if (enable !== undefined) {
@@ -267,4 +298,177 @@ export async function executeWindowsUtility(
     // Ignore network error
   }
   return { success: false, message: 'Windows 유틸리티 실행 중 오류가 발생했습니다.' };
+}
+
+export async function fetchTrayRuntimeState(options?: {
+  consumeActions?: boolean;
+  refresh?: boolean;
+}): Promise<TrayRuntimeSnapshot | null> {
+  try {
+    const params = new URLSearchParams();
+    if (options?.consumeActions) params.set('consumeActions', '1');
+    if (options?.refresh) params.set('refresh', '1');
+    const qs = params.toString();
+    const res = await fetch(getApiUrl(`/api/tray/state${qs ? `?${qs}` : ''}`), {
+      signal: safeTimeout(2500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.state) {
+        return data.state as TrayRuntimeSnapshot;
+      }
+    }
+  } catch {
+    // Go backend unavailable or preview mode
+  }
+  return null;
+}
+
+export async function syncTrayRuntimeState(payload: {
+  watchEnabled?: boolean;
+  schedulerPaused?: boolean;
+  isScanning?: boolean;
+  scanProgressPercent?: number;
+  activeDeviceCount?: number;
+  intruderCount?: number;
+  conflictCount?: number;
+  statusMessage?: string;
+  subnet?: string;
+  startIp?: number;
+  endIp?: number;
+  trustedKeys?: string[];
+  schedules?: TrayScheduleSummary[];
+  consumeActions?: boolean;
+}): Promise<TrayRuntimeSnapshot | null> {
+  try {
+    const { consumeActions, ...body } = payload;
+    const url = getApiUrl(`/api/tray/state${consumeActions ? '?consumeActions=1' : ''}`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: safeTimeout(2500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.state) {
+        return data.state as TrayRuntimeSnapshot;
+      }
+    }
+  } catch {
+    // Ignore network error
+  }
+  return null;
+}
+
+export async function updateTrayAlertPolicy(policy: TrayAlertPolicy): Promise<TrayRuntimeSnapshot | null> {
+  try {
+    const res = await fetch(getApiUrl('/api/tray/config'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(policy),
+      signal: safeTimeout(3000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.state) {
+        return data.state as TrayRuntimeSnapshot;
+      }
+    }
+  } catch {
+    // Ignore network error
+  }
+  return null;
+}
+
+export async function triggerTrayAction(
+  action:
+    | 'quick_scan'
+    | 'toggle_watch'
+    | 'toggle_scheduler_pause'
+    | 'run_schedule_now'
+    | 'toggle_dnd'
+    | 'dnd_30m'
+    | 'open_intruder_log'
+    | 'open_scheduler',
+  payload?: string
+): Promise<{ success: boolean; message?: string; state?: TrayRuntimeSnapshot }> {
+  try {
+    const res = await fetch(getApiUrl('/api/tray/action'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload: payload || '' }),
+      signal: safeTimeout(3500),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Ignore
+  }
+  return { success: false };
+}
+
+export async function reportTrayEvents(
+  events: Array<{
+    type: 'intruder' | 'ip_conflict' | 'mass_offline' | 'scheduler' | 'system';
+    severity: 'critical' | 'warning' | 'info';
+    dedupKey: string;
+    title: string;
+    message: string;
+    ip?: string;
+    mac?: string;
+  }>
+): Promise<TrayEventRecord[]> {
+  if (!events.length) return [];
+  try {
+    const res = await fetch(getApiUrl('/api/tray/report-events'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+      signal: safeTimeout(3000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.recorded)) {
+        return data.recorded as TrayEventRecord[];
+      }
+    }
+  } catch {
+    // Ignore
+  }
+  return [];
+}
+
+export async function clearTrayEventsLog(): Promise<boolean> {
+  try {
+    const res = await fetch(getApiUrl('/api/tray/events'), {
+      method: 'DELETE',
+      signal: safeTimeout(2500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function sendTrayTestNotification(params?: {
+  severity?: 'critical' | 'warning' | 'info';
+  title?: string;
+  message?: string;
+}): Promise<{ success: boolean; notified?: boolean; event?: TrayEventRecord }> {
+  try {
+    const res = await fetch(getApiUrl('/api/tray/test-notify'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {}),
+      signal: safeTimeout(3000),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Ignore
+  }
+  return { success: false };
 }

@@ -217,6 +217,8 @@ var (
 	currentOUIProvider   OUIProvider
 	currentOUISource     string
 	ouiMutex             sync.RWMutex
+	ouiFileMutex         sync.Mutex
+	aliasesMutex         sync.RWMutex
 	lastHeartbeat        = time.Now()
 	heartbeatMutex       sync.Mutex
 	tempDir              string
@@ -227,6 +229,25 @@ var (
 	windowConnected      = true
 	windowConnectedMutex sync.Mutex
 )
+
+func selectDeepBannerString(b *DeepBannerInfo) string {
+	if b == nil {
+		return ""
+	}
+	if b.ServerHeader != "" {
+		return b.ServerHeader
+	}
+	if b.SshBanner != "" {
+		return b.SshBanner
+	}
+	if b.RtspServer != "" {
+		return b.RtspServer
+	}
+	if b.HtmlTitle != "" {
+		return b.HtmlTitle
+	}
+	return ""
+}
 
 func getOUICachePath() string {
 	homeDir, err := os.UserHomeDir()
@@ -1754,8 +1775,35 @@ func ensureFirewallRulesSilently() {
 }
 
 func main() {
+	startInTray := false
+	runAsService := false
+	cliPort := ""
+	for _, arg := range os.Args[1:] {
+		lower := strings.ToLower(strings.TrimSpace(arg))
+		switch {
+		case lower == "--tray" || lower == "/tray":
+			startInTray = true
+		case lower == "--service" || lower == "/service":
+			runAsService = true
+		case strings.HasPrefix(lower, "--port="):
+			cliPort = strings.TrimSpace(strings.TrimPrefix(arg, "--port="))
+		}
+	}
+
+	globalTrayMgr.mu.Lock()
+	globalTrayMgr.runningInTrayMode = startInTray
+	globalTrayMgr.runningAsService = runAsService
+	globalTrayMgr.mu.Unlock()
+
+	if startInTray || runAsService {
+		windowConnectedMutex.Lock()
+		windowConnected = false
+		windowConnectedMutex.Unlock()
+	}
+
 	initOUIProvider()
 	ensureFirewallRulesSilently()
+	registerTrayHTTPHandlers()
 
 	// Heartbeat endpoint
 	http.HandleFunc("/api/heartbeat", func(w http.ResponseWriter, r *http.Request) {
@@ -1937,9 +1985,11 @@ func main() {
 			return
 		}
 
-		// Save to cache
+		// Save to cache under file mutex to prevent concurrent OUI reload/write races
+		ouiFileMutex.Lock()
 		cachePath := getOUICachePath()
 		if err := os.WriteFile(cachePath, body, 0644); err != nil {
+			ouiFileMutex.Unlock()
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
@@ -1949,6 +1999,8 @@ func main() {
 		}
 
 		initOUIProvider()
+		ouiFileMutex.Unlock()
+
 		ouiMutex.RLock()
 		newCount := 0
 		if currentOUIProvider != nil {
@@ -2066,8 +2118,10 @@ func main() {
 		}
 
 		finalBody := []byte(combinedStr)
+		ouiFileMutex.Lock()
 		cachePath := getOUICachePath()
 		if err := os.WriteFile(cachePath, finalBody, 0644); err != nil {
+			ouiFileMutex.Unlock()
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
@@ -2077,6 +2131,7 @@ func main() {
 		}
 
 		initOUIProvider()
+		ouiFileMutex.Unlock()
 
 		ouiMutex.RLock()
 		newCount := 0
@@ -2098,8 +2153,18 @@ func main() {
 
 	http.HandleFunc("/api/oui/validate-dll", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
 
+		ouiFileMutex.Lock()
 		cachePath := getOUICachePath()
 		var rawData []byte
 		var err error
@@ -2109,6 +2174,7 @@ func main() {
 		} else if len(ouiData) > 0 {
 			rawData = []byte(ouiData)
 		}
+		ouiFileMutex.Unlock()
 
 		if err != nil || len(rawData) == 0 {
 			w.WriteHeader(http.StatusNotFound)
@@ -2125,7 +2191,10 @@ func main() {
 		if ok && len(sanitized) > 0 {
 			// Save sanitized copy if requested
 			if r.URL.Query().Get("save") == "true" {
-				if writeErr := os.WriteFile(cachePath, []byte(sanitized), 0644); writeErr != nil {
+				ouiFileMutex.Lock()
+				writeErr := os.WriteFile(cachePath, []byte(sanitized), 0644)
+				if writeErr != nil {
+					ouiFileMutex.Unlock()
 					w.WriteHeader(http.StatusInternalServerError)
 					json.NewEncoder(w).Encode(map[string]interface{}{
 						"success": false,
@@ -2134,6 +2203,7 @@ func main() {
 					return
 				}
 				initOUIProvider()
+				ouiFileMutex.Unlock()
 			}
 
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2540,6 +2610,7 @@ func main() {
 		}
 
 		if r.Method == http.MethodGet {
+			aliasesMutex.RLock()
 			var data []byte
 			if portableAliasPath != "" {
 				if b, err := os.ReadFile(portableAliasPath); err == nil && len(b) > 0 {
@@ -2551,6 +2622,7 @@ func main() {
 					data = b
 				}
 			}
+			aliasesMutex.RUnlock()
 			if len(data) == 0 {
 				w.Write([]byte("{}"))
 				return
@@ -2570,6 +2642,7 @@ func main() {
 				http.Error(w, `{"error":"Invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
+			aliasesMutex.Lock()
 			saved := false
 			if portableAliasPath != "" {
 				if err := os.WriteFile(portableAliasPath, body, 0644); err == nil {
@@ -2582,6 +2655,7 @@ func main() {
 					saved = true
 				}
 			}
+			aliasesMutex.Unlock()
 			if !saved {
 				http.Error(w, `{"error":"Failed to persist aliases"}`, http.StatusInternalServerError)
 				return
@@ -2969,7 +3043,16 @@ func main() {
 
 	http.HandleFunc("/api/portscan", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
 		ip := r.URL.Query().Get("ip")
 		if ip == "" || net.ParseIP(ip) == nil {
 			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
@@ -3036,16 +3119,8 @@ func main() {
 				}
 
 				bannerStr := ""
-				if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk && bInfo != nil {
-					if bInfo.ServerHeader != "" {
-						bannerStr = bInfo.ServerHeader
-					} else if bInfo.SshBanner != "" {
-						bannerStr = bInfo.SshBanner
-					} else if bInfo.RtspServer != "" {
-						bannerStr = bInfo.RtspServer
-					} else if bInfo.HtmlTitle != "" {
-						bannerStr = bInfo.HtmlTitle
-					}
+				if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
+					bannerStr = selectDeepBannerString(bInfo)
 				}
 
 				openList = append(openList, PortAuditResult{
@@ -3080,12 +3155,8 @@ func main() {
 						}
 
 						bannerStr := ""
-						if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk && bInfo != nil {
-							if bInfo.ServerHeader != "" {
-								bannerStr = bInfo.ServerHeader
-							} else if bInfo.SshBanner != "" {
-								bannerStr = bInfo.SshBanner
-							}
+						if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
+							bannerStr = selectDeepBannerString(bInfo)
 						}
 
 						mu.Lock()
@@ -3266,6 +3337,10 @@ func main() {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
 
 		var inJson string
 		if r.Method == http.MethodPost {
@@ -3351,11 +3426,16 @@ func main() {
 	// Native Subnet Topology Diff, Conflict Hash & LAA Random MAC Guard Endpoint (Module 8: grid_topology_guard.dll)
 	http.HandleFunc("/api/topology-guard", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -3488,15 +3568,19 @@ func main() {
 					})
 					return
 				}
+				globalTrayMgr.refreshWindowsSystemState(true)
+				syncNativeTrayVisuals()
 				json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"enabled": true,
-					"message": "Windows 부팅 시 자동 실행 설정이 활성화되었습니다.",
+					"message": "Windows 부팅 시 창 없이 트레이 조용한 시작(--tray)이 활성화되었습니다.",
 				})
 			} else if enableStr == "false" {
 				cmd := exec.Command("reg", "delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", appName, "/f")
 				hideWindow(cmd)
 				_ = cmd.Run()
+				globalTrayMgr.refreshWindowsSystemState(true)
+				syncNativeTrayVisuals()
 				json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"enabled": false,
@@ -3510,19 +3594,21 @@ func main() {
 				json.NewEncoder(w).Encode(map[string]interface{}{
 					"success": true,
 					"enabled": isEnabled,
-					"message": fmt.Sprintf("부팅 시 자동 실행 상태: %v", isEnabled),
+					"message": fmt.Sprintf("부팅 시 트레이 자동 시작 상태: %v", isEnabled),
 				})
 			}
 
 		case "service-status":
-			cmd := exec.Command("sc.exe", "query", "GridIPScannerService")
-			hideWindow(cmd)
-			err := cmd.Run()
-			isInstalled := (err == nil)
+			svcState, isInstalled, isRunning := queryWindowsServiceState()
+			globalTrayMgr.mu.Lock()
+			globalTrayMgr.serviceState = svcState
+			globalTrayMgr.mu.Unlock()
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success":   true,
-				"installed": isInstalled,
-				"message":   fmt.Sprintf("24/7 윈도우 백그라운드 서비스 설치 상태: %v", isInstalled),
+				"success":      true,
+				"installed":    isInstalled,
+				"running":      isRunning,
+				"serviceState": svcState,
+				"message":      fmt.Sprintf("24/7 윈도우 백그라운드 서비스 상태: %s", svcState),
 			})
 
 		case "service-install":
@@ -3534,32 +3620,50 @@ func main() {
 				})
 				return
 			}
-			cmd := exec.Command("sc.exe", "create", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto", "DisplayName=", "Grid IP Scanner2 24/7 Background Service")
-			hideWindow(cmd)
-			err = cmd.Run()
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"success": false,
-					"error":   "윈도우 서비스 등록 실패: " + err.Error(),
-				})
-				return
+			_, alreadyInstalled, _ := queryWindowsServiceState()
+			if alreadyInstalled {
+				cfgCmd := exec.Command("sc.exe", "config", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto")
+				hideWindow(cfgCmd)
+				_ = cfgCmd.Run()
+			} else {
+				cmd := exec.Command("sc.exe", "create", "GridIPScannerService", "binPath=", fmt.Sprintf("\"%s\" --service", exePath), "start=", "auto", "DisplayName=", "Grid IP Scanner2 24/7 Background Service")
+				hideWindow(cmd)
+				if err := cmd.Run(); err != nil {
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"success": false,
+						"error":   "윈도우 서비스 등록 실패 (관리자 권한 확인 필요): " + err.Error(),
+					})
+					return
+				}
 			}
 			startCmd := exec.Command("sc.exe", "start", "GridIPScannerService")
 			hideWindow(startCmd)
 			_ = startCmd.Run()
+			svcState, isInstalled, isRunning := queryWindowsServiceState()
+			globalTrayMgr.refreshWindowsSystemState(true)
+			syncNativeTrayVisuals()
 
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"message": "Grid IP Scanner2 24시간 백그라운드 윈도우 서비스가 성공적으로 등록 및 시작되었습니다.",
+				"success":      true,
+				"installed":    isInstalled,
+				"running":      isRunning,
+				"serviceState": svcState,
+				"message":      "Grid IP Scanner2 24시간 백그라운드 윈도우 서비스가 등록 및 시작되었습니다.",
 			})
 
 		case "service-stop":
 			stopCmd := exec.Command("sc.exe", "stop", "GridIPScannerService")
 			hideWindow(stopCmd)
 			_ = stopCmd.Run()
+			svcState, isInstalled, isRunning := queryWindowsServiceState()
+			globalTrayMgr.refreshWindowsSystemState(true)
+			syncNativeTrayVisuals()
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"message": "윈도우 백그라운드 서비스가 정지되었습니다.",
+				"success":      true,
+				"installed":    isInstalled,
+				"running":      isRunning,
+				"serviceState": svcState,
+				"message":      "윈도우 백그라운드 서비스가 정지되었습니다.",
 			})
 
 		default:
@@ -3659,7 +3763,10 @@ func main() {
 
 	isPreview := os.Getenv("GRIDSCAN_MODE") == "preview"
 
-	port := os.Getenv("PORT")
+	port := cliPort
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
 	if port == "" {
 		port = defaultPort
 		if isPreview {
@@ -3672,14 +3779,33 @@ func main() {
 		listenAddr = "0.0.0.0:" + port
 	}
 
+	// Start autonomous background monitor & headless scheduler loop across all desktop/tray/service modes
 	if !isPreview {
+		startAutonomousTrayLoop()
+	}
+
+	if !isPreview && !runAsService {
 		// Initialize Windows Taskbar Native System Tray Icon (Shell_NotifyIconW)
 		initNativeSystemTray(port)
 
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			openAppWindow("http://127.0.0.1:" + port)
-		}()
+		if startInTray {
+			fmt.Println("[Tray] Started with --tray flag: staying silently in Windows system tray.")
+			if runtime.GOOS == "windows" && !globalTrayMgr.getSnapshot(false).Policy.SilentBoot {
+				go func() {
+					time.Sleep(800 * time.Millisecond)
+					showTrayBalloonNotificationWithSeverity(
+						"Grid IP Scanner2 트레이 백그라운드 시작",
+						"창 없이 시스템 트레이에서 24/7 침입 감시 및 예약 스케줄러를 시작했습니다.",
+						"info",
+					)
+				}()
+			}
+		} else {
+			go func() {
+				time.Sleep(500 * time.Millisecond)
+				openAppWindow("http://127.0.0.1:" + port)
+			}()
+		}
 
 		// Heartbeat checker: Keep engine alive in system tray when close-to-tray is enabled
 		go func() {
@@ -3706,8 +3832,6 @@ func main() {
 
 				if elapsed > 10*time.Second {
 					if ctt {
-						// Close-to-tray is enabled: DO NOT TERMINATE!
-						// Keep 24/7 intruder watch and scheduler alive in background system tray.
 						windowConnectedMutex.Lock()
 						wasConnected := windowConnected
 						windowConnected = false
@@ -3723,7 +3847,6 @@ func main() {
 							}
 						}
 					} else {
-						// User explicitly disabled close-to-tray: exit cleanly
 						fmt.Println("Close-to-tray is disabled and no heartbeat for 10s. Auto-exiting...")
 						cleanupAndExit()
 					}
@@ -3738,7 +3861,22 @@ func main() {
 
 	guard.StartLANSeatGuard()
 
-	fmt.Printf("Grid IP Scanner2 Engine starting on %s (Preview: %v)\n", listenAddr, isPreview)
+	if runAsService && runtime.GOOS == "windows" {
+		fmt.Printf("Grid IP Scanner2 starting as Windows Service on %s\n", listenAddr)
+		handled := runAsWindowsService("GridIPScannerService", func() {
+			if err := http.ListenAndServe(listenAddr, nil); err != nil {
+				fmt.Printf("Service HTTP server stopped: %v\n", err)
+			}
+		}, func() {
+			cleanupAndExit()
+		})
+		if handled {
+			return
+		}
+		fmt.Println("SCM connect unavailable; falling back to headless foreground service loop.")
+	}
+
+	fmt.Printf("Grid IP Scanner2 Engine starting on %s (Preview: %v, Tray: %v, Service: %v)\n", listenAddr, isPreview, startInTray, runAsService)
 	if err := http.ListenAndServe(listenAddr, nil); err != nil {
 		fmt.Printf("Server failed: %v\n", err)
 	}

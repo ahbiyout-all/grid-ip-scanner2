@@ -533,8 +533,8 @@ func decodeANSI(b []byte) string {
 }
 
 // =====================================================================
-// Win32 Native System Tray (NotifyIcon) Engine
-// Integrates standard Shell_NotifyIconW into standalone Grid_IP_Scanner2.exe
+// Win32 Native System Tray (NotifyIcon) & SCM Service Engine
+// Integrates dynamic state-badged Shell_NotifyIconW & Windows Service SCM
 // =====================================================================
 
 const (
@@ -554,8 +554,11 @@ const (
 	IMAGE_ICON      = 1
 	LR_LOADFROMFILE = 0x00000010
 	LR_DEFAULTSIZE  = 0x00000040
+	DI_NORMAL       = 0x0003
 
 	MF_STRING    = 0x00000000
+	MF_GRAYED    = 0x00000001
+	MF_DISABLED  = 0x00000002
 	MF_POPUP     = 0x00000010
 	MF_SEPARATOR = 0x00000800
 	MF_CHECKED   = 0x00000008
@@ -570,15 +573,34 @@ const (
 	NIIF_WARNING = 0x00000002
 	NIIF_ERROR   = 0x00000003
 
-	IDM_TRAY_OPEN           = 2001
-	IDM_TRAY_STATUS         = 2002
-	IDM_TRAY_INTRUDER       = 2003
-	IDM_TRAY_SCAN           = 2004
-	IDM_TRAY_EXIT           = 2005
-	IDM_TRAY_EMERGENCY_SCAN = 2010
-	IDM_TRAY_FLUSH_DNS      = 2011
-	IDM_TRAY_NCPA           = 2012
-	IDM_TRAY_FIREWALL       = 2013
+	IDM_TRAY_OPEN             = 2001
+	IDM_TRAY_STATUS           = 2002
+	IDM_TRAY_TOGGLE_WATCH     = 2003
+	IDM_TRAY_QUICK_SCAN       = 2004
+	IDM_TRAY_EXIT             = 2005
+	IDM_TRAY_TOGGLE_SCHEDULER = 2006
+	IDM_TRAY_RUN_SCHED_NOW    = 2007
+	IDM_TRAY_TOGGLE_DND       = 2008
+	IDM_TRAY_DND_30M          = 2009
+	IDM_TRAY_EMERGENCY_SCAN   = 2010
+	IDM_TRAY_FLUSH_DNS        = 2011
+	IDM_TRAY_NCPA             = 2012
+	IDM_TRAY_FIREWALL         = 2013
+	IDM_TRAY_OPEN_LOG         = 2014
+	IDM_TRAY_OPEN_SCHEDULER   = 2015
+	IDM_TRAY_SERVICE_STATUS   = 2016
+	IDM_TRAY_TOGGLE_AUTOSTART = 2017
+
+	// Windows SCM Constants
+	SERVICE_WIN32_OWN_PROCESS = 0x00000010
+	SERVICE_STOPPED           = 0x00000001
+	SERVICE_START_PENDING     = 0x00000002
+	SERVICE_STOP_PENDING      = 0x00000003
+	SERVICE_RUNNING           = 0x00000004
+	SERVICE_ACCEPT_STOP       = 0x00000001
+	SERVICE_ACCEPT_SHUTDOWN   = 0x00000004
+	SERVICE_CONTROL_STOP      = 0x00000001
+	SERVICE_CONTROL_SHUTDOWN  = 0x00000005
 )
 
 type NOTIFYICONDATAW struct {
@@ -628,6 +650,43 @@ type MSG struct {
 	Pt      POINT
 }
 
+type BITMAPINFOHEADER struct {
+	BiSize          uint32
+	BiWidth         int32
+	BiHeight        int32
+	BiPlanes        uint16
+	BiBitCount      uint16
+	BiCompression   uint32
+	BiSizeImage     uint32
+	BiXPelsPerMeter int32
+	BiYPelsPerMeter int32
+	BiClrUsed       uint32
+	BiClrImportant  uint32
+}
+
+type ICONINFO struct {
+	FIcon    uint32
+	XHotspot uint32
+	YHotspot uint32
+	HbmMask  uintptr
+	HbmColor uintptr
+}
+
+type SERVICE_TABLE_ENTRYW struct {
+	LpServiceName *uint16
+	LpServiceProc uintptr
+}
+
+type SERVICE_STATUS struct {
+	DwServiceType             uint32
+	DwCurrentState            uint32
+	DwControlsAccepted        uint32
+	DwWin32ExitCode           uint32
+	DwServiceSpecificExitCode uint32
+	DwCheckPoint              uint32
+	DwWaitHint                uint32
+}
+
 var (
 	procShellNotifyIconW    = modshell32.NewProc("Shell_NotifyIconW")
 	procRegisterClassExW    = moduser32.NewProc("RegisterClassExW")
@@ -645,20 +704,38 @@ var (
 	procTrackPopupMenu      = moduser32.NewProc("TrackPopupMenu")
 	procDestroyMenu         = moduser32.NewProc("DestroyMenu")
 	procLoadImageW          = moduser32.NewProc("LoadImageW")
+	procDrawIconEx          = moduser32.NewProc("DrawIconEx")
+	procCreateIconIndirect  = moduser32.NewProc("CreateIconIndirect")
+	procDestroyIcon         = moduser32.NewProc("DestroyIcon")
 	procGetModuleHandleW    = modkernel32.NewProc("GetModuleHandleW")
 
-	procFindWindowW         = moduser32.NewProc("FindWindowW")
-	procShowWindow          = moduser32.NewProc("ShowWindow")
-	procIsWindowVisible     = moduser32.NewProc("IsWindowVisible")
-	procIsIconic            = moduser32.NewProc("IsIconic")
-	procEnumWindows         = moduser32.NewProc("EnumWindows")
-	procGetWindowTextW      = moduser32.NewProc("GetWindowTextW")
+	modgdi32               = syscall.NewLazyDLL(resolveSystemDllPath("gdi32.dll"))
+	procCreateCompatibleDC = modgdi32.NewProc("CreateCompatibleDC")
+	procDeleteDC           = modgdi32.NewProc("DeleteDC")
+	procSelectObject       = modgdi32.NewProc("SelectObject")
+	procDeleteObject       = modgdi32.NewProc("DeleteObject")
+	procCreateDIBSection   = modgdi32.NewProc("CreateDIBSection")
+	procCreateBitmap       = modgdi32.NewProc("CreateBitmap")
+
+	modadvapi32                    = syscall.NewLazyDLL(resolveSystemDllPath("advapi32.dll"))
+	procStartServiceCtrlDispatcher = modadvapi32.NewProc("StartServiceCtrlDispatcherW")
+	procRegisterServiceCtrlHandler = modadvapi32.NewProc("RegisterServiceCtrlHandlerW")
+	procSetServiceStatus           = modadvapi32.NewProc("SetServiceStatus")
+
+	procFindWindowW          = moduser32.NewProc("FindWindowW")
+	procShowWindow           = moduser32.NewProc("ShowWindow")
+	procIsWindowVisible      = moduser32.NewProc("IsWindowVisible")
+	procIsIconic             = moduser32.NewProc("IsIconic")
+	procEnumWindows          = moduser32.NewProc("EnumWindows")
+	procGetWindowTextW       = moduser32.NewProc("GetWindowTextW")
 	procGetWindowTextLengthW = moduser32.NewProc("GetWindowTextLengthW")
 
+	nativeTrayMu     sync.RWMutex
 	nativeTrayHWnd   uintptr
 	nativeTrayIcon   uintptr
 	nativeTrayPort   string
 	nativeTrayActive bool
+	trayBadgeIcons   = make(map[string]uintptr)
 
 	trayOpenMutex    sync.Mutex
 	lastTrayOpenTime time.Time
@@ -738,32 +815,223 @@ func openOrFocusTrayWindow() {
 	lastTrayOpenTime = time.Now()
 	trayOpenMutex.Unlock()
 
+	nativeTrayMu.RLock()
+	port := nativeTrayPort
+	nativeTrayMu.RUnlock()
+
 	go func() {
 		if !focusExistingAppWindow() {
-			if nativeTrayPort != "" {
-				openAppWindow("http://127.0.0.1:" + nativeTrayPort)
+			if port != "" {
+				openAppWindow("http://127.0.0.1:" + port)
 			}
 		}
 	}()
 }
 
-// showTrayBalloonNotification displays a native Windows Tray Balloon Tooltip (Shell_NotifyIconW with NIF_INFO)
-func showTrayBalloonNotification(title, message string) {
-	if nativeTrayHWnd == 0 {
+// buildBadgedTrayIcon creates a 32x32 ARGB HICON compositing a crisp status dot badge over the base icon.
+func buildBadgedTrayIcon(baseIcon uintptr, mode string) uintptr {
+	const size = 32
+	if procCreateDIBSection.Find() != nil || procCreateIconIndirect.Find() != nil {
+		return baseIcon
+	}
+
+	hdc, _, _ := procCreateCompatibleDC.Call(0)
+	if hdc == 0 {
+		return baseIcon
+	}
+	defer procDeleteDC.Call(hdc)
+
+	var bmi BITMAPINFOHEADER
+	bmi.BiSize = uint32(unsafe.Sizeof(bmi))
+	bmi.BiWidth = size
+	bmi.BiHeight = -size // top-down DIB
+	bmi.BiPlanes = 1
+	bmi.BiBitCount = 32
+	bmi.BiCompression = 0
+
+	var bitsPtr uintptr
+	colorBmp, _, _ := procCreateDIBSection.Call(hdc, uintptr(unsafe.Pointer(&bmi)), 0, uintptr(unsafe.Pointer(&bitsPtr)), 0, 0)
+	if colorBmp == 0 || bitsPtr == 0 {
+		return baseIcon
+	}
+	defer procDeleteObject.Call(colorBmp)
+
+	oldObj, _, _ := procSelectObject.Call(hdc, colorBmp)
+
+	// Zero-fill transparent canvas before drawing base icon
+	pixels := unsafe.Slice((*uint32)(unsafe.Pointer(bitsPtr)), size*size)
+	for i := range pixels {
+		pixels[i] = 0
+	}
+
+	if baseIcon != 0 && procDrawIconEx.Find() == nil {
+		procDrawIconEx.Call(hdc, 0, 0, baseIcon, size, size, 0, 0, DI_NORMAL)
+	} else {
+		// Draw clean fallback radar square if base icon wasn't loaded from disk
+		for y := 4; y < 28; y++ {
+			for x := 4; x < 28; x++ {
+				if x == 4 || x == 27 || y == 4 || y == 27 {
+					pixels[y*size+x] = 0xFF38BDF8
+				} else {
+					pixels[y*size+x] = 0xFF0F172A
+				}
+			}
+		}
+	}
+
+	// Select semantic badge color (BGRA in little-endian uint32: 0xAARRGGBB)
+	var badgeColor uint32 = 0xFF64748B // standby slate
+	switch mode {
+	case "alert":
+		badgeColor = 0xFFEF4444 // crimson alert
+	case "scanning":
+		badgeColor = 0xFFF59E0B // amber scanning
+	case "watching":
+		badgeColor = 0xFF10B981 // emerald active watch
+	}
+
+	// Paint 12px circular status badge at bottom-right corner (center 24.5, 24.5) with dark outline
+	const cx = 24.5
+	const cy = 24.5
+	const rOuter = 6.8
+	const rInner = 4.9
+	for y := 16; y < size; y++ {
+		for x := 16; x < size; x++ {
+			dx := float64(x) - cx
+			dy := float64(y) - cy
+			dist2 := dx*dx + dy*dy
+			if dist2 <= rInner*rInner {
+				pixels[y*size+x] = badgeColor
+			} else if dist2 <= rOuter*rOuter {
+				pixels[y*size+x] = 0xFF09090B
+			}
+		}
+	}
+
+	procSelectObject.Call(hdc, oldObj)
+
+	maskBmp, _, _ := procCreateBitmap.Call(size, size, 1, 1, 0)
+	if maskBmp == 0 {
+		return baseIcon
+	}
+	defer procDeleteObject.Call(maskBmp)
+
+	var ii ICONINFO
+	ii.FIcon = 1
+	ii.HbmMask = maskBmp
+	ii.HbmColor = colorBmp
+	newIcon, _, _ := procCreateIconIndirect.Call(uintptr(unsafe.Pointer(&ii)))
+	if newIcon == 0 {
+		return baseIcon
+	}
+	return newIcon
+}
+
+func getTrayIconForMode(mode string) uintptr {
+	nativeTrayMu.Lock()
+	defer nativeTrayMu.Unlock()
+
+	if cached, ok := trayBadgeIcons[mode]; ok && cached != 0 {
+		return cached
+	}
+	badged := buildBadgedTrayIcon(nativeTrayIcon, mode)
+	if badged != 0 {
+		trayBadgeIcons[mode] = badged
+		return badged
+	}
+	return nativeTrayIcon
+}
+
+func setUTF16FixedTip(dst []uint16, text string) {
+	runes := []rune(text)
+	maxChars := len(dst) - 1
+	if len(runes) > maxChars {
+		runes = append(runes[:maxChars-3], '.', '.', '.')
+	}
+	u16, _ := syscall.UTF16FromString(string(runes))
+	for i := range dst {
+		dst[i] = 0
+	}
+	copy(dst[:maxChars], u16)
+}
+
+func buildDynamicTrayTooltip(snap TrayRuntimeSnapshot) string {
+	dndTag := ""
+	if snap.DndActive {
+		dndTag = " [방해금지]"
+	}
+	switch snap.Mode {
+	case "alert":
+		return fmt.Sprintf("Grid IP Scanner2 · 경고(침입 %d / 충돌 %d)%s", snap.IntruderCount, snap.ConflictCount, dndTag)
+	case "scanning":
+		return fmt.Sprintf("Grid IP Scanner2 · 스캔 %d%% 진행 중%s", snap.ScanProgressPercent, dndTag)
+	case "watching":
+		return fmt.Sprintf("Grid IP Scanner2 · 24/7 감시(활성 %d대)%s", snap.ActiveDeviceCount, dndTag)
+	default:
+		return fmt.Sprintf("Grid IP Scanner2 · 트레이 대기 중%s", dndTag)
+	}
+}
+
+// syncNativeTrayVisuals updates the Windows taskbar tray icon badge and dynamic tooltip immediately.
+func syncNativeTrayVisuals() {
+	nativeTrayMu.RLock()
+	trayHWnd := nativeTrayHWnd
+	active := nativeTrayActive
+	nativeTrayMu.RUnlock()
+	if !active || trayHWnd == 0 {
 		return
 	}
+
+	snap := globalTrayMgr.getSnapshot(false)
+	hIcon := getTrayIconForMode(snap.Mode)
+	tipText := buildDynamicTrayTooltip(snap)
+
 	var nid NOTIFYICONDATAW
 	nid.CbSize = uint32(unsafe.Sizeof(nid))
-	nid.HWnd = nativeTrayHWnd
+	nid.HWnd = trayHWnd
+	nid.UID = 1001
+	nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
+	nid.UCallbackMessage = WM_TRAY_CALLBACK
+	nid.HIcon = hIcon
+	setUTF16FixedTip(nid.SzTip[:], tipText)
+
+	procShellNotifyIconW.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
+}
+
+// showTrayBalloonNotification displays a standard INFO tray balloon tooltip.
+func showTrayBalloonNotification(title, message string) {
+	showTrayBalloonNotificationWithSeverity(title, message, "info")
+}
+
+// showTrayBalloonNotificationWithSeverity displays a Windows Tray Balloon Tooltip with severity icon (NIIF_ERROR/WARNING/INFO).
+func showTrayBalloonNotificationWithSeverity(title, message, severity string) {
+	nativeTrayMu.RLock()
+	trayHWnd := nativeTrayHWnd
+	nativeTrayMu.RUnlock()
+	if trayHWnd == 0 {
+		return
+	}
+
+	snap := globalTrayMgr.getSnapshot(false)
+	hIcon := getTrayIconForMode(snap.Mode)
+
+	var nid NOTIFYICONDATAW
+	nid.CbSize = uint32(unsafe.Sizeof(nid))
+	nid.HWnd = trayHWnd
 	nid.UID = 1001
 	nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO
 	nid.UCallbackMessage = WM_TRAY_CALLBACK
-	nid.HIcon = nativeTrayIcon
-	nid.DwInfoFlags = NIIF_INFO
+	nid.HIcon = hIcon
+	switch severity {
+	case "critical":
+		nid.DwInfoFlags = NIIF_ERROR
+	case "warning":
+		nid.DwInfoFlags = NIIF_WARNING
+	default:
+		nid.DwInfoFlags = NIIF_INFO
+	}
 
-	tipStr := "Grid IP Scanner2 - 24/7 침입 감시 & 스캐너 가동 중"
-	tipU16, _ := syscall.UTF16FromString(tipStr)
-	copy(nid.SzTip[:], tipU16)
+	setUTF16FixedTip(nid.SzTip[:], buildDynamicTrayTooltip(snap))
 
 	titleUTF16, err := syscall.UTF16FromString(title)
 	if err == nil {
@@ -782,59 +1050,123 @@ func showTrayBalloonNotification(title, message string) {
 	procShellNotifyIconW.Call(NIM_MODIFY, uintptr(unsafe.Pointer(&nid)))
 }
 
+func appendWinMenuString(hMenu uintptr, flags uintptr, id uintptr, label string) {
+	ptr, _ := syscall.UTF16PtrFromString(label)
+	procAppendMenuW.Call(hMenu, flags, id, uintptr(unsafe.Pointer(ptr)))
+}
+
 func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
 	switch msg {
 	case WM_TRAY_CALLBACK:
 		switch lparam {
 		case WM_LBUTTONUP, WM_LBUTTONDBLCLK:
-			// Left click or double click: Bring existing window to front or open new instance if none exists (with 1500ms debounce)
 			openOrFocusTrayWindow()
 			return 0
 
 		case WM_RBUTTONUP:
-			// Right click: Display Native Context Menu
 			var pt POINT
 			procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
 			procSetForegroundWindow.Call(hwnd)
 
+			snap := globalTrayMgr.getSnapshot(false)
 			hMenu, _, _ := procCreatePopupMenu.Call()
 			if hMenu != 0 {
-				titlePtr, _ := syscall.UTF16PtrFromString("🌐 Grid IP Scanner2 열기")
-				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_OPEN, uintptr(unsafe.Pointer(titlePtr)))
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_OPEN, "🌐 Grid IP Scanner2 메인 창 열기")
 
-				statusPtr, _ := syscall.UTF16PtrFromString("🟢 24/7 백그라운드 침입 감시 가동 중")
-				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_STATUS, uintptr(unsafe.Pointer(statusPtr)))
+				// Live summary status rows
+				statusLine := "⚪ 상태: 대기 중 (Standby)"
+				switch snap.Mode {
+				case "alert":
+					statusLine = fmt.Sprintf("🚨 경고: 미확인 %d대 · 충돌 %d건 · 활성 %d대", snap.IntruderCount, snap.ConflictCount, snap.ActiveDeviceCount)
+				case "scanning":
+					statusLine = fmt.Sprintf("⚡ 스캔 중 (%d%%) · 활성 %d대", snap.ScanProgressPercent, snap.ActiveDeviceCount)
+				case "watching":
+					statusLine = fmt.Sprintf("🟢 24/7 감시 중 · 활성 %d대 · 이상 없음", snap.ActiveDeviceCount)
+				}
+				appendWinMenuString(hMenu, MF_STRING|MF_GRAYED, IDM_TRAY_STATUS, statusLine)
+
+				schedInfo := "⏱️ 예약 스케줄: 등록 없음"
+				if snap.SchedulerPaused {
+					schedInfo = fmt.Sprintf("⏸️ 스케줄러 일시정지 (%d개 대기)", snap.ActiveScheduleCount)
+				} else if snap.ActiveScheduleCount > 0 {
+					nextStr := ""
+					if snap.NextScheduleAtMs > 0 {
+						nextStr = " · 다음 " + time.UnixMilli(snap.NextScheduleAtMs).Format("15:04")
+					}
+					schedInfo = fmt.Sprintf("⏱️ 스케줄 가동 (%d개%s)", snap.ActiveScheduleCount, nextStr)
+				}
+				appendWinMenuString(hMenu, MF_STRING|MF_GRAYED, 0, schedInfo)
 
 				procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
 
-				scanPtr, _ := syscall.UTF16PtrFromString("⚡ 네트워크 스캔 화면 열기")
-				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_SCAN, uintptr(unsafe.Pointer(scanPtr)))
+				// Primary tray quick actions
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_QUICK_SCAN, "⚡ 백그라운드 즉시 스캔 실행")
 
-				// Build Submenu: 🛠️ Windows OS 레거시 대응 도구
+				watchFlag := uintptr(MF_STRING | MF_UNCHECKED)
+				if snap.WatchEnabled {
+					watchFlag = MF_STRING | MF_CHECKED
+				}
+				appendWinMenuString(hMenu, watchFlag, IDM_TRAY_TOGGLE_WATCH, "🚨 24/7 백그라운드 침입 감시")
+
+				if snap.SchedulerPaused {
+					appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_TOGGLE_SCHEDULER, "▶️ 활성 스케줄러 재개")
+				} else {
+					appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_TOGGLE_SCHEDULER, "⏸️ 활성 스케줄러 일시정지")
+				}
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_RUN_SCHED_NOW, "⏭️ 예약 스케줄 즉시 실행")
+
+				// DND Submenu
+				hDndMenu, _, _ := procCreatePopupMenu.Call()
+				if hDndMenu != 0 {
+					dndCheck := uintptr(MF_STRING | MF_UNCHECKED)
+					if snap.DndActive {
+						dndCheck = MF_STRING | MF_CHECKED
+					}
+					appendWinMenuString(hDndMenu, dndCheck, IDM_TRAY_TOGGLE_DND, "🔕 방해금지 모드 켜기/해제")
+					appendWinMenuString(hDndMenu, MF_STRING, IDM_TRAY_DND_30M, "⏳ 30분 동안 알림 무음 (DND)")
+					dndLabel := "🔕 방해금지 알림 제어"
+					if snap.DndActive {
+						dndLabel = "🔕 방해금지 적용 중 (DND ON)"
+					}
+					dndTitlePtr, _ := syscall.UTF16PtrFromString(dndLabel)
+					procAppendMenuW.Call(hMenu, MF_POPUP, hDndMenu, uintptr(unsafe.Pointer(dndTitlePtr)))
+				}
+
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_OPEN_LOG, fmt.Sprintf("📋 최근 감시 이벤트 보기 (%d건)", len(snap.RecentEvents)))
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_OPEN_SCHEDULER, "📅 정기 자동 스케줄러 열기")
+
+				procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
+
+				// Windows OS & Service Submenu
 				hSubMenu, _, _ := procCreatePopupMenu.Call()
 				if hSubMenu != 0 {
-					emgScanPtr, _ := syscall.UTF16PtrFromString("📄 구형 OS 긴급 IP 스캔 & 보고서 생성")
-					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_EMERGENCY_SCAN, uintptr(unsafe.Pointer(emgScanPtr)))
-
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_EMERGENCY_SCAN, "📄 구형 OS 긴급 IP 스캔 & 메모장 보고서")
+					procAppendMenuW.Call(hSubMenu, MF_SEPARATOR, 0, 0)
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_FLUSH_DNS, "⚡ DNS 캐시 즉시 초기화 (flushdns)")
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_NCPA, "🌐 네트워크 어댑터 제어판 (ncpa.cpl)")
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_FIREWALL, "🛡️ Windows 방화벽 기본 복원 (reset)")
 					procAppendMenuW.Call(hSubMenu, MF_SEPARATOR, 0, 0)
 
-					dnsPtr, _ := syscall.UTF16PtrFromString("⚡ DNS 캐시 즉시 초기화 (flushdns)")
-					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_FLUSH_DNS, uintptr(unsafe.Pointer(dnsPtr)))
+					svcLabel := "🔄 Windows 서비스 상태: 미설치 (확인)"
+					if snap.ServiceState == "running" {
+						svcLabel = "🟢 Windows 24/7 서비스: 실행 중 (확인)"
+					} else if snap.ServiceState == "stopped" {
+						svcLabel = "🟡 Windows 24/7 서비스: 중지됨 (확인)"
+					}
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_SERVICE_STATUS, svcLabel)
 
-					ncpaPtr, _ := syscall.UTF16PtrFromString("🌐 네트워크 어댑터 제어판 (ncpa.cpl)")
-					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_NCPA, uintptr(unsafe.Pointer(ncpaPtr)))
+					autoFlag := uintptr(MF_STRING | MF_UNCHECKED)
+					if snap.AutoStartEnabled {
+						autoFlag = MF_STRING | MF_CHECKED
+					}
+					appendWinMenuString(hSubMenu, autoFlag, IDM_TRAY_TOGGLE_AUTOSTART, "🚀 부팅 시 창 없이 트레이로 조용히 시작 (--tray)")
 
-					fwPtr, _ := syscall.UTF16PtrFromString("🛡️ Windows 방화벽 기본 복원 (reset)")
-					procAppendMenuW.Call(hSubMenu, MF_STRING, IDM_TRAY_FIREWALL, uintptr(unsafe.Pointer(fwPtr)))
-
-					subTitlePtr, _ := syscall.UTF16PtrFromString("🛠️ Windows OS 레거시 대응 도구")
+					subTitlePtr, _ := syscall.UTF16PtrFromString("🛠️ Windows OS 및 서비스 관리")
 					procAppendMenuW.Call(hMenu, MF_POPUP, hSubMenu, uintptr(unsafe.Pointer(subTitlePtr)))
 				}
 
 				procAppendMenuW.Call(hMenu, MF_SEPARATOR, 0, 0)
-
-				exitPtr, _ := syscall.UTF16PtrFromString("🛑 프로그램 완전 종료")
-				procAppendMenuW.Call(hMenu, MF_STRING, IDM_TRAY_EXIT, uintptr(unsafe.Pointer(exitPtr)))
+				appendWinMenuString(hMenu, MF_STRING, IDM_TRAY_EXIT, "🛑 프로그램 완전 종료")
 
 				cmd, _, _ := procTrackPopupMenu.Call(
 					hMenu,
@@ -845,15 +1177,60 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					hwnd,
 					0,
 				)
-
-				if hSubMenu != 0 {
-					procDestroyMenu.Call(hSubMenu)
-				}
 				procDestroyMenu.Call(hMenu)
 
 				switch cmd {
-				case IDM_TRAY_OPEN, IDM_TRAY_SCAN:
+				case IDM_TRAY_OPEN:
 					openOrFocusTrayWindow()
+				case IDM_TRAY_QUICK_SCAN:
+					go globalTrayMgr.executeTrayCommand("quick_scan", "", true)
+				case IDM_TRAY_TOGGLE_WATCH:
+					go globalTrayMgr.executeTrayCommand("toggle_watch", "", true)
+				case IDM_TRAY_TOGGLE_SCHEDULER:
+					go globalTrayMgr.executeTrayCommand("toggle_scheduler_pause", "", true)
+				case IDM_TRAY_RUN_SCHED_NOW:
+					go globalTrayMgr.executeTrayCommand("run_schedule_now", "", true)
+				case IDM_TRAY_TOGGLE_DND:
+					go globalTrayMgr.executeTrayCommand("toggle_dnd", "", true)
+				case IDM_TRAY_DND_30M:
+					go globalTrayMgr.executeTrayCommand("dnd_30m", "", true)
+				case IDM_TRAY_OPEN_LOG:
+					go globalTrayMgr.executeTrayCommand("open_intruder_log", "", true)
+				case IDM_TRAY_OPEN_SCHEDULER:
+					go globalTrayMgr.executeTrayCommand("open_scheduler", "", true)
+				case IDM_TRAY_SERVICE_STATUS:
+					go func() {
+						globalTrayMgr.refreshWindowsSystemState(true)
+						st := globalTrayMgr.getSnapshot(false).ServiceState
+						desc := "미설치 상태입니다. 환경설정 > 24/7 서비스 등록으로 설치할 수 있습니다."
+						if st == "running" {
+							desc = "GridIPScannerService가 Session 0에서 정상 실행 중입니다."
+						} else if st == "stopped" {
+							desc = "GridIPScannerService가 설치되어 있으나 현재 정지 상태입니다."
+						}
+						showTrayBalloonNotificationWithSeverity("Windows 24/7 서비스 상태", desc, "info")
+					}()
+				case IDM_TRAY_TOGGLE_AUTOSTART:
+					go func() {
+						exePath, err := os.Executable()
+						if err != nil {
+							return
+						}
+						curSnap := globalTrayMgr.getSnapshot(false)
+						if curSnap.AutoStartEnabled {
+							c := exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, "/v", "Grid IP Scanner2", "/f")
+							hideWindow(c)
+							_ = c.Run()
+							showTrayBalloonNotificationWithSeverity("자동 시작 해제", "Windows 부팅 시 트레이 조용한 시작(--tray)이 해제되었습니다.", "info")
+						} else {
+							c := exec.Command("reg", "add", `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, "/v", "Grid IP Scanner2", "/t", "REG_SZ", "/d", fmt.Sprintf("\"%s\" --tray", exePath), "/f")
+							hideWindow(c)
+							_ = c.Run()
+							showTrayBalloonNotificationWithSeverity("자동 시작 등록 완료", "다음 부팅부터 창 없이 트레이로 조용히 시작(--tray)됩니다.", "info")
+						}
+						globalTrayMgr.refreshWindowsSystemState(true)
+						syncNativeTrayVisuals()
+					}()
 				case IDM_TRAY_EMERGENCY_SCAN:
 					go func() {
 						showTrayBalloonNotification("긴급 IP 스캔 시작", "브라우저 없이 고속 백그라운드 IP 스캔 및 보고서 작성을 진행합니다...")
@@ -861,9 +1238,9 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					}()
 				case IDM_TRAY_FLUSH_DNS:
 					go func() {
-						cmd := exec.Command("ipconfig", "/flushdns")
-						hideWindow(cmd)
-						_ = cmd.Run()
+						c := exec.Command("ipconfig", "/flushdns")
+						hideWindow(c)
+						_ = c.Run()
 						showTrayBalloonNotification("DNS 캐시 초기화 완료", "Windows DNS 리졸버 캐시가 성공적으로 초기화되었습니다.")
 					}()
 				case IDM_TRAY_NCPA:
@@ -873,9 +1250,9 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					}()
 				case IDM_TRAY_FIREWALL:
 					go func() {
-						cmd := exec.Command("netsh", "advfirewall", "reset")
-						hideWindow(cmd)
-						_ = cmd.Run()
+						c := exec.Command("netsh", "advfirewall", "reset")
+						hideWindow(c)
+						_ = c.Run()
 						showTrayBalloonNotification("방화벽 규칙 복원 완료", "Windows 방화벽 기본 규칙이 성공적으로 초기화 및 복원되었습니다.")
 					}()
 				case IDM_TRAY_EXIT:
@@ -891,11 +1268,14 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 }
 
 func initNativeSystemTray(port string) {
+	nativeTrayMu.Lock()
 	if nativeTrayActive {
+		nativeTrayMu.Unlock()
 		return
 	}
 	nativeTrayPort = port
 	nativeTrayActive = true
+	nativeTrayMu.Unlock()
 
 	go func() {
 		runtime.LockOSThread()
@@ -925,7 +1305,6 @@ func initNativeSystemTray(port string) {
 		if hwnd == 0 {
 			return
 		}
-		nativeTrayHWnd = hwnd
 
 		// Resolve Application Icon
 		exePath, err := os.Executable()
@@ -945,6 +1324,7 @@ func initNativeSystemTray(port string) {
 			}
 		}
 
+		var trayIcon uintptr
 		if iconPath != "" {
 			iconPathPtr, _ := syscall.UTF16PtrFromString(iconPath)
 			hIcon, _, _ := procLoadImageW.Call(
@@ -954,8 +1334,16 @@ func initNativeSystemTray(port string) {
 				0, 0,
 				LR_LOADFROMFILE|LR_DEFAULTSIZE,
 			)
-			nativeTrayIcon = hIcon
+			trayIcon = hIcon
 		}
+
+		nativeTrayMu.Lock()
+		nativeTrayHWnd = hwnd
+		nativeTrayIcon = trayIcon
+		nativeTrayMu.Unlock()
+
+		snap := globalTrayMgr.getSnapshot(false)
+		activeIcon := getTrayIconForMode(snap.Mode)
 
 		// Register Tray Icon to Windows Taskbar System Tray
 		var nid NOTIFYICONDATAW
@@ -964,11 +1352,8 @@ func initNativeSystemTray(port string) {
 		nid.UID = 1001
 		nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
 		nid.UCallbackMessage = WM_TRAY_CALLBACK
-		nid.HIcon = nativeTrayIcon
-
-		tipStr := "Grid IP Scanner2 - 24/7 침입 감시 & 스캐너 가동 중"
-		tipU16, _ := syscall.UTF16FromString(tipStr)
-		copy(nid.SzTip[:], tipU16)
+		nid.HIcon = activeIcon
+		setUTF16FixedTip(nid.SzTip[:], buildDynamicTrayTooltip(snap))
 
 		procShellNotifyIconW.Call(NIM_ADD, uintptr(unsafe.Pointer(&nid)))
 
@@ -983,9 +1368,103 @@ func initNativeSystemTray(port string) {
 			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
 		}
 
-		// Cleanup on exit
+		// Cleanup icons and tray on exit
 		procShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
+		nativeTrayMu.Lock()
+		for _, ic := range trayBadgeIcons {
+			if ic != 0 && ic != nativeTrayIcon {
+				procDestroyIcon.Call(ic)
+			}
+		}
+		trayBadgeIcons = make(map[string]uintptr)
+		nativeTrayMu.Unlock()
 	}()
+}
+
+// =====================================================================
+// Windows Service Control Manager (SCM) Native Dispatcher
+// Eliminates Error 1053 when launched as GridIPScannerService (--service)
+// =====================================================================
+
+var (
+	winSvcStatusHandle uintptr
+	winSvcStopChan     chan struct{}
+	winSvcOnStart      func()
+	winSvcOnStop       func()
+)
+
+func setWinServiceState(state uint32, win32Exit uint32, checkPoint uint32, waitHint uint32) {
+	if winSvcStatusHandle == 0 || procSetServiceStatus.Find() != nil {
+		return
+	}
+	var st SERVICE_STATUS
+	st.DwServiceType = SERVICE_WIN32_OWN_PROCESS
+	st.DwCurrentState = state
+	if state == SERVICE_RUNNING {
+		st.DwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN
+	}
+	st.DwWin32ExitCode = win32Exit
+	st.DwCheckPoint = checkPoint
+	st.DwWaitHint = waitHint
+	procSetServiceStatus.Call(winSvcStatusHandle, uintptr(unsafe.Pointer(&st)))
+}
+
+func winServiceCtrlHandler(ctrlCode uint32) uintptr {
+	switch ctrlCode {
+	case SERVICE_CONTROL_STOP, SERVICE_CONTROL_SHUTDOWN:
+		setWinServiceState(SERVICE_STOP_PENDING, 0, 1, 3000)
+		if winSvcStopChan != nil {
+			select {
+			case <-winSvcStopChan:
+			default:
+				close(winSvcStopChan)
+			}
+		}
+		if winSvcOnStop != nil {
+			go winSvcOnStop()
+		}
+	}
+	return 0
+}
+
+func winServiceMain(argc uint32, argv uintptr) uintptr {
+	svcNamePtr, _ := syscall.UTF16PtrFromString("GridIPScannerService")
+	ctrlCb := syscall.NewCallback(winServiceCtrlHandler)
+	handle, _, _ := procRegisterServiceCtrlHandler.Call(uintptr(unsafe.Pointer(svcNamePtr)), ctrlCb)
+	if handle == 0 {
+		return 0
+	}
+	winSvcStatusHandle = handle
+	winSvcStopChan = make(chan struct{})
+
+	setWinServiceState(SERVICE_START_PENDING, 0, 1, 3000)
+	if winSvcOnStart != nil {
+		go winSvcOnStart()
+	}
+	setWinServiceState(SERVICE_RUNNING, 0, 0, 0)
+
+	<-winSvcStopChan
+	setWinServiceState(SERVICE_STOPPED, 0, 0, 0)
+	return 0
+}
+
+// runAsWindowsService hands execution to Windows SCM when started with --service. Returns false if not invoked by SCM.
+func runAsWindowsService(serviceName string, onStart func(), onStop func()) bool {
+	if procStartServiceCtrlDispatcher.Find() != nil {
+		return false
+	}
+	winSvcOnStart = onStart
+	winSvcOnStop = onStop
+
+	svcNamePtr, _ := syscall.UTF16PtrFromString(serviceName)
+	svcMainCb := syscall.NewCallback(winServiceMain)
+	table := [2]SERVICE_TABLE_ENTRYW{
+		{LpServiceName: svcNamePtr, LpServiceProc: svcMainCb},
+		{LpServiceName: nil, LpServiceProc: 0},
+	}
+
+	ret, _, _ := procStartServiceCtrlDispatcher.Call(uintptr(unsafe.Pointer(&table[0])))
+	return ret != 0
 }
 
 // =====================================================================

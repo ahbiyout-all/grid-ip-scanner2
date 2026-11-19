@@ -132,8 +132,24 @@ func initNativeSystemTray(port string) {
 	// Stub for non-Windows platforms
 }
 
+func openOrFocusTrayWindow() {
+	// Stub for non-Windows platforms
+}
+
+func syncNativeTrayVisuals() {
+	// Stub for non-Windows platforms
+}
+
 func showTrayBalloonNotification(title, message string) {
 	// Stub for non-Windows platforms
+}
+
+func showTrayBalloonNotificationWithSeverity(title, message, severity string) {
+	// Stub for non-Windows platforms
+}
+
+func runAsWindowsService(serviceName string, onStart func(), onStop func()) bool {
+	return false
 }
 
 func isRunningAsAdmin() bool {

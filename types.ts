@@ -473,3 +473,95 @@ export interface IntruderLogRecord {
   notes?: string;
 }
 
+export type TrayOperationalMode = 'standby' | 'watching' | 'scanning' | 'alert';
+export type WindowsServiceRuntimeState = 'running' | 'stopped' | 'not_installed' | 'unknown';
+
+export interface TrayAlertPolicy {
+  notifyOnIntruder: boolean;
+  notifyOnIpConflict: boolean;
+  notifyOnMassOffline: boolean;
+  massOfflineMinCount: number;
+  massOfflineDropPercent: number;
+  dedupCooldownMinutes: number;
+  dndEnabled: boolean;
+  dndUntilMs: number;
+  quietHoursEnabled: boolean;
+  quietStart: string;
+  quietEnd: string;
+  silentBoot: boolean;
+}
+
+export interface TrayScheduleSummary {
+  id: string;
+  name: string;
+  enabled: boolean;
+  subnet: string;
+  start: number;
+  end: number;
+  intervalMinutes: number;
+  nextRunMs?: number;
+  lastRunMs?: number;
+  autoSaveSnapshot?: boolean;
+}
+
+export interface TrayEventRecord {
+  id: string;
+  timestampMs: number;
+  type: 'intruder' | 'ip_conflict' | 'mass_offline' | 'scheduler' | 'system' | string;
+  severity: 'critical' | 'warning' | 'info' | string;
+  title: string;
+  message: string;
+  ip?: string;
+  mac?: string;
+  notified: boolean;
+  suppressedBy?: '' | 'cooldown' | 'dnd' | 'rule_off' | string;
+  source?: string;
+}
+
+export interface TrayPendingAction {
+  id: string;
+  action:
+    | 'quick_scan'
+    | 'toggle_watch'
+    | 'toggle_scheduler_pause'
+    | 'run_schedule_now'
+    | 'toggle_dnd'
+    | 'open_intruder_log'
+    | 'open_scheduler'
+    | string;
+  payload?: string;
+  timestampMs: number;
+}
+
+export interface TrayRuntimeSnapshot {
+  mode: TrayOperationalMode;
+  watchEnabled: boolean;
+  watchIntervalSeconds: number;
+  schedulerPaused: boolean;
+  activeScheduleCount: number;
+  nextScheduleName?: string;
+  nextScheduleAtMs?: number;
+  isScanning: boolean;
+  scanProgressPercent: number;
+  activeDeviceCount: number;
+  intruderCount: number;
+  conflictCount: number;
+  lastScanAtMs?: number;
+  statusMessage: string;
+  subnet: string;
+  startIp: number;
+  endIp: number;
+  windowConnected: boolean;
+  runningInTrayMode: boolean;
+  runningAsService: boolean;
+  serviceState: WindowsServiceRuntimeState;
+  autoStartEnabled: boolean;
+  dndActive: boolean;
+  policy: TrayAlertPolicy;
+  schedules?: TrayScheduleSummary[];
+  recentEvents: TrayEventRecord[];
+  pendingActions?: TrayPendingAction[];
+  trustedKeysCount: number;
+  lastAutonomousSweepMs?: number;
+}
+

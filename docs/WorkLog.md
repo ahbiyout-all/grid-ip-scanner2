@@ -1,3 +1,34 @@
+### 73. Go 네이티브 시스템 트레이 · Windows SCM 서비스 · 스케줄러 빠른 제어 · 이벤트 OS 알림 고도화 (v2.5.0 유지보수 고도화, 2026-11-18)
+- **사용자 요청 사항 및 피드백**:
+  - "시스템 트레이에서 동작 기능 고도화"
+  - Q: 우선 강화 영역 -> 동적 트레이 아이콘 상태 배지 및 실시간 요약 메뉴, 백그라운드 감시·스케줄러·빠른 작업 확장, OS 알림 고도화(중복 억제·방해금지·이벤트별 알림)
+  - Q: 빠른 작업 -> 활성 스케줄러 일시정지 및 즉시 실행 제어, Windows 부팅 시 창 없이 트레이로 조용히 시작(`--tray`)
+  - Q: 백그라운드 알림 정책 -> 신규 침입, IP 충돌, 대량 오프라인 등 이벤트 기반 OS 알림
+  - Q: 주요 대상 런타임 -> Go 백엔드 Windows 네이티브 트레이 및 서비스 연동 중심 개선
+- **원인 규명 및 해결 조치**:
+  1. **[Go 자율 트레이 엔진 및 영구 설정/이벤트 HTTP API 구축] `tray_engine.go`, `main.go`**:
+     - `tray_config.json` 영구 정책 저장소, 최대 100건 원형 이벤트 로그, 동일 이벤트 키 중복 억제(쿨다운) 및 상시/30분 스누즈/야간 조용한 시간(DND) 로직 구현.
+     - `evaluateSweepAnomalies`로 신규 침입·IP/MAC 스왑 충돌·대량 오프라인 급감 판정 및 10초 주기 무인 스윕/만기 스케줄 실행 루프(`startAutonomousTrayLoop`) 구축.
+     - `/api/tray/state`, `/api/tray/config`, `/api/tray/action`, `/api/tray/report-events`, `/api/tray/events`, `/api/tray/test-notify` 엔드포인트 신설 및 `--tray` / `--service` CLI 플래그 처리.
+  2. **[Windows 동적 4색 ARGB `HICON`, 확장 트레이 메뉴 & SCM 네이티브 서비스] `utils_windows.go`, `utils_other.go`**:
+     - GDI32/User32 동적 배지 아이콘 합성(`standby` 회색 / `watching` 에메랄드 / `scanning` 호박색 / `alert` 적색), 실시간 요약 메뉴·빠른 스캔·24/7 감시 토글·스케줄러 일시정지/즉시 실행·DND 하위 메뉴 및 심각도별 풍선 알림(`NIIF_ERROR`/`NIIF_WARNING`/`NIIF_INFO`) 구현.
+     - `advapi32.dll` `StartServiceCtrlDispatcherW` / `RegisterServiceCtrlHandlerW` / `SetServiceStatus` 서비스 핸들러(`runAsWindowsService`) 도입으로 `GridIPScannerService` 실행 시 Error 1053 해소 및 `service-status` / `service-install` / `service-stop` / `autostart --tray` 정확 동기화.
+  3. **[Electron·React UI 양방향 제어 및 알림 정책 UI 통합] `main.js`, `preload.js`, `types.ts`, `services/nativeModulesService.ts`, `components/PreferencesTrayModal.tsx`, `App.tsx`**:
+     - `PreferencesTrayModal.tsx`에 실시간 트레이/서비스 요약, 4종 빠른 작업 버튼, 스케줄러 일시정지·즉시 실행 바, 이벤트별 임계치·쿨다운·DND·야간 조용한 시간 설정, 테스트 알림 발송, 실시간 트레이 이벤트 피드 구현.
+     - `App.tsx`에 `schedulerPaused`, `windowsServiceState`, `trayRuntime`, `trayPolicy`, `trayEvents` 연동, 대량 오프라인/IP 충돌/침입 이벤트 Go 라우팅, Electron IPC 및 3초 양방향 폴링(`consumeActions=1`), 사이드바 서비스/스케줄러 일시정지 배지 반영.
+     - Go 단위 테스트(`TestEvaluateSweepAnomalies`, `TestTrayDedupCooldownAndQuietHours` 포함 11종) 통과, Windows `amd64` `CGO_ENABLED=0` 크로스 빌드 및 `tsc --noEmit` / `vite build` 무결점 검증 완료.
+
+### 72. 중복 내보내기·스냅샷 비교 흐름 통합, 모달 분리 및 데드코드 정리 (v2.5.0 유지보수 개선, 2026-11-18)
+- **사용자 요청 사항 및 피드백**:
+  - "자아성찰(Self-Reflection & Deep Audit) 과 오류 수정"
+  - "앱 기능들 중에 정리하거나 개선해야 하는 기능을 찾아 주세요." -> 중복 내보내기와 스냅샷 비교 흐름 통합, 상단 헤더와 설정 메뉴 복잡도 축소, 전용 모달 중심 통합, 미사용 브리지 제거 및 고급 유틸리티 접기, 안전한 모달 분리와 데드코드 정리 병행.
+- **원인 규명 및 해결 조치**:
+  1. **[통합 보고서 센터 모달 분리 및 내보내기/비교 흐름 일원화] `components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `App.tsx`**:
+     - 분산되어 있던 PDF/Excel XML/CSV/JSON/Markdown/HTML 내보내기와 스냅샷 비교 연동 흐름을 `ReportCenterModal.tsx`로 통합하고 상단 헤더는 빠른 진입점 중심으로 간소화.
+  2. **[모달 컴포넌트 분리 및 미사용 레거시 브리지 데드코드 제거]**:
+     - `HelpUpdateModal.tsx`, `InterfaceExplorerModal.tsx`, `LicenseModal.tsx`, `ProFeatureLockedModal.tsx`, `PreferencesTrayModal.tsx` 분리 모듈화 및 `apiConfig.ts` / `clipboard.ts` 공통 유틸리티 정돈.
+     - 미사용 레거시 Vault 브리지(`ouiValidatorBridge.ts`, `secureVaultBridge.ts`, `electronVaultBridge.ts`, `vaultService.ts`) 제거 및 Windows 레거시 네트워크 유틸리티를 `PreferencesTrayModal.tsx` 내 접이식 고급 영역으로 정리.
+
 ### 71. OUI 시맨틱 고도화, 순수 창작 12대 네이티브 DLL 확장, 게이트웨이 Proxy-ARP 비알림 분리 및 전수 자아성찰 패치 (v2.5.0)
 - **사용자 요청 사항 및 피드백**:
   - "특정 학교 환경에서 ip 251번과 254번이 mac이 똑같아서 충돌 났다고 하는데? 254번은 게이트웨이로 사용중임. 원인이 무엇일까요?"

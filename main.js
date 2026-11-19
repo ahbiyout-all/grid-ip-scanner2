@@ -107,6 +107,11 @@ function createTray() {
       label: '💬 상태: 📌 대기 중 (Ready)',
       enabled: false
     },
+    {
+      id: 'tray-scheduler-status-item',
+      label: '⏱️ 스케줄러: 대기 중',
+      enabled: false
+    },
     { type: 'separator' },
     {
       id: 'intruder-watch-item',
@@ -122,6 +127,31 @@ function createTray() {
       label: '⚡ 그리드 네트워크 스캔 시작 (Toggle Scan Mode)',
       click: () => {
         sendToMainWindow('tray-toggle-scan');
+      }
+    },
+    {
+      id: 'toggle-scheduler-pause-item',
+      label: '⏸️ 활성 스케줄러 일시정지 / 재개',
+      type: 'checkbox',
+      checked: false,
+      click: (item) => {
+        sendToMainWindow('tray-toggle-scheduler-pause', item.checked);
+      }
+    },
+    {
+      id: 'run-schedule-now-item',
+      label: '⏭️ 예약 스케줄 즉시 실행',
+      click: () => {
+        sendToMainWindow('tray-run-schedule-now');
+      }
+    },
+    {
+      id: 'toggle-dnd-item',
+      label: '🔕 방해금지 모드 (DND)',
+      type: 'checkbox',
+      checked: false,
+      click: (item) => {
+        sendToMainWindow('tray-toggle-dnd', item.checked);
       }
     },
     {
@@ -310,12 +340,21 @@ ipcMain.on('show-tray-notification', (event, msg) => {
 
 ipcMain.on('update-tray-status', (event, status) => {
   if (!tray) return;
-  const { intruderWatch, isScanning, intruderCount, statusMessage } = status || {};
+  const {
+    intruderWatch,
+    isScanning,
+    intruderCount,
+    conflictCount,
+    statusMessage,
+    schedulerPaused,
+    activeScheduleCount,
+    dndActive
+  } = status || {};
   let toolTipText = 'Grid IP Scanner2';
   if (statusMessage) {
     toolTipText += ` - ${statusMessage}`;
-  } else if (intruderCount && intruderCount > 0) {
-    toolTipText += ` - 🚨 미확인 낯선 기기 ${intruderCount}대 감지!`;
+  } else if ((intruderCount && intruderCount > 0) || (conflictCount && conflictCount > 0)) {
+    toolTipText += ` - 🚨 침입 ${intruderCount || 0}대 · 충돌 ${conflictCount || 0}건!`;
   } else if (isScanning) {
     toolTipText += ' - ⚡ 그리드 네트워크 스캔 진행 중...';
   } else if (intruderWatch) {
@@ -323,18 +362,46 @@ ipcMain.on('update-tray-status', (event, status) => {
   } else {
     toolTipText += ' - 📌 시스템 트레이 대기 중';
   }
+  if (dndActive) {
+    toolTipText += ' [방해금지]';
+  }
   tray.setToolTip(toolTipText);
 
   if (currentContextMenu) {
     const tooltipItem = currentContextMenu.items.find(i => i.id === 'tray-status-tooltip-item');
     if (tooltipItem) {
-      tooltipItem.label = statusMessage ? `💬 툴팁: ${statusMessage}` : '💬 상태: 📌 대기 중 (Ready)';
+      tooltipItem.label = statusMessage ? `💬 상태: ${statusMessage}` : '💬 상태: 📌 대기 중 (Ready)';
+    }
+
+    const schedStatusItem = currentContextMenu.items.find(i => i.id === 'tray-scheduler-status-item');
+    if (schedStatusItem) {
+      if (schedulerPaused) {
+        schedStatusItem.label = `⏸️ 스케줄러 일시정지 (${activeScheduleCount || 0}개 대기)`;
+      } else if (activeScheduleCount && activeScheduleCount > 0) {
+        schedStatusItem.label = `⏱️ 스케줄러 가동 중 (${activeScheduleCount}개)`;
+      } else {
+        schedStatusItem.label = '⏱️ 스케줄러: 등록된 예약 없음';
+      }
     }
 
     if (typeof intruderWatch === 'boolean') {
       const item = currentContextMenu.items.find(i => i.id === 'intruder-watch-item');
       if (item && item.checked !== intruderWatch) {
         item.checked = intruderWatch;
+      }
+    }
+
+    if (typeof schedulerPaused === 'boolean') {
+      const schedPauseItem = currentContextMenu.items.find(i => i.id === 'toggle-scheduler-pause-item');
+      if (schedPauseItem && schedPauseItem.checked !== schedulerPaused) {
+        schedPauseItem.checked = schedulerPaused;
+      }
+    }
+
+    if (typeof dndActive === 'boolean') {
+      const dndItem = currentContextMenu.items.find(i => i.id === 'toggle-dnd-item');
+      if (dndItem && dndItem.checked !== dndActive) {
+        dndItem.checked = dndActive;
       }
     }
 
@@ -416,11 +483,16 @@ if (!gotSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
+    const startInTray = process.argv.some((arg) => arg.toLowerCase() === '--tray');
+
     // CRITICAL: Activate System Tray FROM THE BEGINNING (처음부터 시스템 트레이 활성화)
     createTray();
 
-    // Create Main Window
+    // Create Main Window (keep hidden when started silently via --tray)
     createWindow();
+    if (startInTray && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

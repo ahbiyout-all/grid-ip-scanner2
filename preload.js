@@ -65,6 +65,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => {};
     }
   },
+  onToggleSchedulerPause: (callback) => {
+    try {
+      const listener = (_event, val) => callback(val);
+      ipcRenderer.on('tray-toggle-scheduler-pause', listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener('tray-toggle-scheduler-pause', listener);
+        } catch (_) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
+  },
+  onRunScheduleNow: (callback) => {
+    try {
+      const listener = () => callback();
+      ipcRenderer.on('tray-run-schedule-now', listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener('tray-run-schedule-now', listener);
+        } catch (_) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
+  },
+  onToggleDnd: (callback) => {
+    try {
+      const listener = (_event, val) => callback(val);
+      ipcRenderer.on('tray-toggle-dnd', listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener('tray-toggle-dnd', listener);
+        } catch (_) {}
+      };
+    } catch (e) {
+      return () => {};
+    }
+  },
   onWindowHiddenToTray: (callback) => {
     try {
       const listener = () => callback();

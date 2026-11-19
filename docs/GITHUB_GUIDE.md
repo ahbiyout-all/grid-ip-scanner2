@@ -28,8 +28,8 @@
 | 구분 | 포함 (GitHub 푸시 대상) ✅ | 제외 (원격 업로드 완전 차단) 🚫 |
 | :--- | :--- | :--- |
 | **푸시 스크립트** | *(없음 - 전면 비공개 유지)* | **`github-push.bat`**, **`scripts/github-sync.bat`**, **`scripts/github-mobile-sync.bat`**, **`*.sh`** |
-| **소스 코드** | React/TS(`App.tsx`, `components/`, `services/`), Go 백엔드(`main.go`, `engine.go`, `name_resolver.go`, `native_modules_bridge*.go`), 12대 C/C++ DLL 소스(`native_dll/*.c/.cpp/.h`), Electron(`main.js`), OUI DB(`master_oui.txt`), 리소스(`winres.json`, `public/`) | 임시 파일(`*.tmp`, `*.temp`), 백업 파일(`*.bak`), 컴파일된 바이너리(`*.dll`, `*.o`) |
-| **문서 및 설정** | **`README.md`**, **`LICENSE.md`**, **`docs/`** 전체 문서(GitHub 가이드, Blogger 작성/HTML 가이드, DLL 명세서 등), **`package.json`**, **`tsconfig.json`**, **`vite.config.ts`**, **`.github/workflows/`** | **`.env`**, 개인 인증키(`*.key`, `*.pem`), IDE 설정(`.vscode/`, `.idea/`) |
+| **소스 코드** | React/TS(`App.tsx`, `components/` 13종 모달/셀, `services/`), Go 백엔드(`main.go`, `engine.go`, `name_resolver.go`, `license_guard.go`, `tray_engine.go`, `native_modules_bridge*.go`, `utils_*.go`, `*_test.go`), 12대 C/C++ DLL 소스(`native_dll/*.c/.cpp/.h`), Electron(`main.js`, `preload.js`), OUI DB(`master_oui.txt`), 리소스(`winres.json`, `public/`) | 임시 파일(`*.tmp`, `*.temp`), 백업 파일(`*.bak`), 컴파일된 바이너리(`*.dll`, `*.o`), 테스트 임시 산출물(`*.exe`) |
+| **문서 및 설정** | **`README.md`**, **`LICENSE.md`**, **`docs/`** 전체 문서(GitHub 가이드, Blogger `[작성 모드]`/`[HTML 편집 모드]` 문서, DLL 명세서, 패치노트, 작업일지 등), **`package.json`**, **`tsconfig.json`**, **`vite.config.ts`**, **`.github/workflows/`** | **`.env`**, 개인 인증키(`*.key`, `*.pem`), IDE 설정(`.vscode/`, `.idea/`), 로컬 트레이 설정(`tray_config.json`) |
 | **빌드 스크립트** | **`build.bat`**, **`build.sh`**, **`build-win.js`**, **`generate-assets.js`**, **`native_dll/build_all_dlls.bat`**, **`installer/`**, **`scripts/build-dll.js`**, **`scripts/build-distribution.js`**, **`scripts/sync-version.js`** | *(빌드 재현성을 위해 스크립트 자체는 포함)* |
 | **빌드 산출물** | *(GitHub Releases 탭에서만 클라우드 자동 배포)* | **`dist/`**, **`dist_installer/`**, **`dist_releases/`**, **`*.exe`**, **`*.syso`**, **`*.apk`**, **`*.zip`**, **`engine_arm64`**, **`node_modules/`**, **`go/`** |
 
