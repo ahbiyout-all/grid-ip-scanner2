@@ -78,7 +78,7 @@ export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates 
     autoScheduler: schedulerAllowed,
     autoReportArchive: schedulerAllowed && exportProAllowed,
     reportAuditExport: exportProAllowed,
-    reportExcelWorkbook: exportProAllowed,
+    reportExcelWorkbook: true,
     reportBrandingLogo: exportProAllowed,
     reportDiffCompare: diffAllowed,
     remoteBootWoL: isProOrHigher && Boolean(f.remoteBoot),
@@ -95,7 +95,7 @@ export type EntitlementGateKey =
   | 'autoScheduler'
   | 'snapshotDiff'
   | 'deepPortAudit'
-  | 'reportExcelWorkbook'
+  | 'reportAuditExport'
   | 'reportBrandingLogo'
   | 'intruderGuard'
   | 'remoteBootWoL';
@@ -129,8 +129,8 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
   {
     key: 'basicExport',
     tier: 'free',
-    labelKo: '기본 내보내기 (PDF · CSV · JSON · MD · HTML 그리드)',
-    labelEn: 'Basic Export (PDF · CSV · JSON · MD · HTML Grid)',
+    labelKo: '기본 내보내기 (PDF · 엑셀 그리드 .xls · CSV · JSON · MD · HTML)',
+    labelEn: 'Basic Export (PDF · Excel Grid .xls · CSV · JSON · MD · HTML)',
     scopeKo: 'Community 기본 제공',
     scopeEn: 'Included in Free',
   },
@@ -159,10 +159,10 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
     scopeEn: 'PRO+',
   },
   {
-    key: 'reportExcelWorkbook',
+    key: 'reportAuditExport',
     tier: 'pro',
-    labelKo: 'Excel 5-Sheet 통합문서 & 보안 감사 보고서',
-    labelEn: '5-Sheet Excel Workbook & Audit Reports',
+    labelKo: '정밀 보안 감사 보고서 (PDF · HTML)',
+    labelEn: 'Security Audit Reports (PDF · HTML)',
     scopeKo: 'PRO 이상',
     scopeEn: 'PRO+',
   },

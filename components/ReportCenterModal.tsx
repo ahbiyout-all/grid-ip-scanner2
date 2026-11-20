@@ -356,8 +356,7 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
 
   const requiresProAudit = config.scope === 'audit' && !gates.reportAuditExport;
   const requiresProDiff = config.scope === 'diff' && !gates.reportDiffCompare;
-  const requiresProExcel = config.format === 'excel' && !gates.reportExcelWorkbook;
-  const isExportLocked = requiresProAudit || requiresProDiff || requiresProExcel;
+  const isExportLocked = requiresProAudit || requiresProDiff;
 
   const toggleColumn = (colKey: ReportColumnKey) => {
     setConfig((prev) => {
@@ -426,11 +425,6 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
 
     if (requiresProDiff) {
       onRequireProLicense('reportDiffCompare');
-      return;
-    }
-
-    if (requiresProExcel) {
-      onRequireProLicense('reportExcelWorkbook');
       return;
     }
 
@@ -671,16 +665,10 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                       <span className="font-bold uppercase tracking-wider text-[11px] opacity-80 block">
                         {isKo ? '2. 출력 포맷 (Format)' : '2. Output Format'}
                       </span>
-                      {requiresProExcel && (
-                        <span className="text-[11px] font-semibold text-amber-500 flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> PRO
-                        </span>
-                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {formatOptions.map((fmt) => {
                         const active = config.format === fmt.id;
-                        const isLockedFmt = fmt.id === 'excel' && !gates.reportExcelWorkbook;
                         return (
                           <button
                             key={fmt.id}
@@ -696,11 +684,11 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                             }`}
                           >
                             <span className="flex items-center gap-1.5 min-w-0 truncate">
-                              {isLockedFmt ? <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : fmt.icon}
+                              {fmt.icon}
                               <span className="truncate">{fmt.label}</span>
                             </span>
-                            <span className={`font-mono text-[10px] ${active ? 'text-sky-100' : isLockedFmt ? 'text-amber-500 font-bold' : mutedCls}`}>
-                              {isLockedFmt ? 'PRO' : fmt.ext}
+                            <span className={`font-mono text-[10px] ${active ? 'text-sky-100' : mutedCls}`}>
+                              {fmt.ext}
                             </span>
                           </button>
                         );

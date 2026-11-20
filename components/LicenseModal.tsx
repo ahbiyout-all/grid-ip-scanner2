@@ -227,8 +227,8 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                     ? featureGates.snapshotDiff
                     : entry.key === 'deepPortAudit'
                     ? featureGates.deepPortAudit
-                    : entry.key === 'reportExcelWorkbook'
-                    ? featureGates.reportExcelWorkbook
+                    : entry.key === 'reportAuditExport'
+                    ? featureGates.reportAuditExport
                     : entry.key === 'reportBrandingLogo'
                     ? featureGates.reportBrandingLogo
                     : entry.key === 'intruderGuard'

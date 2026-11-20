@@ -2085,15 +2085,6 @@ const App: React.FC = () => {
 
   const handleQuickExport = async (format: 'pdf' | 'csv' | 'excel', scope: ReportScope = 'active') => {
     if (format === 'pdf' && isExportingPdf) return;
-    if (format === 'excel' && !featureGates.reportExcelWorkbook) {
-      openReportCenter(scope, 'excel', 'preview');
-      showToast(
-        lang === 'ko'
-          ? '통합 리포트 센터에서 엑셀 16×16 그리드 미리보기를 열었습니다. 파일 다운로드는 PRO 라이선스가 필요합니다.'
-          : 'Opened Excel Grid preview in Report Center. PRO license is required to download .xls.'
-      );
-      return;
-    }
     const allResults = Object.values(results) as ScanResult[];
     const activeCount = allResults.filter((r) => r.status === 'active').length;
     if (allResults.length === 0) {
@@ -4520,8 +4511,8 @@ const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleQuickExport('excel', searchTerm ? 'search' : 'active')}
-                    disabled={featureGates.reportExcelWorkbook && Object.keys(results).length === 0}
-                    className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
+                    disabled={Object.keys(results).length === 0}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
                       theme === 'beige'
                         ? 'bg-[#fcf8f2] border-[#d4be9c] hover:bg-[#f5ebd6] text-[#1a0f05]'
                         : theme === 'white'
@@ -4536,11 +4527,6 @@ const App: React.FC = () => {
                   >
                     <FileSpreadsheet className="w-3 h-3 text-emerald-500 shrink-0" />
                     <span className="truncate">{lang === 'ko' ? '엑셀 그리드' : 'Excel Grid'}</span>
-                    {!featureGates.reportExcelWorkbook && (
-                      <span className="text-[8px] px-1 rounded bg-amber-500/20 text-amber-500 font-black shrink-0">
-                        PRO
-                      </span>
-                    )}
                   </button>
 
                   <button
