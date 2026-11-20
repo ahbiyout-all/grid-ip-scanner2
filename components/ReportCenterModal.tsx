@@ -150,6 +150,9 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
     if (!isOpen) return;
     setAutoReports(getAutoReports());
     setCenterTab(initialCenterTab || 'preview');
+    if (initialFormat === 'excel') {
+      setExcelSheetTab('grid');
+    }
     setConfig((prev) => {
       const targetScope = initialScope || prev.scope;
       const hasValidActiveBaseline =
@@ -334,7 +337,7 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
 
   const formatOptions: { id: ReportFormat; label: string; ext: string; icon: React.ReactNode }[] = [
     { id: 'pdf', label: 'PDF', ext: '.pdf', icon: <FileDown className="w-3.5 h-3.5" /> },
-    { id: 'excel', label: 'Excel (5-Sheet)', ext: '.xls', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
+    { id: 'excel', label: isKo ? '엑셀 그리드 (5시트)' : 'Excel Grid (5-Sheet)', ext: '.xls', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
     { id: 'csv', label: 'CSV', ext: '.csv', icon: <FileText className="w-3.5 h-3.5" /> },
     { id: 'html_audit', label: isKo ? 'HTML 감사서' : 'HTML Audit', ext: '.html', icon: <Globe className="w-3.5 h-3.5" /> },
     { id: 'html_grid', label: isKo ? 'HTML 그리드' : 'HTML Grid', ext: '.html', icon: <Layers className="w-3.5 h-3.5" /> },
@@ -1360,7 +1363,7 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                         {(
                           [
                             { id: 'summary', label: '1_Summary' },
-                            { id: 'grid', label: '2_Grid_16x16' },
+                            { id: 'grid', label: isKo ? '2_Grid_16x16 (그리드)' : '2_Grid_16x16 (Grid)' },
                             { id: 'inventory', label: `3_Device_Inventory (${dataset.rows.length})` },
                             { id: 'audit', label: `4_Security_Audit (${dataset.highRiskAlerts.length})` },
                             ...(dataset.diffAnalysis ? [{ id: 'diff' as const, label: '5_Snapshot_Diff' }] : []),
@@ -1411,21 +1414,49 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                           </table>
                         )}
                         {excelSheetTab === 'grid' && (
-                          <div className="grid grid-cols-16 gap-1 font-mono text-[10px]">
-                            {allIps.map((ip) => {
-                              const r = results[ip];
-                              const isAct = r?.status === 'active';
-                              return (
-                                <div
-                                  key={ip}
-                                  className={`p-1 rounded-xs border text-center truncate ${
-                                    isAct ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 font-bold' : `${borderHairline} opacity-45`
-                                  }`}
-                                >
-                                  .{ip.split('.').pop()}
-                                </div>
-                              );
-                            })}
+                          <div className="space-y-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                              <span className="font-bold">
+                                {isKo
+                                  ? `16×16 엑셀 바둑판 그리드 미리보기 (${subnet}.${start}~.${end})`
+                                  : `16×16 Excel Grid Map Preview (${subnet}.${start}~.${end})`}
+                              </span>
+                              <div className="flex items-center gap-3 font-mono text-[10.5px]">
+                                <span className={isBeige || isWhite ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold'}>
+                                  ● {isKo ? '활성' : 'Active'} ({dataset.kpis.activeDeviceCount})
+                                </span>
+                                <span className={isBeige || isWhite ? 'text-rose-700 font-bold' : 'text-rose-400 font-bold'}>
+                                  ● {isKo ? '주의 포트' : 'Risk'} ({dataset.highRiskAlerts.length})
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-16 gap-1 font-mono text-[10px]">
+                              {allIps.map((ip) => {
+                                const r = results[ip];
+                                const isAct = r?.status === 'active';
+                                const hasRisk = (r?.device?.openPorts || []).some((p) => [21, 23, 445, 3389, 5900, 6379].includes(p));
+                                const label = r?.device?.hostname || r?.device?.realVendor || r?.device?.vendor || '';
+                                return (
+                                  <div
+                                    key={ip}
+                                    title={`${ip}${label ? ` · ${label}` : ''}${r?.device?.latency ? ` · ${r.device.latency}ms` : ''}`}
+                                    className={`p-1 rounded-xs border text-center truncate ${
+                                      isAct
+                                        ? hasRisk
+                                          ? isBeige || isWhite
+                                            ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
+                                            : 'bg-rose-500/20 border-rose-500/45 text-rose-300 font-bold'
+                                          : isBeige || isWhite
+                                          ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold'
+                                          : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold'
+                                        : `${borderHairline} opacity-45`
+                                    }`}
+                                  >
+                                    .{ip.split('.').pop()}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                         {excelSheetTab === 'inventory' && (

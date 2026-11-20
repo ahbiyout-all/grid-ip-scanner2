@@ -1017,11 +1017,11 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
     `<Row ss:Height="10"></Row>`,
     `<Row ss:Height="22">${cell(isKo ? '지표 항목' : 'Summary Metric', 'Header')}${cell(isKo ? '측정 결과' : 'Value', 'Header')}${cell(isKo ? '비고' : 'Notes', 'Header', 'String', 1)}</Row>`,
     `<Row>${cell(isKo ? '대상 서브넷' : 'Target Subnet', 'Label')}${cell(`${dataset.subnet}.0/24`, 'Mono')}${cell(`${dataset.subnet}.${dataset.start} ~ ${dataset.subnet}.${dataset.end}`, 'Default', 'String', 1)}</Row>`,
-    `<Row>${cell(isKo ? '총 스캔 IP 수' : 'Total Scanned IPs', 'Label')}${cell(dataset.kpis.totalScannedIpCount, 'Number')}${cell(`${dataset.kpis.scannedCoveragePct}% coverage`, 'Default', 'String', 1)}</Row>`,
+    `<Row>${cell(isKo ? '총 스캔 IP 수' : 'Total Scanned IPs', 'Label')}${cell(dataset.kpis.totalScannedIpCount, 'Number', 'Number')}${cell(`${dataset.kpis.scannedCoveragePct}% coverage`, 'Default', 'String', 1)}</Row>`,
     `<Row>${cell(isKo ? '활성 / 전체 단말' : 'Active vs Total Devices', 'Label')}${cell(`${dataset.kpis.activeDeviceCount} / ${dataset.kpis.totalDeviceCount}`, 'Accent')}${cell(`${dataset.kpis.activeRatioPct}% active`, 'Default', 'String', 1)}</Row>`,
     `<Row>${cell(isKo ? '스캔 시작 일시' : 'Scan Start Timestamp', 'Label')}${cell(startLabel, 'Mono')}${cell(isKo ? '시작 타임스탬프' : 'Start timestamp', 'Default', 'String', 1)}</Row>`,
     `<Row>${cell(isKo ? '스캔 종료 일시' : 'Scan End Timestamp', 'Label')}${cell(endLabel, 'Mono')}${cell(`${durationSec}s (${dataset.kpis.totalScanDurationMs}ms)`, 'Default', 'String', 1)}</Row>`,
-    `<Row>${cell(isKo ? '보안 주의 포트 알림' : 'High-Risk Port Alerts', 'Label')}${cell(dataset.kpis.highRiskAlertCount, dataset.kpis.highRiskAlertCount > 0 ? 'Risk' : 'Safe')}${cell(`${dataset.kpis.totalOpenPorts} total open ports`, 'Default', 'String', 1)}</Row>`,
+    `<Row>${cell(isKo ? '보안 주의 포트 알림' : 'High-Risk Port Alerts', 'Label')}${cell(dataset.kpis.highRiskAlertCount, dataset.kpis.highRiskAlertCount > 0 ? 'Risk' : 'Safe', 'Number')}${cell(`${dataset.kpis.totalOpenPorts} total open ports`, 'Default', 'String', 1)}</Row>`,
     `<Row ss:Height="14"></Row>`,
     `<Row ss:Height="22">${cell(isKo ? '하드웨어 제조사 (Top Vendors)' : 'Hardware Vendor', 'Header')}${cell(isKo ? '단말 대수' : 'Units', 'Header')}${cell(isKo ? '점유율 (%)' : 'Share (%)', 'Header')}${cell(isKo ? '범위' : 'Scope', 'Header')}</Row>`,
     ...dataset.vendorBreakdown.slice(0, 20).map(
@@ -1150,10 +1150,10 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
     <Style ss:ID="Risk"><Font ss:Bold="1" ss:Color="#E11D48"/><Interior ss:Color="#FFF1F2" ss:Pattern="Solid"/></Style>
     <Style ss:ID="RiskRow"><Font ss:Color="#9F1239"/><Interior ss:Color="#FFF1F2" ss:Pattern="Solid"/></Style>
     <Style ss:ID="Muted"><Font ss:Color="#94A3B8"/></Style>
-    <Style ss:ID="GridActive"><Font ss:Bold="1" ss:Size="9" ss:Color="#065F46"/><Interior ss:Color="#D1FAE5" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders></Style>
-    <Style ss:ID="GridRisk"><Font ss:Bold="1" ss:Size="9" ss:Color="#9F1239"/><Interior ss:Color="#FFE4E6" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
-    <Style ss:ID="GridIdle"><Font ss:Size="9" ss:Color="#94A3B8"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
-    <Style ss:ID="GridEmpty"><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="GridActive"><Font ss:Bold="1" ss:Size="9" ss:Color="#065F46"/><Interior ss:Color="#D1FAE5" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders></Style>
+    <Style ss:ID="GridRisk"><Font ss:Bold="1" ss:Size="9" ss:Color="#9F1239"/><Interior ss:Color="#FFE4E6" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/></Borders></Style>
+    <Style ss:ID="GridIdle"><Font ss:Size="9" ss:Color="#64748B"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/></Borders></Style>
+    <Style ss:ID="GridEmpty"><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/></Borders></Style>
   </Styles>
   <Worksheet ss:Name="1_Summary">
     <Table>
@@ -1165,7 +1165,10 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
     </Table>
   </Worksheet>
   <Worksheet ss:Name="2_Grid_16x16">
-    <Table>${gridRows.join('')}</Table>
+    <Table>
+      ${Array.from({ length: 16 }, () => '<Column ss:Width="78"/>').join('')}
+      ${gridRows.join('')}
+    </Table>
   </Worksheet>
   <Worksheet ss:Name="3_Device_Inventory">
     <Table>${invRows.join('')}</Table>
