@@ -58,7 +58,7 @@ npm run version:bump-minor
 npm run version:bump-major
 
 # 🔄 4. 지정 버전 수동 설정 및 9대 타깃 동기화
-node scripts/sync-version.js --set 2.5.0
+node scripts/sync-version.js --set 2.6.0
 ```
 
 ---
@@ -120,7 +120,7 @@ node scripts/sync-version.js --set 2.5.0
 ### 5.1. 다단 동적 버전 추출 순서 (Tiered Dynamic Resolution)
 1. **1차 기준 (Primary)**: `package.json` 파일의 `"version"` 프로퍼티 값을 Node.js를 통해 읽어옵니다.
 2. **2차 기준 (Fallback)**: `package.json`이 누락되거나 Node 미설치 환경인 경우, `docs/PATCH_NOTE.md` 최상단 헤더(정규식 `\(v?([0-9.]+)\)`)에서 버전 번호를 자동 파싱하여 변수(`%APP_VER%`)에 할당합니다.
-3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.5.0`을 지정합니다.
+3. **3차 기준 (Emergency Default)**: 상기 기준 모두 판독 불가 시 기본값 `2.6.0`을 지정합니다.
 
 ### 5.2. 10대 핵심 타깃 일괄 동기화 (Single Source of Truth)
 `node scripts/sync-version.js` 실행 시 다음 10개 파일의 버전이 즉시 100% 일치하도록 업데이트됩니다:
@@ -136,5 +136,5 @@ node scripts/sync-version.js --set 2.5.0
 10. `docs/WorkLog.md` (작업 일지 최신 헤더 동기화 확인)
 
 ---
-* **문서 제정 및 최신 개정일**: 2026년 11월 13일 (v2.5.0 적용)
+* **문서 제정 및 최신 개정일**: 2026년 11월 21일 (v2.6.0 적용)
 * **책임 부서**: Grid IP Scanner2 코어 개발 연구팀 (AhBiYout / [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/))

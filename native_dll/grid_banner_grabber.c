@@ -112,7 +112,7 @@ int Banner_GrabHttp(
 
     char request[256];
     snprintf(request, sizeof(request),
-             "GET / HTTP/1.1\r\nHost: %s:%d\r\nUser-Agent: GridIPScanner/2.5\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+             "GET / HTTP/1.1\r\nHost: %s:%d\r\nUser-Agent: GridIPScanner/2.6\r\nAccept: */*\r\nConnection: close\r\n\r\n",
              ip, port);
 
     send(s, request, (int)strlen(request), 0);
@@ -216,7 +216,7 @@ int Banner_GrabRtsp(const char* ip, int port, int timeoutMs, char* outRtspServer
     SOCKET s = ConnectSocket(ip, port, timeoutMs);
     if (s == INVALID_SOCKET) return 0;
 
-    const char* req = "OPTIONS * RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: GridIPScanner/2.5\r\n\r\n";
+    const char* req = "OPTIONS * RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: GridIPScanner/2.6\r\n\r\n";
     send(s, req, (int)strlen(req), 0);
 
     char buffer[1024];

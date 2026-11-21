@@ -1,13 +1,13 @@
 /**
  * Grid IP Scanner2 - Native Modules Diagnostics & Acceleration Modal
- * Displays real-time status of the 6 specialized native DLL modules and allows live testing.
+ * Displays real-time status of the 8 specialized native DLL engine modules (12 total binaries) and allows live testing.
  * Copyright (c) 2025-2026 AhBiYout. All rights reserved.
  */
 
 import React, { useState, useEffect } from 'react';
 import { 
   X, Cpu, CheckCircle2, AlertCircle, RefreshCw, Zap, Shield, Search, 
-  Terminal, Globe, Server, ChevronDown, ChevronUp, ChevronsUpDown, Layers 
+  Terminal, Globe, Server, ChevronDown, ChevronUp, ChevronsUpDown, Layers, Activity 
 } from 'lucide-react';
 import { NativeModulesStatus, NativeDiscoveryResult, NativeOsDetectResult, NativeArpSpoofResult } from '../types';
 import {
@@ -17,6 +17,7 @@ import {
   checkArpSpoofing,
   fetchDeviceFingerprint,
   analyzeNativeTopologyGuard,
+  inspectHostPackets,
 } from '../services/nativeModulesService';
 
 interface NativeModulesModalProps {
@@ -137,13 +138,13 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
     {
       id: 'pcap',
       name: 'grid_pcap_analyzer.dll',
-      title: isEn ? 'Packet Fingerprinting & Anomaly Detection' : '패킷 핑거프린팅 & 이상 패킷 감지',
+      title: isEn ? 'Packet Fingerprinting & Multi-Sample Telemetry (v2.6.2)' : '패킷 핑거프린팅 & 멀티 샘플 정밀 텔레메트리 (v2.6.2)',
       active: status?.pcapAnalyzer ?? false,
       desc: isEn
-        ? 'Analyzes initial TTL and Window Size of TCP SYN-ACK packets to classify OS (Linux/Windows/Cisco) and detect ARP spoofing.'
-        : 'TCP SYN-ACK 패킷의 초기 TTL과 Window Size를 분석하여 OS(Linux/Windows/Cisco)를 식별하고 ARP 스푸핑을 탐지합니다.',
-      features: isEn ? ['TTL/Window OS Detection', 'ARP Spoofing Protection', 'Npcap Dynamic Loading'] : ['TTL/Window OS 식별', 'ARP 스푸핑 공격 감지', 'Npcap 동적 로딩'],
-      tag: 'Phase 4 Security',
+        ? 'Captures multi-sample ICMP/TCP RTT, jitter, estimated hop count, TCP SYN-ACK window hints, and live L2 ARP MAC verification.'
+        : '멀티 샘플 ICMP/TCP RTT · 지터(Jitter) · 추정 홉 수 · TCP SYN-ACK 윈도우 힌트 및 실시간 L2 ARP MAC 무결성을 JSON 프로파일로 정밀 분석합니다.',
+      features: isEn ? ['TTL & Hop Telemetry', 'TCP SYN-ACK RTT & Jitter', 'L2 ARP Spoof Check'] : ['TTL · 홉 텔레메트리', 'TCP SYN-ACK RTT · 지터', '실시간 L2 ARP 스푸핑 검증'],
+      tag: 'Phase 4 v2.6.2',
     },
     {
       id: 'fingerprint',
@@ -290,6 +291,29 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
       );
     } else {
       setTestOutput(`[-] ${testIp}: 토폴로지 가드 분석 응답 실패`);
+    }
+    setIsTesting(false);
+  };
+
+  const handleTestPacketInspect = async () => {
+    setIsTesting(true);
+    setTestOutput(`[*] ${testIp} 대상 v2.6.2 패킷 정밀 프로파일 (TTL / Hops / TCP SYN-ACK RTT / Jitter / L2 ARP) 계측 중...`);
+    const resp = await inspectHostPackets({
+      ip: testIp,
+      expectedMac: testMac && testMac.trim().length >= 12 ? testMac.trim() : undefined,
+    });
+    if (resp && resp.result) {
+      const r = resp.result;
+      setTestOutput(
+        `[OK] 패킷 정밀 프로파일 완료 (${r.capturedVia || (resp.native ? 'native_dll' : 'go_fallback')}):\n` +
+        `• 추정 OS: ${r.osGuess} (신뢰도 ${r.confidence}%)\n` +
+        `• ICMP TTL: ${r.ttl} / 추정 초기 TTL: ${r.estimatedInitialTtl} (경유 홉: ${r.estimatedHops} hops)\n` +
+        `• RTT (min/avg/max): ${r.rttMinMs.toFixed(2)} / ${r.rttAvgMs.toFixed(2)} / ${r.rttMaxMs.toFixed(2)} ms | Jitter: ${r.jitterMs.toFixed(2)} ms\n` +
+        `• TCP SYN-ACK: ${r.tcpHandshakeMs > 0 ? `${r.tcpHandshakeMs.toFixed(2)} ms (Port ${r.tcpProbePort || '-'})` : '응답 없음'} | Window Hint: ${r.tcpWindowHint || '-'}\n` +
+        `• Live MAC: ${r.liveMac || 'Unknown'} | ARP 상태: ${!r.arpConsistent ? '⚠️ 스푸핑 의심' : '✅ 정상'} (${r.spoofAlert || 'OK'})`
+      );
+    } else {
+      setTestOutput(`[-] ${testIp}: 패킷 프로파일 계측 실패 또는 응답 시간 초과`);
     }
     setIsTesting(false);
   };
@@ -627,6 +651,14 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>{isEn ? 'Topology & LAA Guard' : '토폴로지·충돌·LAA 상관분석'}</span>
+              </button>
+              <button
+                onClick={handleTestPacketInspect}
+                disabled={isTesting || !testIp}
+                className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Packet Telemetry' : '패킷 정밀 텔레메트리'}</span>
               </button>
             </div>
 

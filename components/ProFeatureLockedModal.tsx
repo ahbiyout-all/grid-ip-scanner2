@@ -8,11 +8,11 @@ import {
   Clock,
   Archive,
   GitCompare,
-  FileSpreadsheet,
   FileText,
   Palette,
   BellRing,
   Network,
+  Layers,
   ArrowRight,
   Check,
 } from 'lucide-react';
@@ -26,10 +26,11 @@ export type ProLockedFeatureId =
   | 'snapshotDiff'
   | 'reportDiffCompare'
   | 'reportAuditExport'
-  | 'reportExcelWorkbook'
   | 'reportBrandingLogo'
   | 'intruderGuard'
-  | 'multiSubnetUnlimited';
+  | 'multiSubnetUnlimited'
+  | 'multiSubnetBatchSweep'
+  | 'topologySecurityPro';
 
 export interface ProFeatureLockSpec {
   id: ProLockedFeatureId;
@@ -199,28 +200,6 @@ export const PRO_FEATURE_LOCK_CATALOG: Record<ProLockedFeatureId, ProFeatureLock
       'Ready for compliance reviews and periodic security audits',
     ],
   },
-  reportExcelWorkbook: {
-    id: 'reportExcelWorkbook',
-    requiredTier: 'pro',
-    categoryKo: '다중 시트 스프레드시트',
-    categoryEn: 'Multi-Sheet Workbook',
-    featureNameKo: 'Excel 5-Sheet 통합문서 내보내기 (.xls)',
-    featureNameEn: '5-Sheet Excel Workbook Export (.xls)',
-    valuePropKo:
-      '요약 통계, 16×16 시각화 맵, 전체 장치 목록, 보안 감사, 스냅샷 비교까지 5개 워크시트로 구성된 Excel 통합문서를 저장합니다.',
-    valuePropEn:
-      'Export a structured 5-worksheet Excel workbook containing Executive Summary, 16×16 Visual Grid, Device Inventory, Security Audit, and Snapshot Diff.',
-    highlightsKo: [
-      '단일 파일에 5개 전문 워크시트 자동 구성 및 서식 적용',
-      '컬럼 커스터마이징·필터·정렬 설정과 실시간 연동',
-      '자산 대장 관리 및 엑셀 피벗 분석에 즉시 활용 가능',
-    ],
-    highlightsEn: [
-      'Five formatted worksheets bundled in a single .xls workbook',
-      'Respects active column selection, filters, and sort order',
-      'Built for IT asset inventories and spreadsheet analysis',
-    ],
-  },
   reportBrandingLogo: {
     id: 'reportBrandingLogo',
     requiredTier: 'pro',
@@ -273,18 +252,62 @@ export const PRO_FEATURE_LOCK_CATALOG: Record<ProLockedFeatureId, ProFeatureLock
     featureNameKo: '무제한 다중 서브넷 관리',
     featureNameEn: 'Unlimited Multi-Subnet Management',
     valuePropKo:
-      '단일 /24 대역 제한을 넘어 여러 VLAN 및 지사 서브넷 프로파일을 무제한으로 전환하고 통합 관리할 수 있습니다.',
+      '기본 제공 2개 대역을 넘어 여러 VLAN 및 지사 서브넷 프로파일을 확장하고 통합 관리할 수 있습니다.',
     valuePropEn:
-      'Expand beyond single-subnet boundaries to manage and scan unlimited VLANs and branch network profiles.',
+      'Expand beyond the 2-subnet Free quota to manage and monitor multiple VLANs and branch network profiles.',
     highlightsKo: [
-      'PRO 등급 최대 5개 서브넷, Enterprise 무제한 대역 지원',
+      'Free 2개 / PRO 최대 5개 서브넷, Enterprise 무제한 대역 지원',
       '멀티 VLAN 환경 고속 전환 및 통합 모니터링',
       '대규모 사내망·데이터센터 IP 자산 전수 조사',
     ],
     highlightsEn: [
-      'Supports up to 5 subnets in PRO and unlimited in Enterprise',
+      'Supports 2 subnets in Free, 5 in PRO, and unlimited in Enterprise',
       'Rapid profile switching across multi-VLAN environments',
       'Designed for campus, enterprise, and data-center IP audits',
+    ],
+  },
+  multiSubnetBatchSweep: {
+    id: 'multiSubnetBatchSweep',
+    requiredTier: 'pro',
+    categoryKo: '다중 대역 일괄 관제',
+    categoryEn: 'Multi-Subnet Batch Sweep',
+    featureNameKo: '다중 서브넷 순차 일괄 스캔 & 통합 이상 징후 대시보드',
+    featureNameEn: 'Multi-Subnet Batch Sweep & Unified Anomaly Dashboard',
+    valuePropKo:
+      '등록된 모든 서브넷 및 VLAN 프로파일을 원클릭으로 순차 일괄 스캔하고 전체 대역의 IP 충돌·침입 의심 노드를 단일 대시보드에서 통합 관제합니다.',
+    valuePropEn:
+      'Sequentially sweep all registered subnets and VLANs in one click and triage cross-subnet conflicts and anomalies in a unified dashboard.',
+    highlightsKo: [
+      '등록 대역 전체 무인 순차 스캔 큐 (PRO 5개 / ENT 무제한)',
+      '전 서브넷 합산 Active · IP 충돌 · Proxy-ARP · 침입 의심 KPI 집계',
+      '대역별 스캔 캐시 즉시 전환 및 원클릭 장애 대역 포커스',
+    ],
+    highlightsEn: [
+      'Unattended sequential sweep queue across all registered subnets',
+      'Aggregated Active, Conflict, Proxy-ARP, and Intruder KPIs across VLANs',
+      'Instant cached grid switching with one-click drill-down',
+    ],
+  },
+  topologySecurityPro: {
+    id: 'topologySecurityPro',
+    requiredTier: 'pro',
+    categoryKo: '토폴로지 보안 상관분석',
+    categoryEn: 'Topology Security Correlation',
+    featureNameKo: '토폴로지 보안 상관분석 & 상시 ARP 스푸핑 가드',
+    featureNameEn: 'Topology Security Correlation & Continuous ARP Spoof Guard',
+    valuePropKo:
+      '네이티브 토폴로지 가드(v2.6)와 L2 ARP 검증 엔진을 결합해 LAA 랜덤 MAC 유예 추적, Proxy-ARP 분리, 실시간 ARP 스푸핑 연속 감시를 수행합니다.',
+    valuePropEn:
+      'Combine native Topology Guard with L2 ARP verification for LAA MAC identity tracking, Proxy-ARP isolation, and continuous ARP spoof guarding.',
+    highlightsKo: [
+      '네이티브 C DLL 기반 IP-MAC 충돌 & Gateway 상관분석 오버레이',
+      '단일 호스트 상시 패킷/ARP 스푸핑 무결성 연속 모니터링',
+      'Soft-Trust 유사도 점수 및 토폴로지 위협 필터 자동 강조',
+    ],
+    highlightsEn: [
+      'Native C DLL correlation overlay for IP-MAC conflicts and Gateway paths',
+      'Continuous L2 ARP spoofing & packet integrity guard',
+      'Soft-Trust similarity correlation with topology threat highlighting',
     ],
   },
 };
@@ -302,8 +325,6 @@ function renderFeatureIcon(id: ProLockedFeatureId, className: string) {
     case 'snapshotDiff':
     case 'reportDiffCompare':
       return <GitCompare className={className} />;
-    case 'reportExcelWorkbook':
-      return <FileSpreadsheet className={className} />;
     case 'reportAuditExport':
       return <FileText className={className} />;
     case 'reportBrandingLogo':
@@ -312,6 +333,10 @@ function renderFeatureIcon(id: ProLockedFeatureId, className: string) {
       return <BellRing className={className} />;
     case 'multiSubnetUnlimited':
       return <Network className={className} />;
+    case 'multiSubnetBatchSweep':
+      return <Layers className={className} />;
+    case 'topologySecurityPro':
+      return <ShieldAlert className={className} />;
   }
 }
 

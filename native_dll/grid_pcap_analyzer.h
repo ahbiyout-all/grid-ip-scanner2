@@ -41,6 +41,15 @@ PCAP_API int Pcap_DetectArpSpoofing(
     int maxLen
 );
 
+PCAP_API int Pcap_InspectPacketProfileJson(
+    const char* targetIp,
+    const char* expectedMac,
+    int port,
+    int timeoutMs,
+    char* outJson,
+    int maxLen
+);
+
 #ifdef __cplusplus
 }
 #endif

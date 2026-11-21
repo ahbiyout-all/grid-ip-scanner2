@@ -565,3 +565,116 @@ export interface TrayRuntimeSnapshot {
   lastAutonomousSweepMs?: number;
 }
 
+export interface SubnetProfile {
+  id: string;
+  label: string;
+  subnet: string;
+  start: number;
+  end: number;
+  vlanId?: string;
+  cidr?: string;
+  gatewayIp?: string;
+  interfaceName?: string;
+  type?: 'physical' | 'virtual' | 'vpn' | 'custom' | 'other';
+  pinned?: boolean;
+  lastScannedAt?: number;
+  activeCount: number;
+  realConflictCount: number;
+  proxyArpCount: number;
+  intruderCount: number;
+}
+
+export interface DiscoveredSubnetCandidate {
+  id: string;
+  subnet: string;
+  start: number;
+  end: number;
+  cidr: string;
+  gatewayIp: string;
+  interfaceName: string;
+  interfaceIp: string;
+  vlanHint?: string;
+  type: 'physical' | 'virtual' | 'loopback' | 'vpn' | 'other' | string;
+  status: 'up' | 'down' | string;
+  isDefault: boolean;
+}
+
+export interface MultiSubnetBatchState {
+  isRunning: boolean;
+  queueIds: string[];
+  completedIds: string[];
+  currentProfileId: string | null;
+  startedAt: number | null;
+}
+
+export interface PacketInspectionResult {
+  ip: string;
+  ttl: number;
+  estimatedInitialTtl: number;
+  estimatedHops: number;
+  tcpHandshakeMs: number;
+  tcpProbePort: number;
+  tcpWindowHint: number;
+  osGuess: string;
+  confidence: number;
+  sampleCount: number;
+  rttMinMs: number;
+  rttAvgMs: number;
+  rttMaxMs: number;
+  jitterMs: number;
+  arpConsistent: boolean;
+  liveMac: string;
+  spoofAlert?: string;
+  npcapAvailable: boolean;
+  capturedVia: string;
+}
+
+export type TopologyNodeTier = 'gateway' | 'infra' | 'endpoint' | 'vm';
+export type TopologyEdgeRelation =
+  | 'uplink'
+  | 'proxy_arp_alias'
+  | 'conflict_alert'
+  | 'soft_trust_link'
+  | 'intruder_link';
+
+export type TopologyRiskState = 'normal' | 'conflict' | 'proxy_arp' | 'soft_trust' | 'intruder';
+
+export interface TopologyNode {
+  id: string;
+  ip: string;
+  label: string;
+  mac?: string;
+  vendor?: string;
+  deviceType?: string;
+  tier: TopologyNodeTier;
+  riskState: TopologyRiskState;
+  latencyMs?: number;
+  openPorts?: number[];
+  openPortCount: number;
+  anomalyMask?: number;
+  reason?: string;
+  vlanTag?: string;
+  isHost?: boolean;
+  isActive?: boolean;
+}
+
+export interface TopologyEdge {
+  id: string;
+  fromIp: string;
+  toIp: string;
+  relation: TopologyEdgeRelation;
+  label?: string;
+}
+
+export interface TopologyGraphPayload {
+  subnet: string;
+  vlanTag?: string;
+  gatewayIp: string;
+  nodes: TopologyNode[];
+  edges: TopologyEdge[];
+  engine: string;
+  elapsedMicroseconds: number;
+  summary?: NativeTopologyGuardResult | null;
+}
+
+

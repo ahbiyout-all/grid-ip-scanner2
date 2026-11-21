@@ -30,7 +30,7 @@ export interface UpdateInfo {
   pwaZipUrl?: string;
 }
 
-export const CURRENT_APP_VERSION = '2.5.0';
+export const CURRENT_APP_VERSION = '2.6.0';
 export const GITHUB_REPO_OWNER = 'AhBiYout-all';
 export const GITHUB_REPO_NAME = 'grid-ip-scanner2';
 export const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
@@ -67,6 +67,25 @@ function categorizeAsset(filename: string): ReleaseAsset['type'] {
   return 'other';
 }
 
+function sanitizeGitHubUrl(rawUrl: unknown, fallback: string): string {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) return fallback;
+  try {
+    const parsed = new URL(rawUrl.trim());
+    const allowedHosts = new Set([
+      'github.com',
+      'objects.githubusercontent.com',
+      'release-assets.githubusercontent.com',
+      'codeload.github.com',
+    ]);
+    if (parsed.protocol === 'https:' && allowedHosts.has(parsed.hostname.toLowerCase())) {
+      return parsed.toString();
+    }
+  } catch {
+    // fallback below
+  }
+  return fallback;
+}
+
 /**
  * Check GitHub Releases for newer version
  * @param manual If true, ignores cache and forces API request
@@ -79,6 +98,7 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
   const cacheKey = 'grid_update_cache';
   const lastCheckKey = 'grid_update_last_check';
   const THROTTLE_MS = 1000 * 60 * 60; // 1 hour throttle for automatic background checks
+  const defaultReleasesUrl = `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`;
 
   // Background throttle check (avoid GitHub 60 req/hr anonymous rate limit)
   if (!manual) {
@@ -90,7 +110,27 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
         try {
           const parsed: UpdateInfo = JSON.parse(cached);
           const hasUpdate = compareSemVer(parsed.latestVersion, CURRENT_APP_VERSION) > 0;
-          return { hasUpdate, updateInfo: { ...parsed, hasUpdate, currentVersion: CURRENT_APP_VERSION } };
+          return {
+            hasUpdate,
+            updateInfo: {
+              ...parsed,
+              hasUpdate,
+              currentVersion: CURRENT_APP_VERSION,
+              htmlUrl: sanitizeGitHubUrl(parsed.htmlUrl, defaultReleasesUrl),
+              assets: Array.isArray(parsed.assets)
+                ? parsed.assets
+                    .map((a) => ({
+                      ...a,
+                      downloadUrl: sanitizeGitHubUrl(a?.downloadUrl, ''),
+                    }))
+                    .filter((a) => a.downloadUrl !== '')
+                : [],
+              portableExeUrl: parsed.portableExeUrl ? sanitizeGitHubUrl(parsed.portableExeUrl, '') || undefined : undefined,
+              installerExeUrl: parsed.installerExeUrl ? sanitizeGitHubUrl(parsed.installerExeUrl, '') || undefined : undefined,
+              androidApkUrl: parsed.androidApkUrl ? sanitizeGitHubUrl(parsed.androidApkUrl, '') || undefined : undefined,
+              pwaZipUrl: parsed.pwaZipUrl ? sanitizeGitHubUrl(parsed.pwaZipUrl, '') || undefined : undefined,
+            },
+          };
         } catch (e) {
           // ignore cache error and re-fetch
         }
@@ -124,7 +164,7 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
           releaseTitle: `Grid IP Scanner2 v${CURRENT_APP_VERSION} (최신 버전)`,
           releaseNotes: '현재 사용 중인 버전이 최신 공식 빌드입니다.',
           publishedAt: new Date().toISOString(),
-          htmlUrl: `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`,
+          htmlUrl: defaultReleasesUrl,
           assets: []
         }
       };
@@ -138,13 +178,15 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
     const latestTag = (data.tag_name || '').replace(/^v/i, '').trim();
     const hasUpdate = compareSemVer(latestTag, CURRENT_APP_VERSION) > 0;
 
-    const assets: ReleaseAsset[] = (data.assets || []).map((a: any) => ({
-      name: a.name,
-      size: a.size,
-      downloadUrl: a.browser_download_url,
-      contentType: a.content_type,
-      type: categorizeAsset(a.name)
-    }));
+    const assets: ReleaseAsset[] = (data.assets || [])
+      .map((a: any) => ({
+        name: String(a.name || ''),
+        size: Number(a.size || 0),
+        downloadUrl: sanitizeGitHubUrl(a.browser_download_url, ''),
+        contentType: String(a.content_type || ''),
+        type: categorizeAsset(String(a.name || ''))
+      }))
+      .filter((a: ReleaseAsset) => a.downloadUrl !== '');
 
     const portableExe = assets.find(a => a.type === 'portable_exe');
     const installerExe = assets.find(a => a.type === 'installer_exe');
@@ -158,7 +200,7 @@ export async function checkGitHubRelease(manual: boolean = false): Promise<{
       releaseTitle: data.name || `Grid IP Scanner2 v${latestTag}`,
       releaseNotes: data.body || '릴리즈 변경 내역이 제공되지 않았습니다.',
       publishedAt: data.published_at || new Date().toISOString(),
-      htmlUrl: data.html_url || `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`,
+      htmlUrl: sanitizeGitHubUrl(data.html_url, defaultReleasesUrl),
       assets,
       portableExeUrl: portableExe?.downloadUrl,
       installerExeUrl: installerExe?.downloadUrl,

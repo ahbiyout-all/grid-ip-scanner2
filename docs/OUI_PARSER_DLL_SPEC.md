@@ -94,9 +94,10 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
 
 ### HTTP Request
 ```http
-GET /api/oui/validate-dll?save=true HTTP/1.1
+POST /api/oui/validate-dll?save=true HTTP/1.1
 Host: localhost:3031
 ```
+> 참고: 읽기 전용 무결성 검증은 `GET /api/oui/validate-dll`을 지원하며, `save=true`로 캐시 파일을 덮어쓰려면 반드시 `POST` 메서드를 사용해야 합니다.
 
 ### Response Example (JSON)
 ```json

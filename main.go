@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/hex"
@@ -1831,53 +1832,7 @@ func main() {
 	})
 
 	// Close to Tray configuration endpoint
-	http.HandleFunc("/api/close-to-tray", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method == http.MethodPost {
-			enableStr := r.URL.Query().Get("enabled")
-			if enableStr == "" {
-				var body struct {
-					Enabled bool `json:"enabled"`
-				}
-				if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
-					enableStr = strconv.FormatBool(body.Enabled)
-				}
-			}
-
-			closeToTrayMutex.Lock()
-			if enableStr == "false" || enableStr == "0" {
-				closeToTrayEnabled = false
-			} else {
-				closeToTrayEnabled = true
-			}
-			val := closeToTrayEnabled
-			closeToTrayMutex.Unlock()
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"enabled": val,
-			})
-			return
-		}
-
-		closeToTrayMutex.RLock()
-		val := closeToTrayEnabled
-		closeToTrayMutex.RUnlock()
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"enabled": val,
-		})
-	})
+	http.HandleFunc("/api/close-to-tray", handleCloseToTrayAPI)
 
 	// Window closed notification endpoint (called on pagehide / beforeunload beacon)
 	http.HandleFunc("/api/window-closed", func(w http.ResponseWriter, r *http.Request) {
@@ -1885,6 +1840,10 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1921,6 +1880,10 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -2164,111 +2127,7 @@ func main() {
 		})
 	})
 
-	http.HandleFunc("/api/oui/validate-dll", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
-
-		ouiFileMutex.Lock()
-		cachePath := getOUICachePath()
-		var rawData []byte
-		var err error
-
-		if _, statErr := os.Stat(cachePath); statErr == nil {
-			rawData, err = os.ReadFile(cachePath)
-		} else if len(ouiData) > 0 {
-			rawData = []byte(ouiData)
-		}
-		ouiFileMutex.Unlock()
-
-		if err != nil || len(rawData) == 0 {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "OUI database file not found for validation",
-			})
-			return
-		}
-
-		sanitized, stats, ok := tryNativeValidateAndSanitizeOUI(string(rawData))
-		dllLoaded := isGridNetDriverLoaded()
-
-		if ok && len(sanitized) > 0 {
-			// Save sanitized copy if requested
-			if r.URL.Query().Get("save") == "true" {
-				ouiFileMutex.Lock()
-				writeErr := os.WriteFile(cachePath, []byte(sanitized), 0644)
-				if writeErr != nil {
-					ouiFileMutex.Unlock()
-					w.WriteHeader(http.StatusInternalServerError)
-					json.NewEncoder(w).Encode(map[string]interface{}{
-						"success": false,
-						"error":   "Failed to save sanitized OUI cache: " + writeErr.Error(),
-					})
-					return
-				}
-				initOUIProvider()
-				ouiFileMutex.Unlock()
-			}
-
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success":           true,
-				"engine":            "grid_net_driver.dll (Native C Sanitizer)",
-				"dllLoaded":         dllLoaded,
-				"totalLines":        stats.TotalLines,
-				"validEntries":      stats.ValidEntries,
-				"duplicatesRemoved": stats.DuplicatesRemoved,
-				"malformedLines":    stats.MalformedLines,
-				"message":           fmt.Sprintf("grid_net_driver.dll OUI 무결성 검증 완료: %d개 정상, %d개 중복 제거, %d개 오류 복구", stats.ValidEntries, stats.DuplicatesRemoved, stats.MalformedLines),
-			})
-			return
-		}
-
-		// Fallback Go validation if DLL is not active
-		lines := strings.Split(string(rawData), "\n")
-		valid := 0
-		duplicates := 0
-		malformed := 0
-		seen := make(map[string]bool)
-
-		for _, l := range lines {
-			l = strings.TrimSpace(l)
-			if l == "" || strings.HasPrefix(l, "#") {
-				continue
-			}
-			parts := strings.SplitN(l, "\t", 2)
-			if len(parts) == 2 {
-				prefix := strings.ToUpper(strings.TrimSpace(parts[0]))
-				if seen[prefix] {
-					duplicates++
-				} else {
-					seen[prefix] = true
-					valid++
-				}
-			} else {
-				malformed++
-			}
-		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":           true,
-			"engine":            "Go Internal Fallback Validator",
-			"dllLoaded":         false,
-			"totalLines":        len(lines),
-			"validEntries":      valid,
-			"duplicatesRemoved": duplicates,
-			"malformedLines":    malformed,
-			"message":           fmt.Sprintf("OUI 무결성 검증 완료 (Go 폴백): %d개 정상 항목, %d개 중복 감지", valid, duplicates),
-		})
-	})
+	http.HandleFunc("/api/oui/validate-dll", handleValidateOUIAPI)
 
 	guard := getLicenseGuard()
 
@@ -2441,75 +2300,25 @@ func main() {
 	})
 
 	// Wake-on-LAN Magic Packet Broadcaster
-	http.HandleFunc("/api/wol", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Method not allowed",
-			})
-			return
-		}
-
-		var req struct {
-			MAC string `json:"mac"`
-			IP  string `json:"ip"`
-		}
-
-		if r.Method == http.MethodPost {
-			_ = json.NewDecoder(io.LimitReader(r.Body, 64*1024)).Decode(&req)
-		}
-		if req.MAC == "" {
-			req.MAC = r.URL.Query().Get("mac")
-			req.IP = r.URL.Query().Get("ip")
-		}
-
-		if req.MAC == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Missing MAC address parameter",
-			})
-			return
-		}
-
-		sent, err := sendWakeOnLan(req.MAC, req.IP)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   err.Error(),
-			})
-			return
-		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"mac":         req.MAC,
-			"ip":          req.IP,
-			"packetsSent": sent,
-			"message":     fmt.Sprintf("Wake-on-LAN 매직 패킷이 [%s]로 %d회 브로드캐스트 전송되었습니다.", req.MAC, sent),
-		})
-	})
+	http.HandleFunc("/api/wol", handleWolAPI)
 
 	// One-Click Remote Tool Orchestrator
 	http.HandleFunc("/api/remote-action", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "POST method required",
+			})
 			return
 		}
 
@@ -2680,49 +2489,7 @@ func main() {
 		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 	})
 
-	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		ip, subnet := getLocalIP()
-		interfaces := getAllInterfaces()
-
-		ouiMutex.RLock()
-		ouiCount := 0
-		if currentOUIProvider != nil {
-			ouiCount = currentOUIProvider.EntryCount()
-		}
-		source := currentOUISource
-		ouiMutex.RUnlock()
-
-		compName, _ := os.Hostname()
-		if compName == "" {
-			compName = "Unknown PC"
-		}
-
-		cachePath := getOUICachePath()
-		dbLocation := "내장 OUI 데이터베이스 (master_oui.txt)"
-		if strings.Contains(source, "Local Cache") {
-			dbLocation = cachePath
-		}
-
-		json.NewEncoder(w).Encode(LocalInfo{
-			IP:                  ip,
-			Subnet:              subnet,
-			Interfaces:          interfaces,
-			IsAdmin:             isRunningAsAdmin(),
-			OUICount:            ouiCount,
-			OUISource:           source,
-			OUICachePath:        cachePath,
-			OUIDatabaseLocation: dbLocation,
-			ComputerName:        compName,
-		})
-	})
+	http.HandleFunc("/api/info", handleInfoAPI)
 
 	http.HandleFunc("/api/scan", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -2731,6 +2498,10 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
 		flusher, ok := w.(http.Flusher)
@@ -3207,21 +2978,28 @@ func main() {
 	})
 
 	// Native Modules Status Endpoint
-	http.HandleFunc("/api/native-modules", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(getNativeModulesStatus())
-	})
+	http.HandleFunc("/api/native-modules", handleNativeModulesAPI)
 
 	// Native Deep Multicast Discovery Endpoint (mDNS, SSDP, LLMNR, NetBIOS)
 	http.HandleFunc("/api/discovery", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		ip := r.URL.Query().Get("ip")
-		if ip == "" || net.ParseIP(ip) == nil {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		parsedIP := net.ParseIP(strings.TrimSpace(r.URL.Query().Get("ip")))
+		if parsedIP == nil {
 			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
 			return
 		}
+		ip := parsedIP.String()
 		timeoutMs := 600
 		if t := r.URL.Query().Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
@@ -3249,18 +3027,31 @@ func main() {
 	// Native Deep Protocol Banner Grabber Endpoint (HTTP, SSH, RTSP, TLS)
 	http.HandleFunc("/api/banner-grab", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		ip := r.URL.Query().Get("ip")
-		if ip == "" || net.ParseIP(ip) == nil {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		parsedIP := net.ParseIP(strings.TrimSpace(r.URL.Query().Get("ip")))
+		if parsedIP == nil {
 			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
 			return
 		}
+		ip := parsedIP.String()
 		port := 80
-		if p := r.URL.Query().Get("port"); p != "" {
-			fmt.Sscanf(p, "%d", &port)
-		}
-		if port < 1 || port > 65535 {
-			port = 80
+		if p := strings.TrimSpace(r.URL.Query().Get("port")); p != "" {
+			parsedPort, err := strconv.Atoi(p)
+			if err != nil || parsedPort < 1 || parsedPort > 65535 {
+				http.Error(w, `{"error":"Invalid port number (must be 1-65535)"}`, http.StatusBadRequest)
+				return
+			}
+			port = parsedPort
 		}
 		timeoutMs := 800
 		if t := r.URL.Query().Get("timeout"); t != "" {
@@ -3288,12 +3079,23 @@ func main() {
 	// Native OS Detection Endpoint (SYN-ACK / ICMP TTL Fingerprinting)
 	http.HandleFunc("/api/os-detect", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		ip := r.URL.Query().Get("ip")
-		if ip == "" || net.ParseIP(ip) == nil {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		parsedIP := net.ParseIP(strings.TrimSpace(r.URL.Query().Get("ip")))
+		if parsedIP == nil {
 			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
 			return
 		}
+		ip := parsedIP.String()
 		timeoutMs := 600
 		if t := r.URL.Query().Get("timeout"); t != "" {
 			fmt.Sscanf(t, "%d", &timeoutMs)
@@ -3323,7 +3125,17 @@ func main() {
 	// Native ARP Spoofing Detection Endpoint
 	http.HandleFunc("/api/arp-spoof-check", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
 		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
 		expectedMac := strings.TrimSpace(r.URL.Query().Get("mac"))
 		parsedIP := net.ParseIP(ip)
@@ -3513,12 +3325,182 @@ func main() {
 		})
 	})
 
+	// Multi-Subnet & VLAN Auto-Discovery Endpoint (v2.6.0)
+	http.HandleFunc("/api/subnets/discover", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		candidates := discoverLocalSubnetCandidates()
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":    true,
+			"count":      len(candidates),
+			"candidates": candidates,
+		})
+	})
+
+	// Live Packet Telemetry & Deep Socket Profile Endpoint (Module 6 v2.6.2 + Go Fallback)
+	http.HandleFunc("/api/packet-inspect", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		ip := strings.TrimSpace(r.URL.Query().Get("ip"))
+		expectedMac := strings.TrimSpace(r.URL.Query().Get("mac"))
+		port := 0
+		if p := r.URL.Query().Get("port"); p != "" {
+			if parsedPort, err := strconv.Atoi(strings.TrimSpace(p)); err != nil || parsedPort < 0 || parsedPort > 65535 {
+				http.Error(w, `{"success":false,"error":"Invalid port number (must be 0-65535)"}`, http.StatusBadRequest)
+				return
+			} else {
+				port = parsedPort
+			}
+		}
+		timeoutMs := 700
+		if t := r.URL.Query().Get("timeout"); t != "" {
+			fmt.Sscanf(t, "%d", &timeoutMs)
+		}
+
+		if r.Method == http.MethodPost {
+			var body struct {
+				IP          string `json:"ip"`
+				ExpectedMac string `json:"expectedMac"`
+				Port        int    `json:"port"`
+				TimeoutMs   int    `json:"timeoutMs"`
+			}
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 64*1024))
+			if err != nil {
+				http.Error(w, `{"success":false,"error":"Failed to read request body"}`, http.StatusBadRequest)
+				return
+			}
+			if len(bytes.TrimSpace(bodyBytes)) > 0 {
+				if err := json.Unmarshal(bodyBytes, &body); err != nil {
+					http.Error(w, `{"success":false,"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+					return
+				}
+				if body.IP != "" {
+					ip = strings.TrimSpace(body.IP)
+				}
+				if body.ExpectedMac != "" {
+					expectedMac = strings.TrimSpace(body.ExpectedMac)
+				}
+				if body.Port < 0 || body.Port > 65535 {
+					http.Error(w, `{"success":false,"error":"Invalid port number (must be 0-65535)"}`, http.StatusBadRequest)
+					return
+				}
+				if body.Port > 0 {
+					port = body.Port
+				}
+				if body.TimeoutMs > 0 {
+					timeoutMs = body.TimeoutMs
+				}
+			}
+		}
+
+		parsedIP := net.ParseIP(ip)
+		if parsedIP == nil || parsedIP.To4() == nil {
+			http.Error(w, `{"success":false,"error":"Invalid or missing IPv4 address"}`, http.StatusBadRequest)
+			return
+		}
+		ip = parsedIP.String()
+		if timeoutMs < 100 {
+			timeoutMs = 100
+		} else if timeoutMs > 5000 {
+			timeoutMs = 5000
+		}
+
+		if res, ok := tryNativePcapInspectProfile(ip, expectedMac, port, timeoutMs); ok && res != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"native":  true,
+				"result":  res,
+			})
+			return
+		}
+
+		fallbackRes := runGoPacketInspection(r.Context(), ip, expectedMac, port, timeoutMs)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"native":  false,
+			"result":  fallbackRes,
+		})
+	})
+
+	// Interactive Topology Map Graph Builder & Guard Endpoint (v2.6.0)
+	http.HandleFunc("/api/topology-map", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
+		if err != nil || len(bodyBytes) == 0 || !json.Valid(bodyBytes) {
+			http.Error(w, `{"success":false,"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+			return
+		}
+
+		graph, ok := buildTopologyGraphResponse(string(bodyBytes))
+		if !ok {
+			http.Error(w, `{"success":false,"error":"Failed to construct topology map"}`, http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(graph)
+	})
+
 	http.HandleFunc("/api/windows-util", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 
 		action := r.URL.Query().Get("action")
 		enableStr := r.URL.Query().Get("enable")
+
+		isReadOnlyQuery := action == "service-status" || (action == "autostart" && enableStr == "")
+		if !isReadOnlyQuery && r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "POST method required for Windows utility execution",
+			})
+			return
+		}
+		if isReadOnlyQuery && r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
 
 		if runtime.GOOS != "windows" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -3912,7 +3894,10 @@ func main() {
 
 	if runAsService && runtime.GOOS == "windows" {
 		fmt.Printf("Grid IP Scanner2 starting as Windows Service on %s\n", listenAddr)
-		srv := &http.Server{Addr: listenAddr}
+		srv := &http.Server{
+			Addr:              listenAddr,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
 		handled := runAsWindowsService("GridIPScannerService", func() {
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				fmt.Printf("Service HTTP server stopped: %v\n", err)
@@ -3930,7 +3915,11 @@ func main() {
 	}
 
 	fmt.Printf("Grid IP Scanner2 Engine starting on %s (Preview: %v, Tray: %v, Service: %v)\n", listenAddr, isPreview, startInTray, runAsService)
-	if err := http.ListenAndServe(listenAddr, nil); err != nil {
+	srv := &http.Server{
+		Addr:              listenAddr,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Printf("Server failed: %v\n", err)
 	}
 }
@@ -3986,3 +3975,822 @@ func sendWakeOnLan(macStr string, targetIP string) (int, error) {
 	}
 	return sentCount, nil
 }
+
+type DiscoveredSubnetCandidate struct {
+	ID            string `json:"id"`
+	Subnet        string `json:"subnet"`
+	Start         int    `json:"start"`
+	End           int    `json:"end"`
+	CIDR          string `json:"cidr"`
+	GatewayIP     string `json:"gatewayIp"`
+	InterfaceName string `json:"interfaceName"`
+	InterfaceIP   string `json:"interfaceIp"`
+	VLANHint      string `json:"vlanHint,omitempty"`
+	Type          string `json:"type"`
+	Status        string `json:"status"`
+	IsDefault     bool   `json:"isDefault"`
+}
+
+var reVlanHint = regexp.MustCompile(`(?i)(?:vlan[\s_\-:]?(\d{1,4})|\.(\d{1,4})$)`)
+
+func discoverLocalSubnetCandidates() []DiscoveredSubnetCandidate {
+	ifaces := getAllInterfaces()
+	seen := make(map[string]bool)
+	candidates := make([]DiscoveredSubnetCandidate, 0)
+
+	for _, iface := range ifaces {
+		if iface.Type == "loopback" || iface.IP == "" || iface.Subnet == "" {
+			continue
+		}
+		ipObj := net.ParseIP(iface.IP).To4()
+		if ipObj == nil || ipObj.IsLoopback() || strings.HasPrefix(iface.IP, "169.254.") {
+			continue
+		}
+
+		cidr := iface.CIDR
+		if cidr == "" {
+			cidr = iface.Subnet + ".0/24"
+		}
+		startHost := 1
+		endHost := 254
+		if _, ipnet, err := net.ParseCIDR(cidr); err == nil && ipnet != nil {
+			ones, bits := ipnet.Mask.Size()
+			if bits == 32 && ones >= 24 && ones <= 30 {
+				netBase := ipnet.IP.To4()
+				hostSpan := (1 << uint(32-ones))
+				sOct := int(netBase[3]) + 1
+				eOct := int(netBase[3]) + hostSpan - 2
+				if sOct >= 1 && sOct <= 254 {
+					startHost = sOct
+				}
+				if eOct >= startHost && eOct <= 254 {
+					endHost = eOct
+				}
+			}
+		}
+
+		key := fmt.Sprintf("%s:%d-%d", iface.Subnet, startHost, endHost)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		vlanHint := ""
+		if m := reVlanHint.FindStringSubmatch(iface.Name); len(m) > 0 {
+			vid := m[1]
+			if vid == "" {
+				vid = m[2]
+			}
+			if vid != "" {
+				vlanHint = "VLAN " + vid
+			}
+		} else if iface.Type == "virtual" {
+			vlanHint = "Virtual Switch"
+		} else if iface.Type == "vpn" {
+			vlanHint = "VPN Tunnel"
+		}
+
+		gwIP := iface.Subnet + ".1"
+		if strings.HasSuffix(iface.IP, ".1") {
+			gwIP = iface.IP
+		}
+
+		candidates = append(candidates, DiscoveredSubnetCandidate{
+			ID:            fmt.Sprintf("sub_%s_%d_%d", strings.ReplaceAll(iface.Subnet, ".", "_"), startHost, endHost),
+			Subnet:        iface.Subnet,
+			Start:         startHost,
+			End:           endHost,
+			CIDR:          fmt.Sprintf("%s.%d/%s", iface.Subnet, 0, strings.Split(cidr+"/", "/")[1]),
+			GatewayIP:     gwIP,
+			InterfaceName: iface.Name,
+			InterfaceIP:   iface.IP,
+			VLANHint:      vlanHint,
+			Type:          iface.Type,
+			Status:        iface.Status,
+			IsDefault:     iface.IsDefault,
+		})
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].IsDefault != candidates[j].IsDefault {
+			return candidates[i].IsDefault
+		}
+		if (candidates[i].Status == "up") != (candidates[j].Status == "up") {
+			return candidates[i].Status == "up"
+		}
+		return candidates[i].Subnet < candidates[j].Subnet
+	})
+
+	return candidates
+}
+
+func runGoPacketInspection(ctx context.Context, targetIP string, expectedMac string, port int, timeoutMs int) *PacketInspectionResult {
+	res := &PacketInspectionResult{
+		IP:                  targetIP,
+		EstimatedInitialTTL: 64,
+		ArpConsistent:       true,
+		CapturedVia:         "go_socket_probe",
+	}
+
+	probePorts := []int{}
+	if port > 0 && port <= 65535 {
+		probePorts = append(probePorts, port)
+	}
+	for _, p := range []int{80, 443, 22, 445, 3389, 8080} {
+		if p != port {
+			probePorts = append(probePorts, p)
+		}
+	}
+
+	perProbeTimeout := timeoutMs
+	if perProbeTimeout > 450 {
+		perProbeTimeout = 450
+	}
+	dialer := &net.Dialer{Timeout: time.Duration(perProbeTimeout) * time.Millisecond}
+
+	selectedPort := 0
+	var samples []float64
+	for _, p := range probePorts {
+		t0 := time.Now()
+		conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", targetIP, p))
+		dt := float64(time.Since(t0).Microseconds()) / 1000.0
+		if err == nil {
+			conn.Close()
+			selectedPort = p
+			samples = append(samples, dt)
+			break
+		}
+	}
+
+	if selectedPort > 0 {
+		res.TcpProbePort = selectedPort
+		for i := 0; i < 2; i++ {
+			t0 := time.Now()
+			conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:%d", targetIP, selectedPort))
+			dt := float64(time.Since(t0).Microseconds()) / 1000.0
+			if err == nil {
+				conn.Close()
+				samples = append(samples, dt)
+			}
+		}
+	}
+
+	if len(samples) > 0 {
+		minR := samples[0]
+		maxR := samples[0]
+		sumR := 0.0
+		for _, v := range samples {
+			if v < minR {
+				minR = v
+			}
+			if v > maxR {
+				maxR = v
+			}
+			sumR += v
+		}
+		res.SampleCount = len(samples)
+		res.RttMinMs = float64(int(minR*100)) / 100.0
+		res.RttMaxMs = float64(int(maxR*100)) / 100.0
+		res.RttAvgMs = float64(int((sumR/float64(len(samples)))*100)) / 100.0
+		res.JitterMs = float64(int((maxR-minR)*100)) / 100.0
+		res.TcpHandshakeMs = res.RttAvgMs
+	}
+
+	// OS / TTL Signature Heuristics based on open service port & handshake profile
+	switch res.TcpProbePort {
+	case 445, 3389:
+		res.TTL = 128
+		res.EstimatedInitialTTL = 128
+		res.EstimatedHops = 0
+		res.TcpWindowHint = 64240
+		res.OsGuess = "Windows (SMB/RDP Stack)"
+		res.Confidence = 84
+	case 22:
+		res.TTL = 64
+		res.EstimatedInitialTTL = 64
+		res.EstimatedHops = 0
+		res.TcpWindowHint = 65160
+		res.OsGuess = "Linux / macOS / UNIX (OpenSSH)"
+		res.Confidence = 82
+	case 80, 443, 8080:
+		res.TTL = 64
+		res.EstimatedInitialTTL = 64
+		res.EstimatedHops = 0
+		res.TcpWindowHint = 29200
+		res.OsGuess = "Embedded Linux / Network Appliance"
+		res.Confidence = 72
+	default:
+		res.TTL = 0
+		res.EstimatedInitialTTL = 64
+		res.EstimatedHops = 0
+		res.OsGuess = "Firewall-Hardened Host (No TCP Probe Port Open)"
+		res.Confidence = 45
+	}
+
+	liveMac := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(GlobalEngine.GetMAC(targetIP)), "-", ":"))
+	res.LiveMac = liveMac
+	cleanLive := strings.ReplaceAll(liveMac, ":", "")
+	cleanExp := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(expectedMac), ":", ""), "-", ""))
+	if len(cleanExp) == 12 && len(cleanLive) == 12 && cleanExp != cleanLive {
+		res.ArpConsistent = false
+		res.SpoofAlert = fmt.Sprintf("MAC mismatch detected (expected %s, observed %s)", expectedMac, liveMac)
+	}
+
+	return res
+}
+
+type TopologyMapHostInput struct {
+	IP           string `json:"ip"`
+	MAC          string `json:"mac"`
+	Hostname     string `json:"hostname"`
+	Vendor       string `json:"vendor"`
+	DeviceType   string `json:"deviceType"`
+	Latency      int    `json:"latency"`
+	OpenPorts    []int  `json:"openPorts"`
+	IsTrusted    bool   `json:"isTrusted"`
+	IsHost       bool   `json:"isHost"`
+	IsGateway    bool   `json:"isGateway"`
+	IsProxyArp   bool   `json:"isProxyArp"`
+	IsConflict   bool   `json:"isConflict"`
+	IsSoftTrust  bool   `json:"isSoftTrust"`
+	IsIntruder   bool   `json:"isIntruder"`
+	VlanTag      string `json:"vlanTag,omitempty"`
+}
+
+type TopologyNodeDTO struct {
+	ID            string `json:"id"`
+	IP            string `json:"ip"`
+	Label         string `json:"label"`
+	MAC           string `json:"mac,omitempty"`
+	Vendor        string `json:"vendor,omitempty"`
+	Tier          string `json:"tier"` // gateway | infra | endpoint | vm
+	RiskState     string `json:"riskState"` // normal | conflict | proxy_arp | soft_trust | intruder
+	LatencyMs     int    `json:"latencyMs,omitempty"`
+	OpenPortCount int    `json:"openPortCount"`
+	AnomalyMask   uint32 `json:"anomalyMask,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	VlanTag       string `json:"vlanTag,omitempty"`
+	IsHost        bool   `json:"isHost,omitempty"`
+}
+
+type TopologyEdgeDTO struct {
+	ID       string `json:"id"`
+	FromIP   string `json:"fromIp"`
+	ToIP     string `json:"toIp"`
+	Relation string `json:"relation"` // uplink | proxy_arp_alias | conflict_alert | soft_trust_link | intruder_link
+	Label    string `json:"label,omitempty"`
+}
+
+func isTopologyVmMac(raw string) bool {
+	var b strings.Builder
+	for _, r := range raw {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F') {
+			b.WriteRune(r)
+		}
+	}
+	clean := strings.ToUpper(b.String())
+	if len(clean) < 6 {
+		return false
+	}
+	return strings.HasPrefix(clean, "525400") ||
+		strings.HasPrefix(clean, "0242") ||
+		strings.HasPrefix(clean, "0A0027") ||
+		strings.HasPrefix(clean, "00155D")
+}
+
+func isTopologyInfraSignature(vendor string, hostname string) bool {
+	haystack := strings.ToLower(vendor + " " + hostname)
+	infraKeywords := []string{
+		"cisco", "hewlett", "hpe", "aruba", "fortinet", "juniper",
+		"palo alto", "ahnlab", "genians", "iptime", "efm", "mikrotik",
+		"ubiquiti", "unifi", "dasan", "ubiquoss", "extreme", "brocade",
+		"ruckus", "meraki", "arista", "watchguard", "sonicwall",
+		"netgear", "tp-link", "gateway", "router", "firewall", "switch", "core-sw", "l3-",
+	}
+	for _, kw := range infraKeywords {
+		if strings.Contains(haystack, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildTopologyGraphResponse(inJson string) (map[string]interface{}, bool) {
+	var req struct {
+		Subnet    string                 `json:"subnet"`
+		VlanTag   string                 `json:"vlanTag"`
+		GatewayIP string                 `json:"gatewayIp"`
+		Current   []TopologyMapHostInput `json:"current"`
+		Baseline  []TopologyMapHostInput `json:"baseline"`
+	}
+	if err := json.Unmarshal([]byte(inJson), &req); err != nil {
+		return nil, false
+	}
+
+	guardRes, _ := tryNativeTopologyGuardAnalyzeJson(inJson)
+	alertByIP := make(map[string]TopologyGuardAlert)
+	if guardRes != nil {
+		for _, al := range guardRes.Alerts {
+			alertByIP[al.IP] = al
+		}
+	}
+
+	gatewayIP := strings.TrimSpace(req.GatewayIP)
+	if gatewayIP == "" {
+		for _, c := range req.Current {
+			if c.IsGateway || strings.HasSuffix(c.IP, ".1") || strings.HasSuffix(c.IP, ".254") {
+				gatewayIP = c.IP
+				break
+			}
+		}
+	}
+	if gatewayIP == "" && req.Subnet != "" {
+		gatewayIP = req.Subnet + ".1"
+	}
+
+	nodes := make([]TopologyNodeDTO, 0, len(req.Current)+1)
+	edges := make([]TopologyEdgeDTO, 0, len(req.Current)*2)
+	hasGatewayNode := false
+
+	for _, c := range req.Current {
+		if c.IP == gatewayIP {
+			hasGatewayNode = true
+			break
+		}
+	}
+	if !hasGatewayNode && gatewayIP != "" {
+		nodes = append(nodes, TopologyNodeDTO{
+			ID:        gatewayIP,
+			IP:        gatewayIP,
+			Label:     "Gateway / Core Router",
+			Tier:      "gateway",
+			RiskState: "normal",
+			VlanTag:   req.VlanTag,
+		})
+	}
+
+	for _, c := range req.Current {
+		if c.IP == "" {
+			continue
+		}
+		al, hasAlert := alertByIP[c.IP]
+		riskState := "normal"
+		if c.IsConflict || (hasAlert && (al.AnomalyMask&1) != 0) {
+			riskState = "conflict"
+		} else if c.IsProxyArp || (hasAlert && (al.AnomalyMask&32) != 0) {
+			riskState = "proxy_arp"
+		} else if c.IsSoftTrust || (hasAlert && al.IsSoftTrusted) {
+			riskState = "soft_trust"
+		} else if c.IsIntruder || (hasAlert && (al.AnomalyMask&16) != 0) {
+			riskState = "intruder"
+		} else if hasAlert && (al.AnomalyMask&2) != 0 {
+			riskState = "conflict"
+		}
+
+		isLaaVM := isTopologyVmMac(c.MAC)
+		tier := "endpoint"
+		if c.IP == gatewayIP || c.IsGateway {
+			tier = "gateway"
+		} else if riskState == "proxy_arp" || isTopologyInfraSignature(c.Vendor, c.Hostname) {
+			tier = "infra"
+		} else if isLaaVM || strings.Contains(strings.ToLower(c.Vendor), "vmware") || strings.Contains(strings.ToLower(c.Vendor), "virtual") {
+			tier = "vm"
+		}
+
+		label := c.Hostname
+		if label == "" || label == "Unknown" {
+			label = c.Vendor
+		}
+		if label == "" || label == "Unknown Vendor" {
+			label = c.IP
+		}
+
+		nodes = append(nodes, TopologyNodeDTO{
+			ID:            c.IP,
+			IP:            c.IP,
+			Label:         label,
+			MAC:           c.MAC,
+			Vendor:        c.Vendor,
+			Tier:          tier,
+			RiskState:     riskState,
+			LatencyMs:     c.Latency,
+			OpenPortCount: len(c.OpenPorts),
+			AnomalyMask:   al.AnomalyMask,
+			Reason:        al.Reason,
+			VlanTag:       c.VlanTag,
+			IsHost:        c.IsHost,
+		})
+
+		if c.IP != gatewayIP && gatewayIP != "" {
+			rel := "uplink"
+			edgeLabel := ""
+			if riskState == "proxy_arp" {
+				rel = "proxy_arp_alias"
+				edgeLabel = "Proxy-ARP"
+			} else if riskState == "conflict" {
+				rel = "conflict_alert"
+				edgeLabel = "Conflict"
+			} else if riskState == "soft_trust" {
+				rel = "soft_trust_link"
+				edgeLabel = "Soft Trust"
+			} else if riskState == "intruder" {
+				rel = "intruder_link"
+				edgeLabel = "Intruder"
+			}
+			edges = append(edges, TopologyEdgeDTO{
+				ID:       fmt.Sprintf("%s->%s", gatewayIP, c.IP),
+				FromIP:   gatewayIP,
+				ToIP:     c.IP,
+				Relation: rel,
+				Label:    edgeLabel,
+			})
+		}
+	}
+
+	engineName := "go_topology_builder"
+	var elapsedUs uint64 = 0
+	if guardRes != nil {
+		engineName = guardRes.Engine
+		elapsedUs = guardRes.ElapsedMicroseconds
+	}
+
+	return map[string]interface{}{
+		"success":             true,
+		"subnet":              req.Subnet,
+		"vlanTag":             req.VlanTag,
+		"gatewayIp":           gatewayIP,
+		"nodes":               nodes,
+		"edges":               edges,
+		"engine":              engineName,
+		"elapsedMicroseconds": elapsedUs,
+		"summary":             guardRes,
+	}, true
+}
+
+func handleCloseToTrayAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var nextEnabled *bool
+		enableStr := strings.TrimSpace(r.URL.Query().Get("enabled"))
+		if enableStr != "" {
+			switch strings.ToLower(enableStr) {
+			case "true", "1":
+				v := true
+				nextEnabled = &v
+			case "false", "0":
+				v := false
+				nextEnabled = &v
+			default:
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Invalid enabled query parameter",
+				})
+				return
+			}
+		} else {
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 16*1024))
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Failed to read request body",
+				})
+				return
+			}
+			if len(bytes.TrimSpace(bodyBytes)) == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Missing enabled parameter or JSON payload",
+				})
+				return
+			}
+			var body struct {
+				Enabled *bool `json:"enabled"`
+			}
+			if err := json.Unmarshal(bodyBytes, &body); err != nil || body.Enabled == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Invalid JSON payload (boolean 'enabled' required)",
+				})
+				return
+			}
+			nextEnabled = body.Enabled
+		}
+
+		closeToTrayMutex.Lock()
+		closeToTrayEnabled = *nextEnabled
+		val := closeToTrayEnabled
+		closeToTrayMutex.Unlock()
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"enabled": val,
+		})
+		return
+	}
+
+	closeToTrayMutex.RLock()
+	val := closeToTrayEnabled
+	closeToTrayMutex.RUnlock()
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"enabled": val,
+	})
+}
+
+func handleValidateOUIAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	saveRequested := r.URL.Query().Get("save") == "true"
+	if saveRequested && r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "POST method required when save=true",
+		})
+		return
+	}
+
+	ouiFileMutex.Lock()
+	cachePath := getOUICachePath()
+	var rawData []byte
+	var err error
+
+	if _, statErr := os.Stat(cachePath); statErr == nil {
+		rawData, err = os.ReadFile(cachePath)
+	} else if len(ouiData) > 0 {
+		rawData = []byte(ouiData)
+	}
+	ouiFileMutex.Unlock()
+
+	if err != nil || len(rawData) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "OUI database file not found for validation",
+		})
+		return
+	}
+
+	sanitized, stats, ok := tryNativeValidateAndSanitizeOUI(string(rawData))
+	dllLoaded := isGridNetDriverLoaded()
+
+	if ok && len(sanitized) > 0 {
+		if saveRequested {
+			ouiFileMutex.Lock()
+			writeErr := os.WriteFile(cachePath, []byte(sanitized), 0644)
+			if writeErr != nil {
+				ouiFileMutex.Unlock()
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Failed to save sanitized OUI cache: " + writeErr.Error(),
+				})
+				return
+			}
+			initOUIProvider()
+			ouiFileMutex.Unlock()
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           true,
+			"engine":            "grid_net_driver.dll (Native C Sanitizer)",
+			"dllLoaded":         dllLoaded,
+			"totalLines":        stats.TotalLines,
+			"validEntries":      stats.ValidEntries,
+			"duplicatesRemoved": stats.DuplicatesRemoved,
+			"malformedLines":    stats.MalformedLines,
+			"message":           fmt.Sprintf("grid_net_driver.dll OUI 무결성 검증 완료: %d개 정상, %d개 중복 제거, %d개 오류 복구", stats.ValidEntries, stats.DuplicatesRemoved, stats.MalformedLines),
+		})
+		return
+	}
+
+	// Fallback Go validation if DLL is not active
+	lines := strings.Split(string(rawData), "\n")
+	valid := 0
+	duplicates := 0
+	malformed := 0
+	seen := make(map[string]bool)
+
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		parts := strings.SplitN(l, "\t", 2)
+		if len(parts) == 2 {
+			prefix := strings.ToUpper(strings.TrimSpace(parts[0]))
+			if seen[prefix] {
+				duplicates++
+			} else {
+				seen[prefix] = true
+				valid++
+			}
+		} else {
+			malformed++
+		}
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":           true,
+		"engine":            "Go Internal Fallback Validator",
+		"dllLoaded":         false,
+		"totalLines":        len(lines),
+		"validEntries":      valid,
+		"duplicatesRemoved": duplicates,
+		"malformedLines":    malformed,
+		"message":           fmt.Sprintf("OUI 무결성 검증 완료 (Go 폴백): %d개 정상 항목, %d개 중복 감지", valid, duplicates),
+	})
+}
+
+func handleWolAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+
+	var req struct {
+		MAC string `json:"mac"`
+		IP  string `json:"ip"`
+	}
+
+	if r.Body != nil {
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 64*1024))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Failed to read request body",
+			})
+			return
+		}
+		if len(bytes.TrimSpace(bodyBytes)) > 0 {
+			if err := json.Unmarshal(bodyBytes, &req); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   "Invalid JSON payload",
+				})
+				return
+			}
+		}
+	}
+
+	req.MAC = strings.TrimSpace(req.MAC)
+	req.IP = strings.TrimSpace(req.IP)
+	if req.MAC == "" {
+		req.MAC = strings.TrimSpace(r.URL.Query().Get("mac"))
+	}
+	if req.IP == "" {
+		req.IP = strings.TrimSpace(r.URL.Query().Get("ip"))
+	}
+
+	if req.MAC == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Missing MAC address parameter",
+		})
+		return
+	}
+
+	sent, err := sendWakeOnLan(req.MAC, req.IP)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":     true,
+		"mac":         req.MAC,
+		"ip":          req.IP,
+		"packetsSent": sent,
+		"message":     fmt.Sprintf("Wake-on-LAN 매직 패킷이 [%s]로 %d회 브로드캐스트 전송되었습니다.", req.MAC, sent),
+	})
+}
+
+func handleInfoAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	ip, subnet := getLocalIP()
+	interfaces := getAllInterfaces()
+
+	ouiMutex.RLock()
+	ouiCount := 0
+	if currentOUIProvider != nil {
+		ouiCount = currentOUIProvider.EntryCount()
+	}
+	source := currentOUISource
+	ouiMutex.RUnlock()
+
+	compName, _ := os.Hostname()
+	if compName == "" {
+		compName = "Unknown PC"
+	}
+
+	cachePath := getOUICachePath()
+	dbLocation := "내장 OUI 데이터베이스 (master_oui.txt)"
+	if strings.Contains(source, "Local Cache") {
+		dbLocation = cachePath
+	}
+
+	_ = json.NewEncoder(w).Encode(LocalInfo{
+		IP:                  ip,
+		Subnet:              subnet,
+		Interfaces:          interfaces,
+		IsAdmin:             isRunningAsAdmin(),
+		OUICount:            ouiCount,
+		OUISource:           source,
+		OUICachePath:        cachePath,
+		OUIDatabaseLocation: dbLocation,
+		ComputerName:        compName,
+	})
+}
+
+func handleNativeModulesAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(getNativeModulesStatus())
+}
+
+

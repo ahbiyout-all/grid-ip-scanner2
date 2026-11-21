@@ -1,9 +1,9 @@
 # 🚀 Grid IP Scanner2 - 네이티브 DLL 모듈화 기술 명세서 및 개발 로드맵
 
-> **문서 버전**: v1.0.0  
-> **최종 수정일**: 2026-10-28  
-> **문서 상태**: 공식 승인 및 배포 준비 (Approved Roadmap)  
-> **대상 플랫폼**: Windows PC (x64 / ARM64), Android NDK (JNI), Electron Main Process  
+> **문서 버전**: v2.6.0  
+> **최종 수정일**: 2026-11-20  
+> **문서 상태**: Phase 1~2 핵심 구현 완료 (12-DLL 체계 및 `pcap v2.6.2` / `topology_guard v2.6.1` 가동)  
+> **대상 플랫폼**: Windows PC (x64 / ARM64), Go Backend Fallback (Linux/macOS), Electron Main Process  
 
 ---
 
@@ -165,9 +165,9 @@ __declspec(dllexport) int Banner_GrabHttp(
 
 ---
 
-### 3.6 [모듈 6] `grid_pcap_analyzer.dll` - 패킷 핑거프린팅 & 네트워크 이상 감지 (고급 옵션)
-* **역할**: Npcap/WinPcap 연동을 통한 OS 핑거프린팅, IP 충돌 및 ARP 스푸핑 공격 실시간 탐지
-* **핵심 기술**: TCP SYN 패킷의 초기 TTL, TCP Window Size, IP DF 플래그 조합 분석
+### 3.6 [모듈 6] `grid_pcap_analyzer.dll` - 네이티브 패킷 정밀 텔레메트리 & 이상 감지 (`v2.6.2` 구현 완료)
+* **역할**: Npcap(`wpcap.dll` System32 경로 고정) + TCP SYN/ICMP/ARP 결합 텔레메트리 기반 OS 핑거프린팅, RTT 지터(Min/Avg/Max/Jitter) 계측, 초기 TTL/추정 홉 수 및 Live ARP 스푸핑 정합성 탐지
+* **핵심 기술**: `Pcap_InspectPacketProfileJson` (Caller-Allocated UTF-8 JSON), ICMP/TCP SYN 초기 TTL & Window Size 힌트 분석, ARP 캐시 MAC 대조, Go 백엔드 풀스택 폴백(`GET/POST /api/packet-inspect`) 연계
 
 ---
 
@@ -223,12 +223,12 @@ __declspec(dllexport) int Banner_GrabHttp(
 
 ---
 
-### 📍 Phase 2: 디바이스 식별 지능화 및 인메모리 색인 (중기 / v2.6.0 타깃)
-* **목표**: IP/MAC 외에 기기 모델명, OS 종류, 제조사명을 클릭 없이 그리드에 즉각 출력.
-* **구현 과업**:
-  1. `grid_oui_trie.dll` 구현: 10만 개 IEEE OUI 텍스트 DB를 1.8MB 크기의 바이너리 Radix-Trie 파일로 컴파일.
-  2. `grid_discovery.dll` 개발: mDNS, SSDP, NetBIOS 쿼리를 브로드캐스트하여 로컬 스마트 기기 이름 자동 수집.
-  3. UI 연동: 기기 유형(프린터, 공유기, TV, PC, 스마트폰) 아이콘 자동 맵핑 엔진 구축.
+### 📍 Phase 2: 디바이스 식별 지능화, 3계층 토폴로지 & 패킷 텔레메트리 (`v2.6.0` 완료)
+* **목표**: IP/MAC 외에 기기 모델명, OS 종류, 패킷 RTT/TTL/Live ARP 상태 및 3계층 토폴로지 관계를 실시간 시각화.
+* **구현 완료 과업**:
+  1. `grid_oui_trie.dll` 구현: 10만 개 IEEE OUI DB 고속 색인 및 `ouiClassifier.ts` 시맨틱 분류 완성.
+  2. `grid_discovery.dll` 및 Go mDNS/SSDP/UPnP XML 파서 통합으로 완제품 브랜드/모델 자동 식별.
+  3. `grid_pcap_analyzer.dll (v2.6.2)` `Pcap_InspectPacketProfileJson` & `POST /api/packet-inspect` 및 `grid_topology_guard.dll (v2.6.1)` `POST /api/topology-map` 3계층 토폴로지 시각화 구축.
 
 ---
 

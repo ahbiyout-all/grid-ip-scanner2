@@ -151,11 +151,12 @@ var (
 	procBannerGrabDeepAll  = modGridBanner.NewProc("Banner_GrabDeepAll")
 
 	// Module 6: grid_pcap_analyzer.dll
-	modGridPcap             = syscall.NewLazyDLL(resolveNativeDllPath("grid_pcap_analyzer.dll"))
-	procPcapGetVersion      = modGridPcap.NewProc("Pcap_GetVersion")
-	procPcapIsAvailable     = modGridPcap.NewProc("Pcap_IsNpcapAvailable")
-	procPcapDetectOS        = modGridPcap.NewProc("Pcap_DetectOSFromSynAck")
-	procPcapDetectArpSpoof  = modGridPcap.NewProc("Pcap_DetectArpSpoofing")
+	modGridPcap                 = syscall.NewLazyDLL(resolveNativeDllPath("grid_pcap_analyzer.dll"))
+	procPcapGetVersion          = modGridPcap.NewProc("Pcap_GetVersion")
+	procPcapIsAvailable         = modGridPcap.NewProc("Pcap_IsNpcapAvailable")
+	procPcapDetectOS            = modGridPcap.NewProc("Pcap_DetectOSFromSynAck")
+	procPcapDetectArpSpoof      = modGridPcap.NewProc("Pcap_DetectArpSpoofing")
+	procPcapInspectProfileJson  = modGridPcap.NewProc("Pcap_InspectPacketProfileJson")
 
 	// Module 7: grid_fingerprint_engine.dll (Pure Creative Native Heuristic & Security Engine)
 	modGridFingerprint         = syscall.NewLazyDLL(resolveNativeDllPath("grid_fingerprint_engine.dll"))
@@ -564,6 +565,56 @@ func tryNativePcapDetectArpSpoof(targetIp string, expectedMac string) (string, b
 		}
 	}
 	return "", false
+}
+
+type PacketInspectionResult struct {
+	IP                  string  `json:"ip"`
+	TTL                 int     `json:"ttl"`
+	EstimatedInitialTTL int     `json:"estimatedInitialTtl"`
+	EstimatedHops       int     `json:"estimatedHops"`
+	TcpHandshakeMs      float64 `json:"tcpHandshakeMs"`
+	TcpProbePort        int     `json:"tcpProbePort"`
+	TcpWindowHint       int     `json:"tcpWindowHint"`
+	OsGuess             string  `json:"osGuess"`
+	Confidence          int     `json:"confidence"`
+	SampleCount         int     `json:"sampleCount"`
+	RttMinMs            float64 `json:"rttMinMs"`
+	RttAvgMs            float64 `json:"rttAvgMs"`
+	RttMaxMs            float64 `json:"rttMaxMs"`
+	JitterMs            float64 `json:"jitterMs"`
+	ArpConsistent       bool    `json:"arpConsistent"`
+	LiveMac             string  `json:"liveMac"`
+	SpoofAlert          string  `json:"spoofAlert,omitempty"`
+	NpcapAvailable      bool    `json:"npcapAvailable"`
+	CapturedVia         string  `json:"capturedVia"`
+}
+
+func tryNativePcapInspectProfile(targetIp string, expectedMac string, port int, timeoutMs int) (*PacketInspectionResult, bool) {
+	if procPcapInspectProfileJson.Find() == nil {
+		ipPtr, err1 := syscall.BytePtrFromString(targetIp)
+		macPtr, err2 := syscall.BytePtrFromString(expectedMac)
+		if err1 == nil && err2 == nil {
+			outBuf := make([]byte, 4096)
+			ret, _, _ := procPcapInspectProfileJson.Call(
+				uintptr(unsafe.Pointer(ipPtr)),
+				uintptr(unsafe.Pointer(macPtr)),
+				uintptr(port),
+				uintptr(timeoutMs),
+				uintptr(unsafe.Pointer(&outBuf[0])),
+				uintptr(len(outBuf)),
+			)
+			if ret != 0 {
+				jsonStr := byteSliceToString(outBuf)
+				if len(jsonStr) > 0 {
+					var res PacketInspectionResult
+					if json.Unmarshal([]byte(jsonStr), &res) == nil {
+						return &res, true
+					}
+				}
+			}
+		}
+	}
+	return nil, false
 }
 
 // ----------------------------------------------------------------------------

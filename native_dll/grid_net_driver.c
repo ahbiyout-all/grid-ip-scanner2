@@ -475,7 +475,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 #else
 
 // Fallback stubs for non-Windows platforms
-int GridNet_GetDriverVersion(void) { return 20303; }
+int GridNet_GetDriverVersion(void) { return 20401; }
 int GridNet_FastPing(const char* ip, int timeoutMs) { (void)ip; (void)timeoutMs; return -1; }
 int GridNet_GetMacAddress(const char* ip, char* outMac, int maxLen) { (void)ip; (void)outMac; (void)maxLen; return 0; }
 int GridNet_ScanPort(const char* ip, int port, int timeoutMs) { (void)ip; (void)port; (void)timeoutMs; return 0; }

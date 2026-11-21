@@ -550,7 +550,7 @@ func (g *LicenseGuard) buildFreeStatus(hw StorageBindingInfo, statusCode, reason
 		Tier:                 "free",
 		LicenseType:          "free",
 		LicensedTo:           "Community User",
-		MaxSubnets:           1,
+		MaxSubnets:           2,
 		Features:             freeFeatures(),
 		BindingStatus:        statusCode,
 		BindingReason:        reason,

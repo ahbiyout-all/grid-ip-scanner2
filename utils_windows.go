@@ -858,9 +858,9 @@ func buildBadgedTrayIcon(baseIcon uintptr, mode string) uintptr {
 	bmi.BiBitCount = 32
 	bmi.BiCompression = 0
 
-	var bitsPtr uintptr
+	var bitsPtr unsafe.Pointer
 	colorBmp, _, _ := procCreateDIBSection.Call(hdc, uintptr(unsafe.Pointer(&bmi)), 0, uintptr(unsafe.Pointer(&bitsPtr)), 0, 0)
-	if colorBmp == 0 || bitsPtr == 0 {
+	if colorBmp == 0 || bitsPtr == nil {
 		return baseIcon
 	}
 	defer procDeleteObject.Call(colorBmp)
@@ -868,7 +868,7 @@ func buildBadgedTrayIcon(baseIcon uintptr, mode string) uintptr {
 	oldObj, _, _ := procSelectObject.Call(hdc, colorBmp)
 
 	// Zero-fill transparent canvas before drawing base icon
-	pixels := unsafe.Slice((*uint32)(unsafe.Pointer(bitsPtr)), size*size)
+	pixels := unsafe.Slice((*uint32)(bitsPtr), size*size)
 	for i := range pixels {
 		pixels[i] = 0
 	}
@@ -1156,7 +1156,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					procAppendMenuW.Call(hSubMenu, MF_SEPARATOR, 0, 0)
 					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_FLUSH_DNS, "⚡ DNS 캐시 즉시 초기화 (flushdns)")
 					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_NCPA, "🌐 네트워크 어댑터 제어판 (ncpa.cpl)")
-					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_FIREWALL, "🛡️ Windows 방화벽 기본 복원 (reset)")
+					appendWinMenuString(hSubMenu, MF_STRING, IDM_TRAY_FIREWALL, "🛡️ Windows 방화벽 예외 규칙 재등록")
 					procAppendMenuW.Call(hSubMenu, MF_SEPARATOR, 0, 0)
 
 					svcLabel := "🔄 Windows 서비스 상태: 미설치 (확인)"
@@ -1265,10 +1265,12 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 					}()
 				case IDM_TRAY_FIREWALL:
 					go func() {
-						c := exec.Command("netsh", "advfirewall", "reset")
-						hideWindow(c)
-						_ = c.Run()
-						showTrayBalloonNotification("방화벽 규칙 복원 완료", "Windows 방화벽 기본 규칙이 성공적으로 초기화 및 복원되었습니다.")
+						if !isRunningAsAdmin() {
+							showTrayBalloonNotificationWithSeverity("방화벽 규칙 등록 권한 필요", "방화벽 예외 규칙 등록은 관리자 권한으로 실행 시 적용됩니다.", "warning")
+							return
+						}
+						ensureFirewallRulesSilently()
+						showTrayBalloonNotification("방화벽 예외 규칙 등록", "Grid IP Scanner2 Windows 방화벽 예외 규칙이 안전하게 재등록되었습니다.")
 					}()
 				case IDM_TRAY_EXIT:
 					go cleanupAndExit()

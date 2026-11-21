@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1136,6 +1137,10 @@ func registerTrayHTTPHandlers() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
 		if r.Method == http.MethodPost {
 			var payload struct {
@@ -1263,6 +1268,10 @@ func registerTrayHTTPHandlers() {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -1406,6 +1415,10 @@ func registerTrayHTTPHandlers() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		if r.Method == http.MethodDelete {
 			globalTrayMgr.mu.Lock()
 			globalTrayMgr.events = globalTrayMgr.events[:0]
@@ -1430,12 +1443,18 @@ func registerTrayHTTPHandlers() {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		var req struct {
 			Severity string `json:"severity"`
 			Title    string `json:"title"`
 			Message  string `json:"message"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if r.Body != nil {
+			_ = json.NewDecoder(io.LimitReader(r.Body, 16*1024)).Decode(&req)
+		}
 		if req.Severity == "" {
 			req.Severity = "warning"
 		}

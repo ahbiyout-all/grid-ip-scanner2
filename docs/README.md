@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.5.0)
+# 🌐 Grid IP Scanner2 (v2.6.0)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -14,17 +14,21 @@
 
 ## ✨ 핵심 기능 (Key Features)
 
-1. **⚡ 초고속 네트워크 IP 스캐닝 & 16x16 그리드 맵**
+1. **⚡ 초고속 네트워크 IP 스캐닝, 16x16 그리드 맵 & 3계층 인터랙티브 토폴로지**
    - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진 (254개 전체 호스트 동시 진단)
    - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별
    - 25개 주요 서비스 포트 정밀 스캐닝 및 위험도 분류
+   - **🗺️ 3계층 인터랙티브 토폴로지 맵 (`Grid` / `Topology Map` / `Snapshot Diff`)**: `TopologyMapView`와 `/api/topology-map` · `grid_topology_guard.dll` 연동을 통해 게이트웨이·L2 그룹·호스트 계층 그래프를 시각화하고 Pro 티어에서 **Topology Security Correlation** 보안 교차 분석 지원
+   - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 및 DLL 콘솔에서 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), OS 추정, Live ARP 스푸핑 정합성 검사** 실시간 실행
+   - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 평소에는 숨김 상태를 유지하다 상단 **`다중 서브넷·VLAN`**(`VLAN`) 버튼 클릭 시 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터(`활성 태그` + 프로파일별 컬러 태그 뱃지)**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 대역별 독립 캐싱, **Free 최대 2개 서브넷 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕 및 교차 대역 이상 징후 대시보드** 제공
    - **🏷️ UPnP/SSDP XML & mDNS 실제 제조사 판별 & OUI 시맨틱 분류 + LAA 랜덤 MAC 역추적**: OUI + 포트/mDNS/UPnP 복합 점수 시맨틱 분류(`services/ouiClassifier.ts`), 사설 랜덤 MAC(LAA) 교차 역추적 및 신뢰도/근거 표기
    - **📋 원클릭 IP 주소 복사 (Clipboard API)**: 장치 상세 프로필 패널에서 한 번의 클릭으로 선택한 IP 주소를 클립보드에 완벽 복사 (Clipboard API & Fallback 지원)
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치
-   - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (`v2.5.0`)
+   - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (`v2.6.0`)
 
-2. **📄 통합 보고서 센터 & A4 규격 최적화 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
-   - **다중 포맷 통합 내보내기 센터**: PDF 보안 감사 보고서, 다중 시트 Excel XML, CSV, JSON, Markdown, 인쇄/그리드 HTML 및 스냅샷 Diff 연계를 전용 모달로 통합
+2. **📄 통합 보고서 센터 & Free 5시트 엑셀 그리드 + A4 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
+   - **Free 티어 엑셀 그리드(.xls) 전면 개방**: 16x16 IP 그리드 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)** 및 CSV·JSON·Markdown 내보내기를 Free 에디션에서 무료 제공
+   - **다중 포맷 통합 내보내기 센터**: Pro A4 PDF 보안 감사 보고서, 인쇄/그리드 HTML 및 스냅샷 Diff 연계를 전용 모달로 통합
    - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델 및 11mm 안전 여백으로 테이블 행·텍스트 잘림 원천 방지
    - **동적 페이지 번호 & 직접 인쇄**: 모든 페이지에 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 스타일시트 지원
 
@@ -81,11 +85,12 @@
 ```text
 [ Browser / Electron / Capacitor ] <--- HTTP / SSE / Tray Sync ---> [ Go Backend & Autonomous Tray Core ]
           │                                                                     │
-  React 19 + Vite + Tailwind v4                                   tray_engine.go (10s Daemon, DND/Cooldown)
-  ReportCenterModal & Diff v2                                     utils_windows.go (ARGB Badge HICON & SCM)
-  PreferencesTrayModal (Alert/Service)                            12 Native C/C++ DLL Bridges (Path-Pinned)
+  React 19 + Vite + Tailwind v4                                   /api/subnets/discover & /api/packet-inspect
+  Grid / TopologyMapView / Diff v2                                /api/topology-map & /api/topology-guard
+  MultiSubnetBar & MultiSubnetModal                               tray_engine.go (10s Daemon, DND/Cooldown)
+  ReportCenter (Free .xls + Pro PDF)                              12 Native C/C++ DLL Bridges (Path-Pinned)
+  PreferencesTrayModal (Alert/Service)                            - grid_pcap_analyzer.dll (v2.6.2 Telemetry)
   OUI Semantic + Proxy-ARP UI                                     - grid_topology_guard.dll (v2.6.1 O(N) Hash)
-  jsPDF & Multi-Sheet Excel Engine                                - grid_probe_engine / port_iocp / vault v2.6
 ```
 
 ---
@@ -128,8 +133,8 @@ npm run build:apk
 ```bash
 # [표준 Git 배포] 소스 푸시 및 릴리스 태그 발행
 git add .
-git commit -m "chore: release v2.5.0"
-git tag v2.5.0
+git commit -m "chore: release v2.6.0"
+git tag v2.6.0
 git push origin main --tags
 
 # [로컬 관리자 전용] 유지보수 스크립트가 있는 로컬 환경
@@ -141,19 +146,19 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-18 최신화)
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-21 v2.6.0 감사·최신화)
 - [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](./SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2, 1:1 대조 스튜디오 및 잘림 방지 서브헤더 기술 명세서
 - [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`)
 - [`docs/GOOGLE_BLOGGER_POST.html`](./GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]` 전용 소스)
-- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (트레이·서비스·모달 구조 개선 반영)
-- [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (최신화)
+- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.6.0 패킷·토폴로지·온디맨드 다중 서브넷·자아성찰 감사 반영)
+- [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.6.0 최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](./A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (모듈 분리·데드코드 정리 반영)
-- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (최신화)
+- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.6.0 신규 컴포넌트/서비스 반영)
+- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.6.0 최신화)
 - [`docs/VERSIONING_POLICY.md`](./VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
-- [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서
+- [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서 (v2.6.0 티어 개편)
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드
 - [`docs/DIGITAL_SIGNATURE_GUIDE.md`](./DIGITAL_SIGNATURE_GUIDE.md) : 테스트용 자가 서명(PowerShell) 가이드
 - [`docs/SECURITY_REPORT.md`](./SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서

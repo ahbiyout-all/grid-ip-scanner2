@@ -20,6 +20,9 @@ import {
   NativeArpSpoofResult,
   NativeFingerprintResult,
   NativeTopologyGuardResult,
+  PacketInspectionResult,
+  DiscoveredSubnetCandidate,
+  TopologyGraphPayload,
 } from '../types';
 import { getApiUrl, safeTimeout } from './apiConfig';
 
@@ -205,6 +208,108 @@ export async function analyzeNativeTopologyGuard(params: {
 }
 
 /**
+ * Inspects packet telemetry (TTL, Hops, TCP SYN-ACK RTT, Jitter, OS Guess, L2 ARP consistency)
+ * via grid_pcap_analyzer.dll (v2.6.2+) with seamless Go socket fallback.
+ */
+export async function inspectHostPackets(params: {
+  ip: string;
+  expectedMac?: string;
+  port?: number;
+  timeoutMs?: number;
+}): Promise<{ result: PacketInspectionResult; native: boolean } | null> {
+  try {
+    const res = await fetch(getApiUrl('/api/packet-inspect'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ip: params.ip,
+        expectedMac: params.expectedMac || '',
+        port: params.port || 0,
+        timeoutMs: params.timeoutMs || 700,
+      }),
+      signal: safeTimeout(4000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && data?.result) {
+        return {
+          result: data.result as PacketInspectionResult,
+          native: Boolean(data.native),
+        };
+      }
+    }
+  } catch {
+    // Graceful client fallback handled cleanly by callers
+  }
+  return null;
+}
+
+/**
+ * Auto-discovers local NIC / VLAN / VPN subnet candidates from backend interfaces.
+ */
+export async function discoverLocalSubnets(): Promise<DiscoveredSubnetCandidate[]> {
+  try {
+    const res = await fetch(getApiUrl('/api/subnets/discover'), {
+      signal: safeTimeout(3000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.candidates)) {
+        return data.candidates as DiscoveredSubnetCandidate[];
+      }
+    }
+  } catch {
+    // Offline/preview fallback handled via local interfaces list
+  }
+  return [];
+}
+
+/**
+ * Builds and correlates interactive Topology Map Graph via native grid_topology_guard.dll + Go builder.
+ */
+export async function fetchNativeTopologyMap(params: {
+  subnet: string;
+  vlanTag?: string;
+  gatewayIp?: string;
+  current: Array<{
+    ip: string;
+    mac?: string;
+    hostname?: string;
+    vendor?: string;
+    deviceType?: string;
+    latency?: number;
+    openPorts?: number[];
+    isTrusted?: boolean;
+    isHost?: boolean;
+    isGateway?: boolean;
+    isProxyArp?: boolean;
+    isConflict?: boolean;
+    isSoftTrust?: boolean;
+    isIntruder?: boolean;
+    vlanTag?: string;
+  }>;
+  baseline: TopologyGuardHostPayload[];
+}): Promise<TopologyGraphPayload | null> {
+  try {
+    const res = await fetch(getApiUrl('/api/topology-map'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: safeTimeout(3500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.nodes)) {
+        return data as TopologyGraphPayload;
+      }
+    }
+  } catch {
+    // Client-side topology builder remains authoritative fallback
+  }
+  return null;
+}
+
+/**
  * Resolves local Wi-Fi IP address in mobile/web browser using WebRTC candidate sniffing.
  */
 export async function getClientLocalIP(): Promise<{ ip: string; subnet: string } | null> {
@@ -290,7 +395,11 @@ export async function executeWindowsUtility(
     if (enable !== undefined) {
       url += `&enable=${enable}`;
     }
-    const res = await fetch(url, { signal: safeTimeout(4000) });
+    const isReadOnly = action === 'service-status' || (action === 'autostart' && enable === undefined);
+    const res = await fetch(url, {
+      method: isReadOnly ? 'GET' : 'POST',
+      signal: safeTimeout(4000),
+    });
     if (res.ok) {
       return await res.json();
     }

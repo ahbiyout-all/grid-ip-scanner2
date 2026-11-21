@@ -2,9 +2,9 @@
 
 > **모듈 ID**: Module 8 (Pure Custom Native C-ABI Engine)  
 > **라이브러리 파일**: `grid_topology_guard.dll` (`native_dll/grid_topology_guard.h`, `native_dll/grid_topology_guard.c`)  
-> **드라이버 버전**: `v2.6.1` (`GUARD_DRIVER_VERSION = 20601`) | **제품 릴리즈**: `v2.5.0`  
-> **연동 엔드포인트**: `POST /api/topology-guard` (`main.go` ↔ `native_modules_bridge.go` / `native_modules_bridge_other.go`)  
-> **최신 개정일**: 2026-11-13
+> **드라이버 버전**: `v2.6.1` (`GUARD_DRIVER_VERSION = 20601`) | **제품 릴리즈**: `v2.6.0`  
+> **연동 엔드포인트**: `POST /api/topology-guard` · `POST /api/topology-map` (`main.go` ↔ `native_modules_bridge.go` / `native_modules_bridge_other.go` ↔ `TopologyMapView.tsx`)  
+> **최신 개정일**: 2026-11-21
 
 ---
 
@@ -118,7 +118,7 @@ GRID_GUARD_API int Guard_AnalyzeTopologyJson(
 | **`grid_probe_engine.c` (`v2.6.0`)** | • 호스트당 `IcmpCreateFile` 반복 오버헤드<br>• `ArpBatchWorker`와 비동기 ICMP 루프 간 `isAlive`/`rttMs` 동시 쓰기 레이스<br>• `WAIT_TIMEOUT` 시 미완료 IRP의 스택 슬랩 덮어쓰기 위험 및 Reply 버퍼 여유 부족 | • **신규 `Probe_SweepCidrAsyncBatch`**: 단일 공유 ICMP 핸들(`IcmpSendEcho2` 64-이벤트 윈도우) + 8-스레드 ARP 풀<br>• 워커는 `mac`/`isArpAlive`만 기록 후 Join 이후 일괄 병합<br>• `WaitForSingleObject(..., 0)` + 핸들 리셋, Reply 슬랙 `+64B`, `_WIN32_WINNT >= 0x0601` |
 | **`grid_port_iocp.c` (`v2.6.0`)** | • 다중 호스트 대규모 포트 스캔 시 스레드 폭발 병목<br>• 종료 시 `CancelIoEx` 및 `activeInFlight` 드레인 부재, `(ULONGLONG)` 오버플로, `port == 0` 및 `SO_UPDATE_CONNECT_CONTEXT` 미검증 | • **신규 `PortScan_IocpMultiHostSweep`**: Win32 `CreateIoCompletionPort` + `ConnectEx` 기반 진정한 IOCP 논블로킹 다중 호스트 스위프<br>• `CancelIoEx` + 인플라이트 드레인 대기, `(ULONGLONG)` 캐스트, `port == 0` 스킵, 반환값 검증 |
 | **`grid_vault_driver.c` & `secure_vault.cpp` (`v2.6.0`)** | • 10,000회 PBKDF2 루프 내부에서 매 반복마다 CryptoAPI/BCrypt 프로바이더 핸들 2만 회 재오픈 (심각한 성능 병목)<br>• 레거시 솔트 없는 고정 키 파생 및 느슨한 Base64 디코딩 | • **`GVAULT11` 포맷**: 16B CSPRNG 솔트 + PBKDF2-HMAC-SHA256(10,000회)<br>• **256B 스택 고속 경로(Fast-Path)** 로 프로바이더 핸들 재오픈 20,000회 완전 제거<br>• 엄격한 Base64 길이/패딩/문자 검증 적용 |
-| **`grid_pcap_analyzer.c`** | • `LoadLibraryA("wpcap.dll")` 경로 하이재킹 가능성 및 핸들 해제 누락 | • `LoadLibraryExW(L"wpcap.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32)` 시스템 경로 고정 및 `FreeLibrary` 정리 |
+| **`grid_pcap_analyzer.c` (`v2.6.2`)** | • `LoadLibraryA("wpcap.dll")` 경로 하이재킹 가능성 및 핸들 해제 누락<br>• `Pcap_DetectArpSpoofing` / `Pcap_InspectPacketProfileJson`의 비정규화 MAC 문자열 직접 비교(`_stricmp`)로 인한 `-`/`.`/무구분자 MAC 오탐 위험 | • `LoadLibraryExA(..., LOAD_LIBRARY_SEARCH_SYSTEM32)` 시스템 경로 고정 및 `FreeLibrary` 정리<br>• **`normalizeMacHex12` 12자리 Hex 정규화** 및 멀티샘플 ICMP/TCP SYN-ACK 텔레메트리(`Pcap_InspectPacketProfileJson`) 탑재 |
 | **`native_modules_bridge.go`** | • `syscall.NewLazyDLL` 기본 검색 경로 사용 시 DLL 하이재킹 위험 | • 실행 파일 디렉토리 기준 `LoadLibraryExW(LOAD_LIBRARY_SEARCH_APPLICATION_DIR)` 경로 고정 로드 |
 | **`grid_fingerprint_engine.h/.c`** | • `EXTRACT_STR`의 이스케이프 오파싱, 제어문자 미이스케이프, 음수 정수 입력 취약점 | • 중첩/따옴표 인식 안전 JSON 파서, 음수 포트 방어, `json_escape_str`, 카테고리 `13`/`14` 지원 |
 | **`grid_oui_trie.c` & `oui_validator.cpp`** | • `/28`, `/36` CIDR 표기 접두사 오염 및 유효하지 않은 충돌 리포트 JSON 문법 | • 비트폭 사전 파싱, `CRITICAL_SECTION` 스레드 안전화, 정규 JSON 스키마 교정 |

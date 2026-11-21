@@ -56,18 +56,18 @@
 │ 🆓 Free Community Edition     │ │ 💎 Pro / Enterprise Edition          │
 │ • 파일명: Grid_IP_Scanner2.exe│ │ • 구매 방식: 라이선스 키 결제        │
 │ • 형태: 단일 무설치 포터블    │ │ • 다운로드 제공 (듀얼 번들):         │
-│ • 핵심 기능:                  │ │   1) [권장] 정식 인스톨러 (Setup.exe)│
+│ • 핵심 편의 기능 (v2.6.0):    │ │   1) [권장] 정식 인스톨러 (Setup.exe)│
 │   - 16x16 시각화 그리드 맵    │ │      - 제어판, 방화벽, 부팅 자동실행 │
-│   - 고속 ICMP Ping 스캔       │ │   2) [보너스] 엔지니어용 포터블 (.zip)│
-│   - 9만 건 오프라인 OUI 제조사│ │      - 외근/출장 시 USB 점검용       │
-│   - 5단계 적응형 런처         │ │ • 독점 유료 기능:                    │
-│   - 비상 네이티브 메모장 보고서│ │   - 원격 부팅 (Wake-on-LAN)          │
-│                               │ │   - 낯선 기기 감시 (Intruder Watch)  │
-│                               │ │   - 포트 정밀 분석 & 서비스 식별     │
-│                               │ │   - 과거/현재 스캔 Diff 비교         │
-│                               │ │   - 24시간 실시간 백그라운드 감시    │
-│                               │ │   - PDF/Excel 정밀 진단 리포트 출력  │
-│                               │ │   - C클래스 다중 서브넷(/16, /23 등) │
+│   - 기본 단일 서브넷 토폴로지 │ │   2) [보너스] 엔지니어용 포터블 (.zip)│
+│   - 단일 호스트 패킷 텔레메트리│ │      - 외근/출장 시 USB 점검용       │
+│   - 최대 2개 서브넷/VLAN 전환 │ │ • 대규모 관제 & 보안 독점 기능:      │
+│   - 5시트 엑셀 그리드 (.xls)  │ │   - 다중 서브넷 순차 Batch Sweep     │
+│   - 고속 ICMP Ping & OUI 9만건│ │   - 교차 서브넷 이상 징후 통합 대시보드│
+│   - 5단계 적응형 런처         │ │   - 토폴로지 보안 상관분석 & ARP 가드│
+│   - 비상 네이티브 메모장 보고서│ │   - 원격 부팅(WoL) & 낯선 기기 감시  │
+│                               │ │   - 25포트 정밀 분석 & 4색 Diff 비교  │
+│                               │ │   - A4 PDF 보안감사 보고서           │
+│                               │ │   - Pro 5서브넷 / Enterprise 무제한  │
 └───────────────────────────────┘ └──────────────────────────────────────┘
 ```
 
@@ -87,18 +87,24 @@ export interface LicenseInfo {
   licenseKey: string;       // 암호학적 서명 키
   issuedAt: string;         // 발급일자
   expiresAt?: string;       // 만료일자 (영구 라이선스는 undefined)
-  maxSubnets: number;       // 허용 서브넷 수 (Free: 1, Pro: 5, Enterprise: 무제한)
+  maxSubnets: number;       // 허용 서브넷 수 (Free: 2, Pro: 5, Enterprise: 무제한)
   features: {
-    visualGrid: boolean;        // 기본 16x16 그리드 (모두 허용)
-    fastPing: boolean;          // 초고속 Ping 스캔 (모두 허용)
-    ouiLookup: boolean;         // 9만 건 OUI 제조사 조회 (모두 허용)
-    portScanDeep: boolean;      // 1~65535 포트 정밀 스캔 & 서비스 배너 (Pro+)
-    diffCompare: boolean;       // 과거 스캔과 현재 스캔의 차이 비교 (Pro+)
-    autoMonitor: boolean;       // 24시간 상시 감시 & 시스템 알림 (Pro+)
-    exportReport: boolean;      // PDF/Excel 상세 진단 리포트 (Pro+)
-    multiSubnet: boolean;       // 다중 C클래스/B클래스 동시 스캔 (Enterprise)
-    remoteBoot: boolean;        // 원격 부팅 (Wake-on-LAN / WoL 매직 패킷) (Pro+)
-    intruderDetection: boolean; // 낯선 기기 실시간 감시 & Soft Trust 침입 탐지 (Pro+)
+    visualGrid: boolean;           // 기본 16x16 그리드 (모두 허용)
+    fastPing: boolean;             // 초고속 Ping 스캔 (모두 허용)
+    ouiLookup: boolean;            // 9만 건 OUI 제조사 조회 (모두 허용)
+    reportExcelWorkbook: boolean;  // 5시트 Excel Grid XML(.xls) 내보내기 (v2.6.0 Free 전환!)
+    multiSubnetBasic: boolean;     // 최대 2개 서브넷 전환 & 결과 캐싱 (v2.6.0 Free!)
+    topologyBasic: boolean;        // 단일 서브넷 기본 3계층 토폴로지 맵 (v2.6.0 Free!)
+    packetInspectBasic: boolean;   // 단일 호스트 수동 패킷 텔레메트리 (v2.6.0 Free!)
+    multiSubnetBatchSweep: boolean;// 순차 Batch Sweep & 교차 서브넷 통합 대시보드 (Pro+)
+    topologySecurityPro: boolean;  // 토폴로지 보안 상관분석 & Continuous ARP Spoof Guard (Pro+)
+    portScanDeep: boolean;         // 25개+ 주요 포트 정밀 스캔 & 서비스 배너 (Pro+)
+    diffCompare: boolean;          // 과거 스캔과 현재 스캔의 차이 비교 (Pro+)
+    autoMonitor: boolean;          // 24시간 상시 감시 & 시스템 알림 (Pro+)
+    exportReport: boolean;         // A4 PDF 보안 감사 리포트 (Pro+)
+    multiSubnet: boolean;          // 다중 서브넷 대규모 확장 관리 (Pro 5 / Enterprise 무제한)
+    remoteBoot: boolean;           // 원격 부팅 (Wake-on-LAN / WoL 매직 패킷) (Pro+)
+    intruderDetection: boolean;    // 낯선 기기 실시간 감시 & Soft Trust 침입 탐지 (Pro+)
   };
 }
 ```
@@ -114,8 +120,8 @@ export interface LicenseInfo {
   - 활성화 시점(`new Date()`) 기준으로 `expiresAt`을 30일 뒤로 동적 계산하여 로컬 저장소에 안전하게 보관.
   - 고정된 만료일로 인한 기한 경과 오류를 방지하고 사용자가 처음 데모 키를 입력한 시점부터 30일간 온전한 평가 기간을 보장.
 * **체험판 제공 혜택**:
-  - Pro 에디션 전 기능(4색 스냅샷 Diff 비교 분석, 25개 심층 포트 스캐닝, A4 보안감사 PDF 리포트 생성, 최대 5개 서브넷 관리)을 30일간 무제한 이용.
-  - 만료 시 자동으로 무료 커뮤니티 티어로 안전하게 전환되며 기존 스캔 데이터는 손실 없이 보존됨.
+  - Pro 에디션 전 기능(최대 5개 서브넷 순차 Batch Sweep · 교차 대역 이상 징후 대시보드 · 토폴로지 보안 상관분석 · Continuous ARP Spoof Guard · 4색 스냅샷 Diff 비교 · 25개 심층 포트 스캐닝 · A4 보안감사 PDF 리포트)을 30일간 무제한 이용.
+  - 만료 시 자동으로 무료 커뮤니티 티어(최대 2개 서브넷 + 5시트 Excel Grid `.xls` + 기본 토폴로지/패킷 텔레메트리 유지)로 안전하게 전환되며 기존 스캔 데이터는 손실 없이 보존됨.
 
 ---
 
@@ -139,7 +145,7 @@ export interface LicenseInfo {
   6. **언인스톨 클린업**: 제어판 제거 시 기본 이름 및 버전 정보 포함 방화벽 규칙 모두 자동 삭제 (Silent clean)
   7. **무인 일괄 설치(Silent Install) 스위치 지원**:
      ```cmd
-     Grid_IP_Scanner2_v2.3.2_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+     Grid_IP_Scanner2_v2.6.0_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
      ```
 
 ---
@@ -170,14 +176,16 @@ export interface LicenseInfo {
 
 ### 8.1. 🔒 Pro 기능으로 제한할 핵심 항목 (Core Pro Restrictions)
 
-| 구분 | 기능명 | Free 티어 제한 | Pro / Enterprise 제공 가치 |
+| 구분 | 기능명 | Free 티어 제공/제한 | Pro / Enterprise 제공 가치 |
 | :--- | :--- | :--- | :--- |
+| **다중 대역** | **다중 서브넷/VLAN 관리** | ✅ **최대 2개 서브넷** 수동 전환 & 캐싱 | 🏢 **Pro 최대 5개 / Enterprise 무제한**, 순차 **Batch Sweep** & 교차 대역 대시보드 |
+| **토폴로지** | **3계층 인터랙티브 토폴로지** | ✅ 단일 서브넷 기본 그래프 시각화 | 🛡️ **Topology Security Correlation** (충돌·스푸핑·위험포트·침입 교차 분석) |
+| **패킷 분석** | **네이티브 패킷 텔레메트리** | ✅ 단일 호스트 수동 TTL/RTT/OS 분석 | 🔒 **Continuous ARP Spoof Guard** & 다중 호스트 이상 상관탐지 |
 | **원격 관리** | **원격 부팅 (Wake-on-LAN)** | ❌ 전송 불가 (Pro 잠김 팝업) | ⚡ 타깃 장비 MAC으로 UDP 9/7 매직 패킷 브로드캐스트 즉각 원격 전원 기동 |
 | **침입 감시** | **낯선 기기 실시간 감시 (Intruder Watch)** | ❌ 감시 모드 잠김 (수동 스캔 목록만) | 🚨 60초 주기 무인 백그라운드 감시, 신규 단말 접속 시 비프음 & OS 데스크톱 알림 |
 | **보안 진단** | **심층 포트 정밀 보안 감사** | ❌ 기본 Ping 및 상태만 조회 | 🛡️ 25개 주요 포트 전수 감사, SMB 랜섬웨어 표적, RDP, Telnet 등 위험 포트 진단 |
 | **자산 추적** | **스냅샷 4색 Diff 비교 분석** | ❌ 일회성 현재 스캔만 지원 | 🔍 과거 스캔 대비 신규(+NEW), 이탈(-OFF), 식별변경(!CHG) 상태 진단 및 필터링 |
-| **감사 증빙** | **보안 감사 보고서 내보내기** | ❌ 기본 CSV만 제공 | 📄 A4 규격 출력용 고품질 PDF 보안 감사 진단서 및 자산 인벤토리 보고서 생성 |
-| **규모 확장** | **다중 서브넷 스캔 한도** | 1개 서브넷(`/24`)으로 고정 | 🏢 Pro: 최대 5개 서브넷, Enterprise: 무제한 다중 C클래스/B클래스 동시 관리 |
+| **감사 증빙** | **보안 감사 보고서 내보내기** | ✅ **5시트 Excel Grid(`.xls`)**·CSV·JSON·MD 무료 | 📄 A4 규격 출력용 고품질 PDF 보안 감사 진단서 및 인쇄/HTML 보고서 생성 |
 | **유예 평가** | **지능형 Soft Trust 유예 시스템** | 단순 낯선 기기로 일괄 표시 | 🛡️ MAC 무작위화/OUI/호스트명 유사도 채점(0~100%)을 통한 지능형 오경보 방지 |
 | **자산 보존** | **장비 별칭 및 관리자 메모** | 브라우저 세션 임시 저장 | 💾 오프라인 로컬 볼트 영구 저장 및 네트워크 장비 변경 이력 타임라인 유지 |
 
@@ -259,6 +267,6 @@ export interface LicenseInfo {
 ---
 
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.4.4
+* **소프트웨어 버전**: v2.6.0
 * **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 

@@ -1,4 +1,54 @@
-# Grid IP Scanner2 - Patch Note (v2.5.0)
+# Grid IP Scanner2 - Patch Note (v2.6.0)
+
+## 🚀 [v2.6.0] - 2026-11-20
+
+### 🌟 네이티브 패킷 정밀 텔레메트리(`v2.6.2`), 3계층 인터랙티브 토폴로지 맵, 다중 서브넷/VLAN 통합 대시보드 & 티어 밸런스 개편 (SemVer MINOR Release)
+
+1. **네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`, `GET/POST /api/packet-inspect`, `App.tsx`, `NativeModulesModal.tsx`)**
+   - **C99 네이티브 DLL 및 Go 풀스택 폴백**:
+     - `native_dll/grid_pcap_analyzer.c/.h`에 `Pcap_InspectPacketProfileJson`을 신설하고, `native_modules_bridge.go` / `native_modules_bridge_other.go`에서 Caller-Allocated JSON 버퍼로 바인딩했습니다.
+     - `main.go`에 `GET/POST /api/packet-inspect` (`runGoPacketInspection`) 엔드포인트를 구축하여 Windows Npcap 미설치 또는 Linux/macOS 환경에서도 고성능 TCP SYN 핸드셰이크(Port 80/443/22/445/3389 등)·ICMP RTT Min/Avg/Max/Jitter·초기 TTL/추정 홉 수·TCP Window 힌트·OS 추정(신뢰도)·Live ARP MAC 정합성 및 스푸핑 위험(`spoofAlert`)을 즉시 측정합니다.
+   - **UI 통합**:
+     - 장치 상세 프로필 패널에 **Packet Telemetry** 섹션을 신설하여 원클릭 `[🔍 패킷 분석]` 실행, TTL/Hops/RTT/Jitter/OS/ARP 정합성 지표 시각화 및 Pro 티어 전용 `Continuous ARP Spoof Guard` 잠금 CTA를 배치했습니다.
+     - `NativeModulesModal.tsx`에서 `grid_pcap_analyzer.dll (v2.6.2)` 테스트 액션 버튼으로 실시간 패킷 프로파일링을 즉시 검증할 수 있습니다.
+
+2. **3계층 인터랙티브 토폴로지 맵 & 보안 교차 분석 (`TopologyMapView.tsx`, `topologyGraphBuilder.ts`, `POST /api/topology-map`)**
+   - **메인 뷰 모드 3종 확장 (`Grid` | `Topology Map` | `Snapshot Diff`)**:
+     - `services/topologyGraphBuilder.ts`가 게이트웨이/코어 라우터(Tier 0) -> 인프라·L2 Proxy-ARP·보안 그룹·워크스테이션(Tier 1) -> 개별 엔드포인트 노드(Tier 2) 계층과 링크를 자동 구성합니다.
+     - `components/TopologyMapView.tsx`에서 마우스 휠·드래그 줌/팬, 노드 선택 동기화, 검색·그룹 필터링, `grid_topology_guard.dll`(`v2.6.1`) 기반 **Security Correlation (IP 충돌·ARP 스푸핑·고위험 포트·침입 교차 경보)** 오버레이(Pro+)를 제공합니다.
+     - `main.go` `POST /api/topology-map` (`buildTopologyGraphResponse`)와 연동되어 백엔드 토폴로지 가드 분석 결과를 실시간 반영합니다.
+
+3. **다중 서브넷 및 VLAN 통합 대시보드 (`MultiSubnetBar.tsx`, `MultiSubnetModal.tsx`, `multiSubnetManager.ts`, `GET /api/subnets/discover`)**
+   - **로컬 NIC/VLAN 자동 탐색 및 멀티 대역 캐싱**:
+     - `main.go` `GET /api/subnets/discover` (`discoverLocalSubnetCandidates`)가 시스템의 물리·가상·VPN·VLAN `/24` 대역 후보와 게이트웨이·인터페이스 메타데이터를 자동 탐지합니다.
+     - `services/multiSubnetManager.ts`가 최대 N개 서브넷 프로필, VLAN ID/태그, 대역별 독립 스캔 결과 캐시(`persistCurrentSubnetCache`)를 관리하여 대역 전환 시 기존 스캔 결과를 즉시 복원합니다.
+   - **온디맨드 `MultiSubnetBar` & VLAN Tag ID 인디케이터 + 순차 일괄 스윕(Batch Sweep)**:
+     - 평소 단일 대역 스캔 시 UI 복잡도를 줄이기 위해 기본 숨김 상태를 유지하며, 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼 클릭 시(또는 일괄 스윕 실행 중) 상단 바에 즉시 표시 및 닫기(`X`) 토글을 제공합니다.
+     - 바 좌측에 현재 활성 프로필의 세그먼트 태그를 표시하는 **전용 `활성 태그` 인디케이터** 및 각 서브넷 탭 내부에 **컬러 마커가 결합된 `VLAN {ID}` 태그 뱃지**를 배치해 세그먼트 망을 한눈에 식별할 수 있습니다.
+     - `MultiSubnetModal` 통합 대시보드에서 전체 대역 온라인/충돌/침입/위험 포트 KPI 집계, NIC/VLAN 자동 발굴 원클릭 등록, 사용자 지정 `/24` + VLAN 태그 추가 및 Pro+ **순차 다중 서브넷 일괄 스윕(`batchState`)**·**교차 서브넷 이상 징후 통합 관제**를 제공합니다.
+
+4. **Free vs Pro/Enterprise 라이선스 티어 밸런스 개편 (`license_guard.go`, `licenseManager.ts`, `LicenseModal.tsx`, `ProFeatureLockedModal.tsx`)**
+   - **Free 커뮤니티 에디션 실질 편의성 확대**:
+     - **5시트 다중 시트 Excel Grid (`.xls`) 보고서 내보내기 Free 전환**(`reportExcelWorkbook: true`).
+     - **다중 서브넷 기본 관리 Free 최대 2개 대역 지원**(`MaxSubnets: 2`, `multiSubnetBasic: true`).
+     - **단일 서브넷 기본 토폴로지 맵(`topologyBasic: true`)** 및 **단일 호스트 수동 패킷 텔레메트리(`packetInspectBasic: true`)** Free 개방.
+   - **Pro / Enterprise 대규모 관제 및 자동 보안 상관분석**:
+     - **Pro**: 최대 **5개 서브넷/VLAN**, 순차 **Multi-Subnet Batch Sweep**, **교차 대역 이상 징후 대시보드**, **Topology Security Correlation & Continuous ARP Spoof Guard**, A4 PDF 보고서, 60초 Intruder Watch, WoL, 4색 Diff 지원.
+     - **Enterprise**: **무제한 서브넷/VLAN**(`maxSubnets: 999`) 통합 관제.
+
+5. **SemVer v2.6.0 SSOT 동기화 및 전수 자아성찰(Deep Audit) 결함 수정 — *2026-11-21 반영***
+   - **`native_dll/grid_pcap_analyzer.c` (`v2.6.2`) MAC 정규화 결함 수정**: `Pcap_DetectArpSpoofing` 및 `Pcap_InspectPacketProfileJson`에 `normalizeMacHex12` 헬퍼를 도입해 콜론(`:`)·하이픈(`-`)·점(`.`)·무구분자 MAC 입력 차이로 인한 ARP 스푸핑 오탐 경보를 원천 차단했습니다.
+   - **`native_dll/grid_banner_grabber.c` User-Agent 최신화**: HTTP/RTSP 배너 프로브 User-Agent 헤더를 `GridIPScanner/2.6`으로 동기화했습니다.
+   - **`components/ProFeatureLockedModal.tsx` 정합성 정리**: Free 티어로 전환된 `reportExcelWorkbook`(5시트 Excel Grid `.xls`)의 잔류 PRO 잠금 정의와 미사용 `FileSpreadsheet` 아이콘 임포트를 제거했습니다.
+   - **`App.tsx` 제조사 클립보드 토스트 오류 수정**: 실제 완제품 제조사·칩셋 OEM·OUI 제조사 복사 버튼이 IP 복사 핸들러(`handleCopyIpAddress`)를 호출해 잘못된 IP 복사 안내 토스트가 출력되던 문제를 전용 `handleCopyVendorName` 핸들러로 분리해 수정했습니다.
+   - **Windows 시스템 트레이 방화벽 안전화 (`utils_windows.go`)**: 트레이 하위 메뉴(`IDM_TRAY_FIREWALL`)가 기존 사용자·사내 방화벽 정책 전체를 초기화하던 `netsh advfirewall reset` 호출을 제거하고, 관리자 권한 확인 후 앱 예외 규칙만 안전하게 등록하는 `ensureFirewallRulesSilently()`로 교체했습니다.
+   - **Electron 종료 시 영구 설정·캐시 보존 (`main.js`)**: `terminateApplicationCleanly` 및 `window-all-closed` 종료 경로에서 `clearStorageData()`와 `userData` 삭제를 제거하고 `clearCache()`만 유지하여 저장된 별칭·스냅샷·스케줄·다중 서브넷/VLAN 설정이 재실행 후에도 보존되도록 수정했습니다.
+   - **Go REST API 메서드·입력값 검증 및 HTTP 서버 타임아웃 강화 (`main.go`, `tray_engine.go`, `services/nativeModulesService.ts`, `main_test.go`)**: `/api/wol`, `/api/remote-action`, `/api/windows-util` 상태 변경 액션, `/api/oui/validate-dll?save=true`(네이티브/Go 폴백 전 경로 일원화), `/api/window-closed`, `/api/tray-minimize`, `/api/tray/test-notify`에 `POST` 전용 검증을 적용하고 `/api/close-to-tray` 불완전 JSON 기본활성화 오류를 `400 Bad Request`로 차단했습니다. 또한 `/api/info`, `/api/scan`, `/api/native-modules`, `/api/discovery`, `/api/banner-grab`, `/api/os-detect`, `/api/arp-spoof-check`의 HTTP 메서드·IP·포트 검증을 보강하고 `http.Server`에 `ReadHeaderTimeout: 10s`를 적용했으며(`main_test.go` 검증 테스트 추가), `utils_windows.go` DIB 비트맵 포인터 정합성 및 `grid_net_driver.c` 스텁 버전을 일치시켰습니다.
+   - **리포트 HTML·업데이트 URL·스케줄 서브넷 입력 방어 보강 (`services/reportCenterService.ts`, `services/updateChecker.ts`, `components/ScheduleModal.tsx`)**: 인터랙티브 HTML 헤더 내 `dataset.subnet` 이스케이프 누락을 수정하고, `updateChecker.ts` GitHub 릴리즈/에셋 링크에 HTTPS 공식 도메인 허용 목록 검증을 추가했으며, `ScheduleModal.tsx`에 3옥텟 IPv4 서브넷 유효성 검사 및 인라인 오류 안내를 도입했습니다.
+   - **토폴로지 맵 다중 행 래핑·서브넷 격리 & VLAN 프로필 인라인 편집 (`TopologyMapView.tsx`, `topologyGraphBuilder.ts`, `MultiSubnetModal.tsx`, `App.tsx`)**: 대역 전환 시 이전 서브넷의 네이티브 토폴로지 오버레이가 남지 않도록 `nativeOverlay` 초기화 및 `subnet` 일치 검증을 추가하고, Tier 2/3 SVG 노드를 행당 14개 단위로 다중 행 래핑해 대규모 `/24` 스캔 시 겹침을 해소했으며 `topologySecurityPro` 잠금 정합성을 맞췄습니다. 또한 `MultiSubnetModal`에서 기본 프로필을 포함한 모든 서브넷의 별칭·VLAN Tag ID·게이트웨이 IP를 즉시 인라인 편집하고 IPv4/포트 범위 검증을 수행하도록 개선했습니다.
+   - **기술 문서·가이드 전수 최신화**: `README.md`, `docs/README.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/SECURITY_REPORT.md`, `docs/OUI_PARSER_DLL_SPEC.md`, `docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`, `docs/VERSIONING_POLICY.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/FILE_STRUCTURE_GUIDE.md`, `docs/DISTRIBUTION_AND_TIER_STRATEGY.md`, `docs/GOOGLE_BLOGGER_POST.md/.html` 및 `docs/WorkLog.md`를 `v2.6.0` 최신 스펙과 일치시켰습니다.
+
+---
 
 ## 🚀 [v2.5.0] - 2026-11-13
 

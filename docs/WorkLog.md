@@ -1,3 +1,86 @@
+### 77. 전수 자아성찰(Self-Reflection & Deep Audit) 3차 심층 감사 · API/서버/클라이언트 무결성 보강 및 문서 최신화 (2026-11-21)
+- **사용자 요청 사항 및 피드백**:
+  - "**자아성찰(Self-Reflection & Deep Audit)** 과 **오류 수정** 그리고 문서들 업데이트"
+- **원인 규명 및 해결 조치**:
+  1. **[Go 백엔드 HTTP 메서드·페이로드·서버 타임아웃 하드닝] `main.go`, `main_test.go`**:
+     - `/api/close-to-tray`: 잘못된 JSON 본문이나 비정상 `enabled` 쿼리 값 입력 시 `closeToTrayEnabled = true`로 묵시 전환되던 결함을 수정하고 `400 Bad Request` 및 `405 Method Not Allowed` 검증(`handleCloseToTrayAPI`)을 적용.
+     - `/api/oui/validate-dll?save=true`: `POST` 전용 검사가 네이티브 DLL 분기 내부에만 있던 문제를 해결해 Linux/폴백 환경에서도 `?save=true` `GET` 요청을 `405`로 일관 차단(`handleValidateOUIAPI`).
+     - `/api/wol`: 매직 패킷 발송 엔드포인트를 `POST`(+`OPTIONS`) 전용으로 제한하고 JSON 파싱 오류 시 `400 Bad Request` 반환(`handleWolAPI`).
+     - `/api/info`, `/api/scan`, `/api/native-modules`, `/api/discovery`, `/api/banner-grab`, `/api/os-detect`, `/api/arp-spoof-check`: `GET`/`OPTIONS` 메서드 엄격 검증 및 IP·포트 범위(`1–65535`) 검증 추가.
+     - `http.Server` (Windows 서비스 및 일반 실행 모드)에 `ReadHeaderTimeout: 10s`를 설정해 장기 `/api/scan` SSE 스트림은 유지하면서 불완전 헤더 대기 리스크를 차단하고, `main_test.go`에 HTTP 핸들러 단위 테스트 4종 추가.
+  2. **[Win32 GDI 포인터 안전화 및 C 스텁 버전 일치] `utils_windows.go`, `native_dll/grid_net_driver.c`**:
+     - `buildBadgedTrayIcon` 내 `CreateDIBSection` 출력 포인터를 `unsafe.Pointer`로 직접 수신하도록 교정해 `go vet` Win32 포인터 경고를 제거.
+     - `grid_net_driver.c` 비-Windows 폴백 `GridNet_GetDriverVersion()` 반환값을 Win32(`20401`)과 일치.
+  3. **[리포트 HTML · GitHub URL · 스케줄 서브넷 검증 보강] `services/reportCenterService.ts`, `services/updateChecker.ts`, `components/ScheduleModal.tsx`**:
+     - `reportCenterService.ts` 인터랙티브 HTML 메타 헤더의 두 번째 `dataset.subnet` 보간에 `escapeHtml(...)` 누락을 보완.
+     - `updateChecker.ts`에 `sanitizeGitHubUrl`을 신설해 릴리즈 페이지 및 다운로드 자산 URL이 공식 HTTPS GitHub 도메인만 통과하도록 제한(캐시 복원 경로 포함).
+     - `ScheduleModal.tsx` 저장 폼에 3옥텟 IPv4 서브넷 형식 검증(`isValidSubnet3`)과 인라인 오류 안내 추가.
+  4. **[문서 최신화 및 검증] `docs/MOBILE_GITHUB_GUIDE.md`, `docs/SECURITY_REPORT.md`, `docs/PATCH_NOTE.md`, `docs/WorkLog.md`**:
+     - `docs/MOBILE_GITHUB_GUIDE.md` 내 잔존 `v2.5.0` 릴리즈 파일명·태그를 `v2.6.0`으로 교정하고 보안·패치 노트·작업 일지를 최신 상태로 동기화.
+
+### 76. 전수 자아성찰(Self-Reflection & Deep Audit) 2차 심층 점검 및 결함 일괄 수정 (2026-11-21)
+- **사용자 요청 사항 및 피드백**:
+  - "자아성찰(Self-Reflection & Deep Audit) 과 오류 수정"
+- **원인 규명 및 해결 조치**:
+  1. **[Windows 트레이 방화벽 초기화 위험 제거] `utils_windows.go`**:
+     - `IDM_TRAY_FIREWALL` 메뉴 선택 시 `netsh advfirewall reset`을 실행해 사용자·사내 방화벽 규칙 전체가 초기화되던 치명적 결함을 발견.
+     - 메뉴 문구를 `"🛡️ Windows 방화벽 예외 규칙 재등록"`으로 교정하고 관리자 권한 확인(`isRunningAsAdmin`) 후 `ensureFirewallRulesSilently()`를 호출하도록 수정해 앱 예외 규칙만 안전하게 등록하도록 개선.
+  2. **[Electron 종료 시 영구 설정·캐시 소실 수정] `main.js`**:
+     - 앱 종료 시(`terminateApplicationCleanly`, `window-all-closed`) `clearStorageData()`와 `fs.rmSync(tempUserData)`가 여전히 호출되어 `localStorage`(별칭, 스냅샷, 스케줄, 다중 서브넷/VLAN 프로필, `grid_close_to_tray`)가 매 종료마다 삭제되던 문제를 제거하고 `clearCache()`만 유지.
+  3. **[Go HTTP 엔드포인트 메서드·입력 검증 하드닝] `main.go`, `tray_engine.go`, `services/nativeModulesService.ts`**:
+     - `/api/remote-action`, `/api/windows-util` 상태 변경 액션(`flushdns`, `ncpa.cpl`, `firewall`, `autostart` 설정, `service-install`, `service-stop`), `/api/oui/validate-dll?save=true`, `/api/window-closed`, `/api/tray-minimize`, `/api/tray/test-notify`가 `GET` 요청으로도 실행/변경되던 허점을 차단해 `POST` 전용으로 전환(`nativeModulesService.ts` 호출부 동기화).
+     - `/api/subnets/discover`, `/api/tray/state`, `/api/tray/config`, `/api/tray/events` 메서드 검사 및 `/api/packet-inspect` JSON 파싱·포트 범위(`0–65535`) 검증 추가.
+  4. **[토폴로지 맵 겹침·대역 오염 및 라이선스 게이트 정합성 수정] `components/TopologyMapView.tsx`, `services/topologyGraphBuilder.ts`**:
+     - 서브넷/VLAN 전환 시 이전 대역의 `nativeOverlay`를 초기화하고 `mergeNativeTopologyOverlay`에 `nativeGraph.subnet === clientGraph.subnet` 검증을 추가해 교차 대역 오염 차단.
+     - Tier 2/3 노드를 SVG 행당 14개 단위로 다중 행 래핑하고 캔버스 높이를 동적 계산해 대규모 `/24` 스캔 시 노드·라벨 겹침 해소, `handleRunNativeGuard`를 `featureGates.topologySecurityPro`와 일관되게 연동.
+  5. **[기본 서브넷 VLAN Tag ID 인라인 편집 및 폼 검증 보강] `components/MultiSubnetModal.tsx`, `App.tsx`**:
+     - 유일한 기본 서브넷 프로필에서도 별칭·VLAN Tag ID·게이트웨이 IP를 편집할 수 있도록 대시보드 테이블 인라인 편집(`onUpdateProfile`)을 신설하고, `handleAddSubnetProfile` 메타데이터 병합 및 IPv4 게이트웨이·호스트 범위(`Number.isFinite`) 유효성 검증 추가.
+  6. **[테스트·문서·검증] `main_test.go`, `docs/*`**:
+     - `TestBuildTopologyGraphResponse`, `TestDiscoverLocalSubnetCandidates` Go 단위 테스트를 추가하고 `docs/SECURITY_REPORT.md`, `docs/OUI_PARSER_DLL_SPEC.md`, `docs/PATCH_NOTE.md` 및 `WorkLog.md` 최신화 완료.
+
+### 75. 전수 자아성찰(Self-Reflection & Deep Audit) 결함 수정 · 온디맨드 MultiSubnetBar VLAN 인디케이터 및 v2.6.0 문서 최신화 (2026-11-21)
+- **사용자 요청 사항 및 피드백**:
+  - "다중 서브넷 & VLAN 통합 대시보드 -- 일반적으로 사용을 많이 하지 않는 기능으로 활성화 버튼 누를때 화면에 나타나게."
+  - "Create a new visual indicator in the MultiSubnetBar component that displays the VLAN tag ID for each active profile, making it easier for users to identify segmented networks at a glance."
+  - "자아성찰(Self-Reflection & Deep Audit) 과 오류 수정 그리고 문서들 업데이트"
+- **원인 규명 및 해결 조치**:
+  1. **[온디맨드 다중 서브넷·VLAN 바 & 활성 VLAN Tag ID 인디케이터] `App.tsx`, `components/MultiSubnetBar.tsx`**:
+     - `showMultiSubnetWorkspace` 기본값을 `false`로 유지해 일상 스캔 시 상단 바 공간을 절약하고, 데스크톱 `다중 서브넷·VLAN` / 모바일 `VLAN` 토글 버튼 클릭(또는 순차 Batch Sweep 실행) 시에만 `MultiSubnetBar`가 나타나도록 온디맨드 UX 구축.
+     - `MultiSubnetBar.tsx` 좌측에 현재 활성 프로필의 VLAN 태그를 즉시 보여주는 **`활성 태그` (`Active Tag`) 전용 인디케이터 버튼**과 각 프로필 칩 내 **컬러 도트·`VLAN {ID}` 태그 뱃지**를 추가해 세그먼트 망 식별성을 강화.
+  2. **[C DLL `grid_pcap_analyzer.c` (`v2.6.2`) MAC 정규화 오탐 수정] `native_dll/grid_pcap_analyzer.c`**:
+     - `Pcap_DetectArpSpoofing` 및 `Pcap_InspectPacketProfileJson`이 `SendARP` 결과(`XX:XX:XX:XX:XX:XX`)와 `-`/`.`/무구분자 `expectedMac` 문자열을 직접 비교해 정상 장치를 ARP 스푸핑으로 오탐하던 결함을 발견.
+     - `normalizeMacHex12` 12자리 대문자 Hex 정규화 함수를 신설(무효/`000000000000`/`FFFFFFFFFFFF` 필터링 포함)해 포맷 무관 정확한 L2 MAC 비교 보장.
+  3. **[Free 전환 Excel PRO 잠금 잔재 & User-Agent · 주석 정합성 수정] `components/ProFeatureLockedModal.tsx`, `components/NativeModulesModal.tsx`, `native_dll/grid_banner_grabber.c`**:
+     - Free 티어로 전환된 `reportExcelWorkbook` 항목이 `PRO_FEATURE_LOCK_CATALOG`에 잔류하던 정합성 누락과 미사용 `FileSpreadsheet` 임포트를 제거.
+     - `grid_banner_grabber.c`의 HTTP/RTSP `User-Agent`를 `GridIPScanner/2.6`으로 최신화하고 `NativeModulesModal.tsx` 상단 주석을 `8 specialized native DLL engine modules (12 total binaries)`로 교정.
+  4. **[장치 상세 제조사 복사 토스트 오표기 수정] `App.tsx`**:
+     - `realVendor`, `chipsetVendor`, `vendor` 복사 버튼이 `handleCopyIpAddress`를 재사용해 `"📋 IP 주소 (<제조사명>)가 클립보드에 복사되었습니다."`가 표시되던 UI 버그를 전용 `handleCopyVendorName` 핸들러로 분리 수정.
+  5. **[전 프로젝트 기술 문서 v2.6.0 최신화 및 검증]**:
+     - `docs/SECURITY_REPORT.md`, `docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`, `docs/VERSIONING_POLICY.md` 내 잔존 `v2.5.0` 표기를 `v2.6.0`으로 업데이트하고 `README.md`, `docs/README.md`, `docs/PATCH_NOTE.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/FILE_STRUCTURE_GUIDE.md`, `docs/DISTRIBUTION_AND_TIER_STRATEGY.md`, `docs/GOOGLE_BLOGGER_POST.md/.html` 최신화 완료.
+     - Go 단위 테스트(`./go/bin/go test -v .`), SSOT 버전 무결성 검증(`node scripts/sync-version.js --check`), TypeScript/Vite 프로덕션 컴파일 및 ESLint 검증 완료.
+
+### 74. 네이티브 패킷 정밀 텔레메트리(v2.6.2) · 인터랙티브 3계층 토폴로지 맵 · 다중 서브넷/VLAN 통합 대시보드 · 티어 밸런스 개편 및 SemVer v2.6.0 릴리즈 (2026-11-20)
+- **사용자 요청 사항 및 피드백**:
+  - "엑셀 그리드스캔 리포트 사라짐." / "액셀 그리드는 free 로 전환"
+  - "다음 계획을 세워 주세요." -> 핵심 영역: **네이티브 패킷 분석 및 토폴로지 고도화, 다중 서브넷 및 VLAN 통합 대시보드** / 라이선스 방향: **핵심 편의는 Free, 대규모 관제는 Pro 이상** / 구현 범위: **웹 UI와 Go 백엔드 엔진 동시 구현** / 버전·문서: **기능 구현과 v2.6.0 문서 최신화 동시 포함**
+- **원인 규명 및 해결 조치**:
+  1. **[네이티브 패킷 정밀 텔레메트리 (`v2.6.2`) & Go 풀스택 프로파일러] `native_dll/grid_pcap_analyzer.c/.h`, `native_modules_bridge*.go`, `main.go`**:
+     - `Pcap_InspectPacketProfileJson` C-ABI 함수 및 `PacketInspectionResult` 브리지 추가.
+     - `GET/POST /api/packet-inspect` (`runGoPacketInspection`) 구현: TCP SYN 핸드셰이크 RTT(Min/Avg/Max/Jitter), TTL/초기 TTL/추정 홉 수, Window 힌트, OS 추정 신뢰도 및 Live ARP MAC 스푸핑 정합성 검증 지원.
+     - `App.tsx` 장치 상세 프로필 내 Packet Telemetry 섹션 및 `NativeModulesModal.tsx` 실시간 테스트 액션 연동.
+  2. **[3계층 인터랙티브 토폴로지 맵 & 보안 교차 분석] `components/TopologyMapView.tsx`, `services/topologyGraphBuilder.ts`, `main.go`**:
+     - `viewMode`를 `'grid' | 'topology' | 'diff'`로 확장하고 `POST /api/topology-map` (`buildTopologyGraphResponse`)와 연동.
+     - Gateway/Router -> 그룹(인프라·Proxy-ARP·보안·일반) -> 단말 노드 SVG 줌/팬 시각화 및 Pro 전용 `Topology Security Correlation`(충돌·스푸핑·위험 포트·침입 교차 경보) 구현.
+  3. **[다중 서브넷 & VLAN 통합 대시보드 및 순차 일괄 스윕] `services/multiSubnetManager.ts`, `components/MultiSubnetBar.tsx`, `components/MultiSubnetModal.tsx`, `main.go`**:
+     - `GET /api/subnets/discover` (`discoverLocalSubnetCandidates`)로 로컬 NIC/VLAN 대역 자동 발굴 지원.
+     - 대역별 스캔 결과 독립 캐시(`persistCurrentSubnetCache`), 원클릭 대역 전환 바(`MultiSubnetBar`), 통합 관제 모달(`MultiSubnetModal`), Pro+ 순차 일괄 스윕 큐(`batchState`, `handleToggleBatchSweep`) 및 교차 대역 이상 징후 대시보드 완성.
+  4. **[라이선스 티어 밸런스 개편 & Free 5시트 엑셀 그리드 복원] `license_guard.go`, `services/licenseManager.ts`, `components/LicenseModal.tsx`, `components/ProFeatureLockedModal.tsx`**:
+     - `reportExcelWorkbook: true`를 Free 티어에 기본 개방하여 5시트 다중 시트 Excel XML(`.xls`) 리포트를 무료 제공.
+     - Free `MaxSubnets`를 1 -> **2**로 상향하고 단일 서브넷 토폴로지·단일 호스트 수동 패킷 분석을 Free에 배정. Pro는 5개 대역·Batch Sweep·교차 대역 대시보드·Topology Security Guard, Enterprise는 무제한 대역 제공.
+  5. **[SemVer v2.6.0 동기화 및 검증]**:
+     - `node scripts/sync-version.js --set 2.6.0` 실행으로 10대 SSOT 대상 `v2.6.0` 일괄 반영.
+     - Go Linux/Windows 크로스 빌드, `tsc --noEmit`, Vite 프로덕션 빌드 무결점 통과 및 공식 문서·GitHub/Blogger 가이드 전면 최신화.
+
 ### 73. Go 네이티브 시스템 트레이 · Windows SCM 서비스 · 스케줄러 빠른 제어 · 이벤트 OS 알림 고도화 (v2.5.0 유지보수 고도화, 2026-11-18)
 - **사용자 요청 사항 및 피드백**:
   - "시스템 트레이에서 동작 기능 고도화"

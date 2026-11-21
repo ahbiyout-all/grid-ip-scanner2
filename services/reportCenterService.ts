@@ -1251,7 +1251,7 @@ export function generateInteractiveGridHtml(
         </div>
       </div>
       <div class="meta">
-        <div>${escapeHtml(dataset.subnet)}.0/24 (${dataset.subnet}.${dataset.start}~.${dataset.end})</div>
+        <div>${escapeHtml(dataset.subnet)}.0/24 (${escapeHtml(dataset.subnet)}.${dataset.start}~.${dataset.end})</div>
         <div>${escapeHtml(dataset.generatedDateStr)} ${escapeHtml(dataset.generatedTimeStr)}</div>
       </div>
     </header>

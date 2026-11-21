@@ -1,15 +1,15 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.5.0 · 2026-11-18 최신 개편판)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.6.0 · 2026-11-21 최신 개편판)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **현재 버전**: v2.5.0 | **최신 업데이트**: 2026-11-18
+> **현재 버전**: v2.6.0 | **최신 업데이트**: 2026-11-21
 
 ---
 
 ## 📌 블로거(Blogger) 기본 설정 요약 (메타데이터)
 * **맞춤 퍼머링크 (Permalink)**: `grid-ip-scanner2-visual-network-scanner`
 * **검색 설명 (Search Description)**:
-  > 16x16 시각화 그리드 맵, OUI 시맨틱 LAA 랜덤 MAC 역추적, 게이트웨이 Proxy-ARP 비알림 분리('Proxy-ARP' 뱃지), Go 자율 시스템 트레이(동적 4색 배지 아이콘·--tray 조용한 부팅·Windows SCM 서비스·방해금지/쿨다운 이벤트 알림·스케줄러 일시정지/즉시실행), 통합 보고서 센터 및 12대 네이티브 C/C++ DLL 엔진을 탑재한 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.5.0)를 소개합니다.
+  > 16x16 시각화 그리드 맵, 3계층 인터랙티브 토폴로지 맵, 네이티브 패킷 정밀 텔레메트리(v2.6.2), 다중 서브넷/VLAN 통합 대시보드(Free 2대역 & 5시트 엑셀 그리드 무료 제공), 자율 시스템 트레이 및 12대 네이티브 C/C++ DLL 엔진을 탑재한 차세대 네트워크 스캐너 Grid IP Scanner2 (v2.6.0)를 소개합니다.
 
 ---
 
@@ -22,42 +22,46 @@
 ---
 
 ### 1. 제목
-**[무료/초고속] 16x16 시각화 그리드 · 자율 시스템 트레이(동적 배지/방해금지/SCM 서비스) · Proxy-ARP 분리 · 12대 네이티브 DLL 엔진을 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.5.0)**
+**[무료/초고속] 16x16 그리드 · 3계층 토폴로지 맵 · 패킷 정밀 텔레메트리 · 다중 서브넷/VLAN 통합 대시보드 · Free 5시트 엑셀 그리드를 탑재한 차세대 네트워크 스캐너: Grid IP Scanner2 (v2.6.0)**
 
 ---
 
 ### 2. 본문
 안녕하세요, **AhBiYout**입니다.
 
-네트워크 관리자, 시스템 엔지니어, 학교·사내 전산 담당자라면 한 번쯤 **Advanced IP Scanner**나 **Angry IP Scanner** 같은 진단 도구를 사용해 보셨을 것입니다. 하지만 기존 도구들은 수백 개의 IP 주소를 단순한 텍스트 행(Row) 리스트로만 나열하여 전체 네트워크의 유휴 공간과 밀도를 직관적으로 파악하기 어려웠습니다. 또한 **학교·캠퍼스 네트워크에서 게이트웨이(.254)와 다른 IP(.251)가 동일한 L3 스위치 MAC으로 응답할 때 무조건 IP 충돌 경보로 오인**하거나, 창을 닫으면 24시간 감시와 예약 스캔이 멈춰버리고 불필요한 알림 폭탄이 쏟아지는 불편함이 있었습니다.
+네트워크 관리자, 시스템 엔지니어, 학교·사내 전산 담당자라면 한 번쯤 **Advanced IP Scanner**나 **Angry IP Scanner** 같은 진단 도구를 사용해 보셨을 것입니다. 하지만 기존 도구들은 수백 개의 IP 주소를 단순한 텍스트 행(Row) 리스트로만 나열하여 전체 네트워크의 계층 연결 구조와 유휴 공간을 직관적으로 파악하기 어려웠습니다. 또한 **여러 VLAN/서브넷을 오가며 스캔할 때 이전 결과가 덮어써지거나, 개별 호스트의 TTL/홉 수·TCP 핸드셰이크 지연(RTT/Jitter)·실시간 ARP 스푸핑 여부를 별도 패킷 분석기 없이 곧바로 확인하기 어려운 불편함**이 있었습니다.
 
-이러한 현장의 실질적인 문제를 해결하기 위해 한층 더 진화한 **『Grid IP Scanner2』 (v2.5.0 최신 개편판)**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**으로 실시간 시각화할 뿐만 아니라, **Go 자율 시스템 트레이 & Windows SCM 네이티브 서비스**, **OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적**, **게이트웨이 Proxy-ARP 정상 판별 및 `Proxy-ARP` 인디케이터 뱃지 분리**, **순수 창작 `grid_topology_guard.dll`과 IOCP·비동기 ICMP 고속 배치 스위프를 포함한 12대 네이티브 C/C++ DLL 엔진**, 그리고 **통합 보고서 센터(PDF·Excel·CSV·JSON·Markdown·HTML)**까지 모두 갖춘 차세대 올인원 네트워크 스캐너입니다.
+이러한 현장의 실질적인 문제를 해결하기 위해 한층 더 진화한 **『Grid IP Scanner2』 (v2.6.0 최신 마이너 릴리즈)**는 C클래스(/24) 전체 254개 IP를 **16x16 매트릭스 그리드 맵**과 **3계층 인터랙티브 토폴로지 맵**으로 실시간 시각화할 뿐만 아니라, **네이티브 패킷 정밀 텔레메트리(`grid_pcap_analyzer.dll v2.6.2`)**, **다중 서브넷 & VLAN 통합 대시보드(로컬 NIC/VLAN 자동 탐색 및 대역별 캐싱)**, **Free 티어 5시트 엑셀 그리드(.xls) & 최대 2개 서브넷 무료 개방**, **Go 자율 시스템 트레이 & Windows SCM 네이티브 서비스**, **OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적**, **게이트웨이 Proxy-ARP 비알림 뱃지 분리**, 그리고 **12대 네이티브 C/C++ DLL 엔진**까지 모두 갖춘 차세대 올인원 네트워크 스캐너입니다.
 
 #### 🚀 Grid IP Scanner2 핵심 기능
-* **16x16 시각화 그리드 맵**: 전체 254개 노드의 활성/비활성/충돌/Proxy-ARP/Diff 상태를 신호등처럼 1초 만에 직관적으로 조망.
+* **🗺️ 16x16 시각화 그리드 맵 & 3계층 인터랙티브 토폴로지 맵 (`Grid` | `Topology Map` | `Snapshot Diff`)**:
+  - 254개 전체 노드의 활성/비활성/충돌/Proxy-ARP/Diff 상태를 신호등처럼 1초 만에 조망하고, **게이트웨이/코어 라우터 -> 인프라·Proxy-ARP·보안 그룹 -> 단말 노드** 계층을 줌/팬 SVG 맵으로 시각화.
+  - Pro 티어에서는 `grid_topology_guard.dll`(`v2.6.1`) 연동 **Topology Security Correlation(충돌·ARP 스푸핑·위험 포트·침입 교차 분석)** 오버레이 제공.
+* **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`, `/api/packet-inspect`)**:
+  - 장치 상세 프로필 패널에서 원클릭으로 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), Window 힌트, OS 추정(신뢰도), Live ARP MAC 정합성**을 실시간 분석.
+* **🌐 온디맨드 다중 서브넷 및 VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`, `/api/subnets/discover`)**:
+  - 평소에는 깔끔한 단일 대역 화면을 유지하다 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼 클릭 시 화면에 나타나며, **활성 VLAN Tag ID 인디케이터(`활성 태그` + 프로파일별 컬러 VLAN 태그 마커)**로 세그먼트 망을 즉시 식별합니다.
+  - 로컬 물리/가상/VPN/VLAN NIC 대역을 자동 탐색해 원클릭으로 등록하고, 대역별 독립 스캔 결과를 캐싱해 무손실 전환(Free 최대 2개 대역 무료).
+  - Pro(최대 5개 대역) 및 Enterprise(무제한)에서는 **순차 일괄 스윕(Batch Sweep)** 및 **교차 서브넷 이상 징후 통합 대시보드** 가동.
+* **📊 Free 5시트 엑셀 그리드(.xls) & 통합 보고서 센터**:
+  - 16x16 IP 그리드 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)**, CSV, JSON, Markdown을 **Free 에디션에서 무료**로 내보내고, Pro 티어에서 A4 최적화 PDF 보안 감사 보고서(Zero Row-Chopping) 및 1:1 스냅샷 Diff 대조 제공.
 * **📌 Go 자율 시스템 트레이 & Windows SCM 서비스 (`--tray` / `--service`)**:
-  - **동적 4색 배지 트레이 아이콘**: 대기(회색), 24/7 감시(에메랄드), 스캔 중(호박색), 침입·충돌 경보(적색) 상태에 따라 작업표시줄 아이콘 배지가 실시간 전환.
-  - **부팅 시 창 없이 조용히 시작 (`--tray`) & 무인 백그라운드 감시**: 브라우저 창을 열지 않거나 닫은 뒤에도 Go 자율 엔진이 10초 주기로 감시·만기 스케줄 스캔을 계속 수행하며, Windows 서비스(`GridIPScannerService`, `--service`) 제어까지 완벽 연동.
-  - **트레이 빠른 제어**: 트레이 우클릭 메뉴에서 **빠른 스캔**, **24/7 침입 감시 토글**, **정기 스케줄러 일시정지/재개 및 즉시 실행**을 1초 만에 제어.
-  - **스마트 이벤트 OS 알림 (중복 억제 · 방해금지 DND)**: **신규 침입**, **IP/MAC 충돌**, **대량 호스트 오프라인 급감** 발생 시에만 OS 풍선 알림을 전송하며, 동일 이벤트 쿨다운 중복 억제와 상시/30분 일시 해제/야간 조용한 시간(DND)을 지원.
-* **🧠 OUI 시맨틱 다중 신호 분류 & LAA 랜덤 MAC 역추적**: MAC OUI뿐만 아니라 개방 포트, mDNS, UPnP XML을 복합 점수화하여 IoT, CCTV, 가상머신(QEMU/Docker/VirtualBox/Hyper-V), 스마트 TV, 라우터를 자동 분류하고 신뢰도와 판별 근거를 표기.
-* **🟦 게이트웨이 Proxy-ARP 비알림 분리 (`Proxy-ARP` 뱃지)**: 학교·기업망 L3 스위치 Proxy-ARP 또는 HSRP/VRRP 가상 게이트웨이(VIP)의 동일 MAC 다중 IP 응답은 붉은 충돌 경보(`⚠️`)가 아닌 스카이블루 `Proxy-ARP` 정보 뱃지로 깔끔히 분리해 오경보를 차단.
-* **⚡ 12대 순수 C/C++ 네이티브 DLL 엔진 & 보안 하드닝**: 순수 창작 `grid_topology_guard.dll`(`v2.6.1`, O(N) FNV-1a 토폴로지 해시), 비동기 ICMP/ARP 배치 스위프(`Probe_SweepCidrAsyncBatch`), Win32 IOCP 다중 호스트 포트 스위프(`PortScan_IocpMultiHostSweep`), `GVAULT11` 16B 솔트 + PBKDF2-HMAC-SHA256 AES-256-GCM 암호화 및 DLL 경로 고정(`LOAD_LIBRARY_SEARCH_APPLICATION_DIR`) 탑재.
-* **📄 통합 보고서 센터 & 4색 스냅샷 Diff 스튜디오**: PDF 보안 감사 보고서(Zero Row-Chopping), 다중 시트 Excel, CSV, JSON, Markdown, 인쇄 HTML과 1:1 스냅샷 비교를 전용 모달에서 한 번에 처리.
+  - 4색 동적 ARGB 배지 아이콘, 부팅 시 창 없는 조용한 시작(`--tray`), 10초 무인 자율 스윕, 스케줄러 일시정지/즉시 실행, 쿨다운·방해금지(DND) 이벤트 OS 알림 지원.
+* **🟦 게이트웨이 Proxy-ARP 비알림 분리 & OUI 시맨틱 LAA 역추적**:
+  - 캠퍼스/기업망 L3 스위치 Proxy-ARP 동일 MAC 응답을 스카이블루 `Proxy-ARP` 뱃지로 분리해 오경보를 차단하고, OUI+포트+mDNS+UPnP 복합 점수로 LAA 랜덤 MAC 기기를 정밀 식별.
 
 ---
 
-### 3. 업데이트 (v2.5.0 · 2026-11-18 최신 고도화 하이라이트)
-* **📌 Go 네이티브 시스템 트레이 & Windows SCM 서비스 자율 감시 고도화 (2026-11-18)**:
-  - **동적 ARGB 배지 트레이 아이콘 & 요약 메뉴 (`utils_windows.go`)**: 대기/감시/스캔/경보 4단계 배지 아이콘 실시간 렌더링 및 활성 호스트·침입·충돌·다음 스케줄 요약 메뉴 탑재.
-  - **창 없는 조용한 부팅 (`--tray`) & 무인 스케줄러/감시 (`tray_engine.go`)**: Windows 시작프로그램 등록 시 `--tray` 플래그로 창 없이 조용히 상주하며, 우클릭 메뉴·환경설정 모달에서 **정기 스케줄러 일시정지/재개 및 즉시 실행** 양방향 동기화.
-  - **Windows SCM 서비스 정식 핸들러 (`--service`)**: `advapi32.dll` `StartServiceCtrlDispatcherW` 구현으로 서비스 시작 지연(Error 1053)을 원천 해결하고 `running` / `stopped` / `not_installed` 상태를 실시간 반영.
-  - **고도화된 OS 알림 엔진**: 신규 침입 · IP 충돌 · 대량 오프라인 급감 이벤트별 알림 규칙, 동일 이벤트 쿨다운 중복 억제, 상시/30분/야간 조용한 시간 **방해금지(DND)**, 심각도별 Win32 풍선 알림 및 최근 이벤트 피드 제공.
-* **✨ 통합 보고서 센터·모달 분리·UI 구조 개선 (2026-11-18)**:
-  - 중복되던 내보내기/스냅샷 비교 흐름을 **`ReportCenterModal`** 과 **`SnapshotDiffModal`** 로 통합하여 상단 헤더를 깔끔하게 정리.
-  - 환경설정·트레이·알림·레거시 Windows 도구를 통합한 **`PreferencesTrayModal`** 로 UI 가독성과 제어 효율성 향상.
-* **🧠 OUI 시맨틱 분류, Proxy-ARP 비알림 분리 & 12대 DLL 보안 하드닝 (`v2.5.0`)**:
-  - `ouiClassifier.ts` 복합 점수 분류 및 LAA 랜덤 MAC 역추적, `conflictDetector.ts` 스카이블루 `Proxy-ARP` 뱃지 분리, `grid_topology_guard.dll`(`v2.6.1`)·IOCP·Async ICMP 배치 및 Deep Audit 동시성 결함 10종 일괄 수정 완료.
+### 3. 업데이트 (v2.6.0 · 2026-11-20 마이너 릴리즈 하이라이트)
+* **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`) & Go 풀스택 프로파일러 신설**:
+  - `Pcap_InspectPacketProfileJson` C-ABI 엔진과 `GET/POST /api/packet-inspect` Go 백엔드 엔드포인트를 구축하여 Windows Npcap 미설치 또는 Linux/macOS 환경에서도 TCP SYN RTT 지터, 초기 TTL, 추정 홉 수, OS 핑거프린팅 및 Live ARP 정합성을 즉시 검사합니다.
+* **🗺️ 3계층 인터랙티브 토폴로지 맵 & 보안 교차 분석 (`TopologyMapView`) 도입**:
+  - 상단 메인 뷰를 `Grid` · `Topology Map` · `Snapshot Diff` 3모드로 확장하고, `POST /api/topology-map` 및 `grid_topology_guard.dll` 연계를 통해 단말 계층 구조와 보안 상관 경보를 한 화면에서 탐색합니다.
+* **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 · 순차 일괄 스윕(Batch Sweep) 탑재**:
+  - `GET /api/subnets/discover`로 로컬 NIC/VLAN 대역을 자동 발굴하고, 상단 활성화 버튼으로 여닫는 `MultiSubnetBar`의 **VLAN Tag ID 인디케이터** 및 `MultiSubnetModal`을 통해 대역별 결과 캐싱·원클릭 전환 및 Pro+ 순차 일괄 스윕과 교차 서브넷 이상 징후 통합 관제를 제공합니다.
+* **⚖️ Free vs Pro/Enterprise 티어 밸런스 개편 (핵심 편의 Free, 대규모 관제 Pro+)**:
+  - **Free 티어**: **5시트 Excel Grid(.xls) 내보내기 복원 및 무료 전환**, **최대 2개 서브넷/VLAN 전환·캐싱**, **단일 서브넷 기본 토폴로지 맵**, **단일 호스트 수동 패킷 텔레메트리** 전면 개방.
+  - **Pro / Enterprise 티어**: **Pro 5개 대역 / Enterprise 무제한**, **순차 Multi-Subnet Batch Sweep**, **교차 대역 이상 징후 대시보드**, **Topology Security Correlation & Continuous ARP Spoof Guard** 집중 배치.
 
 ---
 
@@ -65,36 +69,34 @@
 
 ```text
 +---------------------------------------------------------------------------------------+
-|  [Grid IP Scanner2 v2.5.0]  [ 192.168.0.1 - 254 ]   [▶ 빠른 스캔]   [📌 트레이]       |
+|  [Grid IP Scanner2 v2.6.0]  [Grid | Topology Map | Snapshot Diff]   [▶ 빠른 스캔]     |
+|  [🌐 본사 192.168.0.0/24 (24)]  [VLAN10 10.10.10.0/24 (18)]  [+ 대역] [⚡ Batch Sweep] |
 +------------------------------------------------------+--------------------------------+
-|  [ 16x16 실시간 시각화 매트릭스 그리드 맵 ]            |  [ 장치 상세 프로필 패널 ]       |
-|  [001] [002] [003] ... [251 Proxy-ARP] [254 Proxy-ARP]|  IP: 192.168.0.254 [복사 📋]   |
-|  [017] [018 ⚠️] [019] ...                            |  유형: 라우터/L3 스위치 (95%)   |
-|  * [🟢 +신규] [🔴 -오프라인] [🟠 !변동] [🟦 Proxy-ARP] |  실제 제조사: Cisco [UPnP]      |
+|  [ 16x16 그리드 맵  /  3계층 인터랙티브 토폴로지 ]    |  [ 장치 상세 프로필 & 패킷 ]   |
+|  [001 GW] ──┬── [인프라/Proxy-ARP] ── [251] [254]    |  IP: 192.168.0.254 [복사 📋]   |
+|             ├── [보안 주의 그룹]   ── [018 ⚠️]       |  🔬 Packet Telemetry [분석 ▶]  |
+|             └── [워크스테이션/IoT] ── [024] [031]    |  TTL 64(1홉) · RTT 1.2ms · ARP✓|
 +------------------------------------------------------+--------------------------------+
-|  [📌 트레이 컨텍스트 메뉴 & 통합 모달]                                                 |
-|  ● 상태: 24/7 무인 감시 중 (에메랄드 배지) · 활성 24 · 침입 0 · 충돌 0                 |
-|  ⏰ 스케줄: 일시정지 / 재개 · 즉시 실행   |   🔕 방해금지(DND) / 쿨다운 / 야간 시간    |
-|  [📄 통합 보고서 센터 (PDF·Excel·CSV)]   |   [🛡️ Windows SCM 서비스 (--service)]      |
+|  [📊 Free 5시트 Excel Grid(.xls)]   [🌐 다중 서브넷 통합 대시보드]   [📌 트레이 감시]  |
 +---------------------------------------------------------------------------------------+
 ```
 
-* **화면 1: 16x16 매트릭스 시각화 그리드**: 254개 전체 IP 노드 상태와 스카이블루 `Proxy-ARP` 뱃지 vs 붉은 `⚠️` 충돌 경보를 1초 만에 구분.
-* **화면 2: 자율 시스템 트레이 & 환경설정 모달**: 실시간 4색 배지 상태 요약, 스케줄러 일시정지/즉시 실행, 침입·충돌·대량 오프라인 알림 임계치, 쿨다운·DND 및 최근 트레이 이벤트 로그 피드 확인.
-* **화면 3: 통합 보고서 센터 & 1:1 대조 스튜디오**: PDF·Excel·CSV·JSON·Markdown·HTML 내보내기 및 4색 스냅샷 Diff 대조 지원.
+* **화면 1: 다중 서브넷 바 & 16x16 / 3계층 토폴로지 뷰**: 등록된 서브넷/VLAN 대역을 무손실 캐시로 즉시 전환하고, `Grid`와 `Topology Map`을 넘나들며 게이트웨이-그룹-단말 구조를 시각화.
+* **화면 2: 장치 상세 프로필 패킷 텔레메트리**: 선택 호스트의 초기 TTL, 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), OS 추정 신뢰도 및 Live ARP 스푸핑 검증 결과를 즉석 확인.
+* **화면 3: 다중 서브넷 & VLAN 통합 대시보드 + 보고서 센터**: NIC/VLAN 자동 발굴, 순차 Batch Sweep(Pro+), 교차 대역 KPI/이상 징후 관제 및 Free 5시트 Excel Grid(`.xls`) 다운로드 지원.
 
 ---
 
 ### 5. 다운로드
-필요하신 운영체제 환경에 맞춰 최신 `v2.5.0` 빌드를 다운로드하세요:
+필요하신 운영체제 환경에 맞춰 최신 `v2.6.0` 빌드를 다운로드하세요:
 
-* 📦 **Windows 정식 인스톨러 (권장 / 12대 DLL 분리 설치)**: `Grid_IP_Scanner2_v2.5.0_Setup.exe`  
-  *(Windows 제어판 정식 등록, 12개 네이티브 DLL 분리 배치로 백신 오탐 예방, 포그라운드 무클릭 자동 업그레이드, UAC 권한 승계, 24/7 서비스 & 트레이 지원)*
-* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.5.0_Portable.exe`  
+* 📦 **Windows 정식 인스톨러 (권장 / 12대 DLL 분리 설치)**: `Grid_IP_Scanner2_v2.6.0_Setup.exe`  
+  *(Windows 제어판 정식 등록, 12개 네이티브 DLL(`pcap v2.6.2`·`topology_guard v2.6.1` 포함) 분리 배치로 백신 오탐 예방, 포그라운드 무클릭 자동 업그레이드, UAC 권한 승계, 24/7 서비스 & 트레이 지원)*
+* 🚀 **Windows 무설치 포터블**: `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.6.0_Portable.exe`  
   *(설치 과정 없이 USB에서 즉시 실행, `--tray` 조용한 트레이 시작 지원)*
-* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.5.0.apk`  
+* 📱 **Android 스마트폰 설치 APK**: `Grid_IP_Scanner2_v2.6.0.apk`  
   *(안드로이드 스마트폰/태블릿 직접 설치용 고성능 패키지)*
-* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.5.0_Mobile_PWA.zip`
+* 🌐 **모바일 웹 & iOS PWA 패키지**: `Grid_IP_Scanner2_v2.6.0_Mobile_PWA.zip`
 * 🔗 **GitHub 공식 릴리즈 다운로드**: [https://github.com/AhBiYout-all/grid-ip-scanner2/releases](https://github.com/AhBiYout-all/grid-ip-scanner2/releases)
 
 > 🛡️ **백신 오탐지 안내**: 본 소프트웨어는 순수 네트워크 진단 도구입니다. 12대 네이티브 DLL이 설치 폴더에 투명하게 분리 설치되는 **정식 인스톨러(`Setup.exe`)** 사용 시 안티바이러스 머신러닝 오탐지를 효과적으로 방지할 수 있습니다.
@@ -103,9 +105,9 @@
 
 ### 6. 버전 정보
 * **프로그램 명칭**: Grid IP Scanner2
-* **현재 릴리즈 버전**: v2.5.0 (Semantic Versioning 2.0.0 — 2026-11-18 트레이·서비스·UI 고도화 반영)
-* **최신 업데이트 일자**: 2026-11-18
-* **핵심 엔진**: Go Autonomous Tray & Service Kernel + 12 Native C/C++ DLL Suite (`grid_topology_guard.dll v2.6.1`, IOCP/Async ICMP/Vault v2.6.0) + React 19 & Tailwind CSS v4
+* **현재 릴리즈 버전**: v2.6.0 (Semantic Versioning 2.0.0 — 2026-11-21 최신 반영)
+* **최신 업데이트 일자**: 2026-11-21
+* **핵심 엔진**: Go Parallel & Packet Telemetry Kernel + 12 Native C/C++ DLL Suite (`grid_pcap_analyzer.dll v2.6.2`, `grid_topology_guard.dll v2.6.1`, IOCP/Async ICMP/Vault v2.6.0) + React 19 & Tailwind CSS v4
 
 ---
 
@@ -127,6 +129,11 @@
 ### 9. 전체 업데이트 (기능 개선 히스토리)
 패치노트에 기록된 핵심 기능 개선 및 업데이트 전체 히스토리입니다:
 
+* **v2.6.0 · 2026-11-20 (패킷 텔레메트리 · 3계층 토폴로지 · 다중 서브넷/VLAN · 티어 개편 릴리즈)**:
+  - `grid_pcap_analyzer.dll`(`v2.6.2`, `Pcap_InspectPacketProfileJson`) 및 Go `/api/packet-inspect` 프로파일러 탑재로 호스트별 TTL·홉 수·TCP RTT 지터·OS 추정·Live ARP 정합성 측정.
+  - 3계층 인터랙티브 토폴로지 맵(`TopologyMapView.tsx`, `/api/topology-map`) 및 Pro 전용 Security Correlation / Continuous ARP Spoof Guard 도입.
+  - 다중 서브넷/VLAN 통합 대시보드(`MultiSubnetBar`, `MultiSubnetModal`, `/api/subnets/discover`), 대역별 결과 캐싱 및 Pro+ 순차 Batch Sweep 구축.
+  - 5시트 Excel Grid(`.xls`) 및 최대 2개 서브넷/기본 토폴로지/단일 패킷 분석 Free 개방.
 * **v2.5.0 · 2026-11-18 (시스템 트레이·서비스·UI 통합 고도화)**:
   - Go 자율 트레이 엔진(`tray_engine.go`), 동적 4색 ARGB `HICON` 배지, Windows SCM 서비스 핸들러(`--service`), 창 없는 부팅(`--tray`), 스케줄러 일시정지/즉시 실행 제어, 쿨다운·DND·야간 조용한 시간 기반 이벤트 OS 알림 구현.
   - 통합 보고서 센터(`ReportCenterModal`) 중심 내보내기 흐름 일원화, 모달 모듈 분리 및 미사용 레거시 브리지 데드코드 정리.
@@ -149,4 +156,4 @@
 ---
 
 ### 10. 추천 태그
-Grid IP Scanner2, IP 스캐너, 네트워크 스캐너, 시스템 트레이 감시, Windows 서비스, 방해금지 알림, Proxy-ARP, LAA 랜덤 MAC, OUI 시맨틱 분류, 네이티브 DLL, IOCP 포트 스캔, 보고서 센터, 스냅샷 비교, A4 보안감사 PDF, AhBiYout
+Grid IP Scanner2, IP 스캐너, 네트워크 스캐너, 토폴로지 맵, 패킷 분석, 다중 서브넷, VLAN 대시보드, 엑셀 그리드, 시스템 트레이 감시, Windows 서비스, Proxy-ARP, LAA 랜덤 MAC, OUI 시맨틱 분류, 네이티브 DLL, A4 보안감사 PDF, AhBiYout

@@ -221,6 +221,16 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                     ? featureGates.ouiLookup
                     : entry.key === 'basicExport'
                     ? true
+                    : entry.key === 'multiSubnetBasic'
+                    ? featureGates.multiSubnetSwitch
+                    : entry.key === 'topologyBasic'
+                    ? featureGates.topologyMapBasic
+                    : entry.key === 'packetInspectBasic'
+                    ? featureGates.packetInspectBasic
+                    : entry.key === 'multiSubnetBatchSweep'
+                    ? featureGates.multiSubnetBatchSweep
+                    : entry.key === 'topologySecurityPro'
+                    ? featureGates.topologySecurityPro
                     : entry.key === 'autoScheduler'
                     ? featureGates.autoScheduler
                     : entry.key === 'snapshotDiff'
@@ -276,7 +286,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                     {lang === 'ko' ? '다중 서브넷 동시·무제한 확장' : 'Unlimited Multi-Subnet Expansion'}
                   </span>
                   <span className="text-[10.5px] opacity-55 shrink-0 font-mono">
-                    · {lang === 'ko' ? 'Free 1 / PRO 5 / ENT 무제한' : 'Free 1 / PRO 5 / ENT Unlimited'}
+                    · {lang === 'ko' ? 'Free 2 / PRO 5 / ENT 무제한' : 'Free 2 / PRO 5 / ENT Unlimited'}
                   </span>
                 </div>
                 <span
@@ -290,8 +300,8 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                         ? 'text-sky-700'
                         : 'text-sky-400'
                       : isWhite || isBeige
-                      ? 'text-slate-500'
-                      : 'text-zinc-500'
+                      ? 'text-slate-600'
+                      : 'text-zinc-300'
                   }`}
                 >
                   {featureGates.multiSubnetUnlimited
@@ -303,8 +313,8 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                       ? '최대 5개 대역'
                       : 'Up to 5'
                     : lang === 'ko'
-                    ? '1개 대역'
-                    : '1 Subnet'}
+                    ? '최대 2개 대역'
+                    : 'Up to 2 Subnets'}
                 </span>
               </div>
             </div>

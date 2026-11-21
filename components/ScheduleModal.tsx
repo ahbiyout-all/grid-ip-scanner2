@@ -106,6 +106,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [autoExportFormats, setAutoExportFormats] = useState<AutoExportFormat[]>(['excel', 'json']);
   const [autoExportOnChangesOnly, setAutoExportOnChangesOnly] = useState(false);
   const [autoDownloadFile, setAutoDownloadFile] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Ticker for live countdowns
   const [now, setNow] = useState(Date.now());
@@ -217,13 +218,28 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     });
   };
 
+  const isValidSubnet3 = (raw: string): boolean => {
+    const parts = raw.trim().split('.');
+    if (parts.length !== 3) return false;
+    return parts.every((seg) => /^\d{1,3}$/.test(seg) && Number(seg) >= 0 && Number(seg) <= 255 && String(Number(seg)) === seg);
+  };
+
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSchedulerUnlocked) {
       onRequireProLicense('autoScheduler');
       return;
     }
-    if (!subnet.trim()) return;
+    const cleanSubnet = subnet.trim().replace(/\.+$/, '');
+    if (!isValidSubnet3(cleanSubnet)) {
+      setFormError(
+        lang === 'ko'
+          ? '유효한 3옥텟 IPv4 서브넷(예: 192.168.0)을 입력해주세요.'
+          : 'Please enter a valid 3-octet IPv4 subnet (e.g., 192.168.0).'
+      );
+      return;
+    }
+    setFormError(null);
 
     let normalizedStart = Math.max(0, Math.min(255, Number.isFinite(Number(start)) ? Math.trunc(Number(start)) : 1));
     let normalizedEnd = Math.max(0, Math.min(255, Number.isFinite(Number(end)) ? Math.trunc(Number(end)) : 254));
@@ -234,8 +250,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
     saveSchedule({
       id: editingScheduleId || undefined,
-      name: name.trim() || `${subnet.trim()}.0/24 ${lang === 'ko' ? '자동 스케줄' : 'Schedule'}`,
-      subnet: subnet.trim(),
+      name: name.trim() || `${cleanSubnet}.0/24 ${lang === 'ko' ? '자동 스케줄' : 'Schedule'}`,
+      subnet: cleanSubnet,
       start: normalizedStart,
       end: normalizedEnd,
       scanMode,
@@ -677,7 +693,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         type="text"
                         required
                         value={subnet}
-                        onChange={(e) => setSubnet(e.target.value)}
+                        onChange={(e) => {
+                          setSubnet(e.target.value);
+                          if (formError) setFormError(null);
+                        }}
                         placeholder="192.168.0"
                         className="flex-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-cyan-500 transition"
                       />
@@ -687,6 +706,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                           setSubnet(currentConfig.subnet || '192.168.0');
                           setStart(currentConfig.start || 1);
                           setEnd(currentConfig.end || 254);
+                          if (formError) setFormError(null);
                         }}
                         className="px-2.5 py-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
                         title={lang === 'ko' ? '현재 스캐너 대역 복사' : 'Copy current scanner subnet'}
@@ -694,6 +714,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         {lang === 'ko' ? '현재값 복사' : 'Current'}
                       </button>
                     </div>
+                    {formError && (
+                      <p className="mt-1.5 text-[11px] font-medium text-rose-400">{formError}</p>
+                    )}
                   </div>
 
                   <div>

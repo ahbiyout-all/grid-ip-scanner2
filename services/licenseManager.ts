@@ -56,6 +56,12 @@ export interface ResolvedFeatureGates {
   remoteBootWoL: boolean;
   intruderGuard: boolean;
   multiSubnetUnlimited: boolean;
+  multiSubnetSwitch: boolean;
+  multiSubnetBatchSweep: boolean;
+  topologyMapBasic: boolean;
+  topologySecurityPro: boolean;
+  packetInspectBasic: boolean;
+  packetContinuousGuard: boolean;
   maxSubnets: number;
 }
 
@@ -84,7 +90,13 @@ export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates 
     remoteBootWoL: isProOrHigher && Boolean(f.remoteBoot),
     intruderGuard: isProOrHigher && Boolean(f.intruderDetection),
     multiSubnetUnlimited: isEnterprise && Boolean(f.multiSubnet),
-    maxSubnets: license.maxSubnets || (isEnterprise ? 999 : isProOrHigher ? 5 : 1),
+    multiSubnetSwitch: true,
+    multiSubnetBatchSweep: isProOrHigher,
+    topologyMapBasic: true,
+    topologySecurityPro: isProOrHigher,
+    packetInspectBasic: true,
+    packetContinuousGuard: isProOrHigher,
+    maxSubnets: license.maxSubnets || (isEnterprise ? 999 : isProOrHigher ? 5 : 2),
   };
 };
 
@@ -92,7 +104,12 @@ export type EntitlementGateKey =
   | 'visualGrid'
   | 'ouiLookup'
   | 'basicExport'
+  | 'multiSubnetBasic'
+  | 'topologyBasic'
+  | 'packetInspectBasic'
   | 'autoScheduler'
+  | 'multiSubnetBatchSweep'
+  | 'topologySecurityPro'
   | 'snapshotDiff'
   | 'deepPortAudit'
   | 'reportAuditExport'
@@ -133,6 +150,38 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
     labelEn: 'Basic Export (PDF · Excel Grid .xls · CSV · JSON · MD · HTML)',
     scopeKo: 'Community 기본 제공',
     scopeEn: 'Included in Free',
+  },
+  {
+    key: 'multiSubnetBasic',
+    tier: 'free',
+    labelKo: '다중 서브넷 / VLAN 프로파일 빠른 전환 (최대 2개)',
+    labelEn: 'Multi-Subnet & VLAN Profile Quick Switch (Up to 2)',
+    scopeKo: 'Community 기본 제공',
+    scopeEn: 'Included in Free',
+  },
+  {
+    key: 'topologyBasic',
+    tier: 'free',
+    labelKo: '단일 대역 실시간 토폴로지 맵 & 단일 호스트 패킷 프로파일',
+    labelEn: 'Single-Subnet Topology Map & Live Packet Profile',
+    scopeKo: 'Community 기본 제공',
+    scopeEn: 'Included in Free',
+  },
+  {
+    key: 'multiSubnetBatchSweep',
+    tier: 'pro',
+    labelKo: '다중 서브넷 순차 일괄 스캔 & 통합 이상 징후 대시보드',
+    labelEn: 'Multi-Subnet Batch Sweep & Unified Anomaly Dashboard',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'topologySecurityPro',
+    tier: 'pro',
+    labelKo: '토폴로지 보안 상관분석 · 상시 ARP 스푸핑 가드',
+    labelEn: 'Topology Security Correlation & Continuous ARP Spoof Guard',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
   },
   {
     key: 'autoScheduler',
@@ -221,7 +270,7 @@ export const buildFreeLicense = (overrides?: Partial<LicenseInfo>): LicenseInfo 
   tier: 'free',
   licenseType: 'free',
   licensedTo: 'Community User',
-  maxSubnets: 1,
+  maxSubnets: 2,
   features: { ...DEFAULT_FREE_FEATURES },
   bindingStatus: 'unlicensed',
   hybridMode: 'unverified',
@@ -297,7 +346,7 @@ export const normalizeAuthoritativeLicense = (raw: any): LicenseInfo => {
     licenseId: raw.licenseId,
     issuedAt: raw.issuedAt,
     expiresAt: raw.expiresAt,
-    maxSubnets: effectiveTier === 'enterprise' ? 999 : effectiveTier === 'pro' ? 5 : 1,
+    maxSubnets: effectiveTier === 'enterprise' ? 999 : effectiveTier === 'pro' ? 5 : 2,
     features: {
       ...tierFeatures,
       ...effectiveFeatures,

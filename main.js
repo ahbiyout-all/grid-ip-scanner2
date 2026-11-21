@@ -462,9 +462,8 @@ async function terminateApplicationCleanly() {
     mainWindow = null;
   }
 
-  // 4. Clear storage data and temp directory
+  // 4. Clear ephemeral HTTP cache while preserving persistent userData/localStorage
   if (session.defaultSession) {
-    cleanupTasks.push(session.defaultSession.clearStorageData().catch(() => {}));
     cleanupTasks.push(session.defaultSession.clearCache().catch(() => {}));
   }
 
@@ -472,12 +471,6 @@ async function terminateApplicationCleanly() {
     Promise.allSettled(cleanupTasks),
     new Promise((resolve) => setTimeout(resolve, 800))
   ]);
-
-  try {
-    if (fs.existsSync(tempUserData)) {
-      fs.rmSync(tempUserData, { recursive: true, force: true });
-    }
-  } catch (e) {}
 
   app.quit();
   process.exit(0);
@@ -549,15 +542,7 @@ app.on('window-all-closed', async () => {
   }
   if (isQuitting || process.platform === 'darwin') {
     if (session.defaultSession) {
-      await session.defaultSession.clearStorageData().catch(() => {});
       await session.defaultSession.clearCache().catch(() => {});
-    }
-    try {
-      if (fs.existsSync(tempUserData)) {
-        fs.rmSync(tempUserData, { recursive: true, force: true });
-      }
-    } catch (e) {
-      console.error("Failed to cleanup temp userData:", e);
     }
     if (process.platform !== 'darwin') app.quit();
   }

@@ -113,6 +113,32 @@ func tryNativePcapDetectArpSpoof(targetIp string, expectedMac string) (string, b
 	return "", false
 }
 
+type PacketInspectionResult struct {
+	IP                  string  `json:"ip"`
+	TTL                 int     `json:"ttl"`
+	EstimatedInitialTTL int     `json:"estimatedInitialTtl"`
+	EstimatedHops       int     `json:"estimatedHops"`
+	TcpHandshakeMs      float64 `json:"tcpHandshakeMs"`
+	TcpProbePort        int     `json:"tcpProbePort"`
+	TcpWindowHint       int     `json:"tcpWindowHint"`
+	OsGuess             string  `json:"osGuess"`
+	Confidence          int     `json:"confidence"`
+	SampleCount         int     `json:"sampleCount"`
+	RttMinMs            float64 `json:"rttMinMs"`
+	RttAvgMs            float64 `json:"rttAvgMs"`
+	RttMaxMs            float64 `json:"rttMaxMs"`
+	JitterMs            float64 `json:"jitterMs"`
+	ArpConsistent       bool    `json:"arpConsistent"`
+	LiveMac             string  `json:"liveMac"`
+	SpoofAlert          string  `json:"spoofAlert,omitempty"`
+	NpcapAvailable      bool    `json:"npcapAvailable"`
+	CapturedVia         string  `json:"capturedVia"`
+}
+
+func tryNativePcapInspectProfile(targetIp string, expectedMac string, port int, timeoutMs int) (*PacketInspectionResult, bool) {
+	return nil, false
+}
+
 // ----------------------------------------------------------------------------
 // 7. Device Fingerprinting & Security Heuristics API
 // ----------------------------------------------------------------------------
