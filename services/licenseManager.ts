@@ -210,8 +210,8 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
   {
     key: 'reportAuditExport',
     tier: 'pro',
-    labelKo: '정밀 보안 감사 보고서 (PDF · HTML)',
-    labelEn: 'Security Audit Reports (PDF · HTML)',
+    labelKo: '정밀 보안 감사 범위 보고서 (보안 감사 Scope · PDF/HTML)',
+    labelEn: 'Security Audit Scope Reports (Audit Scope · PDF/HTML)',
     scopeKo: 'PRO 이상',
     scopeEn: 'PRO+',
   },

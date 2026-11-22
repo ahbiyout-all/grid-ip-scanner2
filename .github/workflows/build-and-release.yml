@@ -310,3 +310,10 @@ jobs:
               --generate-notes
           fi
           echo "🎉 Successfully published all release assets to GitHub Releases!"
+
+      - name: Prune Binary Assets from Older GitHub Releases (Keep Latest 3)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_TAG: ${{ steps.resolve_tag.outputs.tag }}
+          KEEP_RELEASES: "3"
+        run: node scripts/prune-old-release-assets.js

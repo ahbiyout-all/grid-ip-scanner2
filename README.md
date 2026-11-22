@@ -58,9 +58,9 @@
    - 순수 창작 `grid_topology_guard.dll` (`v2.6.1`), `Probe_SweepCidrAsyncBatch` 비동기 ICMP/ARP 스위프, `PortScan_IocpMultiHostSweep` Win32 IOCP 포트 스위프 탑재
    - `LoadLibraryExW(LOAD_LIBRARY_SEARCH_APPLICATION_DIR)` 경로 고정, `GVAULT11` 16B 솔트 + PBKDF2-HMAC-SHA256(10,000회) 256B 스택 고속 경로 및 JSON 음수 포트 방어 적용
 
-8. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
-   - Ed25519 비대칭 암호키 기반 100% 오프라인 라이선스 검증 (폐쇄망 완벽 대응)
-   - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
+8. **🔑 하이브리드 Ed25519 라이선스 매니저 & USB 물리 바인딩 + 30일 1회 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
+   - Go 백엔드 SPKI Ed25519 비대칭 서명(`GSCAN.<payload>.<sig>`), `AES-256-GCM` 하드웨어 봉인(`license.sealed.json`), LAN UDP `:39281` 동시 시트 감지 및 폐쇄망 완벽 대응
+   - 1회성 체험 키(`GRID-PRO-TRIAL-2026`) 입력 시 **하드웨어 바인딩 30일 Pro 체험권** 발급 (리플레이 방지 및 만료 시 Free 자동 전환)
 
 9. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
    - 단일 무설치 포터블 실행 파일 및 Inno Setup 6 정식 인스톨러(`Grid_IP_Scanner2_v2.6.0_Setup.exe`, `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
@@ -83,7 +83,7 @@
   React 19 + Vite + Tailwind v4                                   /api/subnets/discover & /api/packet-inspect
   Grid / TopologyMapView / Diff v2                                /api/topology-map & /api/topology-guard
   MultiSubnetBar & MultiSubnetModal                               tray_engine.go (10s Daemon, DND/Cooldown)
-  ReportCenter (Free .xls + Pro PDF)                              12 Native C/C++ DLL Bridges (Path-Pinned)
+  ReportCenter (Free Export + Pro Audit)                          12 Native C/C++ DLL Bridges (Path-Pinned)
   PreferencesTrayModal (Alert/Service)                            - grid_pcap_analyzer.dll (v2.6.2 Telemetry)
   OUI Semantic + Proxy-ARP UI                                     - grid_topology_guard.dll (v2.6.1 O(N) Hash)
 ```
@@ -167,15 +167,14 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ---
 
-## 📜 라이선스 및 지적재산권 고지 (License & Intellectual Property)
+## 📜 이중 라이선스 및 지적재산권 고지 (Dual License & Intellectual Property)
 
 > **"Source code is visible for security audit and transparency. Commercial redistribution or selling modified versions without permission is strictly prohibited."**  
 > *(보안 검증 및 투명성을 위해 소스코드를 공개하며, 허가 없는 상업적 무단 복제, 재배포 및 재판매는 엄격히 금지됩니다.)*
 
-* **소스코드 공개 목적 (Source-Available for Trust)**: 본 프로그램은 네트워크 보안 진단 툴의 신뢰성 검증과 백도어 유무 감사를 위해 소스코드가 투명하게 공개되어 있습니다.
-* **비영리 개인 이용**: 개인 사용자의 비영리적 학습, 연구 및 자체 보안 진단 목적으로는 자유롭게 평가 및 테스트할 수 있습니다.
-* **상업적 이용 및 재배포 제한**: 저작권자(**AhBiYout**)의 서면 승인 없이 본 소프트웨어 또는 그 수정본을 영리 목적으로 재판매, 유료 패키징, 서브라이선스 발행 또는 무단 재배포하는 행위는 대한민국 저작권법 및 국제 지적재산권 협약(WIPO)에 의해 엄격히 금지됩니다.
-* **상용 라이선스 및 구매 문의**: 공식 스토어(Lemon Squeezy) 또는 저작권자 문의를 통해 기업/개인용 정식 상용 라이선스(Pro / Enterprise)를 취득하실 수 있습니다.
+* **[선택 A] GNU GPL v3 커뮤니티 에디션 (`LICENSE.md` / `docs/LICENSE.md`)**: 개인·연구·오픈소스 기여 목적의 자유로운 이용 및 수정본 소스 공개(Copyleft) 조건 준수 배포를 허용합니다.
+* **[선택 B] 독점 상용 라이선스 (`Proprietary Commercial License`)**: 소스코드 비공개, 리브랜딩(White-labeling), 유료 상용 패키징 납품·재배포 시 저작권자(**AhBiYout**)와의 상용 라이선스 계약이 적용됩니다.
+* **Pro / Enterprise 에디션 및 키 보호**: 정품 유료 기능(WoL, 심층 포트 감사, 4색 Diff, 24/7 침입 감시, 다중 서브넷 Batch Sweep, 보안 감사/브랜딩 리포트 등)은 백엔드 Ed25519 서명 검증 및 하드웨어 바인딩으로 보호됩니다.
 
 *Copyright (c) 2025-2026 AhBiYout. All rights reserved.*
 

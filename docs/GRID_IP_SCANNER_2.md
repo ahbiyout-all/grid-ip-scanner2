@@ -91,11 +91,11 @@
 * **원격 부팅(Wake-on-LAN) Pro 에디션 게이팅 (`App.tsx`, `services/wolService.ts`)**:
   - Free 커뮤니티 버전에서는 무단 부팅 패킷 발송을 방지하기 위해 라이선스 잠금 모달로 유도.
   - 정품 Pro 라이선스 또는 30일 체험권 입력 시 `PRO 활성` 뱃지와 함께 대상 장비 MAC으로 UDP 9/7 매직 패킷 브로드캐스트 즉각 해금.
-* **완전한 오프라인 라이선스 인증 (`services/licenseManager.ts`)**:
-  - 인터넷이 없는 폐쇄망, 선박, 공장 자동화 환경에서도 비대칭 암호키(Ed25519) 기반 공개키 검증으로 안전하게 기능을 해금.
-* **30일 Pro 체험 라이선스 자동 발급**:
-  - 데모 Pro 키(`GRID-PRO-TRIAL-2026`, `GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO` 등) 입력 시 활성화 일시 기준 **30일간의 Pro 사용권**(`expiresAt`)을 동적 계산하여 부여.
-  - 30일 동안 낯선 기기 감시(Intruder Watch), 원격 부팅(WoL), Diff 비교, 심층 포트 스캔, 감사 리포트, 5개 서브넷 관리 권한을 무제한 체험 가능.
+* **완전한 오프라인 라이선스 인증 (`license_guard.go`, `services/licenseManager.ts`)**:
+  - 인터넷이 없는 폐쇄망, 선박, 공장 자동화 환경에서도 Go 백엔드 SPKI Ed25519 비대칭 서명 검증(`GSCAN.<payload>.<sig>`)과 `AES-256-GCM` 하드웨어 봉인(`license.sealed.json`)으로 안전하게 기능을 해금.
+* **30일 1회성 Pro 체험 라이선스 발급**:
+  - 공식 체험 키(`GRID-PRO-TRIAL-2026`) 입력 시 활성화 일시 기준 **30일간의 Pro 사용권**(`expiresAt`)을 현재 하드웨어 지문에 1회 바인딩하여 부여 (재사용·시계 역행 차단, 서명 없는 레거시 키 차단).
+  - 30일 동안 낯선 기기 감시(Intruder Watch), 원격 부팅(WoL), Diff 비교, 심층 포트 스캔, 정밀 보안 감사 리포트, 5개 서브넷 Batch Sweep 권한을 무제한 체험 가능.
 
 ### 📌 6. 모든 네트워크 어댑터 전수 탐색 및 다차원 필터 시스템 (`components/InterfaceExplorerModal.tsx`)
 * Go 백엔드 `getAllInterfaces()` 및 `InterfaceInfo` 구조체:

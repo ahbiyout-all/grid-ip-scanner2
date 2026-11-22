@@ -3473,6 +3473,19 @@ const App: React.FC = () => {
     }, 120);
   }, [featureGates.multiSubnetBatchSweep, handleSelectSubnetProfile, handleStopScan, lang, openProFeatureLockedModal, showToast, toggleMultiSubnetWorkspace]);
 
+  useEffect(() => {
+    if (!featureGates.multiSubnetBatchSweep && batchState.isRunning) {
+      setBatchState({
+        isRunning: false,
+        queueIds: [],
+        completedIds: [],
+        currentProfileId: null,
+        startedAt: null,
+      });
+      handleStopScan();
+    }
+  }, [featureGates.multiSubnetBatchSweep, batchState.isRunning, handleStopScan]);
+
   const handleRunPacketInspect = useCallback(
     async (ip: string, expectedMac?: string) => {
       if (!ip) return;

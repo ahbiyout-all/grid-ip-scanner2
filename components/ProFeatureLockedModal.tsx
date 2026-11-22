@@ -212,12 +212,12 @@ export const PRO_FEATURE_LOCK_CATALOG: Record<ProLockedFeatureId, ProFeatureLock
     valuePropEn:
       'Customize report titles, organization names, accent colors, footer disclaimers, and upload your own logo for client-ready deliverables.',
     highlightsKo: [
-      'PNG/SVG/JPG 기업 로고 업로드 및 A4 헤더 실시간 반영',
+      'PNG/JPG/WEBP/GIF 기업 로고 업로드 및 A4 헤더 실시간 반영',
       '기관명·담당자·보고서 제목 및 기밀 등급 바닥글 커스터마이징',
       'PDF·HTML·Excel 출력물 전체에 일관된 브랜드 서식 적용',
     ],
     highlightsEn: [
-      'Upload custom PNG/SVG/JPG logos rendered in A4 headers',
+      'Upload custom PNG/JPG/WEBP/GIF logos rendered in A4 headers',
       'Configure organization name, custom title, and disclaimer footer',
       'Consistent branding applied across PDF, HTML, and Excel outputs',
     ],

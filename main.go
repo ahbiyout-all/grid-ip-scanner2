@@ -2830,152 +2830,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/api/portscan", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Content-Type", "application/json")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
-		ip := r.URL.Query().Get("ip")
-		if ip == "" || net.ParseIP(ip) == nil {
-			http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
-			return
-		}
-
-		targetPorts := []int{21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 9100, 27017}
-
-		type PortAuditResult struct {
-			Port        int    `json:"port"`
-			Service     string `json:"service"`
-			Protocol    string `json:"protocol"`
-			Risk        string `json:"risk"`
-			Description string `json:"description"`
-			Banner      string `json:"banner,omitempty"`
-		}
-
-		serviceMap := map[int]struct {
-			name string
-			risk string
-			desc string
-		}{
-			21:    {"FTP", "high", "평문 파일 전송 프로토콜 (자격증명 노출 취약)"},
-			22:    {"SSH", "safe", "보안 암호화 원격 쉘"},
-			23:    {"Telnet", "high", "비암호화 구형 터미널 (스니핑 취약점)"},
-			25:    {"SMTP", "medium", "메일 발송 서버"},
-			53:    {"DNS", "safe", "도메인 이름 해석 서비스"},
-			80:    {"HTTP", "safe", "표준 웹 서버 포트"},
-			110:   {"POP3", "medium", "메일 수신 프로토콜 (비암호화)"},
-			135:   {"MSRPC", "medium", "Windows RPC 엔드포인트 맵퍼"},
-			139:   {"NetBIOS-SSN", "medium", "Windows 파일 및 프린터 공유"},
-			143:   {"IMAP", "medium", "메일 동기화 프로토콜"},
-			443:   {"HTTPS", "safe", "보안 암호화 웹 서버 (TLS/SSL)"},
-			445:   {"SMB / MS-DS", "high", "Windows SMB 파일 공유 (WannaCry 공격 타깃)"},
-			993:   {"IMAPS", "safe", "보안 IMAP 메일"},
-			995:   {"POP3S", "safe", "보안 POP3 메일"},
-			1433:  {"MSSQL", "medium", "Microsoft SQL 데이터베이스"},
-			1521:  {"Oracle", "medium", "Oracle DB 리스너"},
-			3306:  {"MySQL", "medium", "MySQL/MariaDB 데이터베이스"},
-			3389:  {"RDP", "high", "Windows 원격 데스크톱 연결"},
-			5432:  {"PostgreSQL", "medium", "PostgreSQL 오픈소스 데이터베이스"},
-			5900:  {"VNC", "high", "가상 네트워크 원격 화면 공유"},
-			6379:  {"Redis", "high", "인메모리 데이터 저장소"},
-			8080:  {"HTTP-Alt", "safe", "대체 웹 서비스 / 관리 콘솔"},
-			8443:  {"HTTPS-Alt", "safe", "보안 대체 웹 포트"},
-			9100:  {"JetDirect RAW", "safe", "네트워크 프린터 RAW 데이터"},
-			27017: {"MongoDB", "medium", "MongoDB NoSQL 데이터베이스"},
-		}
-
-		openList := make([]PortAuditResult, 0)
-		start := time.Now()
-
-		// 1. Try Native IOCP High-Concurrency Port Scanner
-		if nativeOpenPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, 500, 32); ok {
-			for _, port := range nativeOpenPorts {
-				sInfo, found := serviceMap[port]
-				serviceName := fmt.Sprintf("Port %d", port)
-				risk := "low"
-				desc := "개방된 네트워크 포트"
-				if found {
-					serviceName = sInfo.name
-					risk = sInfo.risk
-					desc = sInfo.desc
-				}
-
-				bannerStr := ""
-				if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
-					bannerStr = selectDeepBannerString(bInfo)
-				}
-
-				openList = append(openList, PortAuditResult{
-					Port:        port,
-					Service:     serviceName,
-					Protocol:    "TCP",
-					Risk:        risk,
-					Description: desc,
-					Banner:      bannerStr,
-				})
-			}
-		} else {
-			// Fallback: Concurrent Go dialer
-			var mu sync.Mutex
-			var wg sync.WaitGroup
-
-			for _, p := range targetPorts {
-				wg.Add(1)
-				go func(port int) {
-					defer wg.Done()
-					conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), 600*time.Millisecond)
-					if err == nil {
-						conn.Close()
-						sInfo, found := serviceMap[port]
-						serviceName := fmt.Sprintf("Port %d", port)
-						risk := "low"
-						desc := "개방된 네트워크 포트"
-						if found {
-							serviceName = sInfo.name
-							risk = sInfo.risk
-							desc = sInfo.desc
-						}
-
-						bannerStr := ""
-						if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
-							bannerStr = selectDeepBannerString(bInfo)
-						}
-
-						mu.Lock()
-						openList = append(openList, PortAuditResult{
-							Port:        port,
-							Service:     serviceName,
-							Protocol:    "TCP",
-							Risk:        risk,
-							Description: desc,
-							Banner:      bannerStr,
-						})
-						mu.Unlock()
-					}
-				}(p)
-			}
-			wg.Wait()
-		}
-
-		sort.Slice(openList, func(i, j int) bool {
-			return openList[i].Port < openList[j].Port
-		})
-
-		resp := map[string]interface{}{
-			"ip":             ip,
-			"totalChecked":   len(targetPorts),
-			"openPorts":      openList,
-			"scanDurationMs": time.Since(start).Milliseconds(),
-		}
-		json.NewEncoder(w).Encode(resp)
-	})
+	http.HandleFunc("/api/portscan", handlePortScanAPI)
 
 	// Native Modules Status Endpoint
 	http.HandleFunc("/api/native-modules", handleNativeModulesAPI)
@@ -4638,7 +4493,170 @@ func handleValidateOUIAPI(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func handlePortScanAPI(w http.ResponseWriter, r *http.Request) {
+	handlePortScanAPIWithGuard(w, r, getLicenseGuard())
+}
+
+func handlePortScanAPIWithGuard(w http.ResponseWriter, r *http.Request, guard *LicenseGuard) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	ip := r.URL.Query().Get("ip")
+	if ip == "" || net.ParseIP(ip) == nil {
+		http.Error(w, `{"error":"Invalid or missing IP"}`, http.StatusBadRequest)
+		return
+	}
+	if guard == nil || !guard.EvaluateStatus().Features.PortScanDeep {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Deep port security audit requires an active Pro/Enterprise license.",
+		})
+		return
+	}
+
+	targetPorts := []int{21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 9100, 27017}
+
+	type PortAuditResult struct {
+		Port        int    `json:"port"`
+		Service     string `json:"service"`
+		Protocol    string `json:"protocol"`
+		Risk        string `json:"risk"`
+		Description string `json:"description"`
+		Banner      string `json:"banner,omitempty"`
+	}
+
+	serviceMap := map[int]struct {
+		name string
+		risk string
+		desc string
+	}{
+		21:    {"FTP", "high", "평문 파일 전송 프로토콜 (자격증명 노출 취약)"},
+		22:    {"SSH", "safe", "보안 암호화 원격 쉘"},
+		23:    {"Telnet", "high", "비암호화 구형 터미널 (스니핑 취약점)"},
+		25:    {"SMTP", "medium", "메일 발송 서버"},
+		53:    {"DNS", "safe", "도메인 이름 해석 서비스"},
+		80:    {"HTTP", "safe", "표준 웹 서버 포트"},
+		110:   {"POP3", "medium", "메일 수신 프로토콜 (비암호화)"},
+		135:   {"MSRPC", "medium", "Windows RPC 엔드포인트 맵퍼"},
+		139:   {"NetBIOS-SSN", "medium", "Windows 파일 및 프린터 공유"},
+		143:   {"IMAP", "medium", "메일 동기화 프로토콜"},
+		443:   {"HTTPS", "safe", "보안 암호화 웹 서버 (TLS/SSL)"},
+		445:   {"SMB / MS-DS", "high", "Windows SMB 파일 공유 (WannaCry 공격 타깃)"},
+		993:   {"IMAPS", "safe", "보안 IMAP 메일"},
+		995:   {"POP3S", "safe", "보안 POP3 메일"},
+		1433:  {"MSSQL", "medium", "Microsoft SQL 데이터베이스"},
+		1521:  {"Oracle", "medium", "Oracle DB 리스너"},
+		3306:  {"MySQL", "medium", "MySQL/MariaDB 데이터베이스"},
+		3389:  {"RDP", "high", "Windows 원격 데스크톱 연결"},
+		5432:  {"PostgreSQL", "medium", "PostgreSQL 오픈소스 데이터베이스"},
+		5900:  {"VNC", "high", "가상 네트워크 원격 화면 공유"},
+		6379:  {"Redis", "high", "인메모리 데이터 저장소"},
+		8080:  {"HTTP-Alt", "safe", "대체 웹 서비스 / 관리 콘솔"},
+		8443:  {"HTTPS-Alt", "safe", "보안 대체 웹 포트"},
+		9100:  {"JetDirect RAW", "safe", "네트워크 프린터 RAW 데이터"},
+		27017: {"MongoDB", "medium", "MongoDB NoSQL 데이터베이스"},
+	}
+
+	openList := make([]PortAuditResult, 0)
+	start := time.Now()
+
+	// 1. Try Native IOCP High-Concurrency Port Scanner
+	if nativeOpenPorts, ok := tryNativePortIOCPBatch(ip, targetPorts, 500, 32); ok {
+		for _, port := range nativeOpenPorts {
+			sInfo, found := serviceMap[port]
+			serviceName := fmt.Sprintf("Port %d", port)
+			risk := "low"
+			desc := "개방된 네트워크 포트"
+			if found {
+				serviceName = sInfo.name
+				risk = sInfo.risk
+				desc = sInfo.desc
+			}
+
+			bannerStr := ""
+			if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
+				bannerStr = selectDeepBannerString(bInfo)
+			}
+
+			openList = append(openList, PortAuditResult{
+				Port:        port,
+				Service:     serviceName,
+				Protocol:    "TCP",
+				Risk:        risk,
+				Description: desc,
+				Banner:      bannerStr,
+			})
+		}
+	} else {
+		// Fallback: Concurrent Go dialer
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for _, p := range targetPorts {
+			wg.Add(1)
+			go func(port int) {
+				defer wg.Done()
+				conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), 600*time.Millisecond)
+				if err == nil {
+					conn.Close()
+					sInfo, found := serviceMap[port]
+					serviceName := fmt.Sprintf("Port %d", port)
+					risk := "low"
+					desc := "개방된 네트워크 포트"
+					if found {
+						serviceName = sInfo.name
+						risk = sInfo.risk
+						desc = sInfo.desc
+					}
+
+					bannerStr := ""
+					if bInfo, bOk := tryNativeDeepBannerGrab(ip, port, 600); bOk {
+						bannerStr = selectDeepBannerString(bInfo)
+					}
+
+					mu.Lock()
+					openList = append(openList, PortAuditResult{
+						Port:        port,
+						Service:     serviceName,
+						Protocol:    "TCP",
+						Risk:        risk,
+						Description: desc,
+						Banner:      bannerStr,
+					})
+					mu.Unlock()
+				}
+			}(p)
+		}
+		wg.Wait()
+	}
+
+	sort.Slice(openList, func(i, j int) bool {
+		return openList[i].Port < openList[j].Port
+	})
+
+	resp := map[string]interface{}{
+		"ip":             ip,
+		"totalChecked":   len(targetPorts),
+		"openPorts":      openList,
+		"scanDurationMs": time.Since(start).Milliseconds(),
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
 func handleWolAPI(w http.ResponseWriter, r *http.Request) {
+	handleWolAPIWithGuard(w, r, getLicenseGuard())
+}
+
+func handleWolAPIWithGuard(w http.ResponseWriter, r *http.Request, guard *LicenseGuard) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -4682,6 +4700,15 @@ func handleWolAPI(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	}
+
+	if guard == nil || !guard.EvaluateStatus().Features.RemoteBoot {
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Wake-on-LAN (Remote Boot) requires an active Pro/Enterprise license.",
+		})
+		return
 	}
 
 	req.MAC = strings.TrimSpace(req.MAC)

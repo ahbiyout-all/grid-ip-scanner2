@@ -1,5 +1,5 @@
 ; =====================================================================
-; Grid IP Scanner2 v2.4.23 - Dedicated Isolated Inno Setup 6 Script
+; Grid IP Scanner2 v2.6.0 - Dedicated Isolated Inno Setup 6 Script
 ; Detailed Step-by-Step Installation Wizard & Guaranteed Isolated Environment
 ; Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 ; =====================================================================

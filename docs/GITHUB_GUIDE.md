@@ -69,6 +69,7 @@
   2. `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.6.0_Portable.exe` (Windows 단일 무설치 포터블)
   3. `Grid_IP_Scanner2_v2.6.0.apk` (안드로이드 스마트폰 직접 설치 파일)
   4. `Grid_IP_Scanner2_v2.6.0_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
+* **이전 릴리즈 바이너리 자동 정리 (`scripts/prune-old-release-assets.js`)**: 새 릴리즈 업로드가 완료된 뒤 **최신 3개 GitHub Releases**의 바이너리 에셋만 유지하고, 4번째 이상 구버전 릴리즈는 릴리즈 노트·제목·태그·변경 이력은 보존한 채 첨부 바이너리 파일만 자동 삭제
 * 사용자가 `https://github.com/AhBiYout-all/grid-ip-scanner2/releases`에서 즉시 다운로드 가능
 
 ---

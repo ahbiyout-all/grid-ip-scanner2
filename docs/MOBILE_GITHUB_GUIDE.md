@@ -36,6 +36,8 @@ git push origin mobile-v2.6.0
 ```
 `mobile-v2.6.0` 태그가 발행되며, GitHub Actions의 `mobile-release.yml` 워크플로우(Node.js 24)가 동작하여 모바일 패키지만 독립적으로 릴리스합니다.
 
+> **참고**: GitHub Releases 배포 완료 시 `scripts/prune-old-release-assets.js`가 실행되어 **최신 3개 릴리즈**의 바이너리만 유지하고, 이전 릴리즈는 릴리즈 노트·이력·태그를 남긴 채 첨부 바이너리 파일만 자동 정리합니다.
+
 ---
 
 ## 📲 스마트폰 사용자 다운로드 및 실행 방법

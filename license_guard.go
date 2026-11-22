@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -683,7 +684,7 @@ func (g *LicenseGuard) evaluateStatusLocked() LicenseStatusResponse {
 					"offline lease expired",
 				)
 			}
-			graceDaysLeft = int(leaseExp.Sub(now).Hours()/24) + 1
+			graceDaysLeft = int(math.Ceil(leaseExp.Sub(now).Hours() / 24.0))
 			if graceDaysLeft < 1 {
 				graceDaysLeft = 1
 			}

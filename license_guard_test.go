@@ -245,10 +245,13 @@ func TestHybridOnlineLeaseAndLANDuplicateDetection(t *testing.T) {
 	guard := newTestGuard(t, pub, &usb, &now)
 	guard.leaseServerURL = srv.URL
 
-	// 1. Online activate succeeds
+	// 1. Online activate succeeds with exact 14-day offline grace window (no +1 off-by-one)
 	st, _, ok := guard.ActivateLicense("GSCAN-SHORT-CODE-01")
 	if !ok || st.Tier != "pro" || st.HybridMode != "online_verified" {
 		t.Fatalf("expected online_verified Pro activation, got ok=%v mode=%s", ok, st.HybridMode)
+	}
+	if st.OfflineGraceDaysLeft != 14 {
+		t.Fatalf("expected exact 14 offline grace days, got %d", st.OfflineGraceDaysLeft)
 	}
 
 	// 2. Simulate LAN UDP collision packet from another machine using same license digest

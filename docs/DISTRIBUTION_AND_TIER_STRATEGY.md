@@ -62,11 +62,11 @@
 │   - 단일 호스트 패킷 텔레메트리│ │      - 외근/출장 시 USB 점검용       │
 │   - 최대 2개 서브넷/VLAN 전환 │ │ • 대규모 관제 & 보안 독점 기능:      │
 │   - 5시트 엑셀 그리드 (.xls)  │ │   - 다중 서브넷 순차 Batch Sweep     │
-│   - 고속 ICMP Ping & OUI 9만건│ │   - 교차 서브넷 이상 징후 통합 대시보드│
-│   - 5단계 적응형 런처         │ │   - 토폴로지 보안 상관분석 & ARP 가드│
-│   - 비상 네이티브 메모장 보고서│ │   - 원격 부팅(WoL) & 낯선 기기 감시  │
-│                               │ │   - 25포트 정밀 분석 & 4색 Diff 비교  │
-│                               │ │   - A4 PDF 보안감사 보고서           │
+│   - 일반 범위 PDF/CSV/JSON/MD │ │   - 교차 서브넷 이상 징후 통합 대시보드│
+│   - 고속 ICMP Ping & OUI 9만건│ │   - 토폴로지 보안 상관분석 & ARP 가드│
+│   - 5단계 적응형 런처         │ │   - 원격 부팅(WoL) & 낯선 기기 감시  │
+│   - 비상 네이티브 메모장 보고서│ │   - 25포트 정밀 분석 & 4색 Diff 비교  │
+│                               │ │   - 보안 감사(audit) PDF/화이트라벨  │
 │                               │ │   - Pro 5서브넷 / Enterprise 무제한  │
 └───────────────────────────────┘ └──────────────────────────────────────┘
 ```
@@ -77,57 +77,51 @@
 
 무료 에디션과 유료 에디션의 소스코드를 분리하지 않고, **단일 통합 코드베이스**에서 비대칭 암호키를 통해 기능을 제어합니다.
 
-### 5.1. 라이선스 티어 및 기능 플래그 정의 (`types.ts`)
+### 5.1. 라이선스 티어 및 기능 플래그 정의 (`types.ts`, `services/licenseManager.ts`)
 ```typescript
 export type LicenseTier = 'free' | 'pro' | 'enterprise';
 
+export interface LicenseFeatures {
+  visualGrid: boolean;        // 16x16 시각화 그리드 (Free+)
+  fastPing: boolean;          // 초고속 ICMP Ping 스캔 (Free+)
+  ouiLookup: boolean;         // 9만 건 OUI 제조사 조회 (Free+)
+  portScanDeep: boolean;      // 25포트 정밀 분석 & 배너 그래빙 (Pro+)
+  diffCompare: boolean;       // 스냅샷 4색 Diff 비교 & Diff 보고서 (Pro+)
+  autoMonitor: boolean;       // 정기 자동 스캔 스케줄러 (Pro+)
+  exportReport: boolean;      // 보안 감사(audit) 보고서 & 화이트라벨 로고 (Pro+)
+  multiSubnet: boolean;       // 무제한 다중 서브넷 (Enterprise 전용)
+  remoteBoot: boolean;        // 원격 부팅 Wake-on-LAN (Pro+)
+  intruderDetection: boolean; // 낯선 기기 감시 & Soft Trust (Pro+)
+}
+
 export interface LicenseInfo {
   tier: LicenseTier;
-  licensedTo: string;       // 구매자 이메일 또는 기업명
-  licenseKey: string;       // 암호학적 서명 키
-  issuedAt: string;         // 발급일자
-  expiresAt?: string;       // 만료일자 (영구 라이선스는 undefined)
-  maxSubnets: number;       // 허용 서브넷 수 (Free: 2, Pro: 5, Enterprise: 무제한)
-  features: {
-    visualGrid: boolean;           // 기본 16x16 그리드 (모두 허용)
-    fastPing: boolean;             // 초고속 Ping 스캔 (모두 허용)
-    ouiLookup: boolean;            // 9만 건 OUI 제조사 조회 (모두 허용)
-    reportExcelWorkbook: boolean;  // 5시트 Excel Grid XML(.xls) 내보내기 (v2.6.0 Free 전환!)
-    multiSubnetBasic: boolean;     // 최대 2개 서브넷 전환 & 결과 캐싱 (v2.6.0 Free!)
-    topologyBasic: boolean;        // 단일 서브넷 기본 3계층 토폴로지 맵 (v2.6.0 Free!)
-    packetInspectBasic: boolean;   // 단일 호스트 수동 패킷 텔레메트리 (v2.6.0 Free!)
-    multiSubnetBatchSweep: boolean;// 순차 Batch Sweep & 교차 서브넷 통합 대시보드 (Pro+)
-    topologySecurityPro: boolean;  // 토폴로지 보안 상관분석 & Continuous ARP Spoof Guard (Pro+)
-    portScanDeep: boolean;         // 25개+ 주요 포트 정밀 스캔 & 서비스 배너 (Pro+)
-    diffCompare: boolean;          // 과거 스캔과 현재 스캔의 차이 비교 (Pro+)
-    autoMonitor: boolean;          // 24시간 상시 감시 & 시스템 알림 (Pro+)
-    exportReport: boolean;         // A4 PDF 보안 감사 리포트 (Pro+)
-    multiSubnet: boolean;          // 다중 서브넷 대규모 확장 관리 (Pro 5 / Enterprise 무제한)
-    remoteBoot: boolean;           // 원격 부팅 (Wake-on-LAN / WoL 매직 패킷) (Pro+)
-    intruderDetection: boolean;    // 낯선 기기 실시간 감시 & Soft Trust 침입 탐지 (Pro+)
-  };
+  licensedTo: string;
+  licenseKey: string;
+  issuedAt: string;
+  expiresAt?: string;
+  maxSubnets: number; // Free: 2, Pro: 5, Enterprise: 999(무제한)
+  features: LicenseFeatures;
 }
 ```
+> **파생 기능 게이트 (`resolveFeatureGates` in `services/licenseManager.ts`)**: `reportExcelWorkbook`, `multiSubnetSwitch`(최대 2개), `topologyMapBasic`, `packetInspectBasic` 및 일반 범위 표준 내보내기(`active`/`search`/`all`/`summary`)는 Free에서 기본 제공되며, `multiSubnetBatchSweep`, `topologySecurityPro`, `packetContinuousGuard`, `reportAuditExport`, `reportBrandingLogo`, `autoReportArchive`는 Pro 이상(`isProOrHigher`)에서 활성화됩니다. Go 백엔드 `/api/wol` 및 `/api/portscan`은 UI와 별개로 서버 측 `LicenseGuard.EvaluateStatus()` 검증(`403 Forbidden` 차단)을 수행합니다.
 
-### 5.2. 비대칭 암호화(Ed25519) 오프라인 인증 원리
-* **인터넷 불필요**: 폐쇄망이나 선박, 공장 자동화 라인에서도 동작해야 하므로 온라인 인증 서버 의존성을 제거합니다.
-* **라이선스 키 구조**: `BASE64( JSON_PAYLOAD + ED25519_SIGNATURE )`
-* **검증 방식**: 바이너리 내부에 내장된 공개키(Public Key)로 무결성을 검증하여 변조 및 가짜 키 생성을 원천 차단합니다.
+### 5.2. 하이브리드 Ed25519 오프라인 인증 & 물리 하드웨어 봉인 (`license_guard.go`)
+* **인터넷 불필요 (폐쇄망 대응) + 온라인 임대 선택 지원**: 폐쇄망에서는 내장된 SPKI 공개키(`gridEd25519PublicKeySPKI`)로 서명 토큰을 단독 검증하며, `GRID_LICENSE_SERVER_URL` 구성 시 온라인 시트 임대(14일 오프라인 유예, 무시리얼 USB는 24시간 제한)를 병행합니다.
+* **라이선스 키 구조**: `GSCAN.<PAYLOAD_B64>.<SIG_B64>` (또는 `ED25519.<PAYLOAD_B64>.<SIG_B64>`, `<PAYLOAD_B64>.<SIG_B64>`)
+* **AES-256-GCM 하드웨어 봉인 & 복제/동시 실행 차단**: 검증된 라이선스는 실행 매체(USB VID/PID/Serial 또는 고정 PC 하드웨어 지문)에 `license.sealed.json`으로 암호화 봉인되며, 복제 매체(`clone_mismatch`), 시계 역행(`clock_tamper`), 동일 LAN UDP `:39281` 중복 실행(`duplicate_seat`) 탐지 시 즉시 Free 티어로 강등됩니다.
 
-### 5.3. 30일 Pro 체험 라이선스(Trial License) 발급 정책
-* **체험 라이선스 키**: `GRID-PRO-TRIAL-2026`, `GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO` 등 데모 키 규격 지원.
-* **동적 30일 유효기간 산정**:
-  - 활성화 시점(`new Date()`) 기준으로 `expiresAt`을 30일 뒤로 동적 계산하여 로컬 저장소에 안전하게 보관.
-  - 고정된 만료일로 인한 기한 경과 오류를 방지하고 사용자가 처음 데모 키를 입력한 시점부터 30일간 온전한 평가 기간을 보장.
-* **체험판 제공 혜택**:
-  - Pro 에디션 전 기능(최대 5개 서브넷 순차 Batch Sweep · 교차 대역 이상 징후 대시보드 · 토폴로지 보안 상관분석 · Continuous ARP Spoof Guard · 4색 스냅샷 Diff 비교 · 25개 심층 포트 스캐닝 · A4 보안감사 PDF 리포트)을 30일간 무제한 이용.
-  - 만료 시 자동으로 무료 커뮤니티 티어(최대 2개 서브넷 + 5시트 Excel Grid `.xls` + 기본 토폴로지/패킷 텔레메트리 유지)로 안전하게 전환되며 기존 스캔 데이터는 손실 없이 보존됨.
+### 5.3. 30일 1회성 Pro 체험 라이선스(Trial License) 발급 정책
+* **공식 체험 라이선스 키**: **`GRID-PRO-TRIAL-2026`** 단독 지원 (서명 없는 구형 `GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO` 등은 보안상 전면 차단).
+* **동적 30일 유효기간 및 1회 제한 산정**:
+  - 활성화 시점 기준으로 `expiresAt`을 30일 뒤로 동적 계산해 `license.sealed.json`에 하드웨어 바인딩(`TrialUsed: true`)으로 봉인합니다.
+  - 해제 후 재입력이나 시계 역행 시에도 재사용이 차단되며, 만료 시 자동으로 무료 커뮤니티 티어(최대 2개 서브넷 + 5시트 Excel Grid `.xls` + 일반 PDF/CSV/JSON/MD + 기본 토폴로지/패킷 텔레메트리 유지)로 전환되고 기존 스캔 데이터는 보존됩니다.
 
 ---
 
 ## 6. 윈도우 인스톨러(Inno Setup & Go Fallback) 세부 명세
 
-* **설치 스크립트 & 빌더 위치**: `installer/Grid_IP_Scanner2_Setup.iss`, `installer/build-installer.js`, `installer/setup_builder.go`
+* **설치 스크립트 & 빌더 위치**: `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`, `installer/build-installer.js`, `installer/setup_builder.go`
 * **빌드 출력물**: `Grid_IP_Scanner2_v{VERSION}_Setup.exe`
 * **주요 자동화 및 폴백 기능**:
   1. **Dual-Compiler 인스톨러 엔진**: Inno Setup 6(ISCC)이 시스템에 설치되어 있으면 정규 Inno Setup 인스톨러를 빌드하고, 미설치 환경에서는 고성능 Go 스탠드얼론 인스톨러 빌더(`setup_builder.go`)로 자동 전환하여 100% 보장 빌드.
@@ -155,7 +149,7 @@ export interface LicenseInfo {
 1. **1단계 (기반 구축 - 완료)**:
    * 포터블/인스톨러 배포 전략 공식 기술 문서화 (`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`)
    * 시스템 공유 타입에 `LicenseTier`, `FeatureFlag`, `LicenseInfo` 인터페이스 탑재 (`types.ts`)
-   * Inno Setup 인스톨러 컴파일러 스크립트 작성 (`installer/Grid_IP_Scanner2_Setup.iss`)
+   * Inno Setup 인스톨러 컴파일러 스크립트 작성 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
    * 인스톨러 자동 패키징 빌드 오케스트레이터 작성 (`installer/build-installer.js`)
 2. **2단계 (고급 기능 선개발, 기능 플래그 및 배포 파이프라인 연동 - 완료)**:
    * 과거-현재 스캔 스냅샷 비교(Diff) 엔진 개발 (`services/diffEngine.ts`)
@@ -185,7 +179,7 @@ export interface LicenseInfo {
 | **침입 감시** | **낯선 기기 실시간 감시 (Intruder Watch)** | ❌ 감시 모드 잠김 (수동 스캔 목록만) | 🚨 60초 주기 무인 백그라운드 감시, 신규 단말 접속 시 비프음 & OS 데스크톱 알림 |
 | **보안 진단** | **심층 포트 정밀 보안 감사** | ❌ 기본 Ping 및 상태만 조회 | 🛡️ 25개 주요 포트 전수 감사, SMB 랜섬웨어 표적, RDP, Telnet 등 위험 포트 진단 |
 | **자산 추적** | **스냅샷 4색 Diff 비교 분석** | ❌ 일회성 현재 스캔만 지원 | 🔍 과거 스캔 대비 신규(+NEW), 이탈(-OFF), 식별변경(!CHG) 상태 진단 및 필터링 |
-| **감사 증빙** | **보안 감사 보고서 내보내기** | ✅ **5시트 Excel Grid(`.xls`)**·CSV·JSON·MD 무료 | 📄 A4 규격 출력용 고품질 PDF 보안 감사 진단서 및 인쇄/HTML 보고서 생성 |
+| **감사 증빙** | **보안 감사 보고서 내보내기** | ✅ **5시트 Excel Grid(`.xls`)**·일반 범위 PDF·CSV·JSON·MD·HTML 무료 | 📄 보안 감사 범위(`audit`) PDF/HTML, 스냅샷 Diff 보고서, 예약 자동 보관 및 화이트라벨 로고(`PNG/JPG/WEBP/GIF`) |
 | **유예 평가** | **지능형 Soft Trust 유예 시스템** | 단순 낯선 기기로 일괄 표시 | 🛡️ MAC 무작위화/OUI/호스트명 유사도 채점(0~100%)을 통한 지능형 오경보 방지 |
 | **자산 보존** | **장비 별칭 및 관리자 메모** | 브라우저 세션 임시 저장 | 💾 오프라인 로컬 볼트 영구 저장 및 네트워크 장비 변경 이력 타임라인 유지 |
 

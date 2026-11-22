@@ -10,11 +10,11 @@ This software and associated documentation files (the "Software") are provided u
 
 ### 1.1. Free Community Edition (GPL v3)
 - **Scope**: Available free of charge for personal, educational, internal, or commercial network scanning.
-- **Features**: Includes standard C-Class (/24) scanning, 16x16 grid visualizer, ICMP ping, and OUI hardware database lookup.
+- **Features**: Includes standard C-Class (/24) scanning, 16x16 grid visualizer, ICMP ping, OUI hardware database lookup, up to 2 subnet/VLAN profiles, basic single-subnet topology & single-host packet telemetry, 5-sheet Excel Grid (.xls), and standard-scope PDF/CSV/JSON/Markdown exports.
 - **Condition**: Any modified redistribution must be made open-source under GNU GPL v3.
 
 ### 1.2. Pro / Enterprise Edition (Commercial License)
-- **Scope**: Designed for professional IT administrators, security auditors, and corporate environments needing advanced features (Wake-on-LAN batching, 24/7 intruder watch, deep port auditing, A4 PDF report export, multi-subnet scanning).
+- **Scope**: Designed for professional IT administrators, security auditors, and corporate environments needing advanced features (Wake-on-LAN remote boot, 24/7 intruder watch, deep port auditing, security audit/diff reports & white-label logo branding, topology security correlation & continuous ARP guard, and multi-subnet batch sweeps for up to 5 subnets in Pro or unlimited in Enterprise).
 - **Grant**: Requires a valid cryptographic License Key purchased from the author (**AhBiYout**).
 - **Proprietary Distribution**: Organizations wishing to distribute, white-label, or embed the Software without open-source obligations must execute a formal **Commercial License Agreement**.
 
@@ -50,8 +50,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### 📞 Licensing & Commercial Contact
 - **Author / Developer**: AhBiYout
-- **Distribution Partner**:  ([ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com))
-- **Tech Blog**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
+- **Official Blog**: [ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com/)
 - **GitHub**: [github.com/AhBiYout-all](https://github.com/AhBiYout-all)
 
 © 2025-2026 **AhBiYout**. All rights reserved.

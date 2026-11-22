@@ -48,6 +48,15 @@
    - **토폴로지 맵 다중 행 래핑·서브넷 격리 & VLAN 프로필 인라인 편집 (`TopologyMapView.tsx`, `topologyGraphBuilder.ts`, `MultiSubnetModal.tsx`, `App.tsx`)**: 대역 전환 시 이전 서브넷의 네이티브 토폴로지 오버레이가 남지 않도록 `nativeOverlay` 초기화 및 `subnet` 일치 검증을 추가하고, Tier 2/3 SVG 노드를 행당 14개 단위로 다중 행 래핑해 대규모 `/24` 스캔 시 겹침을 해소했으며 `topologySecurityPro` 잠금 정합성을 맞췄습니다. 또한 `MultiSubnetModal`에서 기본 프로필을 포함한 모든 서브넷의 별칭·VLAN Tag ID·게이트웨이 IP를 즉시 인라인 편집하고 IPv4/포트 범위 검증을 수행하도록 개선했습니다.
    - **기술 문서·가이드 전수 최신화**: `README.md`, `docs/README.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/SECURITY_REPORT.md`, `docs/OUI_PARSER_DLL_SPEC.md`, `docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`, `docs/VERSIONING_POLICY.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/FILE_STRUCTURE_GUIDE.md`, `docs/DISTRIBUTION_AND_TIER_STRATEGY.md`, `docs/GOOGLE_BLOGGER_POST.md/.html` 및 `docs/WorkLog.md`를 `v2.6.0` 최신 스펙과 일치시켰습니다.
 
+6. **라이선스 체계 전수 점검 및 백엔드/UI/문서 정합성 보강 — *2026-11-21 반영***
+   - **Go 백엔드 Pro API 게이트 강제 (`main.go`, `main_test.go`)**: 직접 HTTP 호출로 UI 잠금을 우회할 수 있던 `/api/wol`(`Features.RemoteBoot`) 및 `/api/portscan`(`Features.PortScanDeep`)에 서버 측 `LicenseGuard.EvaluateStatus()` 검증을 추가해 Free·복제·만료·중복 시트 상태에서 `403 Forbidden`을 반환하도록 차단하고 Go 단위 테스트(`TestWolAPIHardening`, `TestPortScanAPIHardening`)를 보강했습니다.
+   - **오프라인 임대 잔여 일수 계산 보정 (`license_guard.go`, `license_guard_test.go`)**: `OfflineGraceDaysLeft` 계산의 정수 나눗셈 `+1` 오프셋(정확히 14일 임대 시 `15`로 표기되던 현상)을 `math.Ceil` 올림으로 교정했습니다.
+   - **다중 서브넷 일괄 스윕 라이선스 강등 동기화 (`App.tsx`)**: Pro/Enterprise 라이선스 만료·강등 시 진행 중이던 `batchState.isRunning` 일괄 스윕 큐를 즉시 중단하고 스캔을 정지하도록 보강했습니다.
+   - **보고서 로고 포맷·엔타이틀먼트 카탈로그·인스톨러/문서 동기화 (`ProFeatureLockedModal.tsx`, `ReportCenterModal.tsx`, `licenseManager.ts`, `installer/*`, `README.md`, `docs/*`)**: 실제 래스터 로고 허용 형식(`PNG/JPG/WEBP/GIF`)과 `reportAuditExport`(보안 감사 Scope) 표기를 코드와 일치시켰으며, 인스톨러 고지/스크립트 잔존 구버전 표기(`v2.4.23`→`v2.6.0`) 및 문서 내 구형 데모 키(`GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO`)·이중 라이선스 안내를 최신 `license_guard.go` 구현에 맞게 통일했습니다.
+
+7. **GitHub Releases 최신 3개 바이너리 보존 및 이전 릴리즈 에셋 자동 정리 — *2026-11-22 반영***
+   - **`scripts/prune-old-release-assets.js`, `.github/workflows/build-and-release.yml`, `.github/workflows/mobile-release.yml`**: 새 버전 GitHub Release 업로드가 완료된 직후 최신 3개(현재 릴리즈 포함) 비초안 릴리즈의 바이너리 파일만 유지하고, 그보다 오래된 릴리즈에서는 릴리즈 노트·제목·태그·이력은 보존한 채 첨부 바이너리 에셋만 자동 삭제하도록 구성했습니다 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md` 반영).
+
 ---
 
 ## 🚀 [v2.5.0] - 2026-11-13

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -301,6 +303,76 @@ func TestWolAPIHardening(t *testing.T) {
 	handleWolAPI(recBadJson, reqBadJson)
 	if recBadJson.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for malformed JSON on POST /api/wol, got %d", recBadJson.Code)
+	}
+
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	hw := StorageBindingInfo{
+		MediaType:         "fixed_disk",
+		DeviceLabel:       "Test Fixed Disk",
+		HasHardwareSerial: true,
+		FingerprintHash:   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+		FingerprintShort:  "1234567890ab",
+	}
+	guard := newTestGuard(t, pub, &hw, &now)
+
+	// Free tier MUST be blocked with 403 Forbidden
+	reqFree := httptest.NewRequest(http.MethodPost, "/api/wol", strings.NewReader(`{"mac":"AA:BB:CC:DD:EE:FF"}`))
+	recFree := httptest.NewRecorder()
+	handleWolAPIWithGuard(recFree, reqFree, guard)
+	if recFree.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for Free tier POST /api/wol, got %d (%s)", recFree.Code, recFree.Body.String())
+	}
+
+	// Active Pro trial passes license gate (then validates MAC missing -> 400 rather than 403)
+	if _, msg, ok := guard.ActivateLicense("GRID-PRO-TRIAL-2026"); !ok {
+		t.Fatalf("expected trial activation to succeed: %s", msg)
+	}
+	reqProMissingMac := httptest.NewRequest(http.MethodPost, "/api/wol", strings.NewReader(`{}`))
+	recProMissingMac := httptest.NewRecorder()
+	handleWolAPIWithGuard(recProMissingMac, reqProMissingMac, guard)
+	if recProMissingMac.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 (past license gate) for Pro tier missing MAC, got %d", recProMissingMac.Code)
+	}
+}
+
+func TestPortScanAPIHardening(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	hw := StorageBindingInfo{
+		MediaType:         "fixed_disk",
+		DeviceLabel:       "Test Fixed Disk",
+		HasHardwareSerial: true,
+		FingerprintHash:   "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+		FingerprintShort:  "fedcba098765",
+	}
+	guard := newTestGuard(t, pub, &hw, &now)
+
+	reqPost := httptest.NewRequest(http.MethodPost, "/api/portscan?ip=127.0.0.1", nil)
+	recPost := httptest.NewRecorder()
+	handlePortScanAPIWithGuard(recPost, reqPost, guard)
+	if recPost.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405 for POST /api/portscan, got %d", recPost.Code)
+	}
+
+	reqBadIP := httptest.NewRequest(http.MethodGet, "/api/portscan?ip=not-an-ip", nil)
+	recBadIP := httptest.NewRecorder()
+	handlePortScanAPIWithGuard(recBadIP, reqBadIP, guard)
+	if recBadIP.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid IP /api/portscan, got %d", recBadIP.Code)
+	}
+
+	reqFree := httptest.NewRequest(http.MethodGet, "/api/portscan?ip=127.0.0.1", nil)
+	recFree := httptest.NewRecorder()
+	handlePortScanAPIWithGuard(recFree, reqFree, guard)
+	if recFree.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for Free tier GET /api/portscan, got %d (%s)", recFree.Code, recFree.Body.String())
 	}
 }
 

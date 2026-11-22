@@ -993,12 +993,12 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                     {/* Logo Upload */}
                     <div className="space-y-1.5">
                       <label className={`block text-[11px] font-semibold ${mutedCls}`}>
-                        {isKo ? '기관 로고 이미지 (PNG/JPG/SVG)' : 'Organization Logo'}
+                        {isKo ? '기관 로고 이미지 (PNG/JPG/WEBP/GIF)' : 'Organization Logo (PNG/JPG/WEBP/GIF)'}
                       </label>
                       <input
                         ref={logoInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
                         onChange={handleLogoUpload}
                         className="hidden"
                       />

@@ -26,9 +26,9 @@
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치
    - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (`v2.6.0`)
 
-2. **📄 통합 보고서 센터 & Free 5시트 엑셀 그리드 + A4 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
-   - **Free 티어 엑셀 그리드(.xls) 전면 개방**: 16x16 IP 그리드 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)** 및 CSV·JSON·Markdown 내보내기를 Free 에디션에서 무료 제공
-   - **다중 포맷 통합 내보내기 센터**: Pro A4 PDF 보안 감사 보고서, 인쇄/그리드 HTML 및 스냅샷 Diff 연계를 전용 모달로 통합
+2. **📄 통합 보고서 센터 & Free 5시트 엑셀·표준 PDF + Pro 보안 감사 보고서 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
+   - **Free 티어 표준 내보내기 전면 개방**: 16x16 IP 그리드 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)** 및 일반 범위(`active`/`search`/`all`/`summary`)의 PDF·HTML·CSV·JSON·Markdown 내보내기를 Free 에디션에서 무료 제공
+   - **Pro+ 정밀 보안 감사 & 비교 보고서**: 보안 감사 범위(`audit`) PDF/HTML, 스냅샷 Diff(`diff`) 리포트, 자동 예약 아카이브 및 화이트라벨 로고(`PNG/JPG/WEBP/GIF`)·브랜딩 커스터마이징 제공
    - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델 및 11mm 안전 여백으로 테이블 행·텍스트 잘림 원천 방지
    - **동적 페이지 번호 & 직접 인쇄**: 모든 페이지에 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 스타일시트 지원
 
@@ -62,9 +62,9 @@
 7. **🔒 12대 네이티브 C/C++ DLL 엔진 & PBKDF2+AES-256-GCM Secure Vault (`v2.6.0`)**
    - 순수 창작 `grid_topology_guard.dll` (`v2.6.1`), `Probe_SweepCidrAsyncBatch` 비동기 ICMP/ARP 스위프, `PortScan_IocpMultiHostSweep` IOCP 포트 스위프 및 `GVAULT11` 16B 솔트 PBKDF2-HMAC-SHA256 스택 고속 경로 적용
 
-8. **🔑 오프라인 라이선스 매니저 & 30일 Pro 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
-   - Ed25519 비대칭 암호키 기반 100% 오프라인 라이선스 검증 (폐쇄망 완벽 대응)
-   - 데모 Pro 키(`GRID-PRO-TRIAL-2026` 등) 입력 시 **30일 정식 Pro 체험권** 즉시 발급
+8. **🔑 하이브리드 Ed25519 라이선스 매니저 & USB 물리 바인딩 + 30일 1회 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
+   - Go 백엔드 SPKI Ed25519 비대칭 서명 검증(`GSCAN.<payload>.<sig>`), `AES-256-GCM` 하드웨어 봉인(`license.sealed.json`), LAN UDP `:39281` 동시 시트 감지 지원
+   - 1회성 체험 키(`GRID-PRO-TRIAL-2026`) 입력 시 **하드웨어 바인딩 30일 Pro 체험권** 즉시 발급 (기존 서명 없는 레거시 데모 키는 보안상 차단)
 
 9. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
    - Windows 제어판 프로그램 추가/제거 및 클린 언인스톨러 등록 (`installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
@@ -88,7 +88,7 @@
   React 19 + Vite + Tailwind v4                                   /api/subnets/discover & /api/packet-inspect
   Grid / TopologyMapView / Diff v2                                /api/topology-map & /api/topology-guard
   MultiSubnetBar & MultiSubnetModal                               tray_engine.go (10s Daemon, DND/Cooldown)
-  ReportCenter (Free .xls + Pro PDF)                              12 Native C/C++ DLL Bridges (Path-Pinned)
+  ReportCenter (Free Export + Pro Audit)                          12 Native C/C++ DLL Bridges (Path-Pinned)
   PreferencesTrayModal (Alert/Service)                            - grid_pcap_analyzer.dll (v2.6.2 Telemetry)
   OUI Semantic + Proxy-ARP UI                                     - grid_topology_guard.dll (v2.6.1 O(N) Hash)
 ```

@@ -1,3 +1,29 @@
+### 79. GitHub Releases 최신 3개 바이너리 유지 및 이전 릴리즈 에셋 자동 정리 적용 (2026-11-22)
+- **사용자 요청 사항 및 피드백**:
+  - "새버전의 릴리즈 파일 이 생성되면 이전 버전 릴리즈 파일이 삭제되게 할 수 도 있나요?" -> "GitHub Releases만 최신 3개 유지, 릴리즈 노트/이력은 남기고 바이너리 파일만 삭제"
+- **해결 조치**:
+  1. **[GitHub Releases 에셋 정리 스크립트 신설] `scripts/prune-old-release-assets.js`**:
+     - `gh api --paginate --slurp repos/{owner}/{repo}/releases?per_page=100`으로 전체 릴리즈를 조회한 뒤 초안(`draft`)을 제외하고 `published_at`/`created_at` 내림차순 정렬.
+     - 방금 발행한 `CURRENT_TAG`를 포함해 최신 3개 릴리즈는 모든 첨부 파일을 유지하고, 4번째 이상 구버전 릴리즈에 대해서만 릴리즈 엔트리·노트·태그·이력을 남긴 채 `DELETE repos/{owner}/{repo}/releases/assets/{asset_id}`로 바이너리 에셋만 삭제하도록 구현(`--dry-run` 및 선택 로직 단위 검증 지원).
+  2. **[CI/CD 릴리즈 워크플로우 및 가이드 연동] `.github/workflows/build-and-release.yml`, `.github/workflows/mobile-release.yml`, `docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/PATCH_NOTE.md`**:
+     - PC/모바일 통합 릴리즈(`publish-github-release`) 및 모바일 전용 릴리즈(`build-and-release-mobile`) 업로드 완료 직후 단계로 `Prune Binary Assets from Older GitHub Releases (Keep Latest 3)` 스텝을 추가하고 관련 배포 문서를 최신화.
+
+### 78. 라이선스 시스템 전수 점검 · 백엔드 엔타이틀먼트 강제 · 임대 일수 보정 및 문서/인스톨러 동기화 (2026-11-21)
+- **사용자 요청 사항 및 피드백**:
+  - "라이선스 관련 내용 점검"
+- **원인 규명 및 해결 조치**:
+  1. **[Go 백엔드 Pro 기능 API 서버 측 강제] `main.go`, `main_test.go`**:
+     - `handleWolAPI` (`/api/wol`) 및 `/api/portscan` 이 UI 게이트에만 의존하고 백엔드 `LicenseGuard` 검증을 거치지 않아 직접 API 호출 시 Free/만료/복제(`clone_mismatch`)/시계 역행(`clock_tamper`)/중복 시트(`duplicate_seat`) 상태에서도 실행되던 허점을 확인.
+     - `handleWolAPIWithGuard` (`Features.RemoteBoot`) 및 `handlePortScanAPIWithGuard` (`Features.PortScanDeep`)로 분리해 비허가 상태 시 HTTP `403 Forbidden` JSON을 반환하도록 차단하고 `TestWolAPIHardening`·`TestPortScanAPIHardening` 단위 테스트를 추가.
+  2. **[오프라인 임대 잔여 일수 계산(+1 오프셋) 교정] `license_guard.go`, `license_guard_test.go`**:
+     - `OfflineGraceDaysLeft` 계산 시 `int(hours/24) + 1` 식으로 인해 정확히 14일(`336h`) 임대 시 `15`일, 24시간 제한 시 `2`일로 표시되던 오차를 `int(math.Ceil(hours / 24.0))`로 교정하고 `TestHybridOnlineLeaseAndLANDuplicateDetection`에 검증 단언을 추가.
+  3. **[프론트엔드 강등 상태·로고 포맷·카탈로그 정합성 보강] `App.tsx`, `ProFeatureLockedModal.tsx`, `ReportCenterModal.tsx`, `services/licenseManager.ts`**:
+     - 라이선스 강등 시 진행 중이던 다중 서브넷 일괄 스윕(`batchState.isRunning`)이 멈추지 않던 상태를 즉시 중단·스캔 정지하도록 `useEffect` 가드 추가.
+     - `reportCenterService.ts`의 래스터 로고 허용 검증(`png|jpeg|jpg|webp|gif`)과 다르게 `SVG` 업로드를 안내하던 문구 및 `accept="image/*"` 필터를 `PNG/JPG/WEBP/GIF`로 통일하고, `reportAuditExport` 카탈로그 라벨을 `보안 감사 Scope · PDF/HTML`로 명확화.
+  4. **[문서 및 인스톨러 라이선스·버전 드리프트 일괄 정리] `README.md`, `docs/README.md`, `docs/DISTRIBUTION_AND_TIER_STRATEGY.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/LICENSE_KR.md`, `docs/LICENSE_EN.md`, `installer/NOTICE_BEFORE_INSTALL.txt`, `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`**:
+     - 실제 코드에서 차단된 서명 없는 구형 데모 키(`GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO`) 안내를 제거하고 1회성 하드웨어 바인딩 키(`GRID-PRO-TRIAL-2026`) 및 `GSCAN.<payload>.<sig>` Ed25519·`AES-256-GCM` 봉인 구조로 최신화.
+     - Free 표준 내보내기(5시트 Excel `.xls`·일반 PDF/CSV/JSON/MD) vs Pro 보안 감사/Diff/화이트라벨 구분과 이중 라이선스(GPL v3 + Commercial) 안내를 전 문서에 통일하고, 인스톨러 잔존 `v2.4.23` 헤더를 `v2.6.0`으로 교정.
+
 ### 77. 전수 자아성찰(Self-Reflection & Deep Audit) 3차 심층 감사 · API/서버/클라이언트 무결성 보강 및 문서 최신화 (2026-11-21)
 - **사용자 요청 사항 및 피드백**:
   - "**자아성찰(Self-Reflection & Deep Audit)** 과 **오류 수정** 그리고 문서들 업데이트"
