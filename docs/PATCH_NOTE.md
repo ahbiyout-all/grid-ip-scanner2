@@ -57,6 +57,12 @@
 7. **GitHub Releases 최신 3개 바이너리 보존 및 이전 릴리즈 에셋 자동 정리 — *2026-11-22 반영***
    - **`scripts/prune-old-release-assets.js`, `.github/workflows/build-and-release.yml`, `.github/workflows/mobile-release.yml`**: 새 버전 GitHub Release 업로드가 완료된 직후 최신 3개(현재 릴리즈 포함) 비초안 릴리즈의 바이너리 파일만 유지하고, 그보다 오래된 릴리즈에서는 릴리즈 노트·제목·태그·이력은 보존한 채 첨부 바이너리 에셋만 자동 삭제하도록 구성했습니다 (`docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md` 반영).
 
+8. **Windows 시스템 트레이 '메인 창 열기' 일반 브라우저 실행 오류 수정 — *2026-11-22 반영***
+   - **원인 및 수정 (`utils_windows.go`, `main.go`, `tray_engine.go`, `utils_other.go`, `main_test.go`)**:
+     - Chromium 런처(`launchBrowserWithFallback`)가 GUI 브라우저 프로세스(`msedge.exe`, `chrome.exe` 등)에 `SW_HIDE` 플래그를 전달하고, `--new-window`·`--no-first-run`·`--no-default-browser-check`·`--disable-session-crashed-bubble` 격리 인자 누락 및 모든 브라우저가 동일 `EdgeProfile` 경로를 공유해 `--app=` 단독 앱 창 생성이 실패하고 시스템 기본 일반 브라우저(`ShellExecuteW`)로 폴백되던 원인을 제거했습니다.
+     - 레지스트리 `App Paths` 탐색, 브라우저별 독립 프로필(`EdgeProfile`, `ChromeProfile`, `WhaleProfile`, `BraveProfile`, `VivaldiProfile`), 즉시 비정상 종료 감지 및 `_Alt` 프로필 재시도, `ShellExecuteW` 인자 따옴표 이스케이프를 적용했습니다.
+     - `focusExistingAppWindow()`에 `scoreAppWindowCandidate` 우선순위 점수화·`Chrome_WidgetWin_1` 숨김(Electron `hide()`) 창 복원·`AttachThreadInput` 기반 포그라운드 전환을 도입하고, `--tray` 초기 `lastHeartbeat` 거짓 연결 판정 및 중복 인스턴스 포트 재오픈을 교정했습니다 (`IDM_TRAY_OPEN` 및 트레이 침입/스케줄 알림 즉시 오픈 적용).
+
 ---
 
 ## 🚀 [v2.5.0] - 2026-11-13

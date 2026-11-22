@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -392,4 +393,92 @@ func TestInfoAndNativeModulesMethodGuards(t *testing.T) {
 	}
 }
 
+func TestExtractPortFromAppURLAndProfileSubdir(t *testing.T) {
+	if got := extractPortFromAppURL("http://127.0.0.1:3031"); got != "3031" {
+		t.Fatalf("expected port 3031, got %q", got)
+	}
+	if got := extractPortFromAppURL("http://localhost:8080/"); got != "8080" {
+		t.Fatalf("expected port 8080, got %q", got)
+	}
+	if got := extractPortFromAppURL(""); got != defaultPort {
+		t.Fatalf("expected default port %q for empty URL, got %q", defaultPort, got)
+	}
+
+	baseDir := filepath.Join("localappdata", "GridScanner2App")
+	wantChrome := filepath.Join(baseDir, "ChromeProfile")
+	if got := resolveBrowserProfileSubdir(baseDir, "ChromeProfile"); got != wantChrome {
+		t.Fatalf("expected %q, got %q", wantChrome, got)
+	}
+
+	// Legacy caller passing ...\EdgeProfile directly must normalize to parent before joining ChromeProfile
+	legacyEdgePath := filepath.Join(baseDir, "EdgeProfile")
+	if got := resolveBrowserProfileSubdir(legacyEdgePath, "ChromeProfile"); got != wantChrome {
+		t.Fatalf("expected legacy path normalization to %q, got %q", wantChrome, got)
+	}
+}
+
+func TestBuildChromiumAppModeArgsAndShellParams(t *testing.T) {
+	targetURL := "http://127.0.0.1:3031"
+	profileDir := filepath.Join("localappdata", "GridScanner2App", "EdgeProfile")
+	args := buildChromiumAppModeArgs(targetURL, profileDir)
+	joined := strings.Join(args, " ")
+
+	requiredFlags := []string{
+		"--app=" + targetURL,
+		"--new-window",
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--disable-session-crashed-bubble",
+		"--disable-features=Translate",
+		"--user-data-dir=" + profileDir,
+	}
+	for _, flag := range requiredFlags {
+		if !strings.Contains(joined, flag) {
+			t.Fatalf("expected Chromium args %q to contain %q", joined, flag)
+		}
+	}
+
+	params := buildChromiumShellExecuteParams(targetURL, profileDir)
+	if !strings.Contains(params, `--app="http://127.0.0.1:3031"`) ||
+		!strings.Contains(params, "--new-window") ||
+		!strings.Contains(params, "--no-first-run") ||
+		!strings.Contains(params, "--no-default-browser-check") ||
+		!strings.Contains(params, "--disable-session-crashed-bubble") ||
+		!strings.Contains(params, `--user-data-dir="`+profileDir+`"`) {
+		t.Fatalf("unexpected ShellExecute params: %q", params)
+	}
+}
+
+func TestScoreAppWindowCandidate(t *testing.T) {
+	// Visible Chromium App-Mode or Electron main window with exact title -> rank 100
+	if got := scoreAppWindowCandidate("Grid IP Scanner2", "Chrome_WidgetWin_1", true, 1280, 800, false); got != 100 {
+		t.Fatalf("expected score 100 for visible Chrome_WidgetWin_1 exact title, got %d", got)
+	}
+
+	// Hidden Electron window (mainWindow.hide()) with sizable area -> rank 85
+	if got := scoreAppWindowCandidate("Grid IP Scanner2", "Chrome_WidgetWin_1", false, 1200, 760, false); got != 85 {
+		t.Fatalf("expected score 85 for hidden Electron Chrome_WidgetWin_1 >=200x150, got %d", got)
+	}
+
+	// Hidden 0x0 internal Chromium helper window must be rejected
+	if got := scoreAppWindowCandidate("Grid IP Scanner2", "Chrome_WidgetWin_0", false, 0, 0, false); got != 0 {
+		t.Fatalf("expected score 0 for 0x0 helper window, got %d", got)
+	}
+
+	// Reject non-app system/editor/tray classes even if title matches
+	for _, cls := range []string{"CabinetWClass", "ConsoleWindowClass", "Notepad", "GridIPScanner2_TrayClass"} {
+		if got := scoreAppWindowCandidate("Grid IP Scanner2", cls, true, 1000, 700, true); got != 0 {
+			t.Fatalf("expected score 0 for rejected class %s, got %d", cls, got)
+		}
+	}
+
+	// Unrelated browser tab ("Grid IP Scanner2 - Google Chrome") must be ignored when windowConn=false,
+	// and ranked 50 only when a live frontend heartbeat is active.
+	if got := scoreAppWindowCandidate("Grid IP Scanner2 - Google Chrome", "Chrome_WidgetWin_1", true, 1280, 800, false); got != 0 {
+		t.Fatalf("expected score 0 for partial browser tab when windowConn=false, got %d", got)
+	}
+	if got := scoreAppWindowCandidate("Grid IP Scanner2 - Google Chrome", "Chrome_WidgetWin_1", true, 1280, 800, true); got != 50 {
+		t.Fatalf("expected score 50 for partial Chrome_WidgetWin_1 when windowConn=true, got %d", got)
+	}
+}
 

@@ -361,23 +361,115 @@ func openWithNotepad(filePath string) {
 	_ = cmd.Start()
 }
 
-// launchBrowserWithFallback implements the 4-tier adaptive browser launch pipeline without spawning console windows
-func launchBrowserWithFallback(url string, profileDir string) bool {
+// lookupAppPathRegistry queries HKCU/HKLM Windows App Paths for a registered browser executable.
+func lookupAppPathRegistry(exeName string) string {
+	subKey, err := syscall.UTF16PtrFromString(`SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\` + exeName)
+	if err != nil {
+		return ""
+	}
+	roots := []uintptr{
+		0x80000001, // HKEY_CURRENT_USER
+		0x80000002, // HKEY_LOCAL_MACHINE
+	}
+	accessFlags := []uintptr{
+		0x20019,         // KEY_READ
+		0x20019 | 0x0100, // KEY_READ | KEY_WOW64_64KEY
+		0x20019 | 0x0200, // KEY_READ | KEY_WOW64_32KEY
+	}
+
+	for _, root := range roots {
+		for _, sam := range accessFlags {
+			var hKey uintptr
+			ret, _, _ := procRegOpenKeyExW.Call(root, uintptr(unsafe.Pointer(subKey)), 0, sam, uintptr(unsafe.Pointer(&hKey)))
+			if ret != 0 || hKey == 0 {
+				continue
+			}
+
+			var valType uint32
+			var dataSize uint32 = 1024
+			buf := make([]uint16, 512)
+			qRet, _, _ := procRegQueryValueExW.Call(
+				hKey,
+				0,
+				0,
+				uintptr(unsafe.Pointer(&valType)),
+				uintptr(unsafe.Pointer(&buf[0])),
+				uintptr(unsafe.Pointer(&dataSize)),
+			)
+			procRegCloseKey.Call(hKey)
+
+			if qRet == 0 && (valType == 1 || valType == 2) {
+				candidate := strings.Trim(strings.TrimSpace(syscall.UTF16ToString(buf)), `"`)
+				if candidate != "" {
+					candidate = os.ExpandEnv(candidate)
+					if st, statErr := os.Stat(candidate); statErr == nil && !st.IsDir() {
+						return candidate
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func resolveBrowserExecutable(exeName string, candidatePaths []string) string {
+	for _, p := range candidatePaths {
+		if p != "" {
+			if st, err := os.Stat(p); err == nil && !st.IsDir() {
+				return p
+			}
+		}
+	}
+	if regPath := lookupAppPathRegistry(exeName); regPath != "" {
+		return regPath
+	}
+	if lookPath, err := exec.LookPath(exeName); err == nil && lookPath != "" {
+		return lookPath
+	}
+	return ""
+}
+
+// startGuiAppCommand launches a Windows GUI browser in App-Mode without SW_HIDE and detects immediate startup failure.
+func startGuiAppCommand(exePath string, args []string) bool {
+	cmd := exec.Command(exePath, args...)
+	if err := cmd.Start(); err != nil {
+		return false
+	}
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	select {
+	case waitErr := <-waitCh:
+		// Chromium returns exit code 0 almost immediately when delegating to an existing instance of the same profile.
+		// Any non-zero immediate exit indicates a failed launch (e.g. locked profile across integrity levels).
+		return waitErr == nil
+	case <-time.After(400 * time.Millisecond):
+		// Still running after 400ms: standalone window started cleanly.
+		return true
+	}
+}
+
+// launchBrowserWithFallback implements an isolated Chromium App-Mode pipeline before any fallback browser launch.
+func launchBrowserWithFallback(targetURL string, profileBaseDir string) bool {
 	progFiles := os.Getenv("ProgramFiles")
 	progFilesX86 := os.Getenv("ProgramFiles(x86)")
 	localAppData := os.Getenv("LOCALAPPDATA")
 
-	// 1. Candidate browser definitions with common install paths
 	type browserTarget struct {
 		name           string
 		exeName        string
+		profileSubdir  string
 		candidatePaths []string
 	}
 
 	targets := []browserTarget{
 		{
-			name:    "Microsoft Edge",
-			exeName: "msedge.exe",
+			name:          "Microsoft Edge",
+			exeName:       "msedge.exe",
+			profileSubdir: "EdgeProfile",
 			candidatePaths: []string{
 				filepath.Join(progFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
 				filepath.Join(progFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
@@ -385,8 +477,9 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 			},
 		},
 		{
-			name:    "Google Chrome",
-			exeName: "chrome.exe",
+			name:          "Google Chrome",
+			exeName:       "chrome.exe",
+			profileSubdir: "ChromeProfile",
 			candidatePaths: []string{
 				filepath.Join(progFiles, "Google", "Chrome", "Application", "chrome.exe"),
 				filepath.Join(progFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
@@ -394,8 +487,9 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 			},
 		},
 		{
-			name:    "Naver Whale",
-			exeName: "whale.exe",
+			name:          "Naver Whale",
+			exeName:       "whale.exe",
+			profileSubdir: "WhaleProfile",
 			candidatePaths: []string{
 				filepath.Join(progFiles, "Naver", "Naver Whale", "Application", "whale.exe"),
 				filepath.Join(progFilesX86, "Naver", "Naver Whale", "Application", "whale.exe"),
@@ -403,66 +497,70 @@ func launchBrowserWithFallback(url string, profileDir string) bool {
 			},
 		},
 		{
-			name:    "Brave Browser",
-			exeName: "brave.exe",
+			name:          "Brave Browser",
+			exeName:       "brave.exe",
+			profileSubdir: "BraveProfile",
 			candidatePaths: []string{
 				filepath.Join(progFiles, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
 				filepath.Join(progFilesX86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
 				filepath.Join(localAppData, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
 			},
 		},
+		{
+			name:          "Vivaldi",
+			exeName:       "vivaldi.exe",
+			profileSubdir: "VivaldiProfile",
+			candidatePaths: []string{
+				filepath.Join(localAppData, "Vivaldi", "Application", "vivaldi.exe"),
+				filepath.Join(progFiles, "Vivaldi", "Application", "vivaldi.exe"),
+				filepath.Join(progFilesX86, "Vivaldi", "Application", "vivaldi.exe"),
+			},
+		},
 	}
 
-	// 1~3단계: 직접 실행 파일 경로를 찾아 CUI 래퍼 없이 직접 실행 (가장 깨끗함, 콘솔 창 0% 노출)
+	// 1~3단계: Chromium 계열 브라우저의 독립 App-Mode 실행 (주소창/탭 없는 단독 앱 창 + 브라우저별 독립 프로필)
 	for _, target := range targets {
-		var resolvedPath string
-		for _, p := range target.candidatePaths {
-			if p != "" {
-				if _, err := os.Stat(p); err == nil {
-					resolvedPath = p
-					break
+		browserProfileDir := resolveBrowserProfileSubdir(profileBaseDir, target.profileSubdir)
+		if browserProfileDir != "" {
+			_ = os.MkdirAll(browserProfileDir, 0755)
+		}
+
+		resolvedPath := resolveBrowserExecutable(target.exeName, target.candidatePaths)
+		if resolvedPath != "" {
+			appArgs := buildChromiumAppModeArgs(targetURL, browserProfileDir)
+			if startGuiAppCommand(resolvedPath, appArgs) {
+				fmt.Printf("Successfully launched via %s (Direct App Mode)\n", target.name)
+				return true
+			}
+			// 프로필 잠금(권한 불일치/좀비 프로세스 등)으로 즉시 종료된 경우 예비 프로필로 1회 재시도
+			if browserProfileDir != "" {
+				fallbackProfileDir := resolveBrowserProfileSubdir(profileBaseDir, target.profileSubdir+"_Alt")
+				if fallbackProfileDir != "" {
+					_ = os.MkdirAll(fallbackProfileDir, 0755)
+					if startGuiAppCommand(resolvedPath, buildChromiumAppModeArgs(targetURL, fallbackProfileDir)) {
+						fmt.Printf("Successfully launched via %s (Fallback App Profile)\n", target.name)
+						return true
+					}
 				}
 			}
 		}
 
-		appArgs := []string{
-			"--app=" + url,
-			"--disable-features=Translate",
-			"--disable-translate",
-			"--lang=ko",
-		}
-		if profileDir != "" {
-			appArgs = append(appArgs, "--user-data-dir="+profileDir)
-		}
-
-		if resolvedPath != "" {
-			cmd := exec.Command(resolvedPath, appArgs...)
-			hideWindow(cmd)
-			if err := cmd.Start(); err == nil {
-				fmt.Printf("Successfully launched via %s (Direct App Mode)\n", target.name)
-				return true
-			}
-		}
-
-		// 경로를 직접 못 찾았을 경우 Windows ShellExecuteW를 통해 App Paths 레지스트리로 실행 (콘솔 창 없음)
-		paramStr := fmt.Sprintf("--app=%s --disable-features=Translate --disable-translate --lang=ko", url)
-		if profileDir != "" {
-			paramStr += fmt.Sprintf(" --user-data-dir=\"%s\"", profileDir)
-		}
+		// 직접 경로를 못 찾았을 경우 ShellExecuteW App Paths 로 App-Mode 실행
+		paramStr := buildChromiumShellExecuteParams(targetURL, browserProfileDir)
 		if shellExecute("open", target.exeName, paramStr, "", SW_SHOWNORMAL) {
 			fmt.Printf("Successfully launched via %s (ShellExecute App Mode)\n", target.name)
 			return true
 		}
 	}
 
-	// 4단계: 시스템 기본 브라우저 열기 (ShellExecuteW를 통해 직접 URL 오픈 - cmd.exe 호출 없음)
-	if shellExecute("open", url, "", "", SW_SHOWNORMAL) {
+	// 4단계: Chromium 계열 브라우저가 전혀 없는 환경에서만 시스템 기본 브라우저로 폴백
+	if shellExecute("open", targetURL, "", "", SW_SHOWNORMAL) {
 		fmt.Printf("Successfully launched via default system browser (ShellExecuteW)\n")
 		return true
 	}
 
 	// 최후의 폴백 (rundll32 with CREATE_NO_WINDOW)
-	cmdRundll := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url)
+	cmdRundll := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", targetURL)
 	hideWindow(cmdRundll)
 	if err := cmdRundll.Start(); err == nil {
 		fmt.Printf("Successfully launched via rundll32 FileProtocolHandler\n")
@@ -730,14 +828,25 @@ var (
 	procStartServiceCtrlDispatcher = modadvapi32.NewProc("StartServiceCtrlDispatcherW")
 	procRegisterServiceCtrlHandler = modadvapi32.NewProc("RegisterServiceCtrlHandlerW")
 	procSetServiceStatus           = modadvapi32.NewProc("SetServiceStatus")
+	procRegOpenKeyExW              = modadvapi32.NewProc("RegOpenKeyExW")
+	procRegQueryValueExW           = modadvapi32.NewProc("RegQueryValueExW")
+	procRegCloseKey                = modadvapi32.NewProc("RegCloseKey")
 
-	procFindWindowW          = moduser32.NewProc("FindWindowW")
-	procShowWindow           = moduser32.NewProc("ShowWindow")
-	procIsWindowVisible      = moduser32.NewProc("IsWindowVisible")
-	procIsIconic             = moduser32.NewProc("IsIconic")
-	procEnumWindows          = moduser32.NewProc("EnumWindows")
-	procGetWindowTextW       = moduser32.NewProc("GetWindowTextW")
-	procGetWindowTextLengthW = moduser32.NewProc("GetWindowTextLengthW")
+	procFindWindowW              = moduser32.NewProc("FindWindowW")
+	procShowWindow               = moduser32.NewProc("ShowWindow")
+	procIsWindowVisible          = moduser32.NewProc("IsWindowVisible")
+	procIsIconic                 = moduser32.NewProc("IsIconic")
+	procEnumWindows              = moduser32.NewProc("EnumWindows")
+	procGetWindowTextW           = moduser32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW     = moduser32.NewProc("GetWindowTextLengthW")
+	procGetClassNameW            = moduser32.NewProc("GetClassNameW")
+	procGetWindow                = moduser32.NewProc("GetWindow")
+	procGetWindowRect            = moduser32.NewProc("GetWindowRect")
+	procGetWindowThreadProcessId = moduser32.NewProc("GetWindowThreadProcessId")
+	procGetForegroundWindow      = moduser32.NewProc("GetForegroundWindow")
+	procAttachThreadInput        = moduser32.NewProc("AttachThreadInput")
+	procBringWindowToTop         = moduser32.NewProc("BringWindowToTop")
+	procGetCurrentThreadId       = modkernel32.NewProc("GetCurrentThreadId")
 
 	nativeTrayMu     sync.RWMutex
 	nativeTrayHWnd   uintptr
@@ -748,35 +857,97 @@ var (
 
 	trayOpenMutex    sync.Mutex
 	lastTrayOpenTime time.Time
+	trayOpenInFlight bool
 
-	enumWinMutex    sync.Mutex
-	enumWinOnce     sync.Once
-	enumWinCallback uintptr
-	enumMatchedHWnd uintptr
+	enumWinMutex     sync.Mutex
+	enumWinOnce      sync.Once
+	enumWinCallback  uintptr
+	enumMatchedHWnd  uintptr
+	enumMatchedScore int
+	enumWinConnected bool
 )
+
+type RECT struct {
+	Left   int32
+	Top    int32
+	Right  int32
+	Bottom int32
+}
 
 const (
 	SW_RESTORE = 9
 	SW_SHOW    = 5
+	GW_OWNER   = 4
 )
 
 func enumAppWindowProc(hwnd uintptr, lparam uintptr) uintptr {
-	visible, _, _ := procIsWindowVisible.Call(hwnd)
-	if visible == 0 {
+	// Skip owned popup/tooltip helper windows
+	owner, _, _ := procGetWindow.Call(hwnd, GW_OWNER)
+	if owner != 0 {
 		return 1
 	}
+
 	length, _, _ := procGetWindowTextLengthW.Call(hwnd)
 	if length == 0 {
 		return 1
 	}
-	buf := make([]uint16, length+1)
-	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
-	title := syscall.UTF16ToString(buf)
-	if strings.Contains(title, "Grid IP Scanner2") || strings.Contains(title, "GRID IP 스캐너2") {
+	titleBuf := make([]uint16, length+1)
+	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&titleBuf[0])), uintptr(len(titleBuf)))
+	title := syscall.UTF16ToString(titleBuf)
+
+	classBuf := make([]uint16, 128)
+	cLen, _, _ := procGetClassNameW.Call(hwnd, uintptr(unsafe.Pointer(&classBuf[0])), uintptr(len(classBuf)))
+	className := ""
+	if cLen > 0 {
+		className = syscall.UTF16ToString(classBuf[:cLen])
+	}
+
+	visible, _, _ := procIsWindowVisible.Call(hwnd)
+	var rect RECT
+	procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&rect)))
+	width := rect.Right - rect.Left
+	height := rect.Bottom - rect.Top
+
+	score := scoreAppWindowCandidate(title, className, visible != 0, width, height, enumWinConnected)
+	if score > enumMatchedScore {
+		enumMatchedScore = score
 		enumMatchedHWnd = hwnd
-		return 0 // stop enumeration
+		if score >= 100 {
+			return 0 // Exact visible app window found; stop enumeration early
+		}
 	}
 	return 1
+}
+
+func activateAppWindow(hwnd uintptr) {
+	if hwnd == 0 {
+		return
+	}
+	iconic, _, _ := procIsIconic.Call(hwnd)
+	if iconic != 0 {
+		procShowWindow.Call(hwnd, SW_RESTORE)
+	} else {
+		procShowWindow.Call(hwnd, SW_SHOW)
+	}
+
+	fgHwnd, _, _ := procGetForegroundWindow.Call()
+	curTid, _, _ := procGetCurrentThreadId.Call()
+	var fgTid uintptr
+	if fgHwnd != 0 {
+		fgTid, _, _ = procGetWindowThreadProcessId.Call(fgHwnd, 0)
+	}
+	attached := false
+	if fgTid != 0 && curTid != 0 && fgTid != curTid {
+		ret, _, _ := procAttachThreadInput.Call(curTid, fgTid, 1)
+		attached = ret != 0
+	}
+
+	procBringWindowToTop.Call(hwnd)
+	procSetForegroundWindow.Call(hwnd)
+
+	if attached {
+		procAttachThreadInput.Call(curTid, fgTid, 0)
+	}
 }
 
 func focusExistingAppWindow() bool {
@@ -784,44 +955,55 @@ func focusExistingAppWindow() bool {
 		enumWinCallback = syscall.NewCallback(enumAppWindowProc)
 	})
 
+	windowConnectedMutex.Lock()
+	winConn := windowConnected
+	windowConnectedMutex.Unlock()
+
 	enumWinMutex.Lock()
 	enumMatchedHWnd = 0
+	enumMatchedScore = 0
+	enumWinConnected = winConn
 	procEnumWindows.Call(enumWinCallback, 0)
 	matchedHWnd := enumMatchedHWnd
 	enumWinMutex.Unlock()
 
 	if matchedHWnd == 0 {
+		// Fallback to direct exact class+title lookup (including hidden Electron BrowserWindow)
+		classPtr, _ := syscall.UTF16PtrFromString("Chrome_WidgetWin_1")
 		titles := []string{"Grid IP Scanner2", "GRID IP 스캐너2", "Grid IP Scanner"}
 		for _, t := range titles {
 			tPtr, _ := syscall.UTF16PtrFromString(t)
-			hwnd, _, _ := procFindWindowW.Call(0, uintptr(unsafe.Pointer(tPtr)))
+			hwnd, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(classPtr)), uintptr(unsafe.Pointer(tPtr)))
 			if hwnd != 0 {
-				matchedHWnd = hwnd
-				break
+				var rect RECT
+				procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&rect)))
+				if (rect.Right-rect.Left) >= 200 && (rect.Bottom-rect.Top) >= 150 {
+					matchedHWnd = hwnd
+					break
+				}
 			}
 		}
 	}
 
 	if matchedHWnd != 0 {
-		iconic, _, _ := procIsIconic.Call(matchedHWnd)
-		if iconic != 0 {
-			procShowWindow.Call(matchedHWnd, SW_RESTORE)
-		} else {
-			procShowWindow.Call(matchedHWnd, SW_SHOW)
-		}
-		procSetForegroundWindow.Call(matchedHWnd)
+		activateAppWindow(matchedHWnd)
 		return true
 	}
 	return false
 }
 
-func openOrFocusTrayWindow() {
+func openOrFocusTrayWindowWithMode(immediate bool) {
 	trayOpenMutex.Lock()
-	if time.Since(lastTrayOpenTime) <= 1500*time.Millisecond {
+	if trayOpenInFlight {
+		trayOpenMutex.Unlock()
+		return
+	}
+	if !immediate && time.Since(lastTrayOpenTime) <= 900*time.Millisecond {
 		trayOpenMutex.Unlock()
 		return
 	}
 	lastTrayOpenTime = time.Now()
+	trayOpenInFlight = true
 	trayOpenMutex.Unlock()
 
 	nativeTrayMu.RLock()
@@ -829,12 +1011,26 @@ func openOrFocusTrayWindow() {
 	nativeTrayMu.RUnlock()
 
 	go func() {
+		defer func() {
+			trayOpenMutex.Lock()
+			trayOpenInFlight = false
+			lastTrayOpenTime = time.Now()
+			trayOpenMutex.Unlock()
+		}()
 		if !focusExistingAppWindow() {
 			if port != "" {
 				openAppWindow("http://127.0.0.1:" + port)
 			}
 		}
 	}()
+}
+
+func openOrFocusTrayWindow() {
+	openOrFocusTrayWindowWithMode(false)
+}
+
+func openOrFocusTrayWindowImmediate() {
+	openOrFocusTrayWindowWithMode(true)
 }
 
 // buildBadgedTrayIcon creates a 32x32 ARGB HICON compositing a crisp status dot badge over the base icon.
@@ -1193,7 +1389,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintp
 
 				switch cmd {
 				case IDM_TRAY_OPEN:
-					openOrFocusTrayWindow()
+					openOrFocusTrayWindowImmediate()
 				case IDM_TRAY_QUICK_SCAN:
 					go globalTrayMgr.executeTrayCommand("quick_scan", "", true)
 				case IDM_TRAY_TOGGLE_WATCH:

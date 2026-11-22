@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -386,36 +387,135 @@ func initOUIProvider() {
 	fmt.Printf("Initialized OUI Provider with %d entries\n", len(m))
 }
 
-func openAppWindow(url string) {
-	port := defaultPort
-	if strings.Contains(url, ":") {
-		parts := strings.Split(url, ":")
-		port = parts[len(parts)-1]
+func extractPortFromAppURL(rawURL string) string {
+	trimmed := strings.TrimSpace(rawURL)
+	if trimmed == "" {
+		return defaultPort
+	}
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Port() != "" {
+		return parsed.Port()
+	}
+	if strings.Contains(trimmed, ":") {
+		parts := strings.Split(strings.TrimRight(trimmed, "/"), ":")
+		candidate := strings.TrimSpace(parts[len(parts)-1])
+		if candidate != "" {
+			return candidate
+		}
+	}
+	return defaultPort
+}
+
+func resolveBrowserProfileSubdir(baseDir string, subdir string) string {
+	base := strings.TrimSpace(baseDir)
+	if base == "" {
+		return ""
+	}
+	cleanSubdir := strings.TrimSpace(subdir)
+	if cleanSubdir == "" {
+		cleanSubdir = "EdgeProfile"
+	}
+	// Preserve backward compatibility if a caller passes ...\EdgeProfile directly.
+	if strings.EqualFold(filepath.Base(base), "EdgeProfile") {
+		base = filepath.Dir(base)
+	}
+	return filepath.Join(base, cleanSubdir)
+}
+
+func buildChromiumAppModeArgs(targetURL string, browserProfileDir string) []string {
+	args := []string{
+		"--app=" + targetURL,
+		"--new-window",
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--disable-session-crashed-bubble",
+		"--disable-features=Translate",
+		"--disable-translate",
+		"--lang=ko",
+	}
+	if strings.TrimSpace(browserProfileDir) != "" {
+		args = append(args, "--user-data-dir="+browserProfileDir)
+	}
+	return args
+}
+
+func buildChromiumShellExecuteParams(targetURL string, browserProfileDir string) string {
+	params := fmt.Sprintf(
+		"--app=\"%s\" --new-window --no-first-run --no-default-browser-check --disable-session-crashed-bubble --disable-features=Translate --disable-translate --lang=ko",
+		targetURL,
+	)
+	if strings.TrimSpace(browserProfileDir) != "" {
+		params += fmt.Sprintf(" --user-data-dir=\"%s\"", browserProfileDir)
+	}
+	return params
+}
+
+func scoreAppWindowCandidate(title string, className string, visible bool, width int32, height int32, windowConn bool) int {
+	trimmedTitle := strings.TrimSpace(title)
+	if trimmedTitle == "" {
+		return 0
+	}
+	classLower := strings.ToLower(strings.TrimSpace(className))
+	switch classLower {
+	case "gridipscanner2_trayclass", "cabinetwclass", "explorewclass", "consolewindowclass", "cascadia_hosting_window_class", "notepad", "shell_traywnd", "tooltips_class32":
+		return 0
 	}
 
-	// For Windows, use a persistent profile in AppData so that Edge/Chrome can cache and display the custom taskbar icon.
+	isExact := trimmedTitle == "Grid IP Scanner2" ||
+		trimmedTitle == "GRID IP 스캐너2" ||
+		trimmedTitle == "Grid IP Scanner"
+	isContains := strings.Contains(trimmedTitle, "Grid IP Scanner2") ||
+		strings.Contains(trimmedTitle, "GRID IP 스캐너2")
+	if !isExact && !isContains {
+		return 0
+	}
+
+	isChromiumWidget := strings.HasPrefix(classLower, "chrome_widgetwin_")
+	hasWindowArea := width >= 200 && height >= 150
+
+	if visible && isChromiumWidget && isExact {
+		return 100
+	}
+	if !visible && classLower == "chrome_widgetwin_1" && isExact && hasWindowArea {
+		return 85
+	}
+	if visible && !isChromiumWidget && isExact {
+		return 70
+	}
+	if visible && isChromiumWidget && isContains && windowConn {
+		return 50
+	}
+	if !visible && classLower == "chrome_widgetwin_1" && isContains && hasWindowArea && windowConn {
+		return 35
+	}
+	return 0
+}
+
+func openAppWindow(targetURL string) {
+	port := extractPortFromAppURL(targetURL)
+
+	// For Windows, use a persistent base directory in AppData so each Chromium engine keeps an isolated App-Mode profile.
 	// For other OS, use temporary directories.
-	var profileDir string
+	var profileBaseDir string
 	if runtime.GOOS == "windows" {
 		localAppData := os.Getenv("LOCALAPPDATA")
 		if localAppData != "" {
-			profileDir = filepath.Join(localAppData, "GridScanner2App", "EdgeProfile")
-			_ = os.MkdirAll(profileDir, 0755)
+			profileBaseDir = filepath.Join(localAppData, "GridScanner2App")
+			_ = os.MkdirAll(profileBaseDir, 0755)
 		}
 	}
 
-	if profileDir == "" {
+	if profileBaseDir == "" {
 		var err error
 		tempDir, err = os.MkdirTemp("", "grid_scanner_*")
 		if err != nil {
 			fmt.Printf("Failed to create temp dir: %v\n", err)
 			tempDir = ""
 		}
-		profileDir = tempDir
+		profileBaseDir = tempDir
 	}
 
-	// 1~4단계: 스마트 적응형 브라우저 파이프라인 (Edge -> Chrome -> Whale/Brave -> System Default)
-	if launchBrowserWithFallback(url, profileDir) {
+	// 1~4단계: 스마트 적응형 앱 창 파이프라인 (Edge -> Chrome -> Whale -> Brave -> Vivaldi -> System Default)
+	if launchBrowserWithFallback(targetURL, profileBaseDir) {
 		fmt.Println("UI window successfully launched via adaptive pipeline.")
 		return
 	}
@@ -1810,6 +1910,9 @@ func main() {
 	globalTrayMgr.mu.Unlock()
 
 	if startInTray || runAsService {
+		heartbeatMutex.Lock()
+		lastHeartbeat = time.Time{}
+		heartbeatMutex.Unlock()
 		windowConnectedMutex.Lock()
 		windowConnected = false
 		windowConnectedMutex.Unlock()
@@ -3670,7 +3773,20 @@ func main() {
 		startAutonomousTrayLoop()
 	}
 
+	var preboundListener net.Listener
 	if !isPreview && !runAsService {
+		ln, listenErr := net.Listen("tcp", listenAddr)
+		if listenErr != nil {
+			fmt.Printf("[Tray] Existing instance detected on %s (%v).\n", listenAddr, listenErr)
+			if !startInTray && runtime.GOOS == "windows" {
+				if !focusExistingAppWindow() {
+					openAppWindow("http://127.0.0.1:" + port)
+				}
+			}
+			return
+		}
+		preboundListener = ln
+
 		// Initialize Windows Taskbar Native System Tray Icon (Shell_NotifyIconW)
 		initNativeSystemTray(port)
 
@@ -3774,8 +3890,14 @@ func main() {
 		Addr:              listenAddr,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Printf("Server failed: %v\n", err)
+	var serveErr error
+	if preboundListener != nil {
+		serveErr = srv.Serve(preboundListener)
+	} else {
+		serveErr = srv.ListenAndServe()
+	}
+	if serveErr != nil && serveErr != http.ErrServerClosed {
+		fmt.Printf("Server failed: %v\n", serveErr)
 	}
 }
 

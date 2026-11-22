@@ -136,6 +136,14 @@ func openOrFocusTrayWindow() {
 	// Stub for non-Windows platforms
 }
 
+func openOrFocusTrayWindowImmediate() {
+	// Stub for non-Windows platforms
+}
+
+func focusExistingAppWindow() bool {
+	return false
+}
+
 func syncNativeTrayVisuals() {
 	// Stub for non-Windows platforms
 }

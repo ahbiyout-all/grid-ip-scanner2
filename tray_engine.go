@@ -1110,14 +1110,14 @@ func (m *trayManager) executeTrayCommand(action string, payload string, fromNati
 	case "open_intruder_log":
 		m.enqueueAction("open_intruder_log", "")
 		if fromNativeTray {
-			openOrFocusTrayWindow()
+			openOrFocusTrayWindowImmediate()
 		}
 		msg = "침입·이상 이벤트 로그 창을 엽니다."
 
 	case "open_scheduler":
 		m.enqueueAction("open_scheduler", "")
 		if fromNativeTray {
-			openOrFocusTrayWindow()
+			openOrFocusTrayWindowImmediate()
 		}
 		msg = "정기 자동 스케줄러 창을 엽니다."
 	}

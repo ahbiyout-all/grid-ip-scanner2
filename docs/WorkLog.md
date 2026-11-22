@@ -1,3 +1,17 @@
+### 80. Windows 시스템 트레이 "메인 창 열기" 일반 브라우저 실행 오류 규명 및 App-Mode·창 복원 파이프라인 수정 (2026-11-22)
+- **사용자 요청 사항 및 피드백**:
+  - "트레이에서 메인창 열기 누르면 브라우저가 열림 오류"
+- **원인 규명 및 해결 조치**:
+  1. **[Chromium App-Mode 실행 실패 및 일반 브라우저 폴백 제거] `utils_windows.go`, `main.go`**:
+     - `launchBrowserWithFallback`이 `hideWindow(cmd)`(`wShowWindow = SW_HIDE`) 상태로 Edge/Chrome 등 GUI 프로세스를 띄워 초기 창 생성이 억제되고, `--new-window`·`--no-first-run`·`--no-default-browser-check`·`--disable-session-crashed-bubble` 플래그 누락 및 브라우저 간 `EdgeProfile` 단일 경로 충돌로 비-Edge 엔진 실행이 실패해 4단계 시스템 기본 브라우저(`ShellExecuteW("open", targetURL)`)가 열리던 원인을 해결.
+     - Windows 레지스트리 `App Paths` + `LookPath` 경로 탐색(`resolveBrowserExecutable`), 브라우저별 격리 프로필(`EdgeProfile`, `ChromeProfile`, `WhaleProfile`, `BraveProfile`, `VivaldiProfile`), `SW_HIDE` 없는 `startGuiAppCommand`, 400ms 내 조기 종료 감지 시 `_Alt` 프로필 재시도, 인용부호가 적용된 `buildChromiumShellExecuteParams` 폴백을 구현.
+  2. **[기존 앱 창(최소화·숨김 Electron/App-Mode) 복원 정밀화] `utils_windows.go`, `main.go`**:
+     - 기존 `enumAppWindowProc`가 비표시 창(`IsWindowVisible == 0`)을 무조건 제외하고 제목 부분 일치만으로 첫 창(탐색기/콘솔/타 브라우저 탭 포함)을 선택하며 `SetForegroundWindow` 스레드 포커스 부착이 없던 결함을 수정.
+     - `scoreAppWindowCandidate` 순수 점수 함수를 도입해 가시 `Chrome_WidgetWin_*` 정확 일치(100), 크기(≥200×150)를 가진 숨김 Electron `Chrome_WidgetWin_1` 창(85), 활성 연결 상태의 부분 일치(50/35) 순으로 선별하고 `CabinetWClass`·`ConsoleWindowClass`·`GridIPScanner2_TrayClass`·0×0 헬퍼 창을 배제했으며, `AttachThreadInput` + `BringWindowToTop` + `SetForegroundWindow` + `SW_RESTORE`/`SW_SHOW`로 백그라운드 트레이 스레드에서도 안정적으로 전면 복원하도록 개선.
+  3. **[트레이 연결 오판·중복 실행·즉시 오픈 경로 정리] `main.go`, `utils_windows.go`, `tray_engine.go`, `utils_other.go`, `main_test.go`**:
+     - `--tray` / 서비스 기동 시 `lastHeartbeat`를 제로 값으로 초기화해 초기 10초 동안 창 연결 상태를 거짓 `true`로 오인하던 문제를 제거하고, 중복 비-트레이 실행 시 리스닝 포트(`127.0.0.1:<port>`) 점유 여부를 먼저 점검해 기존 창을 전면 복원 후 종료하도록 보강.
+     - `IDM_TRAY_OPEN` 및 트레이 침입/스케줄러 알림 모달 액션이 200ms 대기 없이 `openOrFocusTrayWindowImmediate()`로 즉시 복원/실행되도록 통일하고, `main_test.go`에 URL 포트 파싱·프로필 격리·Chromium 인자·창 점수 판별 단위 테스트 3종 추가.
+
 ### 79. GitHub Releases 최신 3개 바이너리 유지 및 이전 릴리즈 에셋 자동 정리 적용 (2026-11-22)
 - **사용자 요청 사항 및 피드백**:
   - "새버전의 릴리즈 파일 이 생성되면 이전 버전 릴리즈 파일이 삭제되게 할 수 도 있나요?" -> "GitHub Releases만 최신 3개 유지, 릴리즈 노트/이력은 남기고 바이너리 파일만 삭제"
