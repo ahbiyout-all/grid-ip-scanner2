@@ -1923,16 +1923,7 @@ func main() {
 	registerTrayHTTPHandlers()
 
 	// Heartbeat endpoint
-	http.HandleFunc("/api/heartbeat", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		heartbeatMutex.Lock()
-		lastHeartbeat = time.Now()
-		heartbeatMutex.Unlock()
-		windowConnectedMutex.Lock()
-		windowConnected = true
-		windowConnectedMutex.Unlock()
-		w.WriteHeader(http.StatusOK)
-	})
+	http.HandleFunc("/api/heartbeat", handleHeartbeatAPI)
 
 	// Close to Tray configuration endpoint
 	http.HandleFunc("/api/close-to-tray", handleCloseToTrayAPI)
@@ -2459,10 +2450,14 @@ func main() {
 
 		switch action {
 		case "rdp":
-			cmdStr = fmt.Sprintf("mstsc.exe /v:%s", ip)
-			msg = fmt.Sprintf("원격 데스크톱(mstsc.exe /v:%s)을 실행합니다.", ip)
+			rdpTarget := ip
+			if port != "" && port != "3389" {
+				rdpTarget = fmt.Sprintf("%s:%s", ip, port)
+			}
+			cmdStr = fmt.Sprintf("mstsc.exe /v:%s", rdpTarget)
+			msg = fmt.Sprintf("원격 데스크톱(mstsc.exe /v:%s)을 실행합니다.", rdpTarget)
 			if runtime.GOOS == "windows" {
-				exec.Command("mstsc.exe", fmt.Sprintf("/v:%s", ip)).Start()
+				exec.Command("mstsc.exe", fmt.Sprintf("/v:%s", rdpTarget)).Start()
 			}
 		case "smb":
 			cmdStr = fmt.Sprintf("explorer.exe \\\\%s", ip)
@@ -3716,13 +3711,13 @@ func main() {
 
 			// Run powershell command to:
 			// 1. Wait 300ms to allow client to fully consume the HTTP response.
-			// 2. Kill the previous Edge browser app window that was opened by the non-admin process (using our unique profile name to avoid killing user's personal browser).
+			// 2. Kill the previous Chromium App-Mode browser window opened by the non-admin process (using our unique GridScanner2App profile path).
 			// 3. Kill all other running instances of this scanner to free up the socket port.
 			// 4. Explicitly kill the current process to release the port socket.
 			// 5. Relaunch the application with Administrator privileges (RunAs verb).
 			safeProcName := strings.ReplaceAll(procName, "'", "''")
 			safeExePath := strings.ReplaceAll(exePath, "'", "''")
-			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"name='msedge.exe' and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", safeProcName, os.Getpid(), safeExePath)
+			cmdStr := fmt.Sprintf("Start-Sleep -Milliseconds 300; Get-WmiObject Win32_Process -Filter \"(name='msedge.exe' or name='chrome.exe' or name='whale.exe' or name='brave.exe' or name='vivaldi.exe') and commandline like '%%GridScanner2App%%'\" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Name '%s' -Force -ErrorAction SilentlyContinue; Stop-Process -Id %d -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '%s' -Verb RunAs", safeProcName, os.Getpid(), safeExePath)
 			cmd := exec.Command("powershell", "-Command", cmdStr)
 			hideWindow(cmd)
 
@@ -4402,6 +4397,27 @@ func buildTopologyGraphResponse(inJson string) (map[string]interface{}, bool) {
 		"elapsedMicroseconds": elapsedUs,
 		"summary":             guardRes,
 	}, true
+}
+
+func handleHeartbeatAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	heartbeatMutex.Lock()
+	lastHeartbeat = time.Now()
+	heartbeatMutex.Unlock()
+	windowConnectedMutex.Lock()
+	windowConnected = true
+	windowConnectedMutex.Unlock()
+	w.WriteHeader(http.StatusOK)
 }
 
 func handleCloseToTrayAPI(w http.ResponseWriter, r *http.Request) {

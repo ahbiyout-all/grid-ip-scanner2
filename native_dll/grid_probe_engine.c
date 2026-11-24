@@ -87,7 +87,9 @@ int Probe_FastPing(const char* ip, int timeoutMs, double* outRttMs) {
     if (replies > 0) {
         PICMP_ECHO_REPLY pEcho = (PICMP_ECHO_REPLY)replyBuffer;
         if (pEcho->Status == IP_SUCCESS && pEcho->DataSize <= sizeof(sendData) + 32) {
-            double elapsed = ((double)(tEnd.QuadPart - tStart.QuadPart) * 1000.0) / (double)qpcFreq.QuadPart;
+            double elapsed = (qpcFreq.QuadPart > 0)
+                ? (((double)(tEnd.QuadPart - tStart.QuadPart) * 1000.0) / (double)qpcFreq.QuadPart)
+                : (double)pEcho->RoundTripTime;
             if (elapsed < 0.1) elapsed = 0.1;
             *outRttMs = elapsed;
             free(replyBuffer);
@@ -297,11 +299,16 @@ int Probe_SweepCidrAsyncBatch(
 
     /* Process IcmpSendEcho2 in 64-event windows (MAXIMUM_WAIT_OBJECTS) on 1 slab buffer */
     #define ICMP_WIN_SIZE 64
-    HANDLE events[ICMP_WIN_SIZE];
+    HANDLE events[ICMP_WIN_SIZE] = {0};
+    int eventsOk = 1;
     for (int k = 0; k < ICMP_WIN_SIZE; k++) {
         events[k] = CreateEventA(NULL, TRUE, FALSE, NULL);
+        if (!events[k]) {
+            eventsOk = 0;
+            break;
+        }
     }
-    unsigned char* slab = (unsigned char*)calloc((size_t)ICMP_WIN_SIZE, (size_t)replyStride);
+    unsigned char* slab = eventsOk ? (unsigned char*)calloc((size_t)ICMP_WIN_SIZE, (size_t)replyStride) : NULL;
 
     if (slab) {
         int offset = 0;
@@ -363,7 +370,9 @@ int Probe_SweepCidrAsyncBatch(
                     if (parsed > 0) {
                         PICMP_ECHO_REPLY pEcho = (PICMP_ECHO_REPLY)rBuf;
                         if (pEcho->Status == IP_SUCCESS) {
-                            double qpcMs = ((double)(tNow.QuadPart - tStarts[k].QuadPart) * 1000.0) / (double)qpcFreq.QuadPart;
+                            double qpcMs = (qpcFreq.QuadPart > 0)
+                                ? (((double)(tNow.QuadPart - tStarts[k].QuadPart) * 1000.0) / (double)qpcFreq.QuadPart)
+                                : 0.0;
                             double reported = (double)pEcho->RoundTripTime;
                             double bestRtt = reported > 0.0 ? reported : (qpcMs > 0.1 ? qpcMs : 0.2);
                             outResults[idx].isAlive = 1;

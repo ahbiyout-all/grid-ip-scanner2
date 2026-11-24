@@ -464,9 +464,10 @@ GRID_NET_API int GridNet_ValidateAndSanitizeOUI(
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     (void)hinstDLL;
-    (void)lpvReserved;
     if (fdwReason == DLL_PROCESS_DETACH && InterlockedCompareExchange(&g_wsaState, 0, 0) == 2) {
-        WSACleanup();
+        if (lpvReserved == NULL) {
+            WSACleanup();
+        }
         InterlockedExchange(&g_wsaState, 0);
     }
     return TRUE;

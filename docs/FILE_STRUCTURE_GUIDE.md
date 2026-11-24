@@ -14,7 +14,7 @@ Grid IP Scanner2 Root/
 │       ├── build-and-release.yml   # GitHub Actions CI/CD (Windows .exe/인스톨러, Android APK, 모바일 PWA)
 │       └── mobile-release.yml      # 모바일 전용 독립 릴리스 워크플로우
 │
-├── 📂 components/                  # React 개별 컴포넌트 폴더 (16개 모달·뷰·셀)
+├── 📂 components/                  # React 개별 컴포넌트 폴더 (17개 모달·뷰·셀)
 │   ├── HelpUpdateModal.tsx         # 도움말, 버전 정보 및 업데이트 확인 통합 모달
 │   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, Diff 뱃지, Proxy-ARP 인디케이터 뱃지 컴포넌트
 │   ├── InterfaceExplorerModal.tsx  # 전체 물리/가상/VPN 네트워크 어댑터 탐색 및 서브넷 원클릭 전환 모달
@@ -25,6 +25,7 @@ Grid IP Scanner2 Root/
 │   ├── NativeModulesModal.tsx      # 12대 C/C++ 네이티브 DLL 엔진 아코디언 진단 콘솔 (pcap v2.6.2 테스트 포함)
 │   ├── PreferencesTrayModal.tsx    # 환경설정, 자율 트레이 요약, 스케줄러 제어, DND/이벤트 알림 정책, 접이식 OS 도구 모달
 │   ├── ProFeatureLockedModal.tsx   # PRO/Enterprise 전용 기능 안내 모달 (Free 전환된 5시트 Excel 제외)
+│   ├── QuickConnectModal.tsx       # Listening Ports 클릭 시 포트별 권장 프로토콜(아이콘/뱃지)·URI 복사·원격 실행 모달
 │   ├── ReportCenterModal.tsx       # Free 5시트 Excel Grid(.xls)·CSV·JSON·Markdown & Pro PDF·HTML 통합 내보내기 모달
 │   ├── ScheduleModal.tsx           # 정기 자동 네트워크 스캔 스케줄 관리 및 실행 이력 모달
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
@@ -113,7 +114,7 @@ Grid IP Scanner2 Root/
 
 #### 📝 `App.tsx` & 모달·뷰 분리 구조 (`components/*.tsx`)
 * **역할**: 프론트엔드의 3대 메인 뷰(`grid` / `topology` / `diff`), 테마 선택(Dark/Gray/White/Beige) 관리, 실시간 SSE 스트리밍 수신 및 버퍼링 제어, 세부 IP 프로필 사이드바(네이티브 패킷 텔레메트리 포함), 다중 서브넷/VLAN 캐시 전환·순차 Batch Sweep 및 Go/Electron 트레이 양방향 상태 동기화를 전담합니다.
-* **컴포넌트 분리**: 3계층 토폴로지 뷰(`TopologyMapView.tsx`), 다중 서브넷 바·통합 대시보드(`MultiSubnetBar.tsx`, `MultiSubnetModal.tsx`), 통합 보고서 센터(`ReportCenterModal.tsx`), 환경설정·트레이(`PreferencesTrayModal.tsx`), 도움말/업데이트(`HelpUpdateModal.tsx`), 어댑터 탐색기(`InterfaceExplorerModal.tsx`), 라이선스(`LicenseModal.tsx`), PRO 잠금 안내(`ProFeatureLockedModal.tsx`)를 독립 컴포넌트로 분리했습니다.
+* **컴포넌트 분리**: 3계층 토폴로지 뷰(`TopologyMapView.tsx`), 다중 서브넷 바·통합 대시보드(`MultiSubnetBar.tsx`, `MultiSubnetModal.tsx`), 포트 빠른 연결 모달(`QuickConnectModal.tsx`), 통합 보고서 센터(`ReportCenterModal.tsx`), 환경설정·트레이(`PreferencesTrayModal.tsx`), 도움말/업데이트(`HelpUpdateModal.tsx`), 어댑터 탐색기(`InterfaceExplorerModal.tsx`), 라이선스(`LicenseModal.tsx`), PRO 잠금 안내(`ProFeatureLockedModal.tsx`)를 독립 컴포넌트로 분리했습니다.
 
 #### 📝 `components/PreferencesTrayModal.tsx` & `tray_engine.go` & `utils_windows.go`
 * **역할**: Windows 네이티브 트레이(`Shell_NotifyIconW`)·SCM 서비스(`GridIPScannerService`)·Electron 트레이·웹 UI 간의 양방향 제어 허브입니다.

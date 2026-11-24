@@ -168,7 +168,7 @@ int PortScan_IocpMultiHostSweep(
     int maxInFlightSockets,
     unsigned long long* outOpenPortBitmasks
 ) {
-    if (!ipListNetOrder || ipCount <= 0 || !ports || portCount <= 0 || portCount > 64 || !outOpenPortBitmasks) {
+    if (!ipListNetOrder || ipCount <= 0 || ipCount > 65536 || !ports || portCount <= 0 || portCount > 64 || !outOpenPortBitmasks) {
         return 0;
     }
     EnsureWinsock();
@@ -412,10 +412,11 @@ int PortScan_RunBatch(
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     (void)hinstDLL;
-    (void)lpvReserved;
     if (fdwReason == DLL_PROCESS_DETACH && InterlockedCompareExchange(&winsockState, 0, 0) == 2) {
-        DeleteCriticalSection(&lockPort);
-        WSACleanup();
+        if (lpvReserved == NULL) {
+            DeleteCriticalSection(&lockPort);
+            WSACleanup();
+        }
         InterlockedExchange(&winsockState, 0);
     }
     return TRUE;

@@ -1126,361 +1126,481 @@ func (m *trayManager) executeTrayCommand(action string, payload string, fromNati
 	return m.getSnapshot(false), msg
 }
 
-func registerTrayHTTPHandlers() {
-	// GET or POST /api/tray/state
-	http.HandleFunc("/api/tray/state", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+func isValidTraySubnet3(subnet string) bool {
+	trimmed := strings.TrimSpace(subnet)
+	parts := strings.Split(trimmed, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if p == "" || len(p) > 3 {
+			return false
+		}
+		v, err := strconv.Atoi(p)
+		if err != nil || v < 0 || v > 255 {
+			return false
+		}
+		if strconv.Itoa(v) != p {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidTrayAction(action string) bool {
+	switch strings.TrimSpace(action) {
+	case "quick_scan", "toggle_watch", "toggle_scheduler_pause", "run_schedule_now", "toggle_dnd", "dnd_30m", "open_intruder_log", "open_scheduler":
+		return true
+	default:
+		return false
+	}
+}
+
+func handleTrayStateAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		if r.Body == nil {
+			http.Error(w, "Missing JSON payload", http.StatusBadRequest)
 			return
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		var payload struct {
+			WatchEnabled        *bool                 `json:"watchEnabled"`
+			SchedulerPaused     *bool                 `json:"schedulerPaused"`
+			IsScanning          *bool                 `json:"isScanning"`
+			ScanProgressPercent *int                  `json:"scanProgressPercent"`
+			ActiveDeviceCount   *int                  `json:"activeDeviceCount"`
+			IntruderCount       *int                  `json:"intruderCount"`
+			ConflictCount       *int                  `json:"conflictCount"`
+			StatusMessage       *string               `json:"statusMessage"`
+			Subnet              *string               `json:"subnet"`
+			StartIP             *int                  `json:"startIp"`
+			EndIP               *int                  `json:"endIp"`
+			TrustedKeys         []string              `json:"trustedKeys"`
+			Schedules           []TrayScheduleSummary `json:"schedules"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 256*1024)).Decode(&payload); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 			return
 		}
 
-		if r.Method == http.MethodPost {
-			var payload struct {
-				WatchEnabled        *bool                 `json:"watchEnabled"`
-				SchedulerPaused     *bool                 `json:"schedulerPaused"`
-				IsScanning          *bool                 `json:"isScanning"`
-				ScanProgressPercent *int                  `json:"scanProgressPercent"`
-				ActiveDeviceCount   *int                  `json:"activeDeviceCount"`
-				IntruderCount       *int                  `json:"intruderCount"`
-				ConflictCount       *int                  `json:"conflictCount"`
-				StatusMessage       *string               `json:"statusMessage"`
-				Subnet              *string               `json:"subnet"`
-				StartIP             *int                  `json:"startIp"`
-				EndIP               *int                  `json:"endIp"`
-				TrustedKeys         []string              `json:"trustedKeys"`
-				Schedules           []TrayScheduleSummary `json:"schedules"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-				http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		var trimmedSubnet string
+		if payload.Subnet != nil {
+			trimmedSubnet = strings.TrimSpace(*payload.Subnet)
+			if trimmedSubnet != "" && !isValidTraySubnet3(trimmedSubnet) {
+				http.Error(w, "Invalid 3-octet IPv4 subnet format", http.StatusBadRequest)
 				return
 			}
-
-			globalTrayMgr.mu.Lock()
-			needSave := false
-			if payload.WatchEnabled != nil {
-				globalTrayMgr.watchEnabled = *payload.WatchEnabled
-				needSave = true
-			}
-			if payload.SchedulerPaused != nil {
-				globalTrayMgr.schedulerPaused = *payload.SchedulerPaused
-				needSave = true
-			}
-			if payload.IsScanning != nil {
-				globalTrayMgr.isScanning = *payload.IsScanning
-			}
-			if payload.ScanProgressPercent != nil {
-				globalTrayMgr.scanProgressPercent = *payload.ScanProgressPercent
-			}
-			if payload.ActiveDeviceCount != nil {
-				globalTrayMgr.activeDeviceCount = *payload.ActiveDeviceCount
-			}
-			if payload.IntruderCount != nil {
-				globalTrayMgr.intruderCount = *payload.IntruderCount
-			}
-			if payload.ConflictCount != nil {
-				globalTrayMgr.conflictCount = *payload.ConflictCount
-			}
-			if payload.StatusMessage != nil {
-				globalTrayMgr.statusMessage = *payload.StatusMessage
-			}
-			if payload.Subnet != nil && strings.TrimSpace(*payload.Subnet) != "" {
-				globalTrayMgr.subnet = strings.TrimSpace(*payload.Subnet)
-				needSave = true
-			}
-			if payload.StartIP != nil && *payload.StartIP >= 1 && *payload.StartIP <= 254 {
-				globalTrayMgr.startIP = *payload.StartIP
-			}
-			if payload.EndIP != nil && *payload.EndIP >= globalTrayMgr.startIP && *payload.EndIP <= 254 {
-				globalTrayMgr.endIP = *payload.EndIP
-			}
-			if payload.TrustedKeys != nil {
-				nextSet := make(map[string]bool, len(payload.TrustedKeys)*2)
-				for _, k := range payload.TrustedKeys {
-					norm := strings.ToUpper(strings.TrimSpace(k))
-					if norm != "" {
-						nextSet[norm] = true
-						if macKey := normalizeTrayMac(norm); macKey != "" {
-							nextSet[macKey] = true
-						}
-					}
-				}
-				globalTrayMgr.trustedKeys = nextSet
-				needSave = true
-			}
-			if payload.Schedules != nil {
-				prevById := make(map[string]TrayScheduleSummary, len(globalTrayMgr.schedules))
-				for _, prev := range globalTrayMgr.schedules {
-					prevById[prev.ID] = prev
-				}
-				merged := make([]TrayScheduleSummary, len(payload.Schedules))
-				for i, sc := range payload.Schedules {
-					if prev, ok := prevById[sc.ID]; ok {
-						if prev.Enabled == sc.Enabled && prev.IntervalMinutes == sc.IntervalMinutes && prev.LastRunMs > sc.LastRunMs {
-							sc.LastRunMs = prev.LastRunMs
-							if prev.NextRunMs > sc.NextRunMs {
-								sc.NextRunMs = prev.NextRunMs
-							}
-						}
-					}
-					merged[i] = sc
-				}
-				globalTrayMgr.schedules = merged
-				globalTrayMgr.recomputeNextScheduleLocked()
-				needSave = true
-			}
-			if needSave {
-				globalTrayMgr.saveToDiskLocked()
-			}
-			globalTrayMgr.mu.Unlock()
-
-			syncNativeTrayVisuals()
-			consume := r.URL.Query().Get("consumeActions") == "1"
-			snap := globalTrayMgr.getSnapshot(consume)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"state":   snap,
-			})
+		}
+		if len(payload.TrustedKeys) > 4096 {
+			http.Error(w, "Too many trusted keys", http.StatusBadRequest)
+			return
+		}
+		if len(payload.Schedules) > 128 {
+			http.Error(w, "Too many schedules", http.StatusBadRequest)
+			return
+		}
+		if payload.StartIP != nil && (*payload.StartIP < 1 || *payload.StartIP > 254) {
+			http.Error(w, "Invalid startIp range (1-254)", http.StatusBadRequest)
+			return
+		}
+		if payload.EndIP != nil && (*payload.EndIP < 1 || *payload.EndIP > 254) {
+			http.Error(w, "Invalid endIp range (1-254)", http.StatusBadRequest)
 			return
 		}
 
-		globalTrayMgr.refreshWindowsSystemState(r.URL.Query().Get("refresh") == "1")
+		globalTrayMgr.mu.Lock()
+		nextStart := globalTrayMgr.startIP
+		nextEnd := globalTrayMgr.endIP
+		if payload.StartIP != nil {
+			nextStart = *payload.StartIP
+		}
+		if payload.EndIP != nil {
+			nextEnd = *payload.EndIP
+		}
+		if nextStart > nextEnd {
+			globalTrayMgr.mu.Unlock()
+			http.Error(w, "Invalid IP range: startIp must be <= endIp", http.StatusBadRequest)
+			return
+		}
+
+		needSave := false
+		if payload.WatchEnabled != nil {
+			globalTrayMgr.watchEnabled = *payload.WatchEnabled
+			needSave = true
+		}
+		if payload.SchedulerPaused != nil {
+			globalTrayMgr.schedulerPaused = *payload.SchedulerPaused
+			needSave = true
+		}
+		if payload.IsScanning != nil {
+			globalTrayMgr.isScanning = *payload.IsScanning
+		}
+		if payload.ScanProgressPercent != nil {
+			pct := *payload.ScanProgressPercent
+			if pct < 0 {
+				pct = 0
+			} else if pct > 100 {
+				pct = 100
+			}
+			globalTrayMgr.scanProgressPercent = pct
+		}
+		if payload.ActiveDeviceCount != nil && *payload.ActiveDeviceCount >= 0 {
+			globalTrayMgr.activeDeviceCount = *payload.ActiveDeviceCount
+		}
+		if payload.IntruderCount != nil && *payload.IntruderCount >= 0 {
+			globalTrayMgr.intruderCount = *payload.IntruderCount
+		}
+		if payload.ConflictCount != nil && *payload.ConflictCount >= 0 {
+			globalTrayMgr.conflictCount = *payload.ConflictCount
+		}
+		if payload.StatusMessage != nil {
+			globalTrayMgr.statusMessage = *payload.StatusMessage
+		}
+		if trimmedSubnet != "" {
+			globalTrayMgr.subnet = trimmedSubnet
+			needSave = true
+		}
+		if payload.StartIP != nil || payload.EndIP != nil {
+			globalTrayMgr.startIP = nextStart
+			globalTrayMgr.endIP = nextEnd
+			needSave = true
+		}
+		if payload.TrustedKeys != nil {
+			nextSet := make(map[string]bool, len(payload.TrustedKeys)*2)
+			for _, k := range payload.TrustedKeys {
+				norm := strings.ToUpper(strings.TrimSpace(k))
+				if norm != "" {
+					nextSet[norm] = true
+					if macKey := normalizeTrayMac(norm); macKey != "" {
+						nextSet[macKey] = true
+					}
+				}
+			}
+			globalTrayMgr.trustedKeys = nextSet
+			needSave = true
+		}
+		if payload.Schedules != nil {
+			prevById := make(map[string]TrayScheduleSummary, len(globalTrayMgr.schedules))
+			for _, prev := range globalTrayMgr.schedules {
+				prevById[prev.ID] = prev
+			}
+			merged := make([]TrayScheduleSummary, len(payload.Schedules))
+			for i, sc := range payload.Schedules {
+				if prev, ok := prevById[sc.ID]; ok {
+					if prev.Enabled == sc.Enabled && prev.IntervalMinutes == sc.IntervalMinutes && prev.LastRunMs > sc.LastRunMs {
+						sc.LastRunMs = prev.LastRunMs
+						if prev.NextRunMs > sc.NextRunMs {
+							sc.NextRunMs = prev.NextRunMs
+						}
+					}
+				}
+				merged[i] = sc
+			}
+			globalTrayMgr.schedules = merged
+			globalTrayMgr.recomputeNextScheduleLocked()
+			needSave = true
+		}
+		if needSave {
+			globalTrayMgr.saveToDiskLocked()
+		}
+		globalTrayMgr.mu.Unlock()
+
+		syncNativeTrayVisuals()
 		consume := r.URL.Query().Get("consumeActions") == "1"
 		snap := globalTrayMgr.getSnapshot(consume)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"state":   snap,
 		})
+		return
+	}
+
+	globalTrayMgr.refreshWindowsSystemState(r.URL.Query().Get("refresh") == "1")
+	consume := r.URL.Query().Get("consumeActions") == "1"
+	snap := globalTrayMgr.getSnapshot(consume)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"state":   snap,
 	})
+}
 
-	// GET or POST /api/tray/config (alert policy & DND preferences)
-	http.HandleFunc("/api/tray/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+func handleTrayConfigAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		if r.Body == nil {
+			http.Error(w, "Missing JSON payload", http.StatusBadRequest)
 			return
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		var nextPolicy TrayAlertPolicy
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64*1024)).Decode(&nextPolicy); err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+		if nextPolicy.MassOfflineMinCount <= 0 {
+			nextPolicy.MassOfflineMinCount = 3
+		} else if nextPolicy.MassOfflineMinCount > 254 {
+			nextPolicy.MassOfflineMinCount = 254
+		}
+		if nextPolicy.MassOfflineDropPercent <= 0 {
+			nextPolicy.MassOfflineDropPercent = 30
+		} else if nextPolicy.MassOfflineDropPercent > 100 {
+			nextPolicy.MassOfflineDropPercent = 100
+		}
+		if nextPolicy.DedupCooldownMinutes <= 0 {
+			nextPolicy.DedupCooldownMinutes = 5
+		} else if nextPolicy.DedupCooldownMinutes > 10080 {
+			nextPolicy.DedupCooldownMinutes = 10080
+		}
+		nextPolicy.QuietStart = strings.TrimSpace(nextPolicy.QuietStart)
+		nextPolicy.QuietEnd = strings.TrimSpace(nextPolicy.QuietEnd)
+		if nextPolicy.QuietStart == "" {
+			nextPolicy.QuietStart = "23:00"
+		} else if _, ok := parseClockMinutes(nextPolicy.QuietStart); !ok {
+			http.Error(w, "Invalid quietStart format (expected HH:MM)", http.StatusBadRequest)
+			return
+		}
+		if nextPolicy.QuietEnd == "" {
+			nextPolicy.QuietEnd = "07:00"
+		} else if _, ok := parseClockMinutes(nextPolicy.QuietEnd); !ok {
+			http.Error(w, "Invalid quietEnd format (expected HH:MM)", http.StatusBadRequest)
 			return
 		}
 
-		if r.Method == http.MethodPost {
-			var nextPolicy TrayAlertPolicy
-			if err := json.NewDecoder(r.Body).Decode(&nextPolicy); err != nil {
-				http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
-				return
-			}
-			if nextPolicy.MassOfflineMinCount <= 0 {
-				nextPolicy.MassOfflineMinCount = 3
-			}
-			if nextPolicy.MassOfflineDropPercent <= 0 {
-				nextPolicy.MassOfflineDropPercent = 30
-			}
-			if nextPolicy.DedupCooldownMinutes <= 0 {
-				nextPolicy.DedupCooldownMinutes = 5
-			}
-			if nextPolicy.QuietStart == "" {
-				nextPolicy.QuietStart = "23:00"
-			}
-			if nextPolicy.QuietEnd == "" {
-				nextPolicy.QuietEnd = "07:00"
-			}
+		globalTrayMgr.mu.Lock()
+		globalTrayMgr.policy = nextPolicy
+		globalTrayMgr.saveToDiskLocked()
+		globalTrayMgr.mu.Unlock()
 
-			globalTrayMgr.mu.Lock()
-			globalTrayMgr.policy = nextPolicy
-			globalTrayMgr.saveToDiskLocked()
-			globalTrayMgr.mu.Unlock()
-
-			syncNativeTrayVisuals()
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"policy":  nextPolicy,
-				"state":   globalTrayMgr.getSnapshot(false),
-			})
-			return
-		}
-
-		snap := globalTrayMgr.getSnapshot(false)
+		syncNativeTrayVisuals()
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"policy":  snap.Policy,
+			"policy":  nextPolicy,
+			"state":   globalTrayMgr.getSnapshot(false),
 		})
+		return
+	}
+
+	snap := globalTrayMgr.getSnapshot(false)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"policy":  snap.Policy,
 	})
+}
 
-	// POST /api/tray/action
-	http.HandleFunc("/api/tray/action", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var req struct {
-			Action  string `json:"action"`
-			Payload string `json:"payload"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-		snap, msg := globalTrayMgr.executeTrayCommand(req.Action, req.Payload, false)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"message": msg,
-			"state":   snap,
-		})
+func handleTrayActionAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Body == nil {
+		http.Error(w, "Missing JSON payload", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Action  string `json:"action"`
+		Payload string `json:"payload"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 32*1024)).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	req.Action = strings.TrimSpace(req.Action)
+	if !isValidTrayAction(req.Action) {
+		http.Error(w, "Unknown or empty tray action", http.StatusBadRequest)
+		return
+	}
+	snap, msg := globalTrayMgr.executeTrayCommand(req.Action, req.Payload, false)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": msg,
+		"state":   snap,
 	})
+}
 
-	// POST /api/tray/report-events (routes UI-detected events through Go dedup/DND & Windows Tray notification)
-	http.HandleFunc("/api/tray/report-events", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var req struct {
-			Events []struct {
-				Type     string `json:"type"`
-				Severity string `json:"severity"`
-				DedupKey string `json:"dedupKey"`
-				Title    string `json:"title"`
-				Message  string `json:"message"`
-				IP       string `json:"ip"`
-				MAC      string `json:"mac"`
-			} `json:"events"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-
-		now := time.Now()
-		recorded := make([]TrayEventRecord, 0, len(req.Events))
-		for _, ev := range req.Events {
-			sev := ev.Severity
-			if sev == "" {
-				sev = "info"
-			}
-			rec, _ := globalTrayMgr.recordAndEvaluateEvent(
-				ev.Type,
-				sev,
-				ev.DedupKey,
-				ev.Title,
-				ev.Message,
-				ev.IP,
-				ev.MAC,
-				"ui_sync",
-				now,
-			)
-			recorded = append(recorded, rec)
-		}
-
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":  true,
-			"recorded": recorded,
-		})
-	})
-
-	// GET or DELETE /api/tray/events
-	http.HandleFunc("/api/tray/events", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if r.Method == http.MethodDelete {
-			globalTrayMgr.mu.Lock()
-			globalTrayMgr.events = globalTrayMgr.events[:0]
-			globalTrayMgr.mu.Unlock()
-			json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-			return
-		}
-		snap := globalTrayMgr.getSnapshot(false)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"events":  snap.RecentEvents,
-		})
-	})
-
-	// POST /api/tray/test-notify
-	http.HandleFunc("/api/tray/test-notify", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var req struct {
+func handleTrayReportEventsAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Body == nil {
+		http.Error(w, "Missing JSON payload", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Events []struct {
+			Type     string `json:"type"`
 			Severity string `json:"severity"`
+			DedupKey string `json:"dedupKey"`
 			Title    string `json:"title"`
 			Message  string `json:"message"`
-		}
-		if r.Body != nil {
-			_ = json.NewDecoder(io.LimitReader(r.Body, 16*1024)).Decode(&req)
-		}
-		if req.Severity == "" {
-			req.Severity = "warning"
-		}
-		if req.Title == "" {
-			req.Title = "Grid IP Scanner2 트레이 알림 테스트"
-		}
-		if req.Message == "" {
-			req.Message = "시스템 트레이 OS 알림 및 이벤트 기록 파이프라인이 정상 작동 중입니다."
-		}
+			IP       string `json:"ip"`
+			MAC      string `json:"mac"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 256*1024)).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	if len(req.Events) > 100 {
+		http.Error(w, "Too many events in batch (max 100)", http.StatusBadRequest)
+		return
+	}
 
-		// Force record without cooldown, still honoring DND indication in log
-		rec, notified := globalTrayMgr.recordAndEvaluateEvent(
-			"system",
-			req.Severity,
-			"",
-			req.Title,
-			req.Message,
-			"",
-			"",
-			"tray_action",
-			time.Now(),
+	now := time.Now()
+	recorded := make([]TrayEventRecord, 0, len(req.Events))
+	for _, ev := range req.Events {
+		evType := strings.TrimSpace(ev.Type)
+		if evType == "" {
+			evType = "system"
+		}
+		sev := strings.ToLower(strings.TrimSpace(ev.Severity))
+		switch sev {
+		case "critical", "warning", "info":
+		default:
+			sev = "info"
+		}
+		rec, _ := globalTrayMgr.recordAndEvaluateEvent(
+			evType,
+			sev,
+			ev.DedupKey,
+			ev.Title,
+			ev.Message,
+			ev.IP,
+			ev.MAC,
+			"ui_sync",
+			now,
 		)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":  true,
-			"notified": notified,
-			"event":    rec,
-		})
+		recorded = append(recorded, rec)
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"recorded": recorded,
 	})
+}
+
+func handleTrayEventsAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Method == http.MethodDelete {
+		globalTrayMgr.mu.Lock()
+		globalTrayMgr.events = globalTrayMgr.events[:0]
+		globalTrayMgr.mu.Unlock()
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+		return
+	}
+	snap := globalTrayMgr.getSnapshot(false)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"events":  snap.RecentEvents,
+	})
+}
+
+func handleTrayTestNotifyAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Severity string `json:"severity"`
+		Title    string `json:"title"`
+		Message  string `json:"message"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(io.LimitReader(r.Body, 16*1024)).Decode(&req)
+	}
+	if req.Severity == "" {
+		req.Severity = "warning"
+	}
+	if req.Title == "" {
+		req.Title = "Grid IP Scanner2 트레이 알림 테스트"
+	}
+	if req.Message == "" {
+		req.Message = "시스템 트레이 OS 알림 및 이벤트 기록 파이프라인이 정상 작동 중입니다."
+	}
+
+	// Force record without cooldown, still honoring DND indication in log
+	rec, notified := globalTrayMgr.recordAndEvaluateEvent(
+		"system",
+		req.Severity,
+		"",
+		req.Title,
+		req.Message,
+		"",
+		"",
+		"tray_action",
+		time.Now(),
+	)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"notified": notified,
+		"event":    rec,
+	})
+}
+
+func registerTrayHTTPHandlers() {
+	http.HandleFunc("/api/tray/state", handleTrayStateAPI)
+	http.HandleFunc("/api/tray/config", handleTrayConfigAPI)
+	http.HandleFunc("/api/tray/action", handleTrayActionAPI)
+	http.HandleFunc("/api/tray/report-events", handleTrayReportEventsAPI)
+	http.HandleFunc("/api/tray/events", handleTrayEventsAPI)
+	http.HandleFunc("/api/tray/test-notify", handleTrayTestNotifyAPI)
 }

@@ -230,11 +230,12 @@ func resolveSMBName(ctx context.Context, ip string, timeoutMs int) string {
 	// Parse TargetInfo fields in NTLMSSP Challenge:
 	// TargetInfo length is at challenge offset 40 (uint16), offset is at challenge offset 44 (uint32)
 	targetInfoLen := int(binary.LittleEndian.Uint16(challenge[40:42]))
-	targetInfoOffset := int(binary.LittleEndian.Uint32(challenge[44:48]))
+	rawTargetInfoOffset := binary.LittleEndian.Uint32(challenge[44:48])
 
-	if targetInfoOffset+targetInfoLen > len(challenge) {
+	if rawTargetInfoOffset > uint32(len(challenge)) || targetInfoLen < 0 || targetInfoLen > len(challenge)-int(rawTargetInfoOffset) {
 		return ""
 	}
+	targetInfoOffset := int(rawTargetInfoOffset)
 
 	targetInfo := challenge[targetInfoOffset : targetInfoOffset+targetInfoLen]
 	idx := 0

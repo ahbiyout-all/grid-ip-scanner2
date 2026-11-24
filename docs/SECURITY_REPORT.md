@@ -44,8 +44,9 @@
 
 - **Safe DLL Path Pinning (`LoadLibraryExW`)**:
   - 12대 네이티브 DLL 로드 시 `LOAD_LIBRARY_SEARCH_APPLICATION_DIR` 경로 고정 및 `wpcap.dll`의 `LOAD_LIBRARY_SEARCH_SYSTEM32` 고정을 적용해 DLL 하이재킹(DLL Side-Loading) 공격을 원천 차단합니다.
-- **JSON 입력 방어 & 동시성 안전화**:
-  - 네이티브 C JSON 브리지(`grid_topology_guard.c`, `grid_fingerprint_engine.c`)는 중첩 깊이·따옴표 인식 파서 및 음수 포트(`[-23]`) 방어 로직을 탑재했으며, Win32 비동기 ICMP/IOCP 엔진은 스레드 레이스 제거 및 `CancelIoEx` 안전 종료 드레인을 준수합니다.
+- **JSON 입력 방어 · Loader Lock & 배치 경계 안전화**:
+  - 네이티브 C JSON 브리지(`grid_topology_guard.c`, `grid_fingerprint_engine.c`)는 중첩 깊이·따옴표 인식 파서 및 음수 포트(`[-23]`) 방어 로직을 탑재했습니다.
+  - Win32 DLL 진입점(`grid_pcap_analyzer.c`, `grid_port_iocp.c`, `grid_net_driver.c`)은 `DLL_PROCESS_DETACH` 시 `lpvReserved == NULL` 동적 언로드 조건에서만 `FreeLibrary`/`WSACleanup`/`DeleteCriticalSection`을 호출해 프로세스 종료 Loader Lock 교착을 차단하며, `grid_port_iocp.c`·`grid_probe_engine.c`는 다중 호스트 작업량(`ipCount` 상한), `qpcFreq` 0-나눗셈 방지 및 `CreateEventA` 할당 검증을 준수합니다.
 - **Fallback 안전장치**:
   - DLL 로드 실패 또는 비-Windows 환경 발생 시 Go/WebAssembly 내장 `crypto` 및 순수 Go 토폴로지 모듈로 무중단 폴백하여 가용성을 보장합니다.
 
@@ -84,6 +85,10 @@
   - 시스템 트레이 메뉴의 방화벽 동작(`IDM_TRAY_FIREWALL`)이 시스템 전체 방화벽 정책을 초기화하던 `netsh advfirewall reset` 대신 관리자 권한 확인 후 `ensureFirewallRulesSilently()`를 호출해 Grid IP Scanner2 예외 규칙만 안전하게 재등록하도록 개선했습니다.
 - **Electron 데스크톱 영구 설정 보존 (`main.js`)**:
   - 앱 종료(`terminateApplicationCleanly`, `window-all-closed`) 시 휘발성 HTTP 캐시(`clearCache`)만 비우고 `localStorage` 및 `userData` 디렉터리를 유지해 저장된 별칭, 스냅샷, 스케줄, 다중 서브넷/VLAN 프로파일이 재시작 후에도 손실되지 않도록 보호합니다.
+- **네이티브 `DllMain`·SMB 버퍼·트레이 API 입력 경계 & 다중 브라우저 정리 보강 (`v2.6.0` 4차 Audit)**:
+  - `name_resolver.go`의 NTLMSSP `TargetInfo` 파싱에 부호 없는 오프셋·길이 경계 검사를 추가하고, `/api/heartbeat` 메서드 통제 및 UAC 관리자 재실행 시 5종 Chromium 앱 창(`Edge`/`Chrome`/`Whale`/`Brave`/`Vivaldi`) 일괄 정리 필터를 적용했습니다.
+  - `/api/tray/state`, `/api/tray/config`, `/api/tray/action`, `/api/tray/report-events`에 본문 크기 제한(`io.LimitReader`), 3옥텟 IPv4 서브넷·병합 IP 범위(`startIp <= endIp`)·`HH:MM` 방해금지 시간 검증, 허용 액션 화이트리스트(`400`) 및 이벤트 배치 상한(100건)을 적용했습니다.
+  - `scripts/build-distribution.js` 언팩·매니페스트 누락(`grid_topology_guard.dll`)과 `build_all_dlls.bat` 지연 확장 누락을 함께 교정했습니다.
 
 ---
 

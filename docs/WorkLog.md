@@ -1,3 +1,36 @@
+### 82. Listening Ports 빠른 연결 모달(`QuickConnectModal.tsx`) 탑재 및 전수 자아성찰(Deep Audit 5차) 결함 수정 (2026-11-24)
+- **사용자 요청 사항 및 피드백**:
+  - "Modify the 'Listening Ports' section to make port numbers clickable... display recognizable icons next to each suggested protocol name" -> "**자아성찰(Self-Reflection & Deep Audit)** 과 **오류 수정** 그리고 문서들 업데이트"
+- **원인 규명 및 해결 조치**:
+  1. **[미사용 중복 컴포넌트 파일 제거] `src/components/QuickConnectModal.tsx`**:
+     - 재시도 과정에서 `src/components/QuickConnectModal.tsx`에 잘못 잔류한 고아 중복 파일을 삭제하고 빈 `src/components` 디렉토리를 정리해 실제 사용 중인 `components/QuickConnectModal.tsx` 단일 소스로 일원화.
+  2. **[`QuickConnectModal.tsx` 런타임·클립보드·토스트·타이머 결함 수정] `components/QuickConnectModal.tsx`**:
+     - 미사용 `Lock`·`Wifi` 임포트를 제거하고, 스캔·감사 대상 포트(`554` RTSP, `631` IPP/CUPS, `9100` JetDirect, `1883`/`8883` MQTT, `5900` VNC, `25`/`587` SMTP, `53` DNS, `110`/`995` POP3, `143`/`993` IMAP, `135` RPC, `1433`/`1521`/`27017` DB, `8000`/`8443`/`8899`/`37777` 웹·CCTV 콘솔 등) 전체에 대응하는 프로토콜 아이콘 및 `SSH`/`HTTP`/`HTTPS`/`RDP`/`SMB` 등 식별 뱃지 추가.
+     - `window.open` 및 예외 처리 없는 `navigator.clipboard.writeText` 호출을 제거하고 `URL` 프로토콜 검증 후 `<a target="_blank" rel="noopener noreferrer">` 링크 오픈, `services/clipboard.ts` (`copyTextToClipboard`) 폴백, `rdp`/`ssh`/`smb` 대상 `/api/remote-action` 연동 및 `.rdp` 파일·UNC 경로 안전 폴백으로 교체.
+     - 비-HTTP 실행 시 토스트 2중 중첩 출력 및 복사 실패 시 성공 토스트 오출력·`-1` 인덱스 피드백 누락 버그를 해결하고, `copyTimerRef` 언마운트 정리, `Escape` 키 및 배경 클릭 닫기, `role="dialog"`/`aria-modal`/`aria-label`/`type="button"` 접근성 보완.
+  3. **[선택 IP 동기화·주석 정리 & 백엔드 RDP 커스텀 포트 지원] `App.tsx`, `main.go`**:
+     - `App.tsx`의 `quickConnectPort` 상태 주석 오기 수정, `selectedIp` 변경·해제 시 `quickConnectPort` 자동 초기화 `useEffect` 추가, Listening Ports 버튼 `type="button"` 명시.
+     - `main.go` `/api/remote-action`의 `rdp` 분기가 비표준 포트(`port != 3389`)를 무시하던 문제를 `mstsc.exe /v:ip:port` 포맷 지원으로 교정.
+  4. **[문서 최신화] `docs/FILE_STRUCTURE_GUIDE.md`, `docs/PATCH_NOTE.md`, `docs/WorkLog.md`, `docs/GRID_IP_SCANNER_2.md`, `README.md`**:
+     - `components/` 구성 수량(16→17개) 및 `QuickConnectModal.tsx` 명세, 빠른 연결 기능 및 5차 감사 이력 반영.
+
+### 81. 기능 전수 자아성찰(Deep Audit 4차) · C/C++ Loader Lock/배치 안전화 · 트레이 API/SMB 검증 · 12번째 DLL 배포 정합성 수정 (2026-11-23)
+- **사용자 요청 사항 및 피드백**:
+  - "기능 자아성찰(Self-Reflection & Deep Audit) 과 오류 수정 그리고 문서들 업데이트"
+- **원인 규명 및 해결 조치**:
+  1. **[Win32 C DLL `DllMain` Loader Lock 교착 방지 및 배치 경계 보강] `native_dll/grid_pcap_analyzer.c`, `grid_port_iocp.c`, `grid_net_driver.c`, `grid_probe_engine.c`, `native_dll/build_all_dlls.bat`**:
+     - `DLL_PROCESS_DETACH` 시 `lpvReserved != NULL`(프로세스 종료) 상황에서 호출 시 데드락을 유발할 수 있던 `FreeLibrary(hWpcap)`, `WSACleanup()`, `DeleteCriticalSection(&lockPort)`를 `lpvReserved == NULL` 동적 언로드 조건으로 제한.
+     - `PortScan_IocpMultiHostSweep`에 `ipCount <= 65536` 상한을 적용해 `ipCount * portCount` 부호 있는 정수 오버플로를 차단하고, `grid_probe_engine.c`의 `qpcFreq.QuadPart == 0` 분모 방어 및 `CreateEventA` 핸들 생성 실패 시 안전 중단 처리 추가.
+     - `native_dll/build_all_dlls.bat` 상단에 `setlocal enabledelayedexpansion`을 추가해 `!SUCCESS_DLL! / 12` 카운터가 리터럴로 출력되던 결함 수정.
+  2. **[배포 패키징 12번째 DLL 누락 및 `--check` 읽기 전용 모드 보완] `scripts/build-distribution.js`, `scripts/sync-version.js`**:
+     - `build-distribution.js`의 `nativeDlls` 복사 배열 및 `build-manifest.json` 스키마에 누락되어 `unpacked`/Portable ZIP에 빠지던 `grid_topology_guard.dll`을 추가해 `Setup.iss`·`build-win.js`와 12대 DLL 구성을 일치시킴.
+     - `scripts/sync-version.js`에 실제 읽기 전용 `--check` 검증 분기를 구현해 버전 점검 실행 시 파일이 묵시 덮어써지지 않도록 보완.
+  3. **[Go 트레이 API · SMB 파서 · UAC 브라우저 정리 & JSX 렌더링 교정] `tray_engine.go`, `main.go`, `name_resolver.go`, `App.tsx`, `main_test.go`**:
+     - `/api/tray/state`, `/api/tray/config`, `/api/tray/action`, `/api/tray/report-events`, `/api/tray/events`, `/api/tray/test-notify`를 명명된 핸들러로 분리하고 `io.LimitReader` 본문 제한, 3옥텟 IPv4 서브넷 검증(`isValidTraySubnet3`), 단일 필드 전달 시에도 병합 범위(`startIp <= endIp`) 불변식 검사, `HH:MM` 방해금지 시간 검증, 미지원 액션 `400 Bad Request` 차단, 배치 이벤트 100건 상한 및 임계치 상한 적용.
+     - `handleHeartbeatAPI` 메서드 검증(`GET/POST/OPTIONS`) 및 `/api/relaunch-admin` UAC 승격 시 5종 Chromium 앱 창(`msedge.exe`, `chrome.exe`, `whale.exe`, `brave.exe`, `vivaldi.exe`) 일괄 종료 필터 확대.
+     - `resolveSMBName` NTLMSSP `TargetInfo` 슬라이싱에 `uint32` 기반 오버플로 안전 경계 검사를 추가하고, `App.tsx`의 `similarityScore` 조건식을 `> 0` 명시 비교로 교정.
+     - `main_test.go`에 `TestHeartbeatAPIHardening`, `TestTrayHTTPValidationHardening` 회귀 테스트 추가 및 `docs/SECURITY_REPORT.md`, `docs/PATCH_NOTE.md`, `docs/WorkLog.md` 업데이트.
+
 ### 80. Windows 시스템 트레이 "메인 창 열기" 일반 브라우저 실행 오류 규명 및 App-Mode·창 복원 파이프라인 수정 (2026-11-22)
 - **사용자 요청 사항 및 피드백**:
   - "트레이에서 메인창 열기 누르면 브라우저가 열림 오류"

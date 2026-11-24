@@ -446,12 +446,11 @@ int Pcap_InspectPacketProfileJson(
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     (void)hinstDLL;
-    (void)lpvReserved;
     if (fdwReason == DLL_PROCESS_DETACH) {
-        if (hWpcap) {
+        if (lpvReserved == NULL && hWpcap) {
             FreeLibrary(hWpcap);
-            hWpcap = NULL;
         }
+        hWpcap = NULL;
         InterlockedExchange(&npcapAvailable, 0);
         InterlockedExchange(&npcapState, 0);
     }

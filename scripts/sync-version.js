@@ -68,7 +68,78 @@ console.log(`   Source Version: v${currentVer}`);
 console.log(`   Target Version: v${targetVer}`);
 console.log(`======================================================\n`);
 
+const checkOnly = args.includes('--check');
 const quadVer = `${targetVer}.0`;
+
+if (checkOnly) {
+  let mismatches = 0;
+  const verify = (label, ok, detail) => {
+    if (ok) {
+      console.log(`✅ [CHECK] ${label}: OK`);
+    } else {
+      console.error(`❌ [CHECK] ${label}: MISMATCH (${detail})`);
+      mismatches++;
+    }
+  };
+
+  const winresPath = path.join(rootDir, 'winres.json');
+  if (fs.existsSync(winresPath)) {
+    const winres = JSON.parse(fs.readFileSync(winresPath, 'utf8'));
+    const manifestVer = winres.RT_MANIFEST?.['#1']?.['0409']?.identity?.version;
+    const fixedVer = winres.RT_VERSION?.['#1']?.['0000']?.fixed?.product_version;
+    verify('winres.json', manifestVer === quadVer && fixedVer === quadVer, `${manifestVer} / ${fixedVer}`);
+  }
+
+  const issPath = path.join(rootDir, 'installer', 'Grid_IP_Scanner2_Dedicated_Setup.iss');
+  if (fs.existsSync(issPath)) {
+    const iss = fs.readFileSync(issPath, 'utf8');
+    const m = iss.match(/#define MyAppVersion "([^"]*)"/);
+    verify('installer/Grid_IP_Scanner2_Dedicated_Setup.iss', m && m[1] === targetVer, m ? m[1] : 'missing');
+  }
+
+  const ucPath = path.join(rootDir, 'services', 'updateChecker.ts');
+  if (fs.existsSync(ucPath)) {
+    const uc = fs.readFileSync(ucPath, 'utf8');
+    const m = uc.match(/export const CURRENT_APP_VERSION = '([^']*)';/);
+    verify('services/updateChecker.ts', m && m[1] === targetVer, m ? m[1] : 'missing');
+  }
+
+  const patchPath = path.join(rootDir, 'docs', 'PATCH_NOTE.md');
+  if (fs.existsSync(patchPath)) {
+    const patch = fs.readFileSync(patchPath, 'utf8');
+    const m = patch.match(/^#\s*Grid IP Scanner2\s*-\s*Patch Note\s*\(v([^)]*)\)/im);
+    verify('docs/PATCH_NOTE.md', m && m[1] === targetVer, m ? m[1] : 'missing');
+  }
+
+  [path.join(rootDir, 'docs', 'README.md'), path.join(rootDir, 'README.md')].forEach((rmPath) => {
+    if (fs.existsSync(rmPath)) {
+      const readme = fs.readFileSync(rmPath, 'utf8');
+      const m = readme.match(/^#\s*🌐\s*Grid IP Scanner2\s*\(v([^)]*)\)/im);
+      verify(path.relative(rootDir, rmPath), m && m[1] === targetVer, m ? m[1] : 'missing');
+    }
+  });
+
+  const setupGoPath = path.join(rootDir, 'installer', 'setup_builder.go');
+  if (fs.existsSync(setupGoPath)) {
+    const setupGo = fs.readFileSync(setupGoPath, 'utf8');
+    const m = setupGo.match(/AppVersion\s*=\s*"([^"]*)"/);
+    verify('installer/setup_builder.go', m && m[1] === targetVer, m ? m[1] : 'missing');
+  }
+
+  const gradlePath = path.join(rootDir, 'android', 'app', 'build.gradle');
+  if (fs.existsSync(gradlePath)) {
+    const gradle = fs.readFileSync(gradlePath, 'utf8');
+    const m = gradle.match(/versionName\s+"([^"]*)"/);
+    verify('android/app/build.gradle', m && m[1] === targetVer, m ? m[1] : 'missing');
+  }
+
+  if (mismatches > 0) {
+    console.error(`\n❌ Version check failed with ${mismatches} mismatch(es).\n`);
+    process.exit(1);
+  }
+  console.log(`\n🎉 Version check passed: All checked targets match v${targetVer}!\n`);
+  process.exit(0);
+}
 
 // 1. Synchronize package.json
 pkg.version = targetVer;

@@ -36,6 +36,7 @@ import { ProFeatureLockedModal, ProLockedFeatureId } from './components/ProFeatu
 import { InterfaceExplorerModal } from './components/InterfaceExplorerModal';
 import { LicenseModal } from './components/LicenseModal';
 import { HelpUpdateModal } from './components/HelpUpdateModal';
+import { QuickConnectModal } from './components/QuickConnectModal';
 import { PreferencesTrayModal } from './components/PreferencesTrayModal';
 import { MultiSubnetBar } from './components/MultiSubnetBar';
 import { MultiSubnetModal } from './components/MultiSubnetModal';
@@ -1145,10 +1146,15 @@ const App: React.FC = () => {
   const [isAuditingPorts, setIsAuditingPorts] = useState(false);
   const [portAuditResult, setPortAuditResult] = useState<PortScanResult | null>(null);
 
-  // GitHub Real-Time Auto-Update State
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  // Quick Connect Port Modal State
+  const [quickConnectPort, setQuickConnectPort] = useState<{ ip: string; port: number } | null>(null);
+  useEffect(() => {
+    setQuickConnectPort((prev) => {
+      if (!prev) return null;
+      if (!selectedIp || prev.ip !== selectedIp) return null;
+      return prev;
+    });
+  }, [selectedIp]);
 
   // Feature 3: Custom Device Nicknames & Notes
   const [aliases, setAliases] = useState<Record<string, DeviceAlias>>(getStoredAliases());
@@ -2487,6 +2493,10 @@ const App: React.FC = () => {
       return changed ? nextList : prevList;
     });
   }, [localIpInfo]);
+
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 
   // Background GitHub Releases Auto-Update Checker
   useEffect(() => {
@@ -6203,9 +6213,9 @@ const App: React.FC = () => {
                           <div className="truncate">
                             <div className={`${isLgText ? 'text-xs' : 'text-[11.5px]'} font-black text-amber-300 flex items-center gap-1`}>
                               <span>{lang === 'ko' ? '소프트 신뢰 유예 중' : 'Soft Trust Grace Period'}</span>
-                              {selectedSoftTrust.softTrustInfo?.similarityScore && (
+                              {(selectedSoftTrust.softTrustInfo?.similarityScore ?? 0) > 0 && (
                                 <span className={`px-1.5 py-0.5 rounded bg-amber-500/30 text-amber-200 ${isLgText ? 'text-[10px]' : 'text-[9px]'} font-mono font-bold`}>
-                                  {Math.round(selectedSoftTrust.softTrustInfo.similarityScore * 100)}% {lang === 'ko' ? '매칭' : 'Match'}
+                                  {Math.round((selectedSoftTrust.softTrustInfo?.similarityScore ?? 0) * 100)}% {lang === 'ko' ? '매칭' : 'Match'}
                                 </span>
                               )}
                             </div>
@@ -7017,14 +7027,30 @@ const App: React.FC = () => {
                   {/* Listening Ports & Port Security Audit */}
                   {effectiveDevice?.openPorts && effectiveDevice.openPorts.length > 0 && (
                     <section className="space-y-2">
-                      <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>
-                        {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`${isLgText ? 'text-[11px]' : 'text-[10px]'} font-black ${t.textMuted} uppercase tracking-wider`}>
+                          {s.listeningPorts} {selectedDiffStatus === 'offline' && <span className={`${isLgText ? 'text-[9.5px]' : 'text-[8.5px]'} text-rose-400 font-bold ml-1`}>({lang === 'ko' ? '이전 기준' : 'Baseline'})</span>}
+                        </span>
+                        <span className={`${isLgText ? 'text-[9.5px]' : 'text-[9px]'} opacity-60 font-mono`}>
+                          {lang === 'ko' ? '💡 클릭하여 빠른 연결' : '💡 Click port'}
+                        </span>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         {effectiveDevice.openPorts.map(p => (
-                          <div key={p} className={`px-2.5 py-1 rounded-lg ${isLgText ? 'text-xs' : 'text-[11px]'} font-black mono ${theme === 'beige' ? 'bg-[#f5ebd6] text-[#b45309]' : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'}`}>
-                            {p}
-                          </div>
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => selectedIp && setQuickConnectPort({ ip: selectedIp, port: p })}
+                            title={lang === 'ko' ? `포트 ${p} 빠른 연결 열기` : `Open quick connect for port ${p}`}
+                            className={`px-2.5 py-1 rounded-lg ${isLgText ? 'text-xs' : 'text-[11px]'} font-black mono transition-all cursor-pointer flex items-center gap-1 group/port ${
+                              theme === 'beige'
+                                ? 'bg-[#f5ebd6] text-[#b45309] hover:bg-[#e2cca7] border border-[#d4be94]'
+                                : 'bg-sky-500/20 text-sky-400 border border-sky-500/30 hover:bg-sky-500/30 hover:border-sky-400 hover:text-sky-300 shadow-sm'
+                            }`}
+                          >
+                            <span>{p}</span>
+                            <span className="text-[9px] opacity-60 group-hover/port:opacity-100 transition-opacity">⚡</span>
+                          </button>
                         ))}
                       </div>
                     </section>
@@ -7658,6 +7684,17 @@ const App: React.FC = () => {
             isIpv4 ? macOrIp : undefined
           );
         }}
+      />
+
+      {/* Quick Connect Protocol Suggestion Modal */}
+      <QuickConnectModal
+        isOpen={Boolean(quickConnectPort)}
+        onClose={() => setQuickConnectPort(null)}
+        ip={quickConnectPort?.ip || selectedIp || '127.0.0.1'}
+        port={quickConnectPort?.port || 80}
+        theme={theme}
+        lang={lang as 'ko' | 'en'}
+        showToast={showToast}
       />
     </div>
   );

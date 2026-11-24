@@ -67,8 +67,8 @@
 * **통합 보고서 센터 모달 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`)**:
   - **Free 티어 5시트 Excel Grid XML(`.xls`) 전면 개방**: 16x16 IP 맵 시트 포함 다중 시트 Excel XML(`.xls`) 및 CSV·JSON·Markdown을 Free 에디션에서 무료 제공.
   - PDF 보안 감사 보고서(Pro+), 인쇄/그리드 HTML 내보내기 및 스냅샷 비교 진입을 전용 모달로 일원화.
-* **25개 주요 서비스 포트 정밀 진단 (`services/portScanner.ts`)**:
-  - FTP(21), SSH(22), Telnet(23), SMTP(25), DNS(53), HTTP(80), SMB(445), MSSQL(1433), MySQL(3306), RDP(3389), PostgreSQL(5432), Redis(6379) 등 주요 위험 포트 동시 검사 및 위험도(`HIGH`/`MEDIUM`/`SAFE`) 자동 분류.
+* **25개 주요 서비스 포트 정밀 진단 & 빠른 연결 모달 (`services/portScanner.ts`, `components/QuickConnectModal.tsx`)**:
+  - FTP(21), SSH(22), Telnet(23), SMTP(25), DNS(53), HTTP(80), SMB(445), RTSP(554), IPP(631), MSSQL(1433), MQTT(1883), MySQL(3306), RDP(3389), PostgreSQL(5432), VNC(5900), Redis(6379), JetDirect(9100) 등 주요 포트 위험도(`HIGH`/`MEDIUM`/`SAFE`) 분류 및 Listening Ports 클릭 시 프로토콜 아이콘·URI 복사·원격 실행을 제안하는 **Quick Connect 모달** 제공.
 * **A4 규격 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**:
   - **Zero Row-Chopping**: 794px x 1123px (A4 1:1.4142)의 독립 페이지 단위 사전 분할로 페이지 경계면에서 테이블 행이나 글자가 반으로 잘리는 문제 완전 해소.
   - **11mm 프린터 안전 여백 & 동적 페이지 번호**: 매 페이지 하단 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 직접 인쇄 지원.

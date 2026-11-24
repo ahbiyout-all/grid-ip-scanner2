@@ -482,3 +482,128 @@ func TestScoreAppWindowCandidate(t *testing.T) {
 	}
 }
 
+func TestHeartbeatAPIHardening(t *testing.T) {
+	heartbeatMutex.Lock()
+	origHeartbeat := lastHeartbeat
+	heartbeatMutex.Unlock()
+	windowConnectedMutex.Lock()
+	origConnected := windowConnected
+	windowConnectedMutex.Unlock()
+	defer func() {
+		heartbeatMutex.Lock()
+		lastHeartbeat = origHeartbeat
+		heartbeatMutex.Unlock()
+		windowConnectedMutex.Lock()
+		windowConnected = origConnected
+		windowConnectedMutex.Unlock()
+	}()
+
+	reqOpt := httptest.NewRequest(http.MethodOptions, "/api/heartbeat", nil)
+	recOpt := httptest.NewRecorder()
+	handleHeartbeatAPI(recOpt, reqOpt)
+	if recOpt.Code != http.StatusOK {
+		t.Fatalf("expected 200 for OPTIONS /api/heartbeat, got %d", recOpt.Code)
+	}
+
+	reqDel := httptest.NewRequest(http.MethodDelete, "/api/heartbeat", nil)
+	recDel := httptest.NewRecorder()
+	handleHeartbeatAPI(recDel, reqDel)
+	if recDel.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405 for DELETE /api/heartbeat, got %d", recDel.Code)
+	}
+
+	reqPost := httptest.NewRequest(http.MethodPost, "/api/heartbeat", nil)
+	recPost := httptest.NewRecorder()
+	handleHeartbeatAPI(recPost, reqPost)
+	if recPost.Code != http.StatusOK {
+		t.Fatalf("expected 200 for POST /api/heartbeat, got %d", recPost.Code)
+	}
+	windowConnectedMutex.Lock()
+	connected := windowConnected
+	windowConnectedMutex.Unlock()
+	if !connected {
+		t.Fatalf("expected windowConnected=true after POST /api/heartbeat")
+	}
+}
+
+func TestTrayHTTPValidationHardening(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	globalTrayMgr.mu.Lock()
+	origSubnet := globalTrayMgr.subnet
+	origStart := globalTrayMgr.startIP
+	origEnd := globalTrayMgr.endIP
+	origPolicy := globalTrayMgr.policy
+	origEvents := append([]TrayEventRecord(nil), globalTrayMgr.events...)
+	globalTrayMgr.subnet = "192.168.0"
+	globalTrayMgr.startIP = 10
+	globalTrayMgr.endIP = 200
+	globalTrayMgr.mu.Unlock()
+	defer func() {
+		globalTrayMgr.mu.Lock()
+		globalTrayMgr.subnet = origSubnet
+		globalTrayMgr.startIP = origStart
+		globalTrayMgr.endIP = origEnd
+		globalTrayMgr.policy = origPolicy
+		globalTrayMgr.events = origEvents
+		globalTrayMgr.mu.Unlock()
+	}()
+
+	// 1. Reject invalid subnet format
+	reqBadSub := httptest.NewRequest(http.MethodPost, "/api/tray/state", strings.NewReader(`{"subnet":"999.168.0"}`))
+	recBadSub := httptest.NewRecorder()
+	handleTrayStateAPI(recBadSub, reqBadSub)
+	if recBadSub.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid subnet, got %d", recBadSub.Code)
+	}
+
+	// 2. Reject inverted IP range when only endIp < current startIp is supplied
+	reqBadRange := httptest.NewRequest(http.MethodPost, "/api/tray/state", strings.NewReader(`{"endIp":5}`))
+	recBadRange := httptest.NewRecorder()
+	handleTrayStateAPI(recBadRange, reqBadRange)
+	if recBadRange.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for endIp < existing startIp, got %d", recBadRange.Code)
+	}
+
+	// 3. Reject invalid quietStart format
+	reqBadQuiet := httptest.NewRequest(http.MethodPost, "/api/tray/config", strings.NewReader(`{"quietStart":"25:99"}`))
+	recBadQuiet := httptest.NewRecorder()
+	handleTrayConfigAPI(recBadQuiet, reqBadQuiet)
+	if recBadQuiet.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid quietStart, got %d", recBadQuiet.Code)
+	}
+
+	// 4. Reject unknown tray action
+	reqBadAction := httptest.NewRequest(http.MethodPost, "/api/tray/action", strings.NewReader(`{"action":"nonexistent_cmd"}`))
+	recBadAction := httptest.NewRecorder()
+	handleTrayActionAPI(recBadAction, reqBadAction)
+	if recBadAction.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown tray action, got %d", recBadAction.Code)
+	}
+
+	// 5. Reject oversized report-events batch (> 100)
+	var evItems []string
+	for i := 0; i < 101; i++ {
+		evItems = append(evItems, `{"type":"system","title":"t","message":"m"}`)
+	}
+	reqBigBatch := httptest.NewRequest(http.MethodPost, "/api/tray/report-events", strings.NewReader(`{"events":[`+strings.Join(evItems, ",")+`]}`))
+	recBigBatch := httptest.NewRecorder()
+	handleTrayReportEventsAPI(recBigBatch, reqBigBatch)
+	if recBigBatch.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for >100 events batch, got %d", recBigBatch.Code)
+	}
+
+	// 6. Accept valid tray state update and verify persisted range
+	reqGoodState := httptest.NewRequest(http.MethodPost, "/api/tray/state", strings.NewReader(`{"subnet":"10.20.30","startIp":20,"endIp":100}`))
+	recGoodState := httptest.NewRecorder()
+	handleTrayStateAPI(recGoodState, reqGoodState)
+	if recGoodState.Code != http.StatusOK {
+		t.Fatalf("expected 200 for valid tray state, got %d (%s)", recGoodState.Code, recGoodState.Body.String())
+	}
+	snap := globalTrayMgr.getSnapshot(false)
+	if snap.Subnet != "10.20.30" || snap.StartIP != 20 || snap.EndIP != 100 {
+		t.Fatalf("unexpected tray snapshot after update: %+v", snap)
+	}
+}
+
+

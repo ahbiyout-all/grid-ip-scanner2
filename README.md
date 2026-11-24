@@ -17,7 +17,7 @@
 1. **⚡ 초고속 네트워크 IP 스캐닝, 16x16 그리드 맵 & 3계층 인터랙티브 토폴로지**
    - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진 (254개 전체 호스트 동시 진단)
    - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별
-   - 25개 주요 서비스 포트 정밀 스캐닝 및 위험도 분류
+   - 25개 주요 서비스 포트 정밀 스캐닝·위험도 분류 및 **Listening Ports 클릭 빠른 연결(`QuickConnectModal.tsx`, 프로토콜별 아이콘·URI 복사·원격 실행 제안)**
    - **🗺️ 3계층 인터랙티브 토폴로지 맵 (`Grid` / `Topology Map` / `Snapshot Diff`)**: `POST /api/topology-map` 및 `grid_topology_guard.dll`(`v2.6.1`)과 연계해 Gateway/Core -> L2·Proxy-ARP·보안 그룹 -> 단말 노드 계층을 SVG 줌/팬으로 시각화하고, Pro 티어에서 **Topology Security Correlation (충돌·스푸핑·위험 포트·침입 교차 분석)** 제공
    - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 패널에서 원클릭으로 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), Window 힌트, OS 추정(신뢰도) 및 Live ARP 정합성 검증** 수행
    - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 평소에는 깔끔한 단일 대역 UI를 유지하고 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼을 누를 때(또는 Batch Sweep 중) 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터(`활성 태그` + 프로파일별 컬러 태그 뱃지)**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 서브넷별 독립 결과 캐싱, **Free 최대 2개 대역 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕(Batch Sweep) 및 교차 대역 이상 징후 통합 관제** 지원

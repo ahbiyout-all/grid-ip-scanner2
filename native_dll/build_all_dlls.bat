@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 REM ==============================================================================
 REM Grid IP Scanner2 - Master Native DLLs Automated Multi-Target Builder
@@ -32,6 +33,7 @@ if %ERRORLEVEL% EQU 0 goto BUILD_MSVC
 echo [!] Notice: Neither GCC nor MSVC C-compiler was found in PATH.
 echo [*] Native DLL compilation skipped. The application will use high-speed Go runtime fallbacks.
 echo.
+endlocal
 exit /b 0
 
 :BUILD_GCC
@@ -135,4 +137,5 @@ for %%F in (grid_probe_engine.dll grid_port_iocp.dll grid_discovery.dll grid_oui
 )
 echo.
 echo [OK] !SUCCESS_DLL! / 12 Native Acceleration DLLs successfully built and deployed.
+endlocal
 exit /b 0

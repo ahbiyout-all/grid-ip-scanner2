@@ -63,6 +63,24 @@
      - 레지스트리 `App Paths` 탐색, 브라우저별 독립 프로필(`EdgeProfile`, `ChromeProfile`, `WhaleProfile`, `BraveProfile`, `VivaldiProfile`), 즉시 비정상 종료 감지 및 `_Alt` 프로필 재시도, `ShellExecuteW` 인자 따옴표 이스케이프를 적용했습니다.
      - `focusExistingAppWindow()`에 `scoreAppWindowCandidate` 우선순위 점수화·`Chrome_WidgetWin_1` 숨김(Electron `hide()`) 창 복원·`AttachThreadInput` 기반 포그라운드 전환을 도입하고, `--tray` 초기 `lastHeartbeat` 거짓 연결 판정 및 중복 인스턴스 포트 재오픈을 교정했습니다 (`IDM_TRAY_OPEN` 및 트레이 침입/스케줄 알림 즉시 오픈 적용).
 
+9. **기능 전수 자아성찰(Deep Audit 4차) 네이티브·트레이 API·패키징 결함 일괄 수정 — *2026-11-23 반영***
+   - **Win32 네이티브 C DLL Loader Lock 및 배치 경계 안정화 (`native_dll/grid_pcap_analyzer.c`, `grid_port_iocp.c`, `grid_net_driver.c`, `grid_probe_engine.c`, `build_all_dlls.bat`)**:
+     - `DLL_PROCESS_DETACH` 시 프로세스 종료(`lpvReserved != NULL`) 경로에서의 `FreeLibrary`/`WSACleanup`/`DeleteCriticalSection` 호출을 차단해 Loader Lock 교착을 방지했습니다.
+     - `PortScan_IocpMultiHostSweep`의 `ipCount` 상한 검사(오버플로 방지), `Probe_FastPing`/`Probe_SweepCidrAsyncBatch`의 `qpcFreq == 0` 방어 및 `CreateEventA` 핸들 할당 검증을 추가하고, `build_all_dlls.bat`의 `enabledelayedexpansion` 누락으로 `!SUCCESS_DLL!`이 그대로 출력되던 스크립트 오류를 교정했습니다.
+   - **Go 트레이 API·SMB 파서·UAC 다중 브라우저 정리 보강 (`tray_engine.go`, `main.go`, `name_resolver.go`, `main_test.go`)**:
+     - `/api/tray/state`, `/api/tray/config`, `/api/tray/action`, `/api/tray/report-events`에 요청 본문 크기 제한(`io.LimitReader`), 3옥텟 IPv4 서브넷 및 병합 범위(`startIp <= endIp`) 검증, `HH:MM` 방해금지 시간 검증, 미등록 액션 `400` 차단, 이벤트 배치 상한(100건)을 적용했습니다.
+     - `/api/heartbeat` 메서드 검증(`GET/POST/OPTIONS`) 및 `/api/relaunch-admin` UAC 승격 시 5종 Chromium 브라우저(`Edge`/`Chrome`/`Whale`/`Brave`/`Vivaldi`) 앱 창 일괄 정리를 적용하고, `resolveSMBName` NTLMSSP `TargetInfo` 슬라이스 경계 검사를 보강했으며(`TestHeartbeatAPIHardening`, `TestTrayHTTPValidationHardening` 추가), `App.tsx` 숫자 `0` JSX 렌더링을 방지했습니다.
+   - **12대 DLL 배포 패키징·버전 검증 스크립트 보완 (`scripts/build-distribution.js`, `scripts/sync-version.js`)**:
+     - `build-distribution.js`의 포터블/언팩 복사 목록과 `build-manifest.json`에 누락되어 있던 12번째 모듈 `grid_topology_guard.dll`을 포함시키고, `sync-version.js`에 읽기 전용 `--check` 모드를 구현했습니다.
+
+10. **Listening Ports 빠른 연결 모달 탑재 및 전수 자아성찰(Deep Audit 5차) 결함 수정 (`QuickConnectModal.tsx`, `App.tsx`, `main.go`) — *2026-11-24 반영***
+   - **포트별 프로토콜 제안 및 빠른 연결 (`QuickConnectModal.tsx`, `App.tsx`)**:
+     - 장치 상세 프로필의 **Listening Ports** 뱃지를 클릭 가능한 버튼으로 전환해 포트별 권장 프로토콜(SSH·SFTP, HTTP·HTTPS, RDP, SMB, FTP·FTPS, RTSP 카메라, IPP/CUPS, JetDirect RAW, MQTT, VNC, MSSQL/MySQL/PostgreSQL/Redis/MongoDB 등)과 직관적 아이콘·프로토콜 뱃지·URI 복사 및 원격 실행을 즉시 제공합니다.
+   - **자아성찰(Deep Audit) 5차 결함 수정**:
+     - 잘못 생성된 미사용 중복 파일(`/src/components/QuickConnectModal.tsx`)을 삭제해 단일 컴포넌트(`components/QuickConnectModal.tsx`)로 정리했습니다.
+     - `window.open` 호출과 미처리 `navigator.clipboard.writeText` 호출을 제거하고 안전 `<a target="_blank" rel="noopener noreferrer">` 오픈, `copyTextToClipboard` 폴백 및 `/api/remote-action`(`rdp`/`ssh`/`smb`) + `.rdp` 다운로드 폴백을 연동했습니다.
+     - 비-HTTP 프로토콜 실행 시 중복 토스트가 2회 출력되고 복사 실패 시에도 성공 토스트가 표시되던 버그를 수정했으며, 타이머 언마운트 정리, 선택 IP 변경 시 모달 자동 닫힘, `Escape`/배경 클릭 닫기·`type="button"`·접근성 속성을 보완하고 `main.go` `/api/remote-action`의 비표준 RDP 포트(`ip:port`) 전달을 교정했습니다.
+
 ---
 
 ## 🚀 [v2.5.0] - 2026-11-13
