@@ -2207,9 +2207,13 @@ const App: React.FC = () => {
       const xml = generateMultiSheetExcelXml(dataset, storedCfg);
       downloadTextBlob(xml, buildReportFilename(dataset, 'excel'), 'application/vnd.ms-excel;charset=utf-8;');
       showToast(
-        lang === 'ko'
-          ? '엑셀 그리드 스캔 리포트(.xls 5-Sheet)가 다운로드되었습니다.'
-          : 'Excel Grid Scan Report (.xls 5-Sheet) downloaded.'
+        featureGates.reportExcelFullWorkbook
+          ? lang === 'ko'
+            ? '전체 보고서 엑셀 통합문서(.xls 5-Sheet)가 다운로드되었습니다.'
+            : 'Full Report Excel Workbook (.xls 5-Sheet) downloaded.'
+          : lang === 'ko'
+          ? '16×16 엑셀 그리드(.xls)가 다운로드되었습니다.'
+          : '16×16 Excel Grid (.xls) downloaded.'
       );
       return;
     }
@@ -4909,13 +4913,25 @@ const App: React.FC = () => {
                         : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
                     }`}
                     title={
-                      lang === 'ko'
-                        ? '엑셀 그리드 스캔 리포트 (.xls 16×16 맵 포함 5-Sheet)'
-                        : 'Excel Grid Scan Report (.xls 5-Sheet with 16×16 Grid)'
+                      featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '전체 보고서 엑셀 통합문서 (.xls 16×16 맵 포함 5-Sheet)'
+                          : 'Full Report Excel Workbook (.xls 5-Sheet with 16×16 Grid)'
+                        : lang === 'ko'
+                        ? '16×16 엑셀 그리드 (.xls 단일 그리드 시트 — 전체 보고서 시트는 PRO)'
+                        : '16×16 Excel Grid (.xls Grid Only — Full Report Sheets in PRO)'
                     }
                   >
                     <FileSpreadsheet className="w-3 h-3 text-emerald-500 shrink-0" />
-                    <span className="truncate">{lang === 'ko' ? '엑셀 그리드' : 'Excel Grid'}</span>
+                    <span className="truncate">
+                      {featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '엑셀 보고서'
+                          : 'Excel Report'
+                        : lang === 'ko'
+                        ? '엑셀 그리드'
+                        : 'Excel Grid'}
+                    </span>
                   </button>
 
                   <button

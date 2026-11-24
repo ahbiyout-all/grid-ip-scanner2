@@ -24,9 +24,9 @@ Grid IP Scanner2 Root/
 │   ├── MultiSubnetModal.tsx        # [v2.6.0] NIC/VLAN 자동 탐색·커스텀 등록·교차 대역 이상 징후 통합 대시보드 모달
 │   ├── NativeModulesModal.tsx      # 12대 C/C++ 네이티브 DLL 엔진 아코디언 진단 콘솔 (pcap v2.6.2 테스트 포함)
 │   ├── PreferencesTrayModal.tsx    # 환경설정, 자율 트레이 요약, 스케줄러 제어, DND/이벤트 알림 정책, 접이식 OS 도구 모달
-│   ├── ProFeatureLockedModal.tsx   # PRO/Enterprise 전용 기능 안내 모달 (Free 전환된 5시트 Excel 제외)
+│   ├── ProFeatureLockedModal.tsx   # PRO/Enterprise 전용 기능 안내 모달 (전체 보고서 5시트 엑셀 통합문서 포함)
 │   ├── QuickConnectModal.tsx       # Listening Ports 클릭 시 포트별 권장 프로토콜(아이콘/뱃지)·URI 복사·원격 실행 모달
-│   ├── ReportCenterModal.tsx       # Free 5시트 Excel Grid(.xls)·CSV·JSON·Markdown & Pro PDF·HTML 통합 내보내기 모달
+│   ├── ReportCenterModal.tsx       # Free 16×16 Excel Grid(.xls)·CSV·JSON·Markdown & Pro 5시트 전체 Excel·감사 PDF·HTML 통합 내보내기 모달
 │   ├── ScheduleModal.tsx           # 정기 자동 네트워크 스캔 스케줄 관리 및 실행 이력 모달
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
 │   ├── TopologyMapView.tsx         # [v2.6.0] 3계층 인터랙티브 토폴로지 SVG 맵 & Security Correlation 뷰
@@ -46,7 +46,7 @@ Grid IP Scanner2 Root/
 │   ├── ouiClassifier.ts            # OUI + 포트/mDNS/UPnP 다중 신호 시맨틱 분류 및 LAA 랜덤 MAC 역추적
 │   ├── portScanner.ts              # 25개 주요 포트 정밀 보안 검사 및 위험도 분류 모듈
 │   ├── remoteActionService.ts      # 원격 진단 및 제어 액션 서비스
-│   ├── reportCenterService.ts      # 다중 포맷 보고서(Free 5시트 Excel Grid XML/CSV/JSON/Markdown/HTML) 생성·보관 서비스
+│   ├── reportCenterService.ts      # 다중 포맷 보고서(Free 16×16 Excel Grid / Pro 5시트 전체 Excel XML·CSV·JSON·Markdown·HTML) 생성·보관 서비스
 │   ├── reportGenerator.ts          # A4 최적화 스마트 페이지네이션 PDF/HTML(칩셋 OUI & 실제 제조사 분리) 엔진
 │   ├── schedulerService.ts         # 5초 Ticker 기반 정기 스케줄러, 남은 시간 카운트다운, 스냅샷 자동저장
 │   ├── topologyGraphBuilder.ts     # [v2.6.0] 3계층 토폴로지 노드·엣지·보안 상관분석 빌더
@@ -125,9 +125,9 @@ Grid IP Scanner2 Root/
   - **고도화 알림 정책**: 신규 침입·IP 충돌·대량 오프라인 급감 이벤트 필터링, 쿨다운 중복 억제, 상시/30분 일시 해제/야간 예약 방해금지(DND), 접이식 Windows 레거시 도구(`flushdns`, `ncpa.cpl`, `firewall`) 제공.
 
 #### 📝 `components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`
-* **역할**: **Free 티어 5시트 Excel Grid XML(`.xls`)·CSV·JSON·Markdown**과 **Pro+ A4 PDF 보안 감사 보고서·인쇄/그리드 HTML** 및 스냅샷 비교 흐름을 통합한 전용 리포팅 센터입니다.
+* **역할**: **Free 티어 16×16 Excel Grid(`.xls`)·CSV·JSON·Markdown**과 **Pro+ 전체 보고서 5시트 Excel 통합문서(`.xls`)·A4 PDF 보안 감사 보고서·인쇄/그리드 HTML** 및 스냅샷 비교 흐름을 통합한 전용 리포팅 센터입니다.
 * **주요 동작**:
-  - **Free 티어 5시트 Excel Grid XML(`.xls`)**: `Summary`, `Devices`, `16x16 IP Map`, `Security Audit`, `Subnets & History` 5개 시트를 무료 커뮤니티 티어에서 즉시 생성·다운로드합니다.
+  - **티어별 Excel Grid XML(`.xls`) 생성**: Free 티어에서는 `Grid_16x16` 시트만 생성(`GridIPScanner2_Grid_*.xls`)하고, Pro+에서는 `1_Summary`, `2_Grid_16x16`, `3_Device_Inventory`, `4_Security_Audit`, 조건부 `5_Snapshot_Diff` 전체 보고서 시트를 포함한 풀 통합문서(`GridIPScanner2_FullReport_*.xls`)를 생성합니다.
   - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율)의 `.a4-report-page` 독립 페이지 단위로 컨텐츠를 사전 분할하여 jsPDF에 1:1로 결합함으로써 페이지 경계면 테이블/텍스트 잘림을 원천 방지합니다.
   - **프린터 안전 여백 (11mm Margin) 및 자동 리포트 보관**: 좌우 40px(약 11mm) 안전 여백, `페이지 X / Y` 동적 푸터, 스케줄 연동 자동 보고서 보관 및 `@media print` 인쇄 지원.
 

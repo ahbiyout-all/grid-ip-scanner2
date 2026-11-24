@@ -1,3 +1,15 @@
+### 83. Excel 내보내기 티어 분리 — Free 16×16 엑셀 그리드 전용 vs Pro 전체 보고서 엑셀 통합문서 (2026-11-24)
+- **사용자 요청 사항 및 피드백**:
+  - "free 용은 액셀 그리드만 생성 하고, pro는 전체 보고서 액셀 그리드 생성."
+- **원인 규명 및 해결 조치**:
+  1. **[Excel 전체 보고서 엔타이틀먼트 게이트 신설] `services/licenseManager.ts`, `components/ProFeatureLockedModal.tsx`, `components/LicenseModal.tsx`**:
+     - `ResolvedFeatureGates`에 `reportExcelFullWorkbook` (`isProOrHigher && exportReport`)을 신설하고, `FEATURE_ENTITLEMENT_CATALOG` 및 `PRO_FEATURE_LOCK_CATALOG`에 `reportExcelFullWorkbook` 항목을 등록해 Free(`16×16 엑셀 그리드 .xls`)와 Pro+(`전체 보고서 엑셀 통합문서 5시트`) 구분을 명확화.
+  2. **[Free 단일 그리드 시트 / Pro 전체 보고서 XML 분리] `services/reportCenterService.ts`**:
+     - `generateMultiSheetExcelXml`에서 `resolveFeatureGates(dataset.license).reportExcelFullWorkbook` 여부에 따라 Free는 `Grid_16x16` 워크시트만 생성(`GridIPScanner2_Grid_*.xls`), Pro/Enterprise는 `1_Summary`·`2_Grid_16x16`·`3_Device_Inventory`·`4_Security_Audit`·`5_Snapshot_Diff` 전체 워크시트 생성(`GridIPScanner2_FullReport_*.xls`)으로 분리.
+  3. **[UI 라벨·미리보기 탭·잠금 안내 동기화] `components/ReportCenterModal.tsx`, `App.tsx`, 문서 일체**:
+     - Free 상태에서 보고서 센터 포맷 라벨을 `엑셀 그리드 (16×16)`으로 표시하고 `Grid_16x16` 탭을 자동 선택하며, `1_Summary`·`3_Device_Inventory`·`4_Security_Audit`·`5_Snapshot_Diff` 탭은 `PRO` 잠금 뱃지 및 해금 CTA(`onRequireProLicense('reportExcelFullWorkbook')`)와 연동.
+     - `App.tsx` 빠른 내보내기 버튼 라벨·툴팁·토스트 및 `docs/*`, `README.md`의 Free/Pro Excel 설명을 최신 사양으로 동기화.
+
 ### 82. Listening Ports 빠른 연결 모달(`QuickConnectModal.tsx`) 탑재 및 전수 자아성찰(Deep Audit 5차) 결함 수정 (2026-11-24)
 - **사용자 요청 사항 및 피드백**:
   - "Modify the 'Listening Ports' section to make port numbers clickable... display recognizable icons next to each suggested protocol name" -> "**자아성찰(Self-Reflection & Deep Audit)** 과 **오류 수정** 그리고 문서들 업데이트"

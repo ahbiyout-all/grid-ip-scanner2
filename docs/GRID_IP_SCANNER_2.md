@@ -1,7 +1,7 @@
 # Grid IP Scanner2
 ## 📋 기술 설명서 및 개발 백서 (Technical Documentation & Architecture Whitepaper)
 
-본 문서는 **Grid IP Scanner2 (v2.6.0)**의 시스템 아키텍처, 16x16 시각화 그리드 맵, **3계층 인터랙티브 토폴로지 맵(`TopologyMapView`) & 보안 교차 분석**, **네이티브 패킷 정밀 텔레메트리(`grid_pcap_analyzer.dll v2.6.2`)**, **다중 서브넷·VLAN 통합 대시보드(`MultiSubnetBar` / `MultiSubnetModal` / Batch Sweep)**, **Free 티어 5시트 엑셀 그리드(.xls) 내보내기**, **OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적**, **게이트웨이/인프라 Proxy-ARP 비알림 분리**, **순수 창작 `grid_topology_guard.dll`(`v2.6.1`) 포함 12대 C/C++ 네이티브 DLL 엔진**, **Go 자율 트레이 엔진(`tray_engine.go`)·동적 4색 배지 `HICON`·Windows SCM 네이티브 서비스(`--service`)·조용한 부팅(`--tray`)·이벤트 기반 OS 알림 고도화**, **통합 보고서 센터(`ReportCenterModal`) 및 A4 PDF 보고서 엔진**, 정기 자동 네트워크 스캔 스케줄러, 딥 스냅샷 비교(Diff v2) 1:1 대조 스튜디오, Inno Setup 6 윈도우 인스톨러 툴체인 및 안드로이드 APK 배포 체계를 체계적으로 기술한 공식 제품 가이드입니다.
+본 문서는 **Grid IP Scanner2 (v2.6.0)**의 시스템 아키텍처, 16x16 시각화 그리드 맵, **3계층 인터랙티브 토폴로지 맵(`TopologyMapView`) & 보안 교차 분석**, **네이티브 패킷 정밀 텔레메트리(`grid_pcap_analyzer.dll v2.6.2`)**, **다중 서브넷·VLAN 통합 대시보드(`MultiSubnetBar` / `MultiSubnetModal` / Batch Sweep)**, **Free 16×16 엑셀 그리드(.xls) & Pro 전체 보고서(5시트) 엑셀 통합문서**, **OUI 시맨틱 다중 신호 기기 분류 & LAA 랜덤 MAC 역추적**, **게이트웨이/인프라 Proxy-ARP 비알림 분리**, **순수 창작 `grid_topology_guard.dll`(`v2.6.1`) 포함 12대 C/C++ 네이티브 DLL 엔진**, **Go 자율 트레이 엔진(`tray_engine.go`)·동적 4색 배지 `HICON`·Windows SCM 네이티브 서비스(`--service`)·조용한 부팅(`--tray`)·이벤트 기반 OS 알림 고도화**, **통합 보고서 센터(`ReportCenterModal`) 및 A4 PDF 보고서 엔진**, 정기 자동 네트워크 스캔 스케줄러, 딥 스냅샷 비교(Diff v2) 1:1 대조 스튜디오, Inno Setup 6 윈도우 인스톨러 툴체인 및 안드로이드 APK 배포 체계를 체계적으로 기술한 공식 제품 가이드입니다.
 
 ---
 
@@ -63,10 +63,10 @@
 * **실시간 카운트다운 헤더 배지**:
   - 메인 상단 헤더에 `⏰ 정기 스캔 ON (주기)` 및 일시정지 상태 배지를 통해 다음 스캔까지 남은 시간을 실시간 표시.
 
-### 📌 3. 통합 보고서 센터 · Free 5시트 엑셀 그리드 & A4 최적화 스마트 PDF 감사 보고서
+### 📌 3. 통합 보고서 센터 · Free 16×16 엑셀 그리드 & Pro 5시트 전체 보고서 + A4 스마트 PDF 엔진
 * **통합 보고서 센터 모달 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`)**:
-  - **Free 티어 5시트 Excel Grid XML(`.xls`) 전면 개방**: 16x16 IP 맵 시트 포함 다중 시트 Excel XML(`.xls`) 및 CSV·JSON·Markdown을 Free 에디션에서 무료 제공.
-  - PDF 보안 감사 보고서(Pro+), 인쇄/그리드 HTML 내보내기 및 스냅샷 비교 진입을 전용 모달로 일원화.
+  - **티어별 Excel XML(`.xls`) 생성**: **Free 티어**에서는 **16×16 바둑판 IP 그리드 시트(`Grid_16x16`)만** 생성·다운로드하며, **Pro / Enterprise 티어**에서는 **요약(`1_Summary`)·16×16 그리드(`2_Grid_16x16`)·장비 인벤토리(`3_Device_Inventory`)·보안 감사(`4_Security_Audit`)·스냅샷 Diff(`5_Snapshot_Diff`) 전체 보고서 엑셀 통합문서**를 생성합니다.
+  - 일반 PDF·CSV·JSON·Markdown 내보내기 및 Pro+ 보안 감사 PDF·인쇄/그리드 HTML·스냅샷 비교를 전용 모달로 일원화.
 * **25개 주요 서비스 포트 정밀 진단 & 빠른 연결 모달 (`services/portScanner.ts`, `components/QuickConnectModal.tsx`)**:
   - FTP(21), SSH(22), Telnet(23), SMTP(25), DNS(53), HTTP(80), SMB(445), RTSP(554), IPP(631), MSSQL(1433), MQTT(1883), MySQL(3306), RDP(3389), PostgreSQL(5432), VNC(5900), Redis(6379), JetDirect(9100) 등 주요 포트 위험도(`HIGH`/`MEDIUM`/`SAFE`) 분류 및 Listening Ports 클릭 시 프로토콜 아이콘·URI 복사·원격 실행을 제안하는 **Quick Connect 모달** 제공.
 * **A4 규격 스마트 페이지네이션 PDF 엔진 (`services/reportGenerator.ts`)**:

@@ -9,6 +9,7 @@ import {
   Archive,
   GitCompare,
   FileText,
+  FileSpreadsheet,
   Palette,
   BellRing,
   Network,
@@ -26,6 +27,7 @@ export type ProLockedFeatureId =
   | 'snapshotDiff'
   | 'reportDiffCompare'
   | 'reportAuditExport'
+  | 'reportExcelFullWorkbook'
   | 'reportBrandingLogo'
   | 'intruderGuard'
   | 'multiSubnetUnlimited'
@@ -200,6 +202,28 @@ export const PRO_FEATURE_LOCK_CATALOG: Record<ProLockedFeatureId, ProFeatureLock
       'Ready for compliance reviews and periodic security audits',
     ],
   },
+  reportExcelFullWorkbook: {
+    id: 'reportExcelFullWorkbook',
+    requiredTier: 'pro',
+    categoryKo: '전체 보고서 엑셀',
+    categoryEn: 'Full Excel Workbook',
+    featureNameKo: '전체 보고서 엑셀 통합문서 (5시트 풀 워크북)',
+    featureNameEn: 'Full Report Excel Workbook (5-Sheet)',
+    valuePropKo:
+      'Free 버전은 16×16 바둑판 그리드 시트만 생성되며, 요약 KPI·제조사 점유율·전체 장비 인벤토리·보안 감사·스냅샷 Diff까지 포함된 전체 보고서 엑셀 통합문서는 PRO 이상에서 제공됩니다.',
+    valuePropEn:
+      'Free tier generates the 16×16 visual IP grid worksheet only. Upgrade to PRO to export the complete 5-sheet Excel report including Summary KPIs, Device Inventory, Security Audit, and Snapshot Diff.',
+    highlightsKo: [
+      '1_Summary · 2_Grid_16x16 · 3_Device_Inventory · 4_Security_Audit · 5_Snapshot_Diff 전체 시트 생성',
+      '제조사 분포, 지연시간 수치 셀, 취약 포트 권고 조치 일괄 수록',
+      '기준 스냅샷 선택 시 5번째 Diff 비교 워크시트 자동 포함',
+    ],
+    highlightsEn: [
+      'Exports 1_Summary, 2_Grid_16x16, 3_Device_Inventory, 4_Security_Audit & 5_Snapshot_Diff',
+      'Includes vendor analytics, numeric latency columns, and security remediation notes',
+      'Automatically appends Snapshot Diff worksheet when a baseline is selected',
+    ],
+  },
   reportBrandingLogo: {
     id: 'reportBrandingLogo',
     requiredTier: 'pro',
@@ -327,6 +351,8 @@ function renderFeatureIcon(id: ProLockedFeatureId, className: string) {
       return <GitCompare className={className} />;
     case 'reportAuditExport':
       return <FileText className={className} />;
+    case 'reportExcelFullWorkbook':
+      return <FileSpreadsheet className={className} />;
     case 'reportBrandingLogo':
       return <Palette className={className} />;
     case 'intruderGuard':

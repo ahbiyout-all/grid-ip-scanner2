@@ -992,11 +992,15 @@ function escapeXml(value: unknown): string {
 }
 
 /**
- * Generates an Excel 2003 XML (SpreadsheetML) multi-worksheet workbook (.xls).
- * Supports multiple tabs cleanly with zero external library dependencies.
+ * Generates an Excel 2003 XML (SpreadsheetML) workbook (.xls).
+ * - Free tier: exports only the 16x16 visual IP grid worksheet (`Grid_16x16`).
+ * - Pro / Enterprise tier: exports the complete multi-sheet report (`1_Summary`, `2_Grid_16x16`,
+ *   `3_Device_Inventory`, `4_Security_Audit`, and conditional `5_Snapshot_Diff`).
  */
 export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, config: ReportConfig): string {
   const isKo = dataset.lang === 'ko';
+  const gates = resolveFeatureGates(dataset.license);
+  const isFullWorkbook = gates.reportExcelFullWorkbook;
   const cols = config.selectedColumns.length > 0 ? config.selectedColumns : DEFAULT_SELECTED_COLUMNS;
   const durationSec = (dataset.kpis.totalScanDurationMs / 1000).toFixed(2);
   const startLabel = formatTimestampLocal(dataset.kpis.scanStartTimestamp);
@@ -1131,6 +1135,41 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
   </Worksheet>`;
   }
 
+  const gridWorksheetXml = `
+  <Worksheet ss:Name="${isFullWorkbook ? '2_Grid_16x16' : 'Grid_16x16'}">
+    <Table>
+      ${Array.from({ length: 16 }, () => '<Column ss:Width="78"/>').join('')}
+      ${gridRows.join('')}
+    </Table>
+  </Worksheet>`;
+
+  const fullReportWorksheetsXml = isFullWorkbook
+    ? `
+  <Worksheet ss:Name="1_Summary">
+    <Table>
+      <Column ss:Width="170"/>
+      <Column ss:Width="170"/>
+      <Column ss:Width="150"/>
+      <Column ss:Width="150"/>
+      ${summaryRows.join('')}
+    </Table>
+  </Worksheet>${gridWorksheetXml}
+  <Worksheet ss:Name="3_Device_Inventory">
+    <Table>${invRows.join('')}</Table>
+  </Worksheet>
+  <Worksheet ss:Name="4_Security_Audit">
+    <Table>
+      <Column ss:Width="110"/>
+      <Column ss:Width="65"/>
+      <Column ss:Width="140"/>
+      <Column ss:Width="85"/>
+      <Column ss:Width="260"/>
+      <Column ss:Width="280"/>
+      ${auditRows.join('')}
+    </Table>
+  </Worksheet>${diffWorksheetXml}`
+    : gridWorksheetXml;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -1154,36 +1193,7 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
     <Style ss:ID="GridRisk"><Font ss:Bold="1" ss:Size="9" ss:Color="#9F1239"/><Interior ss:Color="#FFE4E6" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECDD3"/></Borders></Style>
     <Style ss:ID="GridIdle"><Font ss:Size="9" ss:Color="#64748B"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/></Borders></Style>
     <Style ss:ID="GridEmpty"><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/></Borders></Style>
-  </Styles>
-  <Worksheet ss:Name="1_Summary">
-    <Table>
-      <Column ss:Width="170"/>
-      <Column ss:Width="170"/>
-      <Column ss:Width="150"/>
-      <Column ss:Width="150"/>
-      ${summaryRows.join('')}
-    </Table>
-  </Worksheet>
-  <Worksheet ss:Name="2_Grid_16x16">
-    <Table>
-      ${Array.from({ length: 16 }, () => '<Column ss:Width="78"/>').join('')}
-      ${gridRows.join('')}
-    </Table>
-  </Worksheet>
-  <Worksheet ss:Name="3_Device_Inventory">
-    <Table>${invRows.join('')}</Table>
-  </Worksheet>
-  <Worksheet ss:Name="4_Security_Audit">
-    <Table>
-      <Column ss:Width="110"/>
-      <Column ss:Width="65"/>
-      <Column ss:Width="140"/>
-      <Column ss:Width="85"/>
-      <Column ss:Width="260"/>
-      <Column ss:Width="280"/>
-      ${auditRows.join('')}
-    </Table>
-  </Worksheet>${diffWorksheetXml}
+  </Styles>${fullReportWorksheetsXml}
 </Workbook>`;
 }
 
@@ -1449,8 +1459,12 @@ export function buildReportFilename(
   switch (format) {
     case 'pdf':
       return `GridIPScanner2_${scopePart}_${safeSubnet}_${datePart}.pdf`;
-    case 'excel':
-      return `GridIPScanner2_Workbook_${safeSubnet}_${datePart}.xls`;
+    case 'excel': {
+      const gates = resolveFeatureGates(dataset.license);
+      return gates.reportExcelFullWorkbook
+        ? `GridIPScanner2_FullReport_${safeSubnet}_${datePart}.xls`
+        : `GridIPScanner2_Grid_${safeSubnet}_${datePart}.xls`;
+    }
     case 'csv':
       return `GridIPScanner2_${scopePart}_${safeSubnet}_${datePart}.csv`;
     case 'json':

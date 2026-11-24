@@ -81,6 +81,10 @@
      - `window.open` 호출과 미처리 `navigator.clipboard.writeText` 호출을 제거하고 안전 `<a target="_blank" rel="noopener noreferrer">` 오픈, `copyTextToClipboard` 폴백 및 `/api/remote-action`(`rdp`/`ssh`/`smb`) + `.rdp` 다운로드 폴백을 연동했습니다.
      - 비-HTTP 프로토콜 실행 시 중복 토스트가 2회 출력되고 복사 실패 시에도 성공 토스트가 표시되던 버그를 수정했으며, 타이머 언마운트 정리, 선택 IP 변경 시 모달 자동 닫힘, `Escape`/배경 클릭 닫기·`type="button"`·접근성 속성을 보완하고 `main.go` `/api/remote-action`의 비표준 RDP 포트(`ip:port`) 전달을 교정했습니다.
 
+11. **Excel 내보내기 티어 차별화: Free 16×16 엑셀 그리드 전용 vs Pro 전체 보고서 엑셀 통합문서 (`reportCenterService.ts`, `ReportCenterModal.tsx`, `licenseManager.ts`, `ProFeatureLockedModal.tsx`, `LicenseModal.tsx`, `App.tsx`) — *2026-11-24 반영***
+   - **Free 티어 (`Grid_16x16`)**: 16×16 바둑판 IP 그리드 워크시트만 포함된 `.xls`(`GridIPScanner2_Grid_*.xls`) 파일을 생성하며, 보고서 센터 미리보기에서도 `Grid_16x16` 시트를 기본 활성화하고 나머지 전체 보고서 시트 탭은 `PRO` 잠금 안내와 연동했습니다.
+   - **Pro / Enterprise 티어 (`FullReport`)**: `1_Summary`, `2_Grid_16x16`, `3_Device_Inventory`, `4_Security_Audit`, 조건부 `5_Snapshot_Diff` 전체 보고서 시트를 포함한 다중 시트 `.xls`(`GridIPScanner2_FullReport_*.xls`) 통합문서를 생성하도록 `reportExcelFullWorkbook` 엔타이틀먼트 게이트를 신설했습니다.
+
 ---
 
 ## 🚀 [v2.5.0] - 2026-11-13

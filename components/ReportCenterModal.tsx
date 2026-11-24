@@ -286,12 +286,16 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
     return autoReports.find((r) => r.id === selectedArchiveId) || autoReports[0] || null;
   }, [autoReports, selectedArchiveId]);
 
-  // Reset Excel diff tab if baseline snapshot is cleared while 'diff' tab is selected
+  // Reset Excel sheet tab when Free tier is active or when baseline snapshot is cleared
   useEffect(() => {
+    if (!gates.reportExcelFullWorkbook && excelSheetTab !== 'grid') {
+      setExcelSheetTab('grid');
+      return;
+    }
     if (excelSheetTab === 'diff' && !dataset.diffAnalysis) {
       setExcelSheetTab('summary');
     }
-  }, [excelSheetTab, dataset.diffAnalysis]);
+  }, [gates.reportExcelFullWorkbook, excelSheetTab, dataset.diffAnalysis]);
 
   if (!isOpen) return null;
 
@@ -337,7 +341,18 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
 
   const formatOptions: { id: ReportFormat; label: string; ext: string; icon: React.ReactNode }[] = [
     { id: 'pdf', label: 'PDF', ext: '.pdf', icon: <FileDown className="w-3.5 h-3.5" /> },
-    { id: 'excel', label: isKo ? '엑셀 그리드 (5시트)' : 'Excel Grid (5-Sheet)', ext: '.xls', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
+    {
+      id: 'excel',
+      label: gates.reportExcelFullWorkbook
+        ? isKo
+          ? '엑셀 전체 보고서'
+          : 'Excel Full Report'
+        : isKo
+        ? '엑셀 그리드 (16×16)'
+        : 'Excel Grid (16×16)',
+      ext: '.xls',
+      icon: <FileSpreadsheet className="w-3.5 h-3.5" />,
+    },
     { id: 'csv', label: 'CSV', ext: '.csv', icon: <FileText className="w-3.5 h-3.5" /> },
     { id: 'html_audit', label: isKo ? 'HTML 감사서' : 'HTML Audit', ext: '.html', icon: <Globe className="w-3.5 h-3.5" /> },
     { id: 'html_grid', label: isKo ? 'HTML 그리드' : 'HTML Grid', ext: '.html', icon: <Layers className="w-3.5 h-3.5" /> },
@@ -447,7 +462,15 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
       } else if (config.format === 'excel') {
         const xml = generateMultiSheetExcelXml(dataset, config);
         downloadTextBlob(xml, filename, 'application/vnd.ms-excel;charset=utf-8;');
-        showToast(isKo ? '다중 시트 Excel 통합문서(.xls)가 저장되었습니다.' : 'Multi-sheet Excel workbook exported.');
+        showToast(
+          gates.reportExcelFullWorkbook
+            ? isKo
+              ? '전체 보고서 Excel 통합문서(.xls 다중 시트)가 저장되었습니다.'
+              : 'Full Report Excel workbook exported.'
+            : isKo
+            ? '16×16 엑셀 그리드(.xls)가 저장되었습니다.'
+            : '16×16 Excel Grid (.xls) exported.'
+        );
       } else if (config.format === 'csv') {
         const csv = generateCsvReportString(dataset, config);
         downloadTextBlob(csv, filename, 'text/csv;charset=utf-8;');
@@ -1344,31 +1367,61 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                     </div>
                   )}
 
-                  {/* Excel Multi-Sheet Preview */}
+                  {/* Excel Grid / Full Report Preview */}
                   {config.format === 'excel' && (
                     <div className={`rounded-xl border ${surfaceCls} overflow-hidden flex flex-col`}>
                       <div className={`px-3 py-2 border-b ${borderHairline} flex flex-wrap items-center gap-1.5 ${panelCls}`}>
                         {(
                           [
-                            { id: 'summary', label: '1_Summary' },
-                            { id: 'grid', label: isKo ? '2_Grid_16x16 (그리드)' : '2_Grid_16x16 (Grid)' },
-                            { id: 'inventory', label: `3_Device_Inventory (${dataset.rows.length})` },
-                            { id: 'audit', label: `4_Security_Audit (${dataset.highRiskAlerts.length})` },
-                            ...(dataset.diffAnalysis ? [{ id: 'diff' as const, label: '5_Snapshot_Diff' }] : []),
-                          ] as const
+                            { id: 'grid' as const, label: gates.reportExcelFullWorkbook ? (isKo ? '2_Grid_16x16 (그리드)' : '2_Grid_16x16 (Grid)') : (isKo ? 'Grid_16x16 (무료 그리드)' : 'Grid_16x16 (Free Grid)'), locked: false },
+                            { id: 'summary' as const, label: '1_Summary', locked: !gates.reportExcelFullWorkbook },
+                            { id: 'inventory' as const, label: `3_Device_Inventory (${dataset.rows.length})`, locked: !gates.reportExcelFullWorkbook },
+                            { id: 'audit' as const, label: `4_Security_Audit (${dataset.highRiskAlerts.length})`, locked: !gates.reportExcelFullWorkbook },
+                            ...(!gates.reportExcelFullWorkbook || dataset.diffAnalysis
+                              ? [{ id: 'diff' as const, label: '5_Snapshot_Diff', locked: !gates.reportExcelFullWorkbook }]
+                              : []),
+                          ]
                         ).map((tab) => (
                           <button
                             key={tab.id}
                             type="button"
-                            onClick={() => setExcelSheetTab(tab.id)}
-                            className={`px-2.5 py-1 rounded-md text-xs font-mono cursor-pointer transition-colors ${
-                              excelSheetTab === tab.id ? 'bg-emerald-600 text-white font-semibold' : `${inputCls}`
+                            onClick={() => {
+                              if (tab.locked) {
+                                onRequireProLicense('reportExcelFullWorkbook');
+                                return;
+                              }
+                              setExcelSheetTab(tab.id);
+                            }}
+                            className={`px-2.5 py-1 rounded-md text-xs font-mono cursor-pointer transition-colors flex items-center gap-1 ${
+                              excelSheetTab === tab.id
+                                ? 'bg-emerald-600 text-white font-semibold'
+                                : tab.locked
+                                ? `${inputCls} opacity-70 hover:opacity-100 border-amber-500/30`
+                                : `${inputCls}`
                             }`}
                           >
-                            {tab.label}
+                            {tab.locked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
+                            <span>{tab.label}</span>
+                            {tab.locked && <span className="text-[9.5px] font-bold text-amber-500 ml-0.5">PRO</span>}
                           </button>
                         ))}
                       </div>
+                      {!gates.reportExcelFullWorkbook && (
+                        <div className="px-3.5 py-2 border-b border-amber-500/25 bg-amber-500/10 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                          <span className={isBeige || isWhite ? 'text-amber-900 font-medium' : 'text-amber-200 font-medium'}>
+                            {isKo
+                              ? 'Free 버전은 16×16 엑셀 그리드 시트만 생성됩니다. 요약·장비 인벤토리·보안 감사·Diff 전체 보고서 워크북은 PRO에서 제공됩니다.'
+                              : 'Free tier exports the 16×16 Excel Grid sheet only. Summary, Inventory, Security Audit, and Diff sheets unlock in PRO.'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onRequireProLicense('reportExcelFullWorkbook')}
+                            className="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-bold text-[10.5px] cursor-pointer shrink-0"
+                          >
+                            {isKo ? 'PRO 전체 보고서 해금' : 'Unlock Full Workbook'}
+                          </button>
+                        </div>
+                      )}
                       <div className="p-4 overflow-auto max-h-[56dvh] text-xs">
                         {excelSheetTab === 'summary' && (
                           <table className="w-full text-left border-collapse font-mono tabular-nums">

@@ -51,6 +51,7 @@ export interface ResolvedFeatureGates {
   autoReportArchive: boolean;
   reportAuditExport: boolean;
   reportExcelWorkbook: boolean;
+  reportExcelFullWorkbook: boolean;
   reportBrandingLogo: boolean;
   reportDiffCompare: boolean;
   remoteBootWoL: boolean;
@@ -85,6 +86,7 @@ export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates 
     autoReportArchive: schedulerAllowed && exportProAllowed,
     reportAuditExport: exportProAllowed,
     reportExcelWorkbook: true,
+    reportExcelFullWorkbook: exportProAllowed,
     reportBrandingLogo: exportProAllowed,
     reportDiffCompare: diffAllowed,
     remoteBootWoL: isProOrHigher && Boolean(f.remoteBoot),
@@ -113,6 +115,7 @@ export type EntitlementGateKey =
   | 'snapshotDiff'
   | 'deepPortAudit'
   | 'reportAuditExport'
+  | 'reportExcelFullWorkbook'
   | 'reportBrandingLogo'
   | 'intruderGuard'
   | 'remoteBootWoL';
@@ -146,8 +149,8 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
   {
     key: 'basicExport',
     tier: 'free',
-    labelKo: '기본 내보내기 (PDF · 엑셀 그리드 .xls · CSV · JSON · MD · HTML)',
-    labelEn: 'Basic Export (PDF · Excel Grid .xls · CSV · JSON · MD · HTML)',
+    labelKo: '기본 내보내기 (PDF · 16×16 엑셀 그리드 .xls · CSV · JSON · MD · HTML)',
+    labelEn: 'Basic Export (PDF · 16×16 Excel Grid .xls · CSV · JSON · MD · HTML)',
     scopeKo: 'Community 기본 제공',
     scopeEn: 'Included in Free',
   },
@@ -212,6 +215,14 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
     tier: 'pro',
     labelKo: '정밀 보안 감사 범위 보고서 (보안 감사 Scope · PDF/HTML)',
     labelEn: 'Security Audit Scope Reports (Audit Scope · PDF/HTML)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'reportExcelFullWorkbook',
+    tier: 'pro',
+    labelKo: '전체 보고서 엑셀 통합문서 (.xls 다중 시트: 요약·그리드·인벤토리·감사·Diff)',
+    labelEn: 'Full Report Excel Workbook (.xls Multi-Sheet: Summary, Grid, Inventory, Audit, Diff)',
     scopeKo: 'PRO 이상',
     scopeEn: 'PRO+',
   },

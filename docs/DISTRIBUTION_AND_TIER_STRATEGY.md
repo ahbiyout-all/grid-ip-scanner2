@@ -61,12 +61,12 @@
 │   - 기본 단일 서브넷 토폴로지 │ │   2) [보너스] 엔지니어용 포터블 (.zip)│
 │   - 단일 호스트 패킷 텔레메트리│ │      - 외근/출장 시 USB 점검용       │
 │   - 최대 2개 서브넷/VLAN 전환 │ │ • 대규모 관제 & 보안 독점 기능:      │
-│   - 5시트 엑셀 그리드 (.xls)  │ │   - 다중 서브넷 순차 Batch Sweep     │
+│   - 16x16 엑셀 그리드 (.xls)   │ │   - 다중 서브넷 순차 Batch Sweep     │
 │   - 일반 범위 PDF/CSV/JSON/MD │ │   - 교차 서브넷 이상 징후 통합 대시보드│
 │   - 고속 ICMP Ping & OUI 9만건│ │   - 토폴로지 보안 상관분석 & ARP 가드│
 │   - 5단계 적응형 런처         │ │   - 원격 부팅(WoL) & 낯선 기기 감시  │
 │   - 비상 네이티브 메모장 보고서│ │   - 25포트 정밀 분석 & 4색 Diff 비교  │
-│                               │ │   - 보안 감사(audit) PDF/화이트라벨  │
+│                               │ │   - 전체 보고서 엑셀(5시트)·감사 PDF  │
 │                               │ │   - Pro 5서브넷 / Enterprise 무제한  │
 └───────────────────────────────┘ └──────────────────────────────────────┘
 ```
@@ -104,7 +104,7 @@ export interface LicenseInfo {
   features: LicenseFeatures;
 }
 ```
-> **파생 기능 게이트 (`resolveFeatureGates` in `services/licenseManager.ts`)**: `reportExcelWorkbook`, `multiSubnetSwitch`(최대 2개), `topologyMapBasic`, `packetInspectBasic` 및 일반 범위 표준 내보내기(`active`/`search`/`all`/`summary`)는 Free에서 기본 제공되며, `multiSubnetBatchSweep`, `topologySecurityPro`, `packetContinuousGuard`, `reportAuditExport`, `reportBrandingLogo`, `autoReportArchive`는 Pro 이상(`isProOrHigher`)에서 활성화됩니다. Go 백엔드 `/api/wol` 및 `/api/portscan`은 UI와 별개로 서버 측 `LicenseGuard.EvaluateStatus()` 검증(`403 Forbidden` 차단)을 수행합니다.
+> **파생 기능 게이트 (`resolveFeatureGates` in `services/licenseManager.ts`)**: `reportExcelWorkbook`(Free: 16×16 `Grid_16x16` 단일 시트), `multiSubnetSwitch`(최대 2개), `topologyMapBasic`, `packetInspectBasic` 및 일반 범위 표준 내보내기(`active`/`search`/`all`/`summary`)는 Free에서 기본 제공되며, `reportExcelFullWorkbook`(전체 보고서 5시트 엑셀 통합문서), `multiSubnetBatchSweep`, `topologySecurityPro`, `packetContinuousGuard`, `reportAuditExport`, `reportBrandingLogo`, `autoReportArchive`는 Pro 이상(`isProOrHigher`)에서 활성화됩니다. Go 백엔드 `/api/wol` 및 `/api/portscan`은 UI와 별개로 서버 측 `LicenseGuard.EvaluateStatus()` 검증(`403 Forbidden` 차단)을 수행합니다.
 
 ### 5.2. 하이브리드 Ed25519 오프라인 인증 & 물리 하드웨어 봉인 (`license_guard.go`)
 * **인터넷 불필요 (폐쇄망 대응) + 온라인 임대 선택 지원**: 폐쇄망에서는 내장된 SPKI 공개키(`gridEd25519PublicKeySPKI`)로 서명 토큰을 단독 검증하며, `GRID_LICENSE_SERVER_URL` 구성 시 온라인 시트 임대(14일 오프라인 유예, 무시리얼 USB는 24시간 제한)를 병행합니다.
@@ -115,7 +115,7 @@ export interface LicenseInfo {
 * **공식 체험 라이선스 키**: **`GRID-PRO-TRIAL-2026`** 단독 지원 (서명 없는 구형 `GRID-PRO-DEMO`, `PRO-DEMO`, `DEMO-PRO` 등은 보안상 전면 차단).
 * **동적 30일 유효기간 및 1회 제한 산정**:
   - 활성화 시점 기준으로 `expiresAt`을 30일 뒤로 동적 계산해 `license.sealed.json`에 하드웨어 바인딩(`TrialUsed: true`)으로 봉인합니다.
-  - 해제 후 재입력이나 시계 역행 시에도 재사용이 차단되며, 만료 시 자동으로 무료 커뮤니티 티어(최대 2개 서브넷 + 5시트 Excel Grid `.xls` + 일반 PDF/CSV/JSON/MD + 기본 토폴로지/패킷 텔레메트리 유지)로 전환되고 기존 스캔 데이터는 보존됩니다.
+  - 해제 후 재입력이나 시계 역행 시에도 재사용이 차단되며, 만료 시 자동으로 무료 커뮤니티 티어(최대 2개 서브넷 + 16×16 Excel Grid `.xls` + 일반 PDF/CSV/JSON/MD + 기본 토폴로지/패킷 텔레메트리 유지)로 전환되고 기존 스캔 데이터는 보존됩니다.
 
 ---
 
@@ -179,7 +179,7 @@ export interface LicenseInfo {
 | **침입 감시** | **낯선 기기 실시간 감시 (Intruder Watch)** | ❌ 감시 모드 잠김 (수동 스캔 목록만) | 🚨 60초 주기 무인 백그라운드 감시, 신규 단말 접속 시 비프음 & OS 데스크톱 알림 |
 | **보안 진단** | **심층 포트 정밀 보안 감사** | ❌ 기본 Ping 및 상태만 조회 | 🛡️ 25개 주요 포트 전수 감사, SMB 랜섬웨어 표적, RDP, Telnet 등 위험 포트 진단 |
 | **자산 추적** | **스냅샷 4색 Diff 비교 분석** | ❌ 일회성 현재 스캔만 지원 | 🔍 과거 스캔 대비 신규(+NEW), 이탈(-OFF), 식별변경(!CHG) 상태 진단 및 필터링 |
-| **감사 증빙** | **보안 감사 보고서 내보내기** | ✅ **5시트 Excel Grid(`.xls`)**·일반 범위 PDF·CSV·JSON·MD·HTML 무료 | 📄 보안 감사 범위(`audit`) PDF/HTML, 스냅샷 Diff 보고서, 예약 자동 보관 및 화이트라벨 로고(`PNG/JPG/WEBP/GIF`) |
+| **감사 증빙** | **보안 감사 보고서 내보내기** | ✅ **16×16 Excel Grid(`.xls`)**·일반 범위 PDF·CSV·JSON·MD·HTML 무료 | 📄 **전체 5시트 Excel 통합문서(`.xls`)**, 보안 감사 범위(`audit`) PDF/HTML, 스냅샷 Diff 보고서, 예약 자동 보관 및 화이트라벨 로고(`PNG/JPG/WEBP/GIF`) |
 | **유예 평가** | **지능형 Soft Trust 유예 시스템** | 단순 낯선 기기로 일괄 표시 | 🛡️ MAC 무작위화/OUI/호스트명 유사도 채점(0~100%)을 통한 지능형 오경보 방지 |
 | **자산 보존** | **장비 별칭 및 관리자 메모** | 브라우저 세션 임시 저장 | 💾 오프라인 로컬 볼트 영구 저장 및 네트워크 장비 변경 이력 타임라인 유지 |
 

@@ -26,8 +26,8 @@
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치로 백신 오탐지 예방
    - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 배포 자산 표준 관리 (`v2.6.0`)
 
-2. **📄 통합 보고서 센터 & Free 5시트 엑셀 그리드 + A4 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
-   - **Free 티어 엑셀 그리드(.xls) 전면 개방**: 16x16 IP 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)** 및 CSV·JSON·Markdown 보고서를 Free 커뮤니티 에디션에서 바로 내보내기 가능
+2. **📄 통합 보고서 센터 & Free 16×16 엑셀 그리드 · Pro 전체 보고서(5시트) 엑셀 + A4 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
+   - **티어별 Excel(.xls) 내보내기**: **Free 티어**는 16×16 바둑판 IP 그리드 시트(`Grid_16x16`)만 포함된 `.xls` 및 일반 범위 CSV·JSON·Markdown·PDF를 무료 생성하며, **Pro / Enterprise**는 요약·그리드·장비 인벤토리·보안 감사·스냅샷 Diff까지 수록된 **5시트 전체 보고서 Excel 통합문서(`.xls`)** 생성
    - **다중 포맷 통합 내보내기 센터**: Pro A4 PDF 보안 감사 보고서, 인쇄/그리드 HTML 및 스냅샷 Diff 연계를 전용 모달로 통합
    - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델 및 11mm 안전 여백으로 테이블 행·텍스트 줄 잘림 원천 방지
    - **동적 페이지 번호 & 직접 인쇄**: 모든 페이지에 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 스타일시트 지원

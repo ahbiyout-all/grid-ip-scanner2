@@ -26,8 +26,8 @@
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치
    - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (`v2.6.0`)
 
-2. **📄 통합 보고서 센터 & Free 5시트 엑셀·표준 PDF + Pro 보안 감사 보고서 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
-   - **Free 티어 표준 내보내기 전면 개방**: 16x16 IP 그리드 맵 시트를 포함한 **5시트 다중 시트 Excel XML(.xls)** 및 일반 범위(`active`/`search`/`all`/`summary`)의 PDF·HTML·CSV·JSON·Markdown 내보내기를 Free 에디션에서 무료 제공
+2. **📄 통합 보고서 센터 & Free 16×16 엑셀 그리드 · Pro 전체 보고서(5시트) 엑셀 + PDF (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
+   - **티어별 Excel XML(`.xls`) 및 표준 내보내기**: **Free 티어**는 **16×16 엑셀 그리드 시트(`Grid_16x16`) 전용 `.xls`** 및 일반 범위(`active`/`search`/`all`/`summary`)의 PDF·HTML·CSV·JSON·Markdown을 무료 제공하며, **Pro+**는 `1_Summary`·`2_Grid_16x16`·`3_Device_Inventory`·`4_Security_Audit`·`5_Snapshot_Diff` 전체 보고서 5시트 엑셀 통합문서를 생성
    - **Pro+ 정밀 보안 감사 & 비교 보고서**: 보안 감사 범위(`audit`) PDF/HTML, 스냅샷 Diff(`diff`) 리포트, 자동 예약 아카이브 및 화이트라벨 로고(`PNG/JPG/WEBP/GIF`)·브랜딩 커스터마이징 제공
    - **스마트 페이지네이션 (Zero Row-Chopping)**: 794px x 1123px (A4 1:1.4142 비율) 독립 페이지 모델 및 11mm 안전 여백으로 테이블 행·텍스트 잘림 원천 방지
    - **동적 페이지 번호 & 직접 인쇄**: 모든 페이지에 `페이지 X / Y` 및 공식 푸터 동기화, `@media print` 고해상도 스타일시트 지원
