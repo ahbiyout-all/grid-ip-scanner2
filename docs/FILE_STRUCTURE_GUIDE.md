@@ -1,6 +1,6 @@
 # Grid IP Scanner2 파일 및 디렉토리 구조 명세서 (File Structure & Component Specifications)
 
-본 문서는 **Grid IP Scanner2 (v2.6.0)** 프로젝트를 구성하는 모든 디렉토리와 파일의 역할, 세부 동작 원리, 상호 작용 관계 및 상용 빌드 프로세스에서의 사용처를 일목요연하게 정리한 공식 기술 구조 가이드입니다.
+본 문서는 **Grid IP Scanner2 (v2.7.0)** 프로젝트를 구성하는 모든 디렉토리와 파일의 역할, 세부 동작 원리, 상호 작용 관계 및 상용 빌드 프로세스에서의 사용처를 일목요연하게 정리한 공식 기술 구조 가이드입니다.
 
 ---
 
@@ -14,43 +14,52 @@ Grid IP Scanner2 Root/
 │       ├── build-and-release.yml   # GitHub Actions CI/CD (Windows .exe/인스톨러, Android APK, 모바일 PWA)
 │       └── mobile-release.yml      # 모바일 전용 독립 릴리스 워크플로우
 │
-├── 📂 components/                  # React 개별 컴포넌트 폴더 (17개 모달·뷰·셀)
+├── 📂 components/                  # React 개별 컴포넌트 폴더 (22개 모달·뷰·셀)
+│   ├── BatchQueueDrawer.tsx        # [v2.7.0] 다중 단말 일괄 WoL·Ping·원격 점검 큐 드로어 (진행률/중단/재시도)
+│   ├── CidrBlockBar.tsx            # [v2.7.0] 가변 CIDR(/20~/30) 256호스트 /24 세그먼트 블록 전환 바
+│   ├── DeviceTableView.tsx         # [v2.7.0] 정렬·검색·일괄 체크박스 선택 지원 고밀도 테이블 뷰
+│   ├── DeviceTimelineTab.tsx       # [v2.7.0] 장치 상세 인스펙터용 접속·포트 변동 시계열 타임라인 탭 및 CSV 내보내기
 │   ├── HelpUpdateModal.tsx         # 도움말, 버전 정보 및 업데이트 확인 통합 모달
-│   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, Diff 뱃지, Proxy-ARP 인디케이터 뱃지 컴포넌트
+│   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, Diff 뱃지, Proxy-ARP 및 일괄 선택 인디케이터 컴포넌트
 │   ├── InterfaceExplorerModal.tsx  # 전체 물리/가상/VPN 네트워크 어댑터 탐색 및 서브넷 원클릭 전환 모달
 │   ├── IntruderLogModal.tsx        # 24/7 무인 백그라운드 서비스 침입 탐지 이력 조회 및 화이트리스트 모달
 │   ├── LicenseModal.tsx            # Community/Pro/Enterprise 라이선스 상태 조회·활성화·해제 모달
-│   ├── MultiSubnetBar.tsx          # [v2.6.0] 온디맨드 다중 서브넷/VLAN 전환 바, 활성 VLAN Tag ID 인디케이터 & 순차 Batch Sweep 컨트롤
-│   ├── MultiSubnetModal.tsx        # [v2.6.0] NIC/VLAN 자동 탐색·커스텀 등록·교차 대역 이상 징후 통합 대시보드 모달
+│   ├── MultiSubnetBar.tsx          # 온디맨드 다중 서브넷/VLAN 전환 바, 활성 VLAN Tag ID 인디케이터 & 순차 Batch Sweep 컨트롤
+│   ├── MultiSubnetModal.tsx        # NIC/VLAN 자동 탐색·가변 CIDR(/20~/30) 등록·교차 대역 이상 징후 통합 대시보드 모달
 │   ├── NativeModulesModal.tsx      # 12대 C/C++ 네이티브 DLL 엔진 아코디언 진단 콘솔 (pcap v2.6.2 테스트 포함)
 │   ├── PreferencesTrayModal.tsx    # 환경설정, 자율 트레이 요약, 스케줄러 제어, DND/이벤트 알림 정책, 접이식 OS 도구 모달
-│   ├── ProFeatureLockedModal.tsx   # PRO/Enterprise 전용 기능 안내 모달 (전체 보고서 5시트 엑셀 통합문서 포함)
+│   ├── ProFeatureLockedModal.tsx   # PRO/Enterprise 전용 기능 안내 모달 (v2.7.0 가변 CIDR·SNMP L2·일괄 큐·타임라인 포함)
 │   ├── QuickConnectModal.tsx       # Listening Ports 클릭 시 포트별 권장 프로토콜(아이콘/뱃지)·URI 복사·원격 실행 모달
 │   ├── ReportCenterModal.tsx       # Free 16×16 Excel Grid(.xls)·CSV·JSON·Markdown & Pro 5시트 전체 Excel·감사 PDF·HTML 통합 내보내기 모달
 │   ├── ScheduleModal.tsx           # 정기 자동 네트워크 스캔 스케줄 관리 및 실행 이력 모달
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
-│   ├── TopologyMapView.tsx         # [v2.6.0] 3계층 인터랙티브 토폴로지 SVG 맵 & Security Correlation 뷰
+│   ├── SnmpSwitchConfigModal.tsx   # [v2.7.0] SNMPv2c 스위치 등록(RAM 전용 볼트) 및 L2 물리 포트 탐색 실행 모달
+│   ├── TopologyMapView.tsx         # 3계층 인터랙티브 토폴로지 SVG 맵, SNMP L2 스위치 링크 & Security Correlation 뷰
 │   ├── TrayStatusIndicator.tsx     # 트레이 실시간 스캔 진척도 및 침입 경보 타임스탬프 보조 인디케이터
 │   └── UpdateModal.tsx             # GitHub Releases 실시간 업데이트 센터 안내 및 다운로드 모달
 │
 ├── 📂 services/                    # 비즈니스 로직 및 코어 엔진 서비스 폴더
 │   ├── apiConfig.ts                # 백엔드 API 베이스 URL 및 safeTimeout 타임아웃 가드 유틸리티
+│   ├── batchQueueService.ts        # [v2.7.0] 다중 단말 일괄 제어 큐 생성·폴링·중단·재시도 API 클라이언트
+│   ├── cidrUtils.ts                # [v2.7.0] 가변 CIDR(/20~/30) 파싱, 256호스트 블록 분할, IPv4 수치 비교 유틸리티
 │   ├── clipboard.ts                # Clipboard API + 레거시 Fallback 클립보드 복사 유틸리티
 │   ├── conflictDetector.ts         # IP/MAC 충돌 탐지, Gateway Proxy-ARP 비알림 분리 및 Soft Trust 알고리즘
 │   ├── deviceAliasManager.ts       # 사용자 장치 별칭 및 메모 관리
 │   ├── diffEngine.ts               # 스냅샷 A/B 딥 비교 엔진, 고위험 포트 탐지, IP 충돌 분석
 │   ├── intruderLogService.ts       # 24/7 침입 탐지 이력 저장/필터/CSV 내보내기 서비스
-│   ├── licenseManager.ts           # Community/Pro/Enterprise 비대칭 암호키 오프라인/임대 라이선스 매니저 (Free 2 서브넷 / .xls)
-│   ├── multiSubnetManager.ts       # [v2.6.0] 다중 서브넷/VLAN 프로필, 대역별 독립 결과 캐시 & 교차 대역 KPI 집계 서비스
+│   ├── licenseManager.ts           # Community/Pro/Enterprise 비대칭 암호키 오프라인/임대 라이선스 매니저 (v2.7.0 게이트 포함)
+│   ├── multiSubnetManager.ts       # 다중 서브넷/VLAN 프로필, 대역별 독립 결과 캐시 & 교차 대역 KPI 집계 서비스
 │   ├── nativeModulesService.ts     # 네이티브 DLL 진단, 토폴로지 맵/가드, 패킷 텔레메트리, 서브넷 탐색 및 트레이 API 클라이언트
 │   ├── ouiClassifier.ts            # OUI + 포트/mDNS/UPnP 다중 신호 시맨틱 분류 및 LAA 랜덤 MAC 역추적
 │   ├── portScanner.ts              # 25개 주요 포트 정밀 보안 검사 및 위험도 분류 모듈
 │   ├── remoteActionService.ts      # 원격 진단 및 제어 액션 서비스
-│   ├── reportCenterService.ts      # 다중 포맷 보고서(Free 16×16 Excel Grid / Pro 5시트 전체 Excel XML·CSV·JSON·Markdown·HTML) 생성·보관 서비스
+│   ├── reportCenterService.ts      # 다중 포맷 보고서(Free 16×16 Excel Grid / Pro 5시트 전체 Excel XML·CSV·JSON·Markdown·HTML, L2 switchPort 컬럼 포함) 생성·보관 서비스
 │   ├── reportGenerator.ts          # A4 최적화 스마트 페이지네이션 PDF/HTML(칩셋 OUI & 실제 제조사 분리) 엔진
 │   ├── schedulerService.ts         # 5초 Ticker 기반 정기 스케줄러, 남은 시간 카운트다운, 스냅샷 자동저장
-│   ├── topologyGraphBuilder.ts     # [v2.6.0] 3계층 토폴로지 노드·엣지·보안 상관분석 빌더
-│   ├── updateChecker.ts            # GitHub Releases API 조회 및 버전 비교 실시간 업데이트 체커 (v2.6.0)
+│   ├── snmpService.ts              # [v2.7.0] SNMPv2c 스위치 볼트 관리 & L2 물리 포트/VLAN 매핑 API 클라이언트
+│   ├── timelineService.ts          # [v2.7.0] 단말별 접속·포트 변동 타임라인 조회/요약/정리/CSV 내보내기 서비스
+│   ├── topologyGraphBuilder.ts     # 3계층 토폴로지 노드·SNMP L2 스위치 링크·보안 상관분석 빌더
+│   ├── updateChecker.ts            # GitHub Releases API 조회 및 버전 비교 실시간 업데이트 체커 (v2.7.0)
 │   └── wolService.ts               # Wake-on-LAN (UDP 9/7 매직 패킷) 원격 부팅 서비스
 │
 ├── 📂 native_dll/                  # 순수 C99 / C++17 12대 네이티브 가속 DLL 엔진 소스
@@ -95,15 +104,19 @@ Grid IP Scanner2 Root/
 │   ├── logo.png                    # 풀 블리드(Full-Bleed) 공식 대표 로고 이미지
 │   └── manifest.json               # PWA 모바일 웹 매니페스트
 │
-├── 📝 App.tsx / index.html / types.ts / env.d.ts # React 19 프론트엔드 코어 (Grid/Topology/Diff, Packet Telemetry)
-├── 🐹 main.go / engine.go / name_resolver.go / license_guard.go # Go 병렬 백엔드, /api/packet-inspect, /api/topology-map, /api/subnets/discover, Free 2서브넷 가드
+├── 📝 App.tsx / index.html / types.ts / env.d.ts # React 19 프론트엔드 코어 (Grid/Table/Topology/Diff, Packet Telemetry)
+├── 🐹 main.go / engine.go / name_resolver.go / license_guard.go # Go 병렬 백엔드, 라이선스 가드 & /api/* 라우터
+├── 🐹 cidr_engine.go               # [v2.7.0] 가변 CIDR(/20~/30) 파싱·청킹 스캔 플래너
+├── 🐹 timeline_store.go            # [v2.7.0] JSONL/JSON 기반 단말 접속·포트 변동 시계열 타임라인 DB
+├── 🐹 snmp_l2.go                   # [v2.7.0] Pure-Go ASN.1/BER SNMPv2c L2 스위치 매퍼 & RAM 전용 볼트
+├── 🐹 batch_queue.go               # [v2.7.0] 다중 단말 일괄 WoL·Ping·원격 점검 비동기 작업 큐
 ├── 🐹 tray_engine.go               # Go 자율 백그라운드 트레이 엔진(10초 스윕, 이벤트 쿨다운/DND, 스케줄러, HTTP API)
 ├── 🐹 native_modules_bridge.go / native_modules_bridge_other.go # 경로 고정 `LoadLibraryExW` C-DLL 브리지 & `Pcap_InspectPacketProfileJson` 폴백
 ├── 🐹 utils_windows.go / utils_other.go # Win32 ARGB 배지 HICON, SCM 서비스(`--service`), 풍선 알림, Close-to-Tray, 5단계 런처
-├── 🧪 main_test.go / license_guard_test.go / name_resolver_test.go # Go 백엔드 핵심 단위 테스트 스위트
+├── 🧪 main_test.go / license_guard_test.go / name_resolver_test.go / v27_features_test.go # Go 백엔드 핵심 단위 테스트 스위트
 ├── 📝 master_oui.txt               # 9만여 건의 가공된 IEEE/Wireshark OUI 로컬 정적 데이터베이스
 ├── 🛠️ build-win.js / scripts/build-dll.js / scripts/sync-version.js # SSOT 동기화 및 12-DLL/EXE 빌드 파이프라인
-└── ⚙️ package.json / go.mod / winres.json # 의존성 및 v2.6.0 메타데이터
+└── ⚙️ package.json / go.mod / winres.json # 의존성 및 v2.7.0 메타데이터
 ```
 
 ---

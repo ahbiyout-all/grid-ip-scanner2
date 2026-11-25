@@ -1,3 +1,21 @@
+### 84. v2.7.0 네트워크 엔지니어링 & 스위치·대역 분석 확장 4대 핵심 기능 구현 및 릴리즈 동기화 (2026-11-25)
+- **사용자 요청 사항 및 피드백**:
+  - "앞으로 앱 개발 방향 설계" → **네트워크 엔지니어링 및 스위치·대역 분석 확장 (v2.7.0 실무 기능 고도화 및 Pro 차별화)**: ① 가변 CIDR(`/20`–`/30`) 대역 확장 스캔, ② 단말별 접속·포트 변동 이력 타임라인 DB, ③ SNMP 스위치 포트 및 L2 물리 연결 매핑, ④ 다중 단말 일괄 WoL 및 원격 제어 큐
+- **구현 및 해결 조치**:
+  1. **[가변 CIDR (`/20`–`/30`) 엔진·분할 그리드 & 테이블 뷰] `cidr_engine.go`, `services/cidrUtils.ts`, `components/CidrBlockBar.tsx`, `components/DeviceTableView.tsx`, `components/MultiSubnetModal.tsx`, `App.tsx`**:
+     - Pure-Go `BuildCIDRScanPlan` 및 클라이언트 `parseCidrOrRange`/`enumerateCidrIps`/`compareIpv4` 유틸리티를 구축해 `/30`~`/20`(최대 4,094 호스트) 가변 대역 파싱, 256호스트 `/24` 세그먼트 블록 분할(`CidrBlockBar`) 및 고밀도 정렬·일괄 선택 테이블 뷰(`DeviceTableView`)를 통합.
+     - Free(`≤/23`, 510 호스트), Pro(`/22`, 1,022 호스트), Enterprise(`/21`–`/20`, 4,094 호스트) 티어 게이트를 백엔드 `license_guard.go`와 UI(`startScan`, `MultiSubnetModal`) 양쪽에 강제 적용.
+  2. **[단말별 접속·포트 변동 이력 타임라인 DB] `timeline_store.go`, `services/timelineService.ts`, `components/DeviceTimelineTab.tsx`, `App.tsx`**:
+     - `timeline_events.jsonl` / `timeline_state.json` 기반 Pure-Go 로컬 시계열 저장소를 구축하고, 스캔 완료 시 자동 diff 수집(`FIRST_SEEN`, `ONLINE`, `OFFLINE`, `IP_CHANGED`, `PORT_OPENED`, `PORT_CLOSED`, `VENDOR_OR_HOST_UPDATED`, `SWITCH_PORT_MOVED`) 및 CSV 내보내기, Free(24h/50건)·Pro(30일)·Enterprise(무제한) 보관 제한 적용.
+     - 장치 상세 인스펙터에 `[프로필]` / `[이력 타임라인]` 탭 UI(`DeviceTimelineTab`) 탑재.
+  3. **[SNMP 스위치 포트 & L2 물리 연결 매핑] `snmp_l2.go`, `services/snmpService.ts`, `components/SnmpSwitchConfigModal.tsx`, `services/topologyGraphBuilder.ts`, `components/TopologyMapView.tsx`, `services/reportCenterService.ts`**:
+     - Pure-Go ASN.1/BER SNMPv2c 클라이언트(`IF-MIB`, `BRIDGE-MIB`, `Q-BRIDGE-MIB`, `LLDP-MIB`) 및 RAM 전용 자격증명 볼트(디스크/`localStorage`/API JSON 비노출) 구현.
+     - Pro(최대 2대 스위치) / Enterprise(무제한) 게이트와 `TopologyMapView` L2 스위치 노드·`physical_port`/`switch_uplink` 엣지·`switchPort` 보고서 컬럼 연동 완료.
+  4. **[다중 단말 일괄 WoL & 원격 제어 큐] `batch_queue.go`, `services/batchQueueService.ts`, `components/BatchQueueDrawer.tsx`, `components/IPCell.tsx`, `App.tsx`**:
+     - Bounded 워커 풀(1–4), 지연 간격(100–2000ms), 중단(`Abort`)·실패 재시도(`Retry Failed`)를 지원하는 비동기 제어 큐(`/api/batch-queue*`) 및 `Ctrl/Cmd+Click` 다중 선택 + 플로팅 일괄 제어 바 구현 (`Pro` 최대 16대, `Enterprise` 무제한).
+  5. **[단위 테스트·버전 SSOT 동기화·문서 최신화] `v27_features_test.go`, `scripts/sync-version.js`, `docs/*`, `README.md`**:
+     - v2.7.0 Go 단위 테스트 4종 추가(전체 27개 Go 테스트 통과), `sync-version.js --set 2.7.0` 전수 동기화 및 관련 문서 일괄 최신화 완료.
+
 ### 83. Excel 내보내기 티어 분리 — Free 16×16 엑셀 그리드 전용 vs Pro 전체 보고서 엑셀 통합문서 (2026-11-24)
 - **사용자 요청 사항 및 피드백**:
   - "free 용은 액셀 그리드만 생성 하고, pro는 전체 보고서 액셀 그리드 생성."

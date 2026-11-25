@@ -1,4 +1,41 @@
-# Grid IP Scanner2 - Patch Note (v2.6.0)
+# Grid IP Scanner2 - Patch Note (v2.7.0)
+
+## 🚀 [v2.7.0] - 2026-11-25
+
+### 🌟 네트워크 엔지니어링 & 스위치·대역 분석 확장 4대 핵심 업데이트 (SemVer MINOR Release)
+
+1. **가변 CIDR (`/20`–`/30`) 확장 스캔 엔진 & 분할 16×16 그리드 / 테이블 뷰 (`cidr_engine.go`, `services/cidrUtils.ts`, `components/CidrBlockBar.tsx`, `components/DeviceTableView.tsx`, `components/MultiSubnetModal.tsx`, `App.tsx`)**
+   - **가변 CIDR 엔진 및 세그먼트 분할 그리드**:
+     - 기존 고정 `/24` 범위에서 탈피해 `/30`부터 `/20`(최대 4,094 호스트)까지 가변 CIDR 파싱·스캔 계획(`BuildCIDRScanPlan`) 및 `256` 호스트 `/24` 세그먼트 블록 단위 분할을 지원합니다.
+     - `GET /api/scan?cidr=...` 실행 시 16개 `plan` 청크 메타데이터를 선행 SSE 스트림으로 송출하며, 메인 그리드 상단 `CidrBlockBar`에서 `/24` 블록 탭(전체·온라인 카운트 표시)을 즉시 전환할 수 있습니다.
+     - 4종 메인 뷰(`Grid` | `Table` | `Topology` | `Diff`) 중 정렬·검색·일괄 체크박스 선택에 특화된 **고밀도 테이블 뷰(`DeviceTableView`)**를 신설했습니다.
+   - **티어별 대역 상한 (`license_guard.go`, `services/licenseManager.ts`)**:
+     - **Free**: 최대 `/23` (510 호스트) 지원
+     - **Pro**: 최대 `/22` (1,022 호스트) 지원
+     - **Enterprise**: 최대 `/21`–`/20` (4,094 호스트) 초대형 대역 스캔 지원
+
+2. **단말별 접속·포트 변동 이력 타임라인 DB (`timeline_store.go`, `services/timelineService.ts`, `components/DeviceTimelineTab.tsx`, `App.tsx`)**
+   - **Pure-Go 영속 시계열 이력 저장소 (`timeline_events.jsonl` / `timeline_state.json`)**:
+     - 스캔 완료 시 단말별 상태 변화를 자동 수집·비교하여 `FIRST_SEEN`, `ONLINE`, `OFFLINE`, `IP_CHANGED`, `PORT_OPENED`, `PORT_CLOSED`, `VENDOR_OR_HOST_UPDATED`, `SWITCH_PORT_MOVED` 8종 이벤트를 기록합니다.
+     - `GET /api/timeline`, `GET /api/timeline/summary`, `POST /api/timeline/purge` REST API를 통해 단말별/이벤트 유형별 시계열 조회 및 정리를 제공합니다.
+     - 장치 상세 인스펙터 패널에 **`[프로필]` / `[이력 타임라인]`** 탭 전환기와 CSV 감사 내보내기를 탑재했습니다.
+   - **티어별 보관 정책**: **Free** 최근 24시간 / 최대 50건 조회, **Pro** 30일 보관, **Enterprise** 무제한 영구 보관.
+
+3. **SNMP v2c 스위치 포트 및 L2 물리 연결 매핑 (`snmp_l2.go`, `services/snmpService.ts`, `components/SnmpSwitchConfigModal.tsx`, `services/topologyGraphBuilder.ts`, `components/TopologyMapView.tsx`, `services/reportCenterService.ts`)**
+   - **Pure-Go ASN.1/BER SNMPv2c 워커 & RAM 전용 자격증명 볼트**:
+     - 외부 CGO 의존성 없이 `IF-MIB`(`ifName`, `ifDescr`, `ifAlias`, `ifOperStatus`), `BRIDGE-MIB`(`dot1dTpFdbAddress/Port`, `dot1dBasePortIfIndex`), `Q-BRIDGE-MIB`(`dot1qTpFdbPort`), `LLDP-MIB` OID 트리를 순회해 단말 MAC의 물리 스위치 포트·VLAN 연결을 매핑합니다.
+     - `POST/GET/DELETE /api/snmp/switches` & `POST /api/snmp/discover-l2` 엔드포인트에서 스위치 커뮤니티 문자열/인증 정보는 디스크·`localStorage`·API 응답 JSON에 절대 저장·노출하지 않는 **RAM-only 자격증명 볼트**로 격리 관리합니다.
+   - **3계층 토폴로지 L2 스위치 노드 & 리포트 컬럼 연동**:
+     - `TopologyMapView`에 물리 스위치 인프라 노드, `physical_port`(시안) / `switch_uplink`(에메랄드 점선) 링크 및 `L2 Mapped` 필터 탭을 추가하고, 장치 상세 패널·테이블 뷰·보고서 센터(`switchPort` 컬럼)에 스위치 포트 정보를 통합했습니다.
+   - **티어 제한**: **Free** 잠금, **Pro** 최대 2대 스위치 동시 매핑, **Enterprise** 무제한 스위치 매핑.
+
+4. **다중 단말 일괄 WoL 및 원격 제어 큐 (`batch_queue.go`, `services/batchQueueService.ts`, `components/BatchQueueDrawer.tsx`, `components/IPCell.tsx`, `App.tsx`)**
+   - **비동기 실행 큐 & 제한된 워커 풀 (`POST /api/batch-queue`, `GET /api/batch-queue/:id`, `POST /api/batch-queue/:id/abort`, `POST /api/batch-queue/:id/retry-failed`)**:
+     - 그리드 `Ctrl/Cmd+Click` 또는 테이블 체크박스로 복수 단말을 선택해 하단 플로팅 일괄 작업 바에서 `batch_wol`(매직 패킷 일괄 전송), `batch_ping`(생존 일괄 확인), `batch_remote_probe`(포트/원격 일괄 점검) 작업을 대기열에 등록합니다.
+     - 동시 워커 수(1–4) 및 패킷 간 지연(100–2000ms) 설정, 실시간 진행률 폴링, 실패 항목 일괄 재시도 및 즉시 중단(Abort) 제어를 제공합니다.
+   - **티어 제한**: **Free** 잠금, **Pro** 작업당 최대 16대 동시 실행, **Enterprise** 무제한 단말 일괄 처리.
+
+---
 
 ## 🚀 [v2.6.0] - 2026-11-20
 

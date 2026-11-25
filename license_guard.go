@@ -57,16 +57,25 @@ type StorageBindingInfo struct {
 }
 
 type LicenseFeatures struct {
-	VisualGrid        bool `json:"visualGrid"`
-	FastPing          bool `json:"fastPing"`
-	OUILookup         bool `json:"ouiLookup"`
-	PortScanDeep      bool `json:"portScanDeep"`
-	DiffCompare       bool `json:"diffCompare"`
-	AutoMonitor       bool `json:"autoMonitor"`
-	ExportReport      bool `json:"exportReport"`
-	MultiSubnet       bool `json:"multiSubnet"`
-	RemoteBoot        bool `json:"remoteBoot"`
-	IntruderDetection bool `json:"intruderDetection"`
+	VisualGrid             bool `json:"visualGrid"`
+	FastPing               bool `json:"fastPing"`
+	OUILookup              bool `json:"ouiLookup"`
+	PortScanDeep           bool `json:"portScanDeep"`
+	DiffCompare            bool `json:"diffCompare"`
+	AutoMonitor            bool `json:"autoMonitor"`
+	ExportReport           bool `json:"exportReport"`
+	MultiSubnet            bool `json:"multiSubnet"`
+	RemoteBoot             bool `json:"remoteBoot"`
+	IntruderDetection      bool `json:"intruderDetection"`
+	VariableCidrPro        bool `json:"variableCidrPro"`
+	VariableCidrEnterprise bool `json:"variableCidrEnterprise"`
+	DeviceTimelinePro      bool `json:"deviceTimelinePro"`
+	SnmpL2Mapping          bool `json:"snmpL2Mapping"`
+	BatchOpsQueue          bool `json:"batchOpsQueue"`
+	MaxCidrPrefix          int  `json:"maxCidrPrefix"`
+	TimelineRetentionDays  int  `json:"timelineRetentionDays"`
+	SnmpL2MaxSwitches      int  `json:"snmpL2MaxSwitches"`
+	BatchQueueMaxTargets   int  `json:"batchQueueMaxTargets"`
 }
 
 type DuplicateSeatConflict struct {
@@ -302,30 +311,48 @@ func normalizeHardwareSerial(raw string) string {
 
 func freeFeatures() LicenseFeatures {
 	return LicenseFeatures{
-		VisualGrid: true,
-		FastPing:   true,
-		OUILookup:  true,
+		VisualGrid:             true,
+		FastPing:               true,
+		OUILookup:              true,
+		MaxCidrPrefix:          23,
+		TimelineRetentionDays:  1,
+		SnmpL2MaxSwitches:      0,
+		BatchQueueMaxTargets:   0,
 	}
 }
 
 func proFeatures() LicenseFeatures {
 	return LicenseFeatures{
-		VisualGrid:        true,
-		FastPing:          true,
-		OUILookup:         true,
-		PortScanDeep:      true,
-		DiffCompare:       true,
-		AutoMonitor:       true,
-		ExportReport:      true,
-		MultiSubnet:       false,
-		RemoteBoot:        true,
-		IntruderDetection: true,
+		VisualGrid:             true,
+		FastPing:               true,
+		OUILookup:              true,
+		PortScanDeep:           true,
+		DiffCompare:            true,
+		AutoMonitor:            true,
+		ExportReport:           true,
+		MultiSubnet:            false,
+		RemoteBoot:             true,
+		IntruderDetection:      true,
+		VariableCidrPro:        true,
+		VariableCidrEnterprise: false,
+		DeviceTimelinePro:      true,
+		SnmpL2Mapping:          true,
+		BatchOpsQueue:          true,
+		MaxCidrPrefix:          22,
+		TimelineRetentionDays:  30,
+		SnmpL2MaxSwitches:      2,
+		BatchQueueMaxTargets:   16,
 	}
 }
 
 func enterpriseFeatures() LicenseFeatures {
 	f := proFeatures()
 	f.MultiSubnet = true
+	f.VariableCidrEnterprise = true
+	f.MaxCidrPrefix = 20
+	f.TimelineRetentionDays = 0 // 0 = Unlimited retention
+	f.SnmpL2MaxSwitches = 999
+	f.BatchQueueMaxTargets = 9999
 	return f
 }
 

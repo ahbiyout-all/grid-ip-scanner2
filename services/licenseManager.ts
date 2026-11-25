@@ -11,6 +11,15 @@ export const DEFAULT_FREE_FEATURES: LicenseFeatures = {
   multiSubnet: false,
   remoteBoot: false,
   intruderDetection: false,
+  variableCidrPro: false,
+  variableCidrEnterprise: false,
+  deviceTimelinePro: false,
+  snmpL2Mapping: false,
+  batchOpsQueue: false,
+  maxCidrPrefix: 23,
+  timelineRetentionDays: 1,
+  snmpL2MaxSwitches: 0,
+  batchQueueMaxTargets: 0,
 };
 
 export const PRO_FEATURES: LicenseFeatures = {
@@ -24,6 +33,15 @@ export const PRO_FEATURES: LicenseFeatures = {
   multiSubnet: false,
   remoteBoot: true,
   intruderDetection: true,
+  variableCidrPro: true,
+  variableCidrEnterprise: false,
+  deviceTimelinePro: true,
+  snmpL2Mapping: true,
+  batchOpsQueue: true,
+  maxCidrPrefix: 22,
+  timelineRetentionDays: 30,
+  snmpL2MaxSwitches: 2,
+  batchQueueMaxTargets: 16,
 };
 
 export const ENTERPRISE_FEATURES: LicenseFeatures = {
@@ -37,6 +55,15 @@ export const ENTERPRISE_FEATURES: LicenseFeatures = {
   multiSubnet: true,
   remoteBoot: true,
   intruderDetection: true,
+  variableCidrPro: true,
+  variableCidrEnterprise: true,
+  deviceTimelinePro: true,
+  snmpL2Mapping: true,
+  batchOpsQueue: true,
+  maxCidrPrefix: 20,
+  timelineRetentionDays: 0,
+  snmpL2MaxSwitches: 999,
+  batchQueueMaxTargets: 9999,
 };
 
 export interface ResolvedFeatureGates {
@@ -64,6 +91,15 @@ export interface ResolvedFeatureGates {
   packetInspectBasic: boolean;
   packetContinuousGuard: boolean;
   maxSubnets: number;
+  variableCidrPro: boolean;
+  variableCidrEnterprise: boolean;
+  deviceTimelinePro: boolean;
+  snmpL2Mapping: boolean;
+  batchOpsQueue: boolean;
+  maxCidrPrefix: number;
+  timelineRetentionDays: number;
+  snmpL2MaxSwitches: number;
+  batchQueueMaxTargets: number;
 }
 
 export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates => {
@@ -99,6 +135,15 @@ export const resolveFeatureGates = (license: LicenseInfo): ResolvedFeatureGates 
     packetInspectBasic: true,
     packetContinuousGuard: isProOrHigher,
     maxSubnets: license.maxSubnets || (isEnterprise ? 999 : isProOrHigher ? 5 : 2),
+    variableCidrPro: isProOrHigher && Boolean(f.variableCidrPro ?? true),
+    variableCidrEnterprise: isEnterprise && Boolean(f.variableCidrEnterprise ?? true),
+    deviceTimelinePro: isProOrHigher && Boolean(f.deviceTimelinePro ?? true),
+    snmpL2Mapping: isProOrHigher && Boolean(f.snmpL2Mapping ?? true),
+    batchOpsQueue: isProOrHigher && Boolean(f.batchOpsQueue ?? true),
+    maxCidrPrefix: f.maxCidrPrefix ?? (isEnterprise ? 20 : isProOrHigher ? 22 : 23),
+    timelineRetentionDays: f.timelineRetentionDays ?? (isEnterprise ? 0 : isProOrHigher ? 30 : 1),
+    snmpL2MaxSwitches: f.snmpL2MaxSwitches ?? (isEnterprise ? 999 : isProOrHigher ? 2 : 0),
+    batchQueueMaxTargets: f.batchQueueMaxTargets ?? (isEnterprise ? 9999 : isProOrHigher ? 16 : 0),
   };
 };
 
@@ -118,7 +163,11 @@ export type EntitlementGateKey =
   | 'reportExcelFullWorkbook'
   | 'reportBrandingLogo'
   | 'intruderGuard'
-  | 'remoteBootWoL';
+  | 'remoteBootWoL'
+  | 'variableCidrPro'
+  | 'deviceTimelinePro'
+  | 'snmpL2Mapping'
+  | 'batchOpsQueue';
 
 export interface FeatureCatalogEntry {
   key: EntitlementGateKey;
@@ -169,6 +218,38 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
     labelEn: 'Single-Subnet Topology Map & Live Packet Profile',
     scopeKo: 'Community 기본 제공',
     scopeEn: 'Included in Free',
+  },
+  {
+    key: 'variableCidrPro',
+    tier: 'pro',
+    labelKo: '가변 CIDR 대역 확장 스캔 (Free /23 · PRO /22 · ENT /20)',
+    labelEn: 'Variable CIDR Supernet Scan (Free /23 · PRO /22 · ENT /20)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'deviceTimelinePro',
+    tier: 'pro',
+    labelKo: '단말별 접속·포트 변동 이력 타임라인 DB (PRO 30일 · ENT 무제한)',
+    labelEn: 'Per-Device Mutation Timeline DB (PRO 30d · ENT Unlimited)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'snmpL2Mapping',
+    tier: 'pro',
+    labelKo: 'SNMP 스위치 포트 & L2 물리 연결 매핑 (VLAN · LLDP 업링크)',
+    labelEn: 'SNMP Switch Port & L2 Physical Mapping (VLAN · LLDP)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
+  },
+  {
+    key: 'batchOpsQueue',
+    tier: 'pro',
+    labelKo: '다중 단말 일괄 WoL & 원격 제어 큐 (PRO 16대 · ENT 무제한)',
+    labelEn: 'Multi-Device Batch WoL & Remote Control Queue (PRO 16 · ENT Unlimited)',
+    scopeKo: 'PRO 이상',
+    scopeEn: 'PRO+',
   },
   {
     key: 'multiSubnetBatchSweep',

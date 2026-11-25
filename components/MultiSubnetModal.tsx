@@ -27,6 +27,7 @@ import {
   normalizeSubnetBase,
   normalizeVlanTag,
 } from '../services/multiSubnetManager';
+import { isCidrPrefixAllowed, parseCidrOrRange } from '../services/cidrUtils';
 
 interface MultiSubnetModalProps {
   isOpen: boolean;
@@ -42,7 +43,10 @@ interface MultiSubnetModalProps {
   onUpdateProfile: (profileId: string, patch: Partial<Pick<SubnetProfile, 'label' | 'vlanId' | 'gatewayIp'>>) => void;
   onRemoveProfile: (profileId: string) => void;
   onToggleBatchSweep: () => void;
-  onRequirePro: (featureId: 'multiSubnetUnlimited' | 'multiSubnetBatchSweep', context?: string) => void;
+  onRequirePro: (
+    featureId: 'multiSubnetUnlimited' | 'multiSubnetBatchSweep' | 'variableCidrPro' | 'variableCidrEnterprise',
+    context?: string
+  ) => void;
   theme: 'dark' | 'gray' | 'white' | 'beige';
   lang: 'ko' | 'en';
 }
@@ -210,13 +214,62 @@ export const MultiSubnetModal: React.FC<MultiSubnetModalProps> = ({
       onRequirePro('multiSubnetUnlimited', subnetInput);
       return;
     }
-    const base = normalizeSubnetBase(subnetInput);
+
+    const rawSubnet = subnetInput.trim();
+    const gwRaw = gatewayInput.trim();
+    if (gwRaw && !isValidIpv4Address(gwRaw)) {
+      setFormError(isKo ? '게이트웨이 IP 형식이 올바르지 않습니다 (예: 192.168.10.1).' : 'Invalid gateway IPv4 address (e.g. 192.168.10.1).');
+      return;
+    }
+
+    if (rawSubnet.includes('/')) {
+      const plan = parseCidrOrRange(rawSubnet, startInput, endInput);
+      if (!plan || plan.blocks.length === 0) {
+        setFormError(
+          isKo
+            ? '유효한 CIDR 범위를 입력하세요 (/20 ~ /30, 예: 10.20.0.0/22)'
+            : 'Enter a valid IPv4 CIDR (/20 to /30, e.g. 10.20.0.0/22)'
+        );
+        return;
+      }
+      const tierCheck = isCidrPrefixAllowed(plan.prefixLen, featureGates.maxCidrPrefix ?? 23);
+      if (!tierCheck.allowed) {
+        onRequirePro(
+          tierCheck.requiredTier === 'enterprise' ? 'variableCidrEnterprise' : 'variableCidrPro',
+          plan.normalizedCidr
+        );
+        return;
+      }
+      const firstBlock = plan.blocks[0];
+      const gw = gwRaw || `${firstBlock.subnet}.1`;
+      const ok = onAddProfile({
+        label: label.trim() || plan.normalizedCidr,
+        subnet: firstBlock.subnet,
+        start: firstBlock.start,
+        end: firstBlock.end,
+        cidr: plan.normalizedCidr,
+        gatewayIp: gw,
+        vlanId: normalizeVlanTag(vlanInput),
+        type: 'custom',
+        pinned: true,
+      });
+      if (ok) {
+        setLabel('');
+        setVlanInput('');
+        setGatewayInput('');
+        setFormError('');
+        setTab('dashboard');
+      }
+      return;
+    }
+
+    const base = normalizeSubnetBase(rawSubnet);
     const octets = base.split('.');
     if (
       octets.length !== 3 ||
       !octets.every((o) => /^\d{1,3}$/.test(o) && Number(o) >= 0 && Number(o) <= 255)
     ) {
-      setFormError(isKo ? '유효한 3옥텟 IPv4 대역을 입력하세요 (예: 192.168.10)' : 'Enter valid 3-octet IPv4 prefix (e.g. 192.168.10)');
+      setFormError(isKo ? '유효한 3옥텟 IPv4 대역 또는 CIDR을 입력하세요 (예: 192.168.10 또는 10.20.0.0/22)' : 'Enter valid 3-octet IPv4 prefix or CIDR (e.g. 192.168.10 or 10.20.0.0/22)');
       return;
     }
     if (!Number.isFinite(startInput) || !Number.isFinite(endInput)) {
@@ -227,11 +280,6 @@ export const MultiSubnetModal: React.FC<MultiSubnetModalProps> = ({
     const eIp = Math.max(0, Math.min(255, Math.round(endInput)));
     if (sIp > eIp) {
       setFormError(isKo ? '시작 IP가 종료 IP보다 클 수 없습니다.' : 'Start IP cannot exceed End IP.');
-      return;
-    }
-    const gwRaw = gatewayInput.trim();
-    if (gwRaw && !isValidIpv4Address(gwRaw)) {
-      setFormError(isKo ? '게이트웨이 IP 형식이 올바르지 않습니다 (예: 192.168.10.1).' : 'Invalid gateway IPv4 address (e.g. 192.168.10.1).');
       return;
     }
     const gw = gwRaw || `${base}.1`;
@@ -761,12 +809,12 @@ export const MultiSubnetModal: React.FC<MultiSubnetModalProps> = ({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-bold opacity-80">{isKo ? '서브넷 3옥텟 *' : 'Subnet Prefix *'}</label>
+                  <label className="font-bold opacity-80">{isKo ? '서브넷 3옥텟 또는 CIDR *' : 'Subnet Prefix or CIDR *'}</label>
                   <input
                     type="text"
                     value={subnetInput}
                     onChange={(e) => setSubnetInput(e.target.value)}
-                    placeholder="192.168.10"
+                    placeholder="192.168.10 or 10.20.0.0/22"
                     className={`w-full px-3 py-2 rounded-lg border font-mono tabular-nums outline-none ${inputCls}`}
                     required
                   />

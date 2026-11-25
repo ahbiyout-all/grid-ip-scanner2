@@ -56,17 +56,18 @@
 │ 🆓 Free Community Edition     │ │ 💎 Pro / Enterprise Edition          │
 │ • 파일명: Grid_IP_Scanner2.exe│ │ • 구매 방식: 라이선스 키 결제        │
 │ • 형태: 단일 무설치 포터블    │ │ • 다운로드 제공 (듀얼 번들):         │
-│ • 핵심 편의 기능 (v2.6.0):    │ │   1) [권장] 정식 인스톨러 (Setup.exe)│
-│   - 16x16 시각화 그리드 맵    │ │      - 제어판, 방화벽, 부팅 자동실행 │
-│   - 기본 단일 서브넷 토폴로지 │ │   2) [보너스] 엔지니어용 포터블 (.zip)│
-│   - 단일 호스트 패킷 텔레메트리│ │      - 외근/출장 시 USB 점검용       │
-│   - 최대 2개 서브넷/VLAN 전환 │ │ • 대규모 관제 & 보안 독점 기능:      │
-│   - 16x16 엑셀 그리드 (.xls)   │ │   - 다중 서브넷 순차 Batch Sweep     │
-│   - 일반 범위 PDF/CSV/JSON/MD │ │   - 교차 서브넷 이상 징후 통합 대시보드│
-│   - 고속 ICMP Ping & OUI 9만건│ │   - 토폴로지 보안 상관분석 & ARP 가드│
-│   - 5단계 적응형 런처         │ │   - 원격 부팅(WoL) & 낯선 기기 감시  │
-│   - 비상 네이티브 메모장 보고서│ │   - 25포트 정밀 분석 & 4색 Diff 비교  │
-│                               │ │   - 전체 보고서 엑셀(5시트)·감사 PDF  │
+│ • 핵심 편의 기능 (v2.7.0):    │ │   1) [권장] 정식 인스톨러 (Setup.exe)│
+│   - 16x16 그리드 & 테이블 뷰   │ │      - 제어판, 방화벽, 부팅 자동실행 │
+│   - 가변 CIDR 최대 /23(510호스트)│ │   2) [보너스] 엔지니어용 포터블 (.zip)│
+│   - 단말 이력 타임라인(24h/50건)│ │      - 외근/출장 시 USB 점검용       │
+│   - 기본 단일 서브넷 토폴로지 │ │ • 대규모 관제 & 엔지니어링 독점 기능:│
+│   - 단일 호스트 패킷 텔레메트리│ │   - 가변 CIDR Pro /22 · Ent /20(/21) │
+│   - 최대 2개 서브넷/VLAN 전환 │ │   - 이력 타임라인 DB (Pro 30일/Ent 무제한)│
+│   - 16x16 엑셀 그리드 (.xls)   │ │   - SNMP L2 스위치 매핑 (Pro 2대/Ent 무제한)│
+│   - 일반 범위 PDF/CSV/JSON/MD │ │   - 다중 단말 일괄 WoL/원격 큐 (Pro 16대/Ent ∞)│
+│   - 고속 ICMP Ping & OUI 9만건│ │   - 다중 서브넷 순차 Batch Sweep     │
+│   - 5단계 적응형 런처         │ │   - 토폴로지 보안 상관분석 & ARP 가드│
+│   - 비상 네이티브 메모장 보고서│ │   - 전체 보고서 엑셀(5시트)·감사 PDF  │
 │                               │ │   - Pro 5서브넷 / Enterprise 무제한  │
 └───────────────────────────────┘ └──────────────────────────────────────┘
 ```
@@ -104,7 +105,7 @@ export interface LicenseInfo {
   features: LicenseFeatures;
 }
 ```
-> **파생 기능 게이트 (`resolveFeatureGates` in `services/licenseManager.ts`)**: `reportExcelWorkbook`(Free: 16×16 `Grid_16x16` 단일 시트), `multiSubnetSwitch`(최대 2개), `topologyMapBasic`, `packetInspectBasic` 및 일반 범위 표준 내보내기(`active`/`search`/`all`/`summary`)는 Free에서 기본 제공되며, `reportExcelFullWorkbook`(전체 보고서 5시트 엑셀 통합문서), `multiSubnetBatchSweep`, `topologySecurityPro`, `packetContinuousGuard`, `reportAuditExport`, `reportBrandingLogo`, `autoReportArchive`는 Pro 이상(`isProOrHigher`)에서 활성화됩니다. Go 백엔드 `/api/wol` 및 `/api/portscan`은 UI와 별개로 서버 측 `LicenseGuard.EvaluateStatus()` 검증(`403 Forbidden` 차단)을 수행합니다.
+> **파생 기능 게이트 (`resolveFeatureGates` in `services/licenseManager.ts` & `license_guard.go`)**: `reportExcelWorkbook`(Free: 16×16 `Grid_16x16` 단일 시트), `multiSubnetSwitch`(최대 2개), `topologyMapBasic`, `packetInspectBasic`, 가변 CIDR `≤ /23`, 타임라인 `24h/50건` 및 일반 범위 표준 내보내기(`active`/`search`/`all`/`summary`)는 Free에서 기본 제공됩니다. 반면 `variableCidrPro`(`/22`)·`timelineHistoryPro`(30일)·`snmpL2Mapping`(최대 2대 스위치)·`batchOpsQueue`(최대 16대)·`reportExcelFullWorkbook`(5시트 엑셀 통합문서)·`multiSubnetBatchSweep`·`topologySecurityPro`·`packetContinuousGuard`·`reportAuditExport`는 Pro 이상에서 해금되며, `variableCidrEnterprise`(`/21`–`/20`) 및 무제한 타임라인/SNMP 스위치/일괄 큐는 Enterprise 전용입니다. Go 백엔드 `/api/wol`, `/api/portscan`, `/api/scan?cidr=...`, `/api/snmp/*`, `/api/batch-queue*`, `/api/timeline*`는 UI와 별개로 서버 측 `LicenseGuard.EvaluateStatus()` 검증을 수행합니다.
 
 ### 5.2. 하이브리드 Ed25519 오프라인 인증 & 물리 하드웨어 봉인 (`license_guard.go`)
 * **인터넷 불필요 (폐쇄망 대응) + 온라인 임대 선택 지원**: 폐쇄망에서는 내장된 SPKI 공개키(`gridEd25519PublicKeySPKI`)로 서명 토큰을 단독 검증하며, `GRID_LICENSE_SERVER_URL` 구성 시 온라인 시트 임대(14일 오프라인 유예, 무시리얼 USB는 24시간 제한)를 병행합니다.
@@ -139,7 +140,7 @@ export interface LicenseInfo {
   6. **언인스톨 클린업**: 제어판 제거 시 기본 이름 및 버전 정보 포함 방화벽 규칙 모두 자동 삭제 (Silent clean)
   7. **무인 일괄 설치(Silent Install) 스위치 지원**:
      ```cmd
-     Grid_IP_Scanner2_v2.6.0_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+     Grid_IP_Scanner2_v2.7.0_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
      ```
 
 ---
@@ -172,8 +173,12 @@ export interface LicenseInfo {
 
 | 구분 | 기능명 | Free 티어 제공/제한 | Pro / Enterprise 제공 가치 |
 | :--- | :--- | :--- | :--- |
+| **가변 CIDR** | **가변 CIDR 대역 확장 & 분할 뷰** | ✅ 최대 **`/23` (510 호스트)** & 테이블 뷰 | 🚀 **Pro `/22` (1,022 호스트) / Enterprise `/21`–`/20` (4,094 호스트)** |
+| **이력 타임라인** | **단말별 접속·포트 변동 타임라인 DB** | ✅ **24시간 / 최근 50건** 제한 조회 | 📜 **Pro 30일 보관 / Enterprise 무제한 영구 보관** + CSV 감사 내보내기 |
+| **L2 스위치** | **SNMP v2c 스위치 포트 & L2 매핑** | ❌ 잠금 (Pro 잠김 팝업) | 🗺️ **Pro 최대 2대 / Enterprise 무제한** `IF-MIB`/`BRIDGE-MIB`/`LLDP-MIB` 포트·VLAN 매핑 & RAM 볼트 |
+| **일괄 제어** | **다중 단말 일괄 WoL & 원격 제어 큐** | ❌ 잠금 (Pro 잠김 팝업) | ⚡ **Pro 최대 16대 / Enterprise 무제한** 동시 일괄 WoL·Ping·포트 점검 큐(Abort/Retry 지원) |
 | **다중 대역** | **다중 서브넷/VLAN 관리** | ✅ **최대 2개 서브넷** 수동 전환 & 캐싱 | 🏢 **Pro 최대 5개 / Enterprise 무제한**, 순차 **Batch Sweep** & 교차 대역 대시보드 |
-| **토폴로지** | **3계층 인터랙티브 토폴로지** | ✅ 단일 서브넷 기본 그래프 시각화 | 🛡️ **Topology Security Correlation** (충돌·스푸핑·위험포트·침입 교차 분석) |
+| **토폴로지** | **3계층 인터랙티브 토폴로지** | ✅ 단일 서브넷 기본 그래프 시각화 | 🛡️ **Topology Security Correlation** & **SNMP L2 물리 스위치 노드 매핑** |
 | **패킷 분석** | **네이티브 패킷 텔레메트리** | ✅ 단일 호스트 수동 TTL/RTT/OS 분석 | 🔒 **Continuous ARP Spoof Guard** & 다중 호스트 이상 상관탐지 |
 | **원격 관리** | **원격 부팅 (Wake-on-LAN)** | ❌ 전송 불가 (Pro 잠김 팝업) | ⚡ 타깃 장비 MAC으로 UDP 9/7 매직 패킷 브로드캐스트 즉각 원격 전원 기동 |
 | **침입 감시** | **낯선 기기 실시간 감시 (Intruder Watch)** | ❌ 감시 모드 잠김 (수동 스캔 목록만) | 🚨 60초 주기 무인 백그라운드 감시, 신규 단말 접속 시 비프음 & OS 데스크톱 알림 |
@@ -261,6 +266,6 @@ export interface LicenseInfo {
 ---
 
 * **문서 작성 부서**: Grid IP Scanner2 코어 개발 연구팀
-* **소프트웨어 버전**: v2.6.0
+* **소프트웨어 버전**: v2.7.0
 * **저작권**: Copyright (c) 2025-2026 AhBiYout  All rights reserved.
 

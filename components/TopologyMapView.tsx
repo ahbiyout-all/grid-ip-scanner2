@@ -11,11 +11,13 @@ import {
   Server,
   Monitor,
   Box,
+  Cable,
 } from 'lucide-react';
 import {
   DeviceAlias,
   NetworkConfig,
   ScanResult,
+  SnmpL2MappingResult,
   TopologyGraphPayload,
   TopologyNode,
   TopologyNodeTier,
@@ -41,14 +43,16 @@ interface TopologyMapViewProps {
   selectedIp: string | null;
   onSelectIp: (ip: string) => void;
   onStartScan: () => void;
-  onRequirePro: (featureId: 'topologySecurityPro', context?: string) => void;
+  onRequirePro: (featureId: 'topologySecurityPro' | 'snmpL2Mapping', context?: string) => void;
+  snmpL2Map?: SnmpL2MappingResult | null;
+  onOpenSnmpConfig?: () => void;
   featureGates: ResolvedFeatureGates;
   isScanning: boolean;
   theme: 'dark' | 'gray' | 'white' | 'beige';
   lang: 'ko' | 'en';
 }
 
-type EdgeFilterMode = 'all' | 'threats' | 'proxy_arp' | 'soft_trust';
+type EdgeFilterMode = 'all' | 'threats' | 'proxy_arp' | 'soft_trust' | 'l2_mapped';
 
 export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
   config,
@@ -64,6 +68,8 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
   onSelectIp,
   onStartScan,
   onRequirePro,
+  snmpL2Map,
+  onOpenSnmpConfig,
   featureGates,
   isScanning,
   theme,
@@ -93,6 +99,7 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
         localIpInfo,
         vlanTag,
         explicitGatewayIp,
+        snmpL2Map,
       }),
     [
       config,
@@ -104,6 +111,7 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
       localIpInfo,
       vlanTag,
       explicitGatewayIp,
+      snmpL2Map,
     ]
   );
 
@@ -161,6 +169,9 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
       }
       if (filterMode === 'soft_trust') {
         return n.riskState === 'soft_trust';
+      }
+      if (filterMode === 'l2_mapped') {
+        return Boolean(n.isSwitch || n.switchPort);
       }
       return true;
     });
@@ -233,6 +244,11 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
     (n) => n.riskState === 'conflict' || n.riskState === 'intruder'
   ).length;
   const proxyCount = graph.nodes.filter((n) => n.riskState === 'proxy_arp').length;
+  const l2MappedCount = graph.nodes.filter((n) => Boolean(n.switchPort)).length;
+  const hasMultiBlockSubnet = useMemo(() => {
+    const thirds = new Set(graph.nodes.map((n) => n.ip.split('.').slice(0, 3).join('.')));
+    return thirds.size > 1;
+  }, [graph.nodes]);
 
   const renderTierIcon = (tier: TopologyNodeTier, cls: string) => {
     if (tier === 'gateway') return <Router className={cls} />;
@@ -315,6 +331,16 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
           )}
         </div>
 
+        {node.switchPort && (
+          <div className="text-[10px] font-mono tabular-nums mt-1 truncate text-cyan-500 font-bold flex items-center gap-1">
+            <Cable className="w-3 h-3 shrink-0" />
+            <span className="truncate">
+              {node.switchName || node.switchIp} · {node.switchPort}
+              {node.vlanId ? ` · V${node.vlanId}` : ''}
+            </span>
+          </div>
+        )}
+
         {node.riskState !== 'normal' && (
           <div
             className={`text-[10px] font-bold mt-1 truncate ${
@@ -383,6 +409,7 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
               { id: 'threats', labelKo: `위협·충돌 (${anomalyCount})`, labelEn: `Threats (${anomalyCount})` },
               { id: 'proxy_arp', labelKo: `Proxy-ARP (${proxyCount})`, labelEn: `Proxy-ARP (${proxyCount})` },
               { id: 'soft_trust', labelKo: '유예·신뢰', labelEn: 'Soft-Trust' },
+              { id: 'l2_mapped', labelKo: `L2 매핑 (${l2MappedCount})`, labelEn: `L2 Ports (${l2MappedCount})` },
             ] as const
           ).map((f) => (
             <button
@@ -433,6 +460,43 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
             </button>
           </div>
 
+          {onOpenSnmpConfig && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!featureGates.snmpL2Mapping) {
+                  onRequirePro('snmpL2Mapping', `${config.subnet}.0/24`);
+                  return;
+                }
+                onOpenSnmpConfig();
+              }}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 cursor-pointer border ${
+                featureGates.snmpL2Mapping
+                  ? isLight
+                    ? 'bg-cyan-50 border-cyan-300 text-cyan-800 hover:bg-cyan-100'
+                    : 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/25'
+                  : isLight
+                  ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                  : 'bg-amber-500/10 border-amber-500/35 text-amber-300 hover:bg-amber-500/20'
+              }`}
+            >
+              {featureGates.snmpL2Mapping ? (
+                <Cable className="w-3.5 h-3.5" />
+              ) : (
+                <Lock className="w-3 h-3" />
+              )}
+              <span>
+                {featureGates.snmpL2Mapping
+                  ? isKo
+                    ? 'L2 스위치 매핑 (SNMP)'
+                    : 'L2 Switch Map (SNMP)'
+                  : isKo
+                  ? 'L2 스위치 매핑 (PRO)'
+                  : 'L2 Switch Map (PRO)'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleRunNativeGuard}
@@ -482,13 +546,13 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
               </span>
               <span className={mutedCls}>
                 {isKo
-                  ? '실선: 업링크 · 하늘 점선: Proxy-ARP 정상 · 적색: 충돌 · 보라: 미등록'
-                  : 'Solid: Uplink · Sky Dash: Proxy-ARP · Red: Conflict · Purple: Intruder'}
+                  ? '실선: 업링크 · 청록: L2 포트 · 에메랄드 점선: 스위치 업링크 · 적색: 충돌'
+                  : 'Solid: Uplink · Cyan: L2 Port · Emerald Dash: Switch Uplink · Red: Conflict'}
               </span>
             </div>
             <svg
               viewBox={`0 0 ${layout.canvasWidth} ${layout.canvasHeight}`}
-              className="w-full select-none"
+              className="w-full select-none ui-scale-reset"
               style={{ height: `${Math.max(256, Math.round(layout.canvasHeight * 0.6))}px` }}
             >
               {graph.edges.map((edge) => {
@@ -500,7 +564,14 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
                 let stroke = isLight ? '#94a3b8' : '#334155';
                 let dash = '';
                 let sw = 1.6;
-                if (edge.relation === 'proxy_arp_alias') {
+                if (edge.relation === 'physical_port') {
+                  stroke = '#06b6d4';
+                  sw = 2.1;
+                } else if (edge.relation === 'switch_uplink') {
+                  stroke = '#10b981';
+                  dash = '6 4';
+                  sw = 2.2;
+                } else if (edge.relation === 'proxy_arp_alias') {
                   stroke = '#0ea5e9';
                   dash = '5 4';
                   sw = 2;
@@ -535,10 +606,15 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
                 let fill = isLight ? '#ffffff' : '#0f172a';
                 let stroke = isLight ? '#64748b' : '#38bdf8';
                 if (n.tier === 'gateway') stroke = '#10b981';
+                if (n.isSwitch && n.tier !== 'gateway') stroke = '#06b6d4';
                 if (n.riskState === 'conflict') stroke = '#f43f5e';
                 if (n.riskState === 'proxy_arp') stroke = '#0ea5e9';
                 if (n.riskState === 'soft_trust') stroke = '#f59e0b';
                 if (n.riskState === 'intruder') stroke = '#a855f7';
+
+                const shortIpLabel = hasMultiBlockSubnet
+                  ? n.ip.split('.').slice(-2).join('.')
+                  : `.${n.ip.split('.')[3]}`;
 
                 return (
                   <g
@@ -548,7 +624,7 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
                     className="cursor-pointer"
                   >
                     <circle
-                      r={n.tier === 'gateway' ? 18 : isSel ? 14 : 11}
+                      r={n.tier === 'gateway' ? 18 : n.isSwitch ? 15 : isSel ? 14 : 11}
                       fill={fill}
                       stroke={stroke}
                       strokeWidth={isSel ? 3.2 : 2}
@@ -561,7 +637,7 @@ export const TopologyMapView: React.FC<TopologyMapViewProps> = ({
                       fontWeight="700"
                       fill={isLight ? '#1e293b' : '#e2e8f0'}
                     >
-                      .{n.ip.split('.')[3]}
+                      {shortIpLabel}
                     </text>
                   </g>
                 );

@@ -3,12 +3,14 @@ import {
   InterfaceInfo,
   NetworkConfig,
   ScanResult,
+  SnmpL2MappingResult,
   TopologyEdge,
   TopologyGraphPayload,
   TopologyNode,
   TopologyNodeTier,
   TopologyRiskState,
 } from '../types';
+import { compareIpv4 } from './cidrUtils';
 import { ConflictInfo, isConflictAlert } from './conflictDetector';
 
 const INFRA_KEYWORDS = [
@@ -98,6 +100,7 @@ export function buildClientTopologyGraph(params: {
   localIpInfo?: { ip: string; subnet: string } | null;
   vlanTag?: string;
   explicitGatewayIp?: string;
+  snmpL2Map?: SnmpL2MappingResult | null;
 }): TopologyGraphPayload {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const {
@@ -110,6 +113,7 @@ export function buildClientTopologyGraph(params: {
     localIpInfo,
     vlanTag,
     explicitGatewayIp,
+    snmpL2Map,
   } = params;
 
   const gatewayIp = detectSubnetGatewayIp(config.subnet, results, explicitGatewayIp);
@@ -134,12 +138,12 @@ export function buildClientTopologyGraph(params: {
     });
   }
 
+  const switchIps = new Set<string>((snmpL2Map?.switches || []).map((sw) => sw.switchIp));
+  const nodeByIp = new Map<string, TopologyNode>();
+  nodes.forEach((n) => nodeByIp.set(n.ip, n));
+
   activeItems
-    .sort((a, b) => {
-      const la = Number(a.ip.split('.')[3] || 0);
-      const lb = Number(b.ip.split('.')[3] || 0);
-      return la - lb;
-    })
+    .sort((a, b) => compareIpv4(a.ip, b.ip))
     .forEach((item) => {
       const dev = item.device;
       const conflict = detectedConflicts.get(item.ip);
@@ -175,25 +179,29 @@ export function buildClientTopologyGraph(params: {
         dev?.vendor ||
         item.ip;
 
+      const l2Mapping = snmpL2Map?.hostMapByIp?.[item.ip];
+      const isSwitch = switchIps.has(item.ip);
       const isLaaVm = dev?.ouiBlockType === 'LAA-VM';
-      const tier = resolveTier(
-        item.ip,
-        gatewayIp,
-        dev?.realVendor || dev?.vendor || '',
-        dev?.hostname || '',
-        dev?.deviceType || '',
-        isProxyArp,
-        isLaaVm
-      );
+      const resolvedTier = isSwitch && item.ip !== gatewayIp
+        ? 'infra'
+        : resolveTier(
+            item.ip,
+            gatewayIp,
+            dev?.realVendor || dev?.vendor || '',
+            dev?.hostname || '',
+            dev?.deviceType || '',
+            isProxyArp,
+            isLaaVm
+          );
 
-      nodes.push({
+      const node: TopologyNode = {
         id: item.ip,
         ip: item.ip,
         label: displayLabel,
         mac: dev?.mac,
         vendor: dev?.realVendor || dev?.vendor,
         deviceType: dev?.deviceType,
-        tier,
+        tier: resolvedTier,
         riskState,
         latencyMs: dev?.latency,
         openPorts: dev?.openPorts,
@@ -202,38 +210,110 @@ export function buildClientTopologyGraph(params: {
         vlanTag,
         isHost: localIpInfo?.ip === item.ip,
         isActive: true,
-      });
-
-      if (item.ip !== gatewayIp && gatewayIp) {
-        const relation =
-          riskState === 'proxy_arp'
-            ? 'proxy_arp_alias'
-            : riskState === 'conflict'
-            ? 'conflict_alert'
-            : riskState === 'soft_trust'
-            ? 'soft_trust_link'
-            : riskState === 'intruder'
-            ? 'intruder_link'
-            : 'uplink';
-
-        edges.push({
-          id: `${gatewayIp}->${item.ip}`,
-          fromIp: gatewayIp,
-          toIp: item.ip,
-          relation,
-          label:
-            relation === 'proxy_arp_alias'
-              ? 'Proxy-ARP'
-              : relation === 'conflict_alert'
-              ? 'Conflict'
-              : relation === 'soft_trust_link'
-              ? 'Soft Trust'
-              : relation === 'intruder_link'
-              ? 'Intruder'
-              : undefined,
-        });
-      }
+        isSwitch,
+        switchIp: l2Mapping?.switchIp || dev?.switchIp,
+        switchName: l2Mapping?.switchName || dev?.switchName,
+        switchPort: l2Mapping?.portName || dev?.switchPort,
+        vlanId: l2Mapping?.vlanId ?? dev?.switchVlanId,
+        speedMbps: l2Mapping?.speedMbps ?? dev?.switchPortSpeedMbps,
+        isUplink: l2Mapping?.isUplink ?? dev?.isUplink,
+      };
+      nodes.push(node);
+      nodeByIp.set(item.ip, node);
     });
+
+  // Ensure every polled SNMP L2 switch exists in the graph and is linked up to the gateway
+  (snmpL2Map?.switches || []).forEach((sw) => {
+    if (!sw.switchIp) return;
+    let swNode = nodeByIp.get(sw.switchIp);
+    if (!swNode) {
+      swNode = {
+        id: sw.switchIp,
+        ip: sw.switchIp,
+        label: sw.sysName || `Switch ${sw.switchIp}`,
+        deviceType: 'L2 Switch',
+        tier: sw.switchIp === gatewayIp ? 'gateway' : 'infra',
+        riskState: sw.error ? 'conflict' : 'normal',
+        reason: sw.error ? `SNMP: ${sw.error}` : `${sw.mappedMacCount} MACs · ${sw.totalPorts} ports`,
+        openPortCount: 0,
+        vlanTag,
+        isActive: !sw.error,
+        isSwitch: true,
+      };
+      nodes.push(swNode);
+      nodeByIp.set(sw.switchIp, swNode);
+    } else {
+      swNode.isSwitch = true;
+      if (sw.sysName && swNode.label === sw.switchIp) {
+        swNode.label = sw.sysName;
+      }
+      if (swNode.tier !== 'gateway') {
+        swNode.tier = 'infra';
+      }
+    }
+
+    if (sw.switchIp !== gatewayIp && gatewayIp) {
+      edges.push({
+        id: `${gatewayIp}->${sw.switchIp}:switch_uplink`,
+        fromIp: gatewayIp,
+        toIp: sw.switchIp,
+        relation: 'switch_uplink',
+        switchIp: sw.switchIp,
+        isUplink: true,
+        label: sw.uplinkPorts?.length ? `Uplink (${sw.uplinkPorts[0]})` : 'Switch Uplink',
+      });
+    }
+  });
+
+  // Connect endpoints & non-switch infra nodes (L2 physical port if mapped, else gateway L3 uplink)
+  nodes.forEach((node) => {
+    if (node.ip === gatewayIp || node.isSwitch) return;
+    if (node.switchIp && node.switchPort && nodeByIp.has(node.switchIp) && node.switchIp !== node.ip) {
+      edges.push({
+        id: `${node.switchIp}->${node.ip}:l2`,
+        fromIp: node.switchIp,
+        toIp: node.ip,
+        relation: 'physical_port',
+        switchIp: node.switchIp,
+        switchPort: node.switchPort,
+        vlanId: node.vlanId,
+        speedMbps: node.speedMbps,
+        isUplink: node.isUplink,
+        label: `${node.switchPort}${node.vlanId ? ` · V${node.vlanId}` : ''}`,
+      });
+      return;
+    }
+
+    if (gatewayIp) {
+      const relation =
+        node.riskState === 'proxy_arp'
+          ? 'proxy_arp_alias'
+          : node.riskState === 'conflict'
+          ? 'conflict_alert'
+          : node.riskState === 'soft_trust'
+          ? 'soft_trust_link'
+          : node.riskState === 'intruder'
+          ? 'intruder_link'
+          : 'uplink';
+
+      edges.push({
+        id: `${gatewayIp}->${node.ip}`,
+        fromIp: gatewayIp,
+        toIp: node.ip,
+        relation,
+        label:
+          relation === 'proxy_arp_alias'
+            ? 'Proxy-ARP'
+            : relation === 'conflict_alert'
+            ? 'Conflict'
+            : relation === 'soft_trust_link'
+            ? 'Soft Trust'
+            : relation === 'intruder_link'
+            ? 'Intruder'
+            : undefined,
+      });
+    }
+  });
 
   const elapsedUs = Math.max(
     10,

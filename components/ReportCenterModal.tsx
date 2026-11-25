@@ -1113,7 +1113,7 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
                   {(config.format === 'pdf' || config.format === 'html_audit') && (
                     <div className="flex justify-center">
                       <div
-                        className="bg-white text-slate-900 border border-slate-300 shadow-lg rounded-sm w-full max-w-[760px] p-6 sm:p-8 space-y-4 origin-top transition-transform"
+                        className="ui-scale-reset bg-white text-slate-900 border border-slate-300 shadow-lg rounded-sm w-full max-w-[760px] p-6 sm:p-8 space-y-4 origin-top transition-transform"
                         style={{ transform: `scale(${previewZoom})`, transformOrigin: 'top center' }}
                       >
                         {/* Document Branding Header */}

@@ -7,9 +7,10 @@ interface IPCellProps {
   ip: string;
   status: IPStatus;
   device?: DeviceInfo;
-  onClick: (ip: string) => void;
+  onClick: (ip: string, event?: React.MouseEvent) => void;
   onDoubleClick?: (ip: string, device?: DeviceInfo) => void;
   isSelected: boolean;
+  isBatchSelected?: boolean;
   isHost?: boolean;
   theme: 'beige' | 'dark' | 'gray' | 'white';
   s: any;
@@ -37,6 +38,7 @@ const IPCell: React.FC<IPCellProps> = ({
   onClick, 
   onDoubleClick,
   isSelected, 
+  isBatchSelected,
   isHost, 
   theme, 
   s, 
@@ -283,18 +285,22 @@ const IPCell: React.FC<IPCellProps> = ({
 
   return (
     <div
-      onClick={() => onClick(ip)}
+      onClick={(e) => onClick(ip, e)}
       onDoubleClick={() => onDoubleClick && onDoubleClick(ip, displayDevice)}
       className={`
         relative aspect-square cursor-pointer transition-all duration-150 border-[0.5px]
         flex items-center justify-center group
         ${getStatusBase()}
         ${isSelected ? 'scale-110 rounded-md border-[2px]' : 'rounded-[2px] hover:z-50 hover:scale-125'}
+        ${isBatchSelected ? 'ring-2 ring-cyan-400 ring-offset-1 z-20' : ''}
         ${isHost ? 'ring-2 ring-sky-400 ring-offset-1 z-10' : ''}
         ${!diffStatus && !isSelected && !isHost ? (isGatewayProxyArp ? 'ring-1 ring-sky-400/75' : hasActiveConflict ? 'ring-1 ring-rose-500/90' : '') : ''}
         ${isFilteredOut ? 'opacity-20 grayscale scale-95' : ''}
       `}
     >
+      {isBatchSelected && (
+        <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-950 z-30 shadow-sm" />
+      )}
       {isHost && (
         <>
           <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-500 rounded-full border border-white z-20 animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
@@ -408,7 +414,7 @@ const IPCell: React.FC<IPCellProps> = ({
       )}
 
       <span className={`
-        text-[11px] md:text-[13px] font-black mono tracking-tight leading-none select-none z-10
+        grid-cell-octet font-black mono tracking-tight leading-none select-none z-10
         ${getTextColor()}
         ${(theme === 'dark' || theme === 'gray' || (isSelected && !usesBlackSelectedText)) ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : ''}
       `}>
@@ -421,7 +427,7 @@ const IPCell: React.FC<IPCellProps> = ({
           pointer-events-none absolute 
           ${isLeftEdge ? 'left-0' : isRightEdge ? 'right-0' : 'left-1/2 -translate-x-1/2'}
           ${isTopHalf ? 'top-full mt-3' : 'bottom-full mb-3'}
-          hidden group-hover:flex flex-col w-52 p-3 rounded-xl border z-[100]
+          hidden group-hover:flex flex-col w-56 sm:w-60 p-3 rounded-xl border z-[100]
           transition-all duration-300 opacity-0 group-hover:opacity-100
           ${getTooltipTheme()}
         `}>

@@ -1,4 +1,4 @@
-# 🌐 Grid IP Scanner2 (v2.6.0)
+# 🌐 Grid IP Scanner2 (v2.7.0)
 
 > **초고속 네트워크 IP 스캐닝, IP 충돌 탐지, A4 최적화 PDF 감사 보고서 및 낯선 기기 감지 시스템**  
 > **High-Performance Network IP Scanner, Conflict Detector & Intruder Defense Suite**
@@ -14,17 +14,19 @@
 
 ## ✨ 핵심 기능 (Key Features)
 
-1. **⚡ 초고속 네트워크 IP 스캐닝, 16x16 그리드 맵 & 3계층 인터랙티브 토폴로지**
-   - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진 (254개 전체 호스트 동시 진단)
-   - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별
+1. **⚡ 초고속 가변 CIDR 스캐닝 (`/20`–`/30`), 분할 그리드·테이블 뷰 & 3계층 토폴로지**
+   - Go 기반 멀티스레드 Ping/ARP/mDNS 스캐닝 엔진 및 **`/30`~`/20` (최대 4,094 호스트) 가변 CIDR 확장 스캔 (`cidr_engine.go`, `CidrBlockBar`, `DeviceTableView`)** — Free `≤/23`, Pro `/22`, Enterprise `/21`–`/20` 지원
+   - 9만 건 이상의 IEEE/Wireshark OUI 마스터 DB를 통한 MAC 제조사 즉각 식별 및 **단말별 접속·포트 변동 이력 타임라인 DB (`timeline_store.go`, `DeviceTimelineTab`, 8종 시계열 이벤트)**
+   - **🔌 SNMP v2c 스위치 포트 & L2 물리 연결 매핑 (`snmp_l2.go`, `SnmpSwitchConfigModal`)**: Pure-Go `IF-MIB`/`BRIDGE-MIB`/`Q-BRIDGE-MIB`/`LLDP-MIB` 탐색 + RAM 전용 자격증명 볼트로 스위치 포트·VLAN 매핑 및 토폴로지 L2 링크 렌더링 (Pro 2대 / Enterprise 무제한)
+   - **⚡ 다중 단말 일괄 WoL 및 원격 제어 큐 (`batch_queue.go`, `BatchQueueDrawer`)**: `Ctrl/Cmd+Click`·체크박스 복수 선택 기반 일괄 WoL/Ping/원격 점검 큐, 동시 워커(1–4)·패킷 지연(100–2000ms)·중단·재시도 제어 (Pro 16대 / Enterprise 무제한)
    - 25개 주요 서비스 포트 정밀 스캐닝·위험도 분류 및 **Listening Ports 클릭 빠른 연결(`QuickConnectModal.tsx`, 프로토콜별 아이콘·URI 복사·원격 실행 제안)**
-   - **🗺️ 3계층 인터랙티브 토폴로지 맵 (`Grid` / `Topology Map` / `Snapshot Diff`)**: `POST /api/topology-map` 및 `grid_topology_guard.dll`(`v2.6.1`)과 연계해 Gateway/Core -> L2·Proxy-ARP·보안 그룹 -> 단말 노드 계층을 SVG 줌/팬으로 시각화하고, Pro 티어에서 **Topology Security Correlation (충돌·스푸핑·위험 포트·침입 교차 분석)** 제공
+   - **🗺️ 3계층 인터랙티브 토폴로지 맵 (`Grid` / `Table` / `Topology Map` / `Snapshot Diff`)**: `POST /api/topology-map` 및 `grid_topology_guard.dll`(`v2.6.1`)과 연계해 Gateway/Core -> L2 스위치·Proxy-ARP·보안 그룹 -> 단말 노드 계층을 SVG 줌/팬으로 시각화하고, Pro 티어에서 **Topology Security Correlation (충돌·스푸핑·위험 포트·침입 교차 분석)** 제공
    - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 패널에서 원클릭으로 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), Window 힌트, OS 추정(신뢰도) 및 Live ARP 정합성 검증** 수행
-   - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 평소에는 깔끔한 단일 대역 UI를 유지하고 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼을 누를 때(또는 Batch Sweep 중) 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터(`활성 태그` + 프로파일별 컬러 태그 뱃지)**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 서브넷별 독립 결과 캐싱, **Free 최대 2개 대역 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕(Batch Sweep) 및 교차 대역 이상 징후 통합 관제** 지원
+   - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼을 누를 때 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 커스텀 CIDR(`/20`–`/30`) 등록, **Free 최대 2개 대역 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕(Batch Sweep) 및 교차 대역 이상 징후 통합 관제** 지원
    - **🏷️ UPnP/SSDP XML & mDNS 실제 제조사 정밀 판별 & OUI 시맨틱 분류 + LAA 랜덤 MAC 역추적**: OUI + 개방 포트 + mDNS + UPnP 복합 점수 시맨틱 분류(`services/ouiClassifier.ts`), 사설 랜덤 MAC(LAA) 교차 역추적 및 신뢰도/판별 근거 UI 표기
    - **📋 원클릭 IP 주소 복사 (Clipboard API)**: 장치 상세 프로필 패널에서 한 번의 클릭으로 선택한 IP 주소를 클립보드에 완벽 복사 (Clipboard API & Fallback 지원)
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치로 백신 오탐지 예방
-   - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 배포 자산 표준 관리 (`v2.6.0`)
+   - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 배포 자산 표준 관리 (`v2.7.0`)
 
 2. **📄 통합 보고서 센터 & Free 16×16 엑셀 그리드 · Pro 전체 보고서(5시트) 엑셀 + A4 PDF 엔진 (`components/ReportCenterModal.tsx`, `services/reportCenterService.ts`, `services/reportGenerator.ts`)**
    - **티어별 Excel(.xls) 내보내기**: **Free 티어**는 16×16 바둑판 IP 그리드 시트(`Grid_16x16`)만 포함된 `.xls` 및 일반 범위 CSV·JSON·Markdown·PDF를 무료 생성하며, **Pro / Enterprise**는 요약·그리드·장비 인벤토리·보안 감사·스냅샷 Diff까지 수록된 **5시트 전체 보고서 Excel 통합문서(`.xls`)** 생성
@@ -63,8 +65,8 @@
    - 1회성 체험 키(`GRID-PRO-TRIAL-2026`) 입력 시 **하드웨어 바인딩 30일 Pro 체험권** 발급 (리플레이 방지 및 만료 시 Free 자동 전환)
 
 9. **📦 클린 소스 배포 & 전자동 패키징 (Portable & Setup Installer & Mobile APK)**
-   - 단일 무설치 포터블 실행 파일 및 Inno Setup 6 정식 인스톨러(`Grid_IP_Scanner2_v2.6.0_Setup.exe`, `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
-   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.6.0.apk`) 및 PWA 모바일 패키지 동시 제공
+   - 단일 무설치 포터블 실행 파일 및 Inno Setup 6 정식 인스톨러(`Grid_IP_Scanner2_v2.7.0_Setup.exe`, `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`)
+   - 안드로이드 스마트폰 전용 APK(`Grid_IP_Scanner2_v2.7.0.apk`) 및 PWA 모바일 패키지 동시 제공
    - 로컬 푸시 스크립트 격리 및 클린 소스코드 전용 `.gitignore` 체계
 
 10. **🚫 브라우저 자동 번역 팝업 원천 차단**
@@ -80,12 +82,12 @@
 ```text
 [ Browser / Electron / Capacitor ] <--- HTTP / SSE / Tray Sync ---> [ Go Backend & Autonomous Tray Core ]
           │                                                                     │
-  React 19 + Vite + Tailwind v4                                   /api/subnets/discover & /api/packet-inspect
-  Grid / TopologyMapView / Diff v2                                /api/topology-map & /api/topology-guard
-  MultiSubnetBar & MultiSubnetModal                               tray_engine.go (10s Daemon, DND/Cooldown)
-  ReportCenter (Free Export + Pro Audit)                          12 Native C/C++ DLL Bridges (Path-Pinned)
-  PreferencesTrayModal (Alert/Service)                            - grid_pcap_analyzer.dll (v2.6.2 Telemetry)
-  OUI Semantic + Proxy-ARP UI                                     - grid_topology_guard.dll (v2.6.1 O(N) Hash)
+  React 19 + Vite + Tailwind v4                                   cidr_engine.go (/20~/30) & timeline_store.go
+  Grid / Table / Topology / Diff v2                               snmp_l2.go (RAM Vault) & batch_queue.go
+  CidrBlockBar & DeviceTimelineTab                                /api/topology-map & /api/subnets/discover
+  SnmpSwitchConfigModal & BatchQueueDrawer                        tray_engine.go (10s Daemon, DND/Cooldown)
+  MultiSubnetBar & ReportCenter                                   12 Native C/C++ DLL Bridges (Path-Pinned)
+  OUI Semantic + Proxy-ARP UI                                     - grid_pcap_analyzer.dll / grid_topology_guard.dll
 ```
 
 ---
@@ -129,8 +131,8 @@ npm run build:apk
 ```bash
 # [표준 Git 배포] 소스 푸시 및 릴리스 태그 발행 (CI 자동 빌드 트리거)
 git add .
-git commit -m "chore: release v2.6.0"
-git tag v2.6.0
+git commit -m "chore: release v2.7.0"
+git tag v2.7.0
 git push origin main --tags
 
 # [로컬 관리자 전용] 유지보수 스크립트가 있는 로컬 환경
@@ -142,21 +144,21 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/README.md`](docs/README.md) : 전체 기술 문서 저장소 총괄 허브 (v2.6.0)
-- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-21 v2.6.0 감사·최신화)
-- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (패킷 텔레메트리·토폴로지 맵·다중 서브넷/VLAN·자아성찰 감사 반영)
+- [`docs/README.md`](docs/README.md) : 전체 기술 문서 저장소 총괄 허브 (v2.7.0)
+- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-25 v2.7.0 최신화)
+- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (가변 CIDR·타임라인 DB·SNMP L2·일괄 큐 반영)
 - [`docs/SCHEDULED_SCAN_SPEC.md`](docs/SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](docs/SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2 및 1:1 대조 스튜디오 명세서
 - [`docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`](docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md) : 순수 창작 `grid_topology_guard.dll` 명세 및 12대 DLL 감사·하드닝 보고서
 - [`docs/GOOGLE_BLOGGER_POST.md`](docs/GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`)
 - [`docs/GOOGLE_BLOGGER_POST.html`](docs/GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]`)
-- [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.6.0 최신화)
+- [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.7.0 최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](docs/MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](docs/A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](docs/FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.6.0 컴포넌트·엔진 반영)
-- [`docs/GRID_IP_SCANNER_2.md`](docs/GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (v2.6.0 최신화)
+- [`docs/FILE_STRUCTURE_GUIDE.md`](docs/FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.7.0 컴포넌트·엔진 반영)
+- [`docs/GRID_IP_SCANNER_2.md`](docs/GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서
 - [`docs/VERSIONING_POLICY.md`](docs/VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
-- [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](docs/DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서 (v2.6.0 티어 개편)
+- [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](docs/DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서 (v2.7.0 티어 매트릭스 반영)
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](docs/V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드
 - [`docs/DIGITAL_SIGNATURE_GUIDE.md`](docs/DIGITAL_SIGNATURE_GUIDE.md) : 테스트용 자가 서명(PowerShell) 가이드
 - [`docs/SECURITY_REPORT.md`](docs/SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서 (v2.6.0)

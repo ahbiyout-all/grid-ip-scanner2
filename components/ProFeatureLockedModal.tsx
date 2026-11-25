@@ -32,7 +32,12 @@ export type ProLockedFeatureId =
   | 'intruderGuard'
   | 'multiSubnetUnlimited'
   | 'multiSubnetBatchSweep'
-  | 'topologySecurityPro';
+  | 'topologySecurityPro'
+  | 'variableCidrPro'
+  | 'variableCidrEnterprise'
+  | 'deviceTimelinePro'
+  | 'snmpL2Mapping'
+  | 'batchOpsQueue';
 
 export interface ProFeatureLockSpec {
   id: ProLockedFeatureId;
@@ -334,15 +339,128 @@ export const PRO_FEATURE_LOCK_CATALOG: Record<ProLockedFeatureId, ProFeatureLock
       'Soft-Trust similarity correlation with topology threat highlighting',
     ],
   },
+  variableCidrPro: {
+    id: 'variableCidrPro',
+    requiredTier: 'pro',
+    categoryKo: '슈퍼넷 대역 스캔',
+    categoryEn: 'Variable CIDR Supernetting',
+    featureNameKo: '가변 CIDR /22 대역 확장 스캔 (최대 1,022 호스트)',
+    featureNameEn: 'Variable CIDR /22 Supernet Scan (Up to 1,022 Hosts)',
+    valuePropKo:
+      'Free 버전은 /24 및 /23(최대 510 호스트)까지 지원합니다. PRO에서는 /22(1,022 호스트) 대역을 복수 /24 세그먼트 전환 바와 고밀도 테이블로 일괄 스캔합니다.',
+    valuePropEn:
+      'Free supports /24 and /23 (up to 510 hosts). Upgrade to PRO to sweep /22 supernets (1,022 hosts) with /24 slice navigation and dense table filtering.',
+    highlightsKo: [
+      '가변 CIDR(/22) 입력 즉시 /24 세그먼트 자동 분할 및 고속 병렬 스캔',
+      '16×16 세그먼트 탭 전환 바 및 1,022대 통합 테이블 뷰 제공',
+      '리포트·토폴로지·스냅샷과 가변 CIDR 범위 완벽 연동',
+    ],
+    highlightsEn: [
+      'Automatic /24 block chunking with parallel sweep across /22 ranges',
+      '16×16 /24 slice switcher plus full unified Device Table view',
+      'Seamless export & topology correlation for extended CIDR blocks',
+    ],
+  },
+  variableCidrEnterprise: {
+    id: 'variableCidrEnterprise',
+    requiredTier: 'enterprise',
+    categoryKo: '대규모 캠퍼스/IDC 스캔',
+    categoryEn: 'Campus & DC Supernetting',
+    featureNameKo: 'Enterprise 초대형 CIDR (/21 · /20 · 최대 4,094 호스트)',
+    featureNameEn: 'Enterprise Large CIDR (/21 · /20 · Up to 4,094 Hosts)',
+    valuePropKo:
+      '사내 전산실·캠퍼스·데이터센터급 /21(2,046대) 및 /20(4,094대) 대규모 슈퍼넷을 청크 단위 메모리 보호 모드로 안정 스캔합니다.',
+    valuePropEn:
+      'Sweep campus and data-center /21 (2,046 hosts) and /20 (4,094 hosts) supernets safely using chunked worker scheduling.',
+    highlightsKo: [
+      '/21 (8개 /24 블록) 및 /20 (16개 /24 블록) 무중단 연속 스캔',
+      '세그먼트별 활성률·이상 징후 실시간 집계',
+      '대규모 자산 타임라인 DB 및 무제한 서브넷 프로파일과 통합',
+    ],
+    highlightsEn: [
+      'Continuous chunked scanning across /21 (8 blocks) and /20 (16 blocks)',
+      'Per-segment active host counts & anomaly counters',
+      'Pairs with unlimited Timeline DB retention and multi-subnet profiles',
+    ],
+  },
+  deviceTimelinePro: {
+    id: 'deviceTimelinePro',
+    requiredTier: 'pro',
+    categoryKo: '단말 변경 감사 이력',
+    categoryEn: 'Device Mutation Audit',
+    featureNameKo: '단말별 접속·포트 변동 이력 타임라인 DB (30일/무제한)',
+    featureNameEn: 'Per-Device Mutation Timeline DB (30d / Unlimited)',
+    valuePropKo:
+      'Free 버전은 최근 24시간(최대 50건)만 열람됩니다. PRO에서는 30일 전체 변동 이력(DHCP IP 변경·포트 개폐·스위치 포트 이동), Enterprise에서는 무기한 보존을 제공합니다.',
+    valuePropEn:
+      'Free retains a 24h window (max 50 events). Upgrade to PRO for 30-day full mutation tracking (DHCP IP moves, port changes, switch hops) or Enterprise for unlimited retention.',
+    highlightsKo: [
+      'MAC 기반 고정 식별자로 DHCP IP 변동 시에도 동일 단말 이력 연속 추적',
+      'FIRST_SEEN · ONLINE · OFFLINE · PORT_OPENED/CLOSED · IP_CHANGED 자동 기록',
+      '이벤트 유형별 필터링 및 타임라인 기반 장애 시점 역추적',
+    ],
+    highlightsEn: [
+      'MAC-pinned device identity tracks hosts continuously across DHCP renewals',
+      'Auto-records Online/Offline transitions, port deltas, and switch port hops',
+      'Filterable timeline inspector for rapid root-cause troubleshooting',
+    ],
+  },
+  snmpL2Mapping: {
+    id: 'snmpL2Mapping',
+    requiredTier: 'pro',
+    categoryKo: 'L2 스위치 물리 토폴로지',
+    categoryEn: 'SNMP L2 Physical Mapping',
+    featureNameKo: 'SNMP 스위치 포트 & L2 물리 연결 매핑',
+    featureNameEn: 'SNMP Switch Port & L2 Physical Connection Mapping',
+    valuePropKo:
+      '매니지드 L2/L3 스위치의 FDB(MAC 테이블)·IF-MIB·Q-BRIDGE VLAN·LLDP 정보를 직접 질의하여 각 단말이 꽂힌 물리 포트(예: Gi1/0/14)와 업링크를 토폴로지에 매핑합니다.',
+    valuePropEn:
+      'Query managed L2/L3 switches via SNMP to correlate MAC forwarding tables, VLANs, and LLDP neighbors directly onto your topology map.',
+    highlightsKo: [
+      '스위치 물리 포트명(Gi1/0/14)·링크 상태·속도·VLAN ID 자동 매핑',
+      'LLDP 인접 스위치 및 다중 MAC 트렁크/업링크 포트 자동 식별',
+      '스위치 포트 변경 시 타임라인 DB에 SWITCH_PORT_MOVED 자동 기록',
+    ],
+    highlightsEn: [
+      'Maps endpoints to physical ports (e.g. Gi1/0/14), speed, status, and VLAN ID',
+      'Auto-detects LLDP neighbors and multi-MAC trunk/uplink ports',
+      'Logs SWITCH_PORT_MOVED events automatically to Timeline DB',
+    ],
+  },
+  batchOpsQueue: {
+    id: 'batchOpsQueue',
+    requiredTier: 'pro',
+    categoryKo: '다중 단말 일괄 제어',
+    categoryEn: 'Batch Control Queue',
+    featureNameKo: '다중 단말 일괄 WoL & 원격 제어 큐',
+    featureNameEn: 'Multi-Device Batch WoL & Remote Control Queue',
+    valuePropKo:
+      '테이블이나 그리드에서 여러 단말을 다중 선택한 뒤 Wake-on-LAN 깨우기(기상 재검증 포함), 배치 Ping, 포트 프로브를 동시성·지연시간 제어 큐로 안전하게 일괄 실행합니다.',
+    valuePropEn:
+      'Select multiple devices and execute Wake-on-LAN (with post-wake verification), batch Ping, or service probes through a throttled, cancellable job queue.',
+    highlightsKo: [
+      '실행 전 대상 요약 확인(Dry-Run) · 동시성(1~4) · 지연 간격 미세 제어',
+      '배치 작업 도중 즉시 중단(Abort) 및 실패 대상만 재시도(Retry Failed)',
+      'PRO 최대 16대 동시 큐 / Enterprise 무제한 대규모 원격 제어 지원',
+    ],
+    highlightsEn: [
+      'Pre-execution target review, bounded concurrency (1–4), and delay pacing',
+      'Instant job abort and one-click retry for failed targets only',
+      'Supports up to 16 targets in PRO and unlimited targets in Enterprise',
+    ],
+  },
 };
 
 function renderFeatureIcon(id: ProLockedFeatureId, className: string) {
   switch (id) {
     case 'remoteBootWoL':
+    case 'batchOpsQueue':
       return <Power className={className} />;
     case 'deepPortAudit':
+    case 'topologySecurityPro':
       return <ShieldAlert className={className} />;
     case 'autoScheduler':
+    case 'deviceTimelinePro':
       return <Clock className={className} />;
     case 'autoReportArchive':
       return <Archive className={className} />;
@@ -358,11 +476,12 @@ function renderFeatureIcon(id: ProLockedFeatureId, className: string) {
     case 'intruderGuard':
       return <BellRing className={className} />;
     case 'multiSubnetUnlimited':
+    case 'variableCidrPro':
+    case 'variableCidrEnterprise':
+    case 'snmpL2Mapping':
       return <Network className={className} />;
     case 'multiSubnetBatchSweep':
       return <Layers className={className} />;
-    case 'topologySecurityPro':
-      return <ShieldAlert className={className} />;
   }
 }
 

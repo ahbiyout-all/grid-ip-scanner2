@@ -101,6 +101,7 @@ export const REPORT_COLUMNS_META: ReportColumnMeta[] = [
   { key: 'deviceType', labelKo: '기기 분류', labelEn: 'Device Type', defaultVisible: false },
   { key: 'os', labelKo: '추정 OS', labelEn: 'OS', defaultVisible: false },
   { key: 'aliasNotes', labelKo: '별칭 / 메모', labelEn: 'Alias / Notes', defaultVisible: true },
+  { key: 'switchPort', labelKo: '스위치 포트 (L2)', labelEn: 'Switch Port (L2)', defaultVisible: false },
   { key: 'riskLevel', labelKo: '보안 위험도', labelEn: 'Risk Level', defaultVisible: true },
 ];
 
@@ -333,6 +334,7 @@ export interface PreparedDeviceRow {
   aliasNickname?: string;
   aliasNotes?: string;
   aliasText: string;
+  switchPort: string;
   riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   highRiskPorts: number[];
   diffStatus?: DiffStatus;
@@ -648,6 +650,11 @@ export function buildPreparedReportDataset(input: BuildDatasetInput): PreparedRe
       aliasNickname,
       aliasNotes,
       aliasText: aliasText || '-',
+      switchPort: effectiveDevice?.switchPort
+        ? `${effectiveDevice.switchName || effectiveDevice.switchIp || 'Switch'} · ${effectiveDevice.switchPort}${
+            effectiveDevice.switchVlanId ? ` (VLAN ${effectiveDevice.switchVlanId})` : ''
+          }`
+        : '-',
       riskLevel,
       highRiskPorts,
       diffStatus: diffEntry?.diffStatus,
@@ -770,6 +777,8 @@ export function getColumnValue(row: PreparedDeviceRow, col: ReportColumnKey, lan
       return row.os;
     case 'aliasNotes':
       return row.aliasText;
+    case 'switchPort':
+      return row.switchPort;
     case 'riskLevel':
       return row.highRiskPorts.length > 0
         ? `${row.riskLevel} (${row.highRiskPorts.join(',')})`

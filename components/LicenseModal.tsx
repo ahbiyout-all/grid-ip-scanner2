@@ -245,6 +245,14 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
                     ? featureGates.reportBrandingLogo
                     : entry.key === 'intruderGuard'
                     ? featureGates.intruderGuard
+                    : entry.key === 'variableCidrPro'
+                    ? featureGates.variableCidrPro
+                    : entry.key === 'deviceTimelinePro'
+                    ? featureGates.deviceTimelinePro
+                    : entry.key === 'snmpL2Mapping'
+                    ? featureGates.snmpL2Mapping
+                    : entry.key === 'batchOpsQueue'
+                    ? featureGates.batchOpsQueue
                     : featureGates.remoteBootWoL;
 
                 return (

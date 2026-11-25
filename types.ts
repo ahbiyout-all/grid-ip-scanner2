@@ -59,6 +59,12 @@ export interface DeviceInfo {
   softTrustInfo?: SoftTrustInfo;
   deviceType?: string;
   deviceModel?: string;
+  switchIp?: string;
+  switchName?: string;
+  switchPort?: string;
+  switchVlanId?: number;
+  switchPortSpeedMbps?: number;
+  isUplink?: boolean;
 }
 
 export interface ScanResult {
@@ -116,6 +122,7 @@ export interface NetworkConfig {
   start: number;
   end: number;
   timeout: number;
+  cidr?: string;
 }
 
 export type LicenseTier = 'free' | 'pro' | 'enterprise';
@@ -131,6 +138,15 @@ export interface LicenseFeatures {
   multiSubnet: boolean;
   remoteBoot: boolean;
   intruderDetection: boolean;
+  variableCidrPro?: boolean;
+  variableCidrEnterprise?: boolean;
+  deviceTimelinePro?: boolean;
+  snmpL2Mapping?: boolean;
+  batchOpsQueue?: boolean;
+  maxCidrPrefix?: number;
+  timelineRetentionDays?: number;
+  snmpL2MaxSwitches?: number;
+  batchQueueMaxTargets?: number;
 }
 
 export type LicenseType = 'lifetime' | 'annual' | 'trial' | 'free';
@@ -329,6 +345,7 @@ export type ReportColumnKey =
   | 'deviceType'
   | 'os'
   | 'aliasNotes'
+  | 'switchPort'
   | 'riskLevel';
 export type ReportSortKey = 'ip' | 'status' | 'hostname' | 'latency' | 'ports' | 'risk';
 
@@ -635,7 +652,9 @@ export type TopologyEdgeRelation =
   | 'proxy_arp_alias'
   | 'conflict_alert'
   | 'soft_trust_link'
-  | 'intruder_link';
+  | 'intruder_link'
+  | 'physical_port'
+  | 'switch_uplink';
 
 export type TopologyRiskState = 'normal' | 'conflict' | 'proxy_arp' | 'soft_trust' | 'intruder';
 
@@ -656,6 +675,13 @@ export interface TopologyNode {
   vlanTag?: string;
   isHost?: boolean;
   isActive?: boolean;
+  switchIp?: string;
+  switchName?: string;
+  switchPort?: string;
+  vlanId?: number;
+  speedMbps?: number;
+  isUplink?: boolean;
+  isSwitch?: boolean;
 }
 
 export interface TopologyEdge {
@@ -664,6 +690,11 @@ export interface TopologyEdge {
   toIp: string;
   relation: TopologyEdgeRelation;
   label?: string;
+  switchIp?: string;
+  switchPort?: string;
+  vlanId?: number;
+  speedMbps?: number;
+  isUplink?: boolean;
 }
 
 export interface TopologyGraphPayload {
@@ -677,4 +708,166 @@ export interface TopologyGraphPayload {
   summary?: NativeTopologyGuardResult | null;
 }
 
+// ============================================================================
+// v2.7.0 Network Engineering & Switch/Subnet Expansion Types
+// ============================================================================
+
+export interface CIDRBlock {
+  index: number;
+  label: string;
+  subnet: string;
+  start: number;
+  end: number;
+  hostCount: number;
+  networkIp: string;
+  broadcastIp: string;
+}
+
+export interface CIDRScanPlan {
+  normalizedCidr: string;
+  prefixLen: number;
+  networkIp: string;
+  broadcastIp: string;
+  totalHosts: number;
+  blocks: CIDRBlock[];
+}
+
+export type TimelineEventType =
+  | 'FIRST_SEEN'
+  | 'ONLINE'
+  | 'OFFLINE'
+  | 'IP_CHANGED'
+  | 'PORT_OPENED'
+  | 'PORT_CLOSED'
+  | 'VENDOR_OR_HOST_UPDATED'
+  | 'SWITCH_PORT_MOVED';
+
+export interface TimelineEvent {
+  id: string;
+  timestampMs: number;
+  deviceKey: string;
+  ip: string;
+  previousIp?: string;
+  mac?: string;
+  hostname?: string;
+  vendor?: string;
+  eventType: TimelineEventType;
+  summary: string;
+  details?: Record<string, string | number | boolean | number[]>;
+}
+
+export interface DeviceTimelineResponse {
+  success: boolean;
+  deviceKey: string;
+  ip?: string;
+  mac?: string;
+  tier: LicenseTier;
+  retentionDays: number;
+  truncatedByTier: boolean;
+  totalMatched: number;
+  events: TimelineEvent[];
+}
+
+export interface SnmpL2CredentialInput {
+  ip: string;
+  name?: string;
+  version: 'v2c' | 'v3';
+  community?: string;
+  v3Username?: string;
+  v3AuthProto?: 'MD5' | 'SHA';
+  v3AuthPass?: string;
+  v3PrivProto?: 'DES' | 'AES';
+  v3PrivPass?: string;
+  saveInMemoryVault?: boolean;
+}
+
+export interface SnmpL2PortMapping {
+  mac: string;
+  ip?: string;
+  hostname?: string;
+  switchIp: string;
+  switchName: string;
+  ifIndex: number;
+  portName: string;
+  vlanId?: number;
+  operStatus?: 'up' | 'down' | 'unknown';
+  speedMbps?: number;
+  macCountOnPort: number;
+  isUplink: boolean;
+}
+
+export interface SnmpL2LldpNeighbor {
+  localPort: string;
+  remoteSysName: string;
+  remotePort: string;
+}
+
+export interface SnmpL2SwitchSummary {
+  switchIp: string;
+  sysName: string;
+  sysDescr?: string;
+  totalPorts: number;
+  mappedMacCount: number;
+  uplinkPorts: string[];
+  lldpNeighbors: SnmpL2LldpNeighbor[];
+  error?: string;
+  durationMs: number;
+}
+
+export interface SnmpL2MappingResult {
+  success: boolean;
+  mappedAtMs: number;
+  switches: SnmpL2SwitchSummary[];
+  mappings: SnmpL2PortMapping[];
+  hostMapByIp: Record<string, SnmpL2PortMapping>;
+  error?: string;
+}
+
+export type BatchQueueActionType =
+  | 'batch_wol'
+  | 'batch_ping'
+  | 'batch_remote_probe'
+  | 'batch_remote_launch';
+
+export type BatchQueueTargetStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'failed'
+  | 'verified_online'
+  | 'skipped'
+  | 'cancelled';
+
+export interface BatchQueueTarget {
+  id: string;
+  ip: string;
+  mac?: string;
+  hostname?: string;
+  port?: number;
+  protocol?: string;
+  status: BatchQueueTargetStatus;
+  latencyMs?: number;
+  message?: string;
+  attempts: number;
+  updatedAtMs: number;
+}
+
+export interface BatchQueueJob {
+  id: string;
+  action: BatchQueueActionType;
+  label: string;
+  status: 'queued' | 'running' | 'completed' | 'cancelled' | 'partial_failed';
+  concurrency: number;
+  delayMs: number;
+  verifyWake?: boolean;
+  verifyDelaySec?: number;
+  createdAtMs: number;
+  startedAtMs?: number;
+  finishedAtMs?: number;
+  totalTargets: number;
+  completedCount: number;
+  successCount: number;
+  failedCount: number;
+  targets: BatchQueueTarget[];
+}
 

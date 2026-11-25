@@ -2609,60 +2609,60 @@ func main() {
 		}
 
 		query := r.URL.Query()
-		subnet := strings.TrimSpace(query.Get("subnet"))
-		if subnet == "" {
-			_, subnet = getLocalIP()
+		rawCidrParam := strings.TrimSpace(query.Get("cidr"))
+		rawSubnetParam := strings.TrimSpace(query.Get("subnet"))
+		rawInput := rawCidrParam
+		if rawInput == "" {
+			rawInput = rawSubnetParam
 		}
-		if idx := strings.Index(subnet, "/"); idx != -1 {
-			subnet = subnet[:idx]
-		}
-		subnet = strings.TrimRight(subnet, ".")
-		octets := strings.Split(subnet, ".")
-		if len(octets) == 4 {
-			subnet = strings.Join(octets[:3], ".")
-			octets = octets[:3]
-		}
-		validSubnet := len(octets) == 3
-		if validSubnet {
-			for _, o := range octets {
-				var v int
-				if n, err := fmt.Sscanf(o, "%d", &v); err != nil || n != 1 || v < 0 || v > 255 || fmt.Sprintf("%d", v) != o {
-					validSubnet = false
-					break
-				}
-			}
-		}
-		if !validSubnet {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"error":"Invalid subnet format"}`))
-			return
+		if rawInput == "" {
+			_, localSub := getLocalIP()
+			rawInput = localSub
 		}
 
-		startIP := 1
-		endIP := 254
-
+		startHint := 1
+		endHint := 254
 		if s := query.Get("start"); s != "" {
-			if val, err := fmt.Sscanf(s, "%d", &startIP); err == nil && val == 1 {
-				if startIP < 0 {
-					startIP = 0
-				} else if startIP > 255 {
-					startIP = 255
+			if val, err := fmt.Sscanf(s, "%d", &startHint); err == nil && val == 1 {
+				if startHint < 0 {
+					startHint = 0
+				} else if startHint > 255 {
+					startHint = 255
 				}
 			}
 		}
 		if e := query.Get("end"); e != "" {
-			if val, err := fmt.Sscanf(e, "%d", &endIP); err == nil && val == 1 {
-				if endIP < 0 {
-					endIP = 0
-				} else if endIP > 255 {
-					endIP = 255
+			if val, err := fmt.Sscanf(e, "%d", &endHint); err == nil && val == 1 {
+				if endHint < 0 {
+					endHint = 0
+				} else if endHint > 255 {
+					endHint = 255
 				}
 			}
 		}
 
-		if startIP > endIP {
-			startIP, endIP = endIP, startIP
+		cidrPlan, planErr := ParseCIDRPlan(rawInput, startHint, endHint)
+		if planErr != nil {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": planErr.Error(),
+			})
+			return
+		}
+
+		// Enforce tier limits for variable CIDR supernet ranges
+		licStatus := guard.EvaluateStatus()
+		if allowed, reqTier, denyMsg := CheckCIDRTierAllowed(cidrPlan, licStatus); !allowed {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":        denyMsg,
+				"requiredTier": reqTier,
+				"prefixLen":    cidrPlan.PrefixLen,
+				"totalHosts":   cidrPlan.TotalHosts,
+			})
+			return
 		}
 
 		deepScan := query.Get("deep") == "true"
@@ -2692,15 +2692,23 @@ func main() {
 
 		// Immediate header flush so client never stalls before stream starts
 		fmt.Fprintf(w, ": scan-stream-started\n\n")
+		if planBytes, err := json.Marshal(map[string]interface{}{
+			"type": "plan",
+			"plan": cidrPlan,
+		}); err == nil {
+			fmt.Fprintf(w, "data: %s\n\n", string(planBytes))
+		}
 		flusher.Flush()
 
-		// Warm up the new Search Engine's ARP Cache
+		// Warm up the Search Engine's ARP Cache
 		GlobalEngine.Prepare()
 
-		// Build IP list & run Native Vectorized Batch Pre-Sweep when native DLLs are available (0ms pacing mode)
-		targetIPs := make([]string, 0, endIP-startIP+1)
-		for i := startIP; i <= endIP; i++ {
-			targetIPs = append(targetIPs, fmt.Sprintf("%s.%d", subnet, i))
+		// Build IP list across all /24-aligned CIDR blocks
+		targetIPs := make([]string, 0, cidrPlan.TotalHosts)
+		for _, blk := range cidrPlan.Blocks {
+			for i := blk.Start; i <= blk.End; i++ {
+				targetIPs = append(targetIPs, fmt.Sprintf("%s.%d", blk.Subnet, i))
+			}
 		}
 
 		var probeHints map[string]NativeProbeBatchHint
@@ -2710,45 +2718,61 @@ func main() {
 			if probeTimeout > 600 {
 				probeTimeout = 600
 			}
-			probeChan := make(chan map[string]NativeProbeBatchHint, 1)
-			go func() {
-				if hints, ok := tryNativeProbeAsyncBatch(targetIPs, probeTimeout); ok {
-					probeChan <- hints
-				} else {
-					probeChan <- nil
-				}
-			}()
-
-			select {
-			case <-ctx.Done():
-				return
-			case hints := <-probeChan:
+			// Chunk vectorized pre-sweep per <=256-IP block so native DLL limits are respected
+			probeHints = make(map[string]NativeProbeBatchHint, len(targetIPs))
+			portHints = make(map[string][]int)
+			for _, blk := range cidrPlan.Blocks {
 				if ctx.Err() != nil {
 					return
 				}
-				if hints != nil {
-					probeHints = hints
-					if deepScan {
-						var liveIPs []string
-						for _, ip := range targetIPs {
-							if h, exists := hints[ip]; exists && h.IsAlive {
-								liveIPs = append(liveIPs, ip)
-							}
+				blkIPs := make([]string, 0, blk.HostCount)
+				for i := blk.Start; i <= blk.End; i++ {
+					blkIPs = append(blkIPs, fmt.Sprintf("%s.%d", blk.Subnet, i))
+				}
+				probeChan := make(chan map[string]NativeProbeBatchHint, 1)
+				go func(ips []string) {
+					if hints, ok := tryNativeProbeAsyncBatch(ips, probeTimeout); ok {
+						probeChan <- hints
+					} else {
+						probeChan <- nil
+					}
+				}(blkIPs)
+
+				select {
+				case <-ctx.Done():
+					return
+				case hints := <-probeChan:
+					if ctx.Err() != nil {
+						return
+					}
+					if hints != nil {
+						for k, v := range hints {
+							probeHints[k] = v
 						}
-						if len(liveIPs) > 0 && ctx.Err() == nil {
-							deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
-							iocpTimeout := timeoutMs
-							if iocpTimeout > 500 {
-								iocpTimeout = 500
+						if deepScan {
+							var liveIPs []string
+							for _, ip := range blkIPs {
+								if h, exists := hints[ip]; exists && h.IsAlive {
+									liveIPs = append(liveIPs, ip)
+								}
 							}
-							if pMap, pOk := tryNativePortIocpMultiHost(liveIPs, deepTargetPorts, iocpTimeout, 256); pOk {
-								portHints = pMap
+							if len(liveIPs) > 0 && ctx.Err() == nil {
+								deepTargetPorts := []int{80, 443, 445, 135, 139, 9100, 631, 22, 3389, 53, 554, 1883, 5000, 8080, 1900, 5353, 5355, 8000, 8443, 8899, 37777}
+								iocpTimeout := timeoutMs
+								if iocpTimeout > 500 {
+									iocpTimeout = 500
+								}
+								if pMap, pOk := tryNativePortIocpMultiHost(liveIPs, deepTargetPorts, iocpTimeout, 256); pOk {
+									for k, v := range pMap {
+										portHints[k] = v
+									}
+								}
 							}
 						}
 					}
+				case <-time.After(time.Duration(probeTimeout+150) * time.Millisecond):
+					// Non-blocking timeout: proceed immediately with parallel workers
 				}
-			case <-time.After(time.Duration(probeTimeout+150) * time.Millisecond):
-				// Non-blocking timeout: proceed immediately with parallel workers
 			}
 		}
 
@@ -2759,22 +2783,19 @@ func main() {
 		fmt.Fprintf(w, ": probe-ready\n\n")
 		flusher.Flush()
 
-		// Adaptive logic: If delay is high, we can afford more retries and longer timeouts
-		retryCount := 1 // Default to 1 retry for fast mode
+		retryCount := 1
 		if delayMs >= 100 || timeoutMs >= 1500 {
-			retryCount = 2 // Double check if delay is high or timeout is generous
+			retryCount = 2
 		}
 		if delayMs >= 300 && timeoutMs >= 2000 {
-			retryCount = 3 // Maximum precision
+			retryCount = 3
 		}
 
-		// Thread-safe SSE message queue
 		sseChan := make(chan string, 1024)
 		resultsChan := make(chan ScanResult, 512)
 		ipChan := make(chan string, 512)
 		var wg sync.WaitGroup
 
-		// SSE Writer Goroutine
 		writerDone := make(chan struct{})
 		go func() {
 			defer close(writerDone)
@@ -2792,16 +2813,18 @@ func main() {
 			}
 		}()
 
-		// Worker pool
-		workerCount := 100 // Increased from 30 to 100 for fast mode
+		workerCount := 100
 		if deepScan {
-			workerCount = 30 // Deep scan is heavier, reduce concurrency to prevent network noise
+			workerCount = 30
+		}
+		if len(targetIPs) > 512 && workerCount > 64 {
+			workerCount = 64 // Keep large CIDR sweeps bounded and steady
 		}
 		if delayMs > 0 {
-			workerCount = 20 // Reduce workers to maintain order and reduce noise
+			workerCount = 20
 		}
 		if delayMs >= 200 {
-			workerCount = 10 // Even fewer workers for high delay to ensure sequential-like behavior
+			workerCount = 10
 		}
 
 		for worker := 0; worker < workerCount; worker++ {
@@ -2829,14 +2852,12 @@ func main() {
 					}
 
 					var res ScanResult
-					// Adaptive Retry Logic
 				retryLoop:
 					for r := 0; r < retryCount; r++ {
 						curHint := pHintPtr
 						curPrePorts := prePorts
 						curHasPrePorts := hasPrePorts
 						if r > 0 {
-							// On retry, re-probe actively without relying on initial dead hint
 							curHint = nil
 							curHasPrePorts = false
 						}
@@ -2866,18 +2887,17 @@ func main() {
 			}()
 		}
 
-		wg.Add(1) // Add 1 for the producer to prevent Waiter from exiting early
-		// Producer
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := startIP; i <= endIP; i++ {
+			for _, ip := range targetIPs {
 				select {
 				case <-ctx.Done():
 					goto doneProducing
 				default:
 					wg.Add(1)
 					select {
-					case ipChan <- fmt.Sprintf("%s.%d", subnet, i):
+					case ipChan <- ip:
 					case <-ctx.Done():
 						wg.Done()
 						goto doneProducing
@@ -2895,35 +2915,34 @@ func main() {
 			close(ipChan)
 		}()
 
-		// Waiter
 		go func() {
 			wg.Wait()
 			close(resultsChan)
 		}()
 
-		// Result collector
+		collectedResults := make([]ScanResult, 0, len(targetIPs))
 		for {
 			res, ok := <-resultsChan
 			if !ok {
-				// We only send complete if context is not done, otherwise the client disconnected anyway
 				if ctx.Err() == nil {
+					if len(collectedResults) > 0 {
+						getTimelineStore().IngestScanResults(collectedResults)
+					}
 					select {
 					case sseChan <- "{\"type\":\"complete\"}":
 					case <-ctx.Done():
 					}
 				}
 				close(sseChan)
-				<-writerDone // Wait for SSE writer to finish its queue
+				<-writerDone
 				return
 			}
+			collectedResults = append(collectedResults, res)
 			data, _ := json.Marshal(res)
 
-			// Try to send result, but don't block forever if context is done
 			select {
 			case sseChan <- fmt.Sprintf("{\"type\":\"result\",\"data\":%s}", string(data)):
 			case <-ctx.Done():
-				// If context is done, we still need to drain resultsChan to prevent workers from blocking
-				// so we just continue the loop and ignore the result
 			}
 		}
 	})
@@ -3425,6 +3444,325 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(graph)
+	})
+
+	// ============================================================================
+	// v2.7.0 Device Mutation Timeline DB Endpoints
+	// ============================================================================
+	http.HandleFunc("/api/timeline/device", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		q := r.URL.Query()
+		ip := strings.TrimSpace(q.Get("ip"))
+		mac := strings.TrimSpace(q.Get("mac"))
+		eventType := strings.TrimSpace(q.Get("eventType"))
+		limit := 200
+		if lStr := strings.TrimSpace(q.Get("limit")); lStr != "" {
+			if v, err := strconv.Atoi(lStr); err == nil && v > 0 && v <= 2000 {
+				limit = v
+			}
+		}
+		if ip == "" && mac == "" {
+			http.Error(w, `{"success":false,"error":"ip or mac query parameter is required"}`, http.StatusBadRequest)
+			return
+		}
+		resp := getTimelineStore().QueryDeviceTimeline(ip, mac, eventType, limit, guard.EvaluateStatus())
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	http.HandleFunc("/api/timeline/recent", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		q := r.URL.Query()
+		eventType := strings.TrimSpace(q.Get("eventType"))
+		limit := 150
+		if lStr := strings.TrimSpace(q.Get("limit")); lStr != "" {
+			if v, err := strconv.Atoi(lStr); err == nil && v > 0 && v <= 1000 {
+				limit = v
+			}
+		}
+		st := guard.EvaluateStatus()
+		events, totalMatched, truncated := getTimelineStore().QueryRecentEvents(eventType, limit, st)
+		retDays, _ := resolveRetentionParams(st)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":         true,
+			"tier":            st.Tier,
+			"retentionDays":   retDays,
+			"truncatedByTier": truncated,
+			"totalMatched":    totalMatched,
+			"events":          events,
+		})
+	})
+
+	http.HandleFunc("/api/timeline/ingest", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
+		if err != nil {
+			http.Error(w, `{"success":false,"error":"Failed to read body"}`, http.StatusBadRequest)
+			return
+		}
+		var payload struct {
+			Results []ScanResult `json:"results"`
+		}
+		if err := json.Unmarshal(bodyBytes, &payload); err != nil {
+			http.Error(w, `{"success":false,"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+			return
+		}
+		count := getTimelineStore().IngestScanResults(payload.Results)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":       true,
+			"emittedEvents": count,
+		})
+	})
+
+	http.HandleFunc("/api/timeline/prune", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			OlderThanDays int `json:"olderThanDays"`
+		}
+		bodyBytes, _ := io.ReadAll(io.LimitReader(r.Body, 16*1024))
+		if len(bytes.TrimSpace(bodyBytes)) > 0 {
+			_ = json.Unmarshal(bodyBytes, &req)
+		}
+		removed, remaining, err := getTimelineStore().PruneEvents(req.OlderThanDays)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":   true,
+			"removed":   removed,
+			"remaining": remaining,
+		})
+	})
+
+	// ============================================================================
+	// v2.7.0 SNMP Switch Port & L2 Physical Mapping Endpoints
+	// ============================================================================
+	http.HandleFunc("/api/snmp/vault", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		vault := getSnmpVault()
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"entries": vault.ListSummaries(), // Never leaks secrets
+			})
+		case http.MethodPost:
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 256*1024))
+			if err != nil {
+				http.Error(w, `{"success":false,"error":"Failed to read body"}`, http.StatusBadRequest)
+				return
+			}
+			var cred SnmpL2CredentialInput
+			if err := json.Unmarshal(bodyBytes, &cred); err != nil {
+				http.Error(w, `{"success":false,"error":"Invalid JSON"}`, http.StatusBadRequest)
+				return
+			}
+			if err := vault.Save(cred); err != nil {
+				http.Error(w, fmt.Sprintf(`{"success":false,"error":%q}`, err.Error()), http.StatusBadRequest)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"entries": vault.ListSummaries(),
+			})
+		case http.MethodDelete:
+			ip := strings.TrimSpace(r.URL.Query().Get("ip"))
+			vault.Delete(ip)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"entries": vault.ListSummaries(),
+			})
+		default:
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/api/snmp/l2-map", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 4*1024*1024))
+		if err != nil {
+			http.Error(w, `{"success":false,"error":"Failed to read body"}`, http.StatusBadRequest)
+			return
+		}
+		var req struct {
+			Switches []SnmpL2CredentialInput `json:"switches"`
+			Hosts    []TopologyMapHostInput  `json:"hosts"`
+		}
+		if err := json.Unmarshal(bodyBytes, &req); err != nil {
+			http.Error(w, `{"success":false,"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+			return
+		}
+		st := guard.EvaluateStatus()
+		res := RunSnmpL2Mapping(r.Context(), req.Switches, req.Hosts, st)
+		if !res.Success && !st.Features.SnmpL2Mapping {
+			w.WriteHeader(http.StatusForbidden)
+		} else if !res.Success && len(req.Switches) > st.Features.SnmpL2MaxSwitches {
+			w.WriteHeader(http.StatusForbidden)
+		}
+		_ = json.NewEncoder(w).Encode(res)
+	})
+
+	// ============================================================================
+	// v2.7.0 Multi-Device Batch WoL & Remote Control Queue Endpoints
+	// ============================================================================
+	http.HandleFunc("/api/batch-queue/jobs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		mgr := getBatchQueueManager()
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"jobs":    mgr.ListJobs(),
+			})
+		case http.MethodPost:
+			bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 2*1024*1024))
+			if err != nil {
+				http.Error(w, `{"success":false,"error":"Failed to read body"}`, http.StatusBadRequest)
+				return
+			}
+			var req BatchQueueCreateRequest
+			if err := json.Unmarshal(bodyBytes, &req); err != nil {
+				http.Error(w, `{"success":false,"error":"Invalid JSON payload"}`, http.StatusBadRequest)
+				return
+			}
+			job, statusCode, err := mgr.CreateAndStartJob(req, guard.EvaluateStatus())
+			if err != nil {
+				w.WriteHeader(statusCode)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error":   err.Error(),
+				})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"job":     job,
+			})
+		default:
+			http.Error(w, `{"success":false,"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/api/batch-queue/jobs/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		mgr := getBatchQueueManager()
+		path := strings.TrimPrefix(r.URL.Path, "/api/batch-queue/jobs/")
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if len(parts) == 0 || parts[0] == "" {
+			http.Error(w, `{"success":false,"error":"Missing job ID"}`, http.StatusBadRequest)
+			return
+		}
+		jobID := parts[0]
+		if len(parts) == 1 && r.Method == http.MethodGet {
+			job, ok := mgr.GetJob(jobID)
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Job not found"})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "job": job})
+			return
+		}
+		if len(parts) == 2 && r.Method == http.MethodPost {
+			switch parts[1] {
+			case "cancel":
+				job, err := mgr.CancelJob(jobID)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "job": job})
+				return
+			case "retry":
+				job, err := mgr.RetryFailedJob(jobID)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "job": job})
+				return
+			}
+		}
+		http.Error(w, `{"success":false,"error":"Unsupported batch job route"}`, http.StatusNotFound)
 	})
 
 	http.HandleFunc("/api/windows-util", func(w http.ResponseWriter, r *http.Request) {
@@ -3985,23 +4323,27 @@ func discoverLocalSubnetCandidates() []DiscoveredSubnetCandidate {
 		}
 		startHost := 1
 		endHost := 254
+		normalizedCIDR := iface.Subnet + ".0/24"
 		if _, ipnet, err := net.ParseCIDR(cidr); err == nil && ipnet != nil {
 			ones, bits := ipnet.Mask.Size()
-			if bits == 32 && ones >= 24 && ones <= 30 {
-				netBase := ipnet.IP.To4()
-				hostSpan := (1 << uint(32-ones))
-				sOct := int(netBase[3]) + 1
-				eOct := int(netBase[3]) + hostSpan - 2
-				if sOct >= 1 && sOct <= 254 {
-					startHost = sOct
-				}
-				if eOct >= startHost && eOct <= 254 {
-					endHost = eOct
+			if bits == 32 && ones >= 20 && ones <= 30 {
+				if plan, pErr := ParseCIDRPlan(cidr, 1, 254); pErr == nil && len(plan.Blocks) > 0 {
+					normalizedCIDR = plan.NormalizedCIDR
+					// Default block slice preview uses the interface's /24 if present, else block[0]
+					selectedBlk := plan.Blocks[0]
+					for _, blk := range plan.Blocks {
+						if blk.Subnet == iface.Subnet {
+							selectedBlk = blk
+							break
+						}
+					}
+					startHost = selectedBlk.Start
+					endHost = selectedBlk.End
 				}
 			}
 		}
 
-		key := fmt.Sprintf("%s:%d-%d", iface.Subnet, startHost, endHost)
+		key := fmt.Sprintf("%s:%s:%d-%d", iface.Subnet, normalizedCIDR, startHost, endHost)
 		if seen[key] {
 			continue
 		}
@@ -4032,7 +4374,7 @@ func discoverLocalSubnetCandidates() []DiscoveredSubnetCandidate {
 			Subnet:        iface.Subnet,
 			Start:         startHost,
 			End:           endHost,
-			CIDR:          fmt.Sprintf("%s.%d/%s", iface.Subnet, 0, strings.Split(cidr+"/", "/")[1]),
+			CIDR:          normalizedCIDR,
 			GatewayIP:     gwIP,
 			InterfaceName: iface.Name,
 			InterfaceIP:   iface.IP,
