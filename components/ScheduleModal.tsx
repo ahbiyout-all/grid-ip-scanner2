@@ -326,7 +326,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[215] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[215] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-sm animate-fade-in mobile-notch-modal"
       onClick={() => {
         if (activeTab !== 'edit') onClose();
       }}

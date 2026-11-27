@@ -548,7 +548,7 @@ export const ReportCenterModal: React.FC<ReportCenterModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[210] flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-[210] flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 mobile-notch-modal"
       onClick={() => !isExporting && onClose()}
     >
       <div

@@ -223,7 +223,7 @@ export const SnmpSwitchConfigModal: React.FC<SnmpSwitchConfigModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm mobile-notch-modal"
       role="dialog"
       aria-modal="true"
       onClick={onClose}

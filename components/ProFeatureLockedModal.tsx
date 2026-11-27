@@ -581,7 +581,7 @@ export const ProFeatureLockedModal: React.FC<ProFeatureLockedModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[260] flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-[260] flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 mobile-notch-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pro-locked-modal-title"

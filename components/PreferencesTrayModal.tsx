@@ -20,6 +20,7 @@ import {
   Pause,
   Trash2,
   Activity,
+  Camera,
 } from 'lucide-react';
 import {
   clearTrayEventsLog,
@@ -68,6 +69,8 @@ interface PreferencesTrayModalProps {
   panelClass: string;
   textMutedClass: string;
   showToast: (msg: string) => void;
+  mobileNotchOffset?: number;
+  onChangeMobileNotchOffset?: (px: number) => void;
 }
 
 export const PreferencesTrayModal: React.FC<PreferencesTrayModalProps> = ({
@@ -105,6 +108,8 @@ export const PreferencesTrayModal: React.FC<PreferencesTrayModalProps> = ({
   panelClass,
   textMutedClass,
   showToast,
+  mobileNotchOffset = 0,
+  onChangeMobileNotchOffset,
 }) => {
   const [isLegacyToolsExpanded, setIsLegacyToolsExpanded] = useState(false);
   const [isTestingNotify, setIsTestingNotify] = useState(false);
@@ -244,7 +249,7 @@ export const PreferencesTrayModal: React.FC<PreferencesTrayModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 mobile-notch-modal"
       onClick={onClose}
     >
       <div
@@ -285,6 +290,36 @@ export const PreferencesTrayModal: React.FC<PreferencesTrayModalProps> = ({
 
         {/* Body */}
         <div className="space-y-4 overflow-y-auto pr-1 flex-1 text-xs no-scrollbar">
+          {onChangeMobileNotchOffset && (
+            <section className={`md:hidden p-3.5 rounded-xl border space-y-2 ${surfaceClass}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="font-bold text-xs">
+                    {lang === 'ko' ? '모바일 상단 카메라 홀 여백' : 'Mobile Top Camera Notch Margin'}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono font-bold text-amber-400">{mobileNotchOffset}px</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[0, 16, 28, 40].map((pxVal) => (
+                  <button
+                    key={pxVal}
+                    type="button"
+                    onClick={() => onChangeMobileNotchOffset(pxVal)}
+                    className={`py-1.5 rounded-lg font-black text-[11px] border transition-all cursor-pointer ${
+                      mobileNotchOffset === pxVal
+                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-400 shadow-xs'
+                        : subtleBtnClass
+                    }`}
+                  >
+                    {pxVal}px
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* 1. Native Tray & Service Telemetry + Quick Actions */}
           <section className={`p-4 rounded-xl border space-y-3.5 ${surfaceClass}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">

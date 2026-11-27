@@ -341,7 +341,7 @@ export const NativeModulesModal: React.FC<NativeModulesModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[220] flex items-center justify-center p-3 sm:p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] bg-black/80 backdrop-blur-md animate-in fade-in duration-200 mobile-notch-modal"
       onClick={onClose}
     >
       <div

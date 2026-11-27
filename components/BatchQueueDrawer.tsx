@@ -236,7 +236,7 @@ export const BatchQueueDrawer: React.FC<BatchQueueDrawerProps> = ({
       onClick={onClose}
     >
       <div
-        className={`w-full max-w-xl h-full border-l shadow-2xl flex flex-col overflow-hidden ${surfaceCls}`}
+        className={`w-full max-w-xl h-full border-l shadow-2xl flex flex-col overflow-hidden mobile-notch-panel ${surfaceCls}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

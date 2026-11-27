@@ -320,7 +320,7 @@ export const SnapshotDiffModal: React.FC<SnapshotDiffModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in duration-200"
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 md:p-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] animate-in fade-in duration-200 mobile-notch-modal"
       onClick={() => {
         if (!showSavePrompt && !editingSnapId) onClose();
       }}

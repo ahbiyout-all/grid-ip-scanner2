@@ -62,7 +62,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({
   return (
     <div
       data-modal-layer="license"
-      className="fixed inset-0 z-[270] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[270] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 mobile-notch-modal"
       onClick={onClose}
     >
       <div

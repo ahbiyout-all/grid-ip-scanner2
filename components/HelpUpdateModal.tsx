@@ -69,7 +69,7 @@ export const HelpUpdateModal: React.FC<HelpUpdateModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 mobile-notch-modal"
       onClick={onClose}
     >
       <div

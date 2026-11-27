@@ -1156,6 +1156,12 @@ const App: React.FC = () => {
     }
   });
 
+  useEffect(() => {
+    try {
+      document.documentElement.style.setProperty('--mobile-notch-offset', `${mobileNotchOffset}px`);
+    } catch {}
+  }, [mobileNotchOffset]);
+
   const handleToggleNotchOffset = (val?: number) => {
     const nextVal = val !== undefined ? val : (mobileNotchOffset === 0 ? 16 : mobileNotchOffset === 16 ? 28 : mobileNotchOffset === 28 ? 40 : 0);
     setMobileNotchOffset(nextVal);
@@ -4517,7 +4523,7 @@ const App: React.FC = () => {
       
       <aside className={`
         fixed md:relative inset-y-0 left-0 z-[150] md:z-0
-        w-72 md:w-64 border-r ${t.sidebar} flex flex-col shrink-0 
+        w-72 md:w-64 border-r ${t.sidebar} flex flex-col shrink-0 mobile-notch-panel
         transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
@@ -6404,7 +6410,7 @@ const App: React.FC = () => {
             : textScalePct >= 110
             ? 'md:w-96 xl:w-[420px]'
             : 'md:w-88 xl:w-96'
-        } shrink-0 border-l ${t.panel} flex flex-col z-[200] md:z-0 shadow-2xl transition-all duration-200`}>
+        } shrink-0 border-l ${t.panel} flex flex-col z-[200] md:z-0 shadow-2xl transition-all duration-200 mobile-notch-panel`}>
            <div className="p-4 sm:p-5 pb-24 md:pb-5 flex flex-col h-full space-y-5 overflow-y-auto no-scrollbar">
             {/* Header: Title + Unified Text Scale Control (85%~130%) + Close Button */}
             <div className="flex items-center justify-between gap-2 pb-2 border-b border-current border-opacity-10 shrink-0">
@@ -6418,6 +6424,19 @@ const App: React.FC = () => {
                 </h2>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleToggleNotchOffset()}
+                  className={`md:hidden inline-flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+                    mobileNotchOffset > 0
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                      : 'border-current/20 opacity-75 hover:opacity-100'
+                  }`}
+                  title={lang === 'ko' ? `상단 카메라 홀 여백 조정 (${mobileNotchOffset}px)` : `Adjust top camera notch margin (${mobileNotchOffset}px)`}
+                >
+                  <Camera className="w-3 h-3 shrink-0" />
+                  <span>{mobileNotchOffset}</span>
+                </button>
                 <TextScaleControl
                   scalePct={textScalePct}
                   onChange={handleSetTextScalePct}
@@ -7877,7 +7896,7 @@ const App: React.FC = () => {
       {/* Source Info Modal */}
       {showSourceInfo && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md mobile-notch-modal"
           onClick={() => setShowSourceInfo(false)}
         >
            <div
@@ -7962,7 +7981,7 @@ const App: React.FC = () => {
       {/* Security Notice Modal */}
       {showSecurityNotice && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md mobile-notch-modal"
           onClick={handleDismissSecurityNotice}
         >
            <div
@@ -8273,6 +8292,8 @@ const App: React.FC = () => {
         panelClass={t.panel}
         textMutedClass={t.textMuted}
         showToast={showToast}
+        mobileNotchOffset={mobileNotchOffset}
+        onChangeMobileNotchOffset={handleToggleNotchOffset}
       />
 
       {/* Native Modules Diagnostics & Acceleration Modal */}
