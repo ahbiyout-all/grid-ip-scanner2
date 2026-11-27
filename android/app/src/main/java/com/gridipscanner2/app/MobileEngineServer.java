@@ -36,7 +36,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -716,7 +715,7 @@ public class MobileEngineServer {
 
                 String macStr = "";
                 try {
-                    byte[] macBytes = nif.getHardwareAddr();
+                    byte[] macBytes = nif.getHardwareAddress();
                     if (macBytes != null && macBytes.length == 6) {
                         StringBuilder sb = new StringBuilder();
                         for (int i = 0; i < 6; i++) {
