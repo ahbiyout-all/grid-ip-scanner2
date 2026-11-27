@@ -20,7 +20,8 @@
    - **🔌 SNMP v2c 스위치 포트 & L2 물리 연결 매핑 (`snmp_l2.go`, `SnmpSwitchConfigModal`)**: Pure-Go `IF-MIB`/`BRIDGE-MIB`/`Q-BRIDGE-MIB`/`LLDP-MIB` 탐색 + RAM 전용 자격증명 볼트로 스위치 포트·VLAN 매핑 및 토폴로지 L2 링크 렌더링 (Pro 2대 / Enterprise 무제한)
    - **⚡ 다중 단말 일괄 WoL 및 원격 제어 큐 (`batch_queue.go`, `BatchQueueDrawer`)**: `Ctrl/Cmd+Click`·체크박스 복수 선택 기반 일괄 WoL/Ping/원격 점검 큐, 동시 워커(1–4)·패킷 지연(100–2000ms)·중단·재시도 제어 (Pro 16대 / Enterprise 무제한)
    - 25개 주요 서비스 포트 정밀 스캐닝·위험도 분류 및 **Listening Ports 클릭 빠른 연결(`QuickConnectModal`)**
-   - **🗺️ 3계층 인터랙티브 토폴로지 맵 (`Grid` / `Table` / `Topology Map` / `Snapshot Diff`)**: `TopologyMapView`와 `/api/topology-map` · `grid_topology_guard.dll` 연동을 통해 게이트웨이·L2 스위치·호스트 계층 그래프를 시각화하고 Pro 티어에서 **Topology Security Correlation** 보안 교차 분석 지원
+   - **🗺️ 3모드 인터랙티브 토폴로지 맵 & 미니맵 (`Grid` / `Table` / `Topology Map` / `Snapshot Diff`)**: `TopologyMapView`와 `topologyLayoutEngine.ts` · `/api/topology-map` · `grid_topology_guard.dll` 연동을 통해 **계층형/그룹형/방사형 3종 레이아웃**, 핀치/휠 줌·노드 드래그 재배치, 실시간 검색 점프, **RTT 지연시간 히트맵**, **미니맵 오버레이(Pan-on-Drag 뷰 창 이동, `Reset Center`, `Download Minimap` 3× PNG)**, **SVG·2× PNG 내보내기**를 기본 제공하며 Pro 티어에서 **Topology Security Correlation** 보안 교차 분석 지원
+   - **🔥 그리드 지연시간(RTT) 히트맵 · 헤더 실시간 활성 카운터 · 모바일 노치 안전 여백**: 16×16 그리드 셀 배경 틴팅 및 RTT 수치(`ms`/`!`) 시각화(`IPCell`), 데스크톱·모바일 헤더 실시간 활성 장치 수 상시 표시, 모바일 노치/펀치홀 안전 여백(`--mobile-notch-offset`) 적용
    - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 및 DLL 콘솔에서 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), OS 추정, Live ARP 스푸핑 정합성 검사** 실시간 실행
    - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 상단 **`다중 서브넷·VLAN`**(`VLAN`) 버튼 클릭 시 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 커스텀 CIDR(`/20`–`/30`) 등록, **Free 최대 2개 서브넷 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕 및 교차 대역 이상 징후 대시보드** 제공
    - **🏷️ UPnP/SSDP XML & mDNS 실제 제조사 판별 & OUI 시맨틱 분류 + LAA 랜덤 MAC 역추적**: OUI + 포트/mDNS/UPnP 복합 점수 시맨틱 분류(`services/ouiClassifier.ts`), 사설 랜덤 MAC(LAA) 교차 역추적 및 신뢰도/근거 표기
@@ -148,17 +149,17 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-26 v2.7.0 최신화)
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-27 v2.7.0 최신화)
 - [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](./SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2, 1:1 대조 스튜디오 및 잘림 방지 서브헤더 기술 명세서
 - [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`, v2.7.0 최신화)
 - [`docs/GOOGLE_BLOGGER_POST.html`](./GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]` 전용 소스, v2.7.0 최신화)
-- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.7.0 가변 CIDR·타임라인 DB·SNMP L2·일괄 큐 반영)
+- [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (2026-11-27 v2.7.0 최신화)
 - [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.7.0 최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](./A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
-- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (v2.7.0 신규 컴포넌트/서비스/Go 모듈 반영)
-- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서
+- [`docs/FILE_STRUCTURE_GUIDE.md`](./FILE_STRUCTURE_GUIDE.md) : 프로젝트 파일 및 디렉토리 상세 명세서 (2026-11-27 24컴포넌트·23서비스 반영)
+- [`docs/GRID_IP_SCANNER_2.md`](./GRID_IP_SCANNER_2.md) : 서비스 개요, 기술 사양 및 사용자 매뉴얼 백서 (2026-11-27 v2.7.0 최신화)
 - [`docs/VERSIONING_POLICY.md`](./VERSIONING_POLICY.md) : SemVer 3단계 버전 관리 규정 및 SSOT 동기화 지침
 - [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](./DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서 (v2.7.0 티어 매트릭스 반영)
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](./V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드

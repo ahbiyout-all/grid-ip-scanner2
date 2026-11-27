@@ -163,7 +163,7 @@ export const EngineConnectModal: React.FC<EngineConnectModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm mobile-notch-modal"
+      className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm mobile-notch-modal"
       onClick={onClose}
     >
       <div

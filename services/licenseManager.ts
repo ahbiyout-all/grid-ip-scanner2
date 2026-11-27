@@ -214,8 +214,8 @@ export const FEATURE_ENTITLEMENT_CATALOG: FeatureCatalogEntry[] = [
   {
     key: 'topologyBasic',
     tier: 'free',
-    labelKo: '단일 대역 실시간 토폴로지 맵 & 단일 호스트 패킷 프로파일',
-    labelEn: 'Single-Subnet Topology Map & Live Packet Profile',
+    labelKo: '인터랙티브 다중 레이아웃 토폴로지 (검색·RTT 히트맵·미니맵·SVG/PNG) & 단일 호스트 패킷 프로파일',
+    labelEn: 'Interactive Multi-Layout Topology (Search · RTT Heatmap · Minimap · SVG/PNG) & Packet Profile',
     scopeKo: 'Community 기본 제공',
     scopeEn: 'Included in Free',
   },

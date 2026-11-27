@@ -1,3 +1,27 @@
+### 86. 토폴로지 맵 3모드·미니맵(Pan-on-Drag / Reset Center / PNG), 그리드 지연시간 히트맵, 헤더 실시간 활성 카운터, 모바일 노치 여백 보정 및 전수 자아성찰(Deep Audit 6차) 결함 수정 + 문서 최신화 (2026-11-27)
+- **사용자 요청 사항 및 피드백**:
+  - 모바일 상단 카메라 노치·펀치홀 영역 모달/드로어 여백 보정
+  - 토폴로지 맵 업그레이드(계층형/그룹형/방사형 레이아웃, 팬/줌/핀치/노드 드래그, 검색 점프, RTT 히트맵, 업링크 강조, SVG/PNG 내보내기) + **미니맵 오버레이(뷰 창 Pan-on-Drag 실시간 이동, `Reset Center` 중앙 초기화 버튼, `Download Minimap` PNG 저장)**
+  - **그리드 뷰 지연시간(RTT) 히트맵 모드** 토글 및 응답 불안정/고지연 단말 시각 식별
+  - **헤더 실시간 활성 장치 수 카운터** 상시 표시(데스크톱·모바일)
+  - "**자아성찰(Self-Reflection & Deep Audit)** 과 **오류 수정** 그리고 docs폴더 문서들 업데이트"
+- **구현 및 해결 조치**:
+  1. **[모바일 카메라 노치 안전 여백] `index.css`, 전체 모달/드로어 컴포넌트, `App.tsx`**:
+     - `--mobile-notch-offset` (`env(safe-area-inset-top)`) 및 `.mobile-notch-modal` / `.mobile-notch-panel` 규칙을 신설해 모바일 장치 프로필·사이드바·모달 상단이 노치/펀치홀에 가리지 않도록 일괄 보정.
+  2. **[인터랙티브 토폴로지 맵 3모드 & 미니맵 내비게이션] `services/topologyLayoutEngine.ts`, `components/TopologyMapView.tsx`, `services/licenseManager.ts`**:
+     - `hierarchical` / `cluster`(접기·펼치기) / `radial` 3종 레이아웃 엔진, 휠·핀치 줌·노드 수동 드래그 재배치, 실시간 검색+점프, RTT 히트맵, 업링크 경로 하이라이트, 독립 SVG·2× PNG 내보내기 구현(핵심 시각화 기능 Free 티어 개방).
+     - 우측 하단 1:1 SVG 미니맵 오버레이를 신설해 파란 뷰 창 **Pan-on-Drag 실시간 팬 이동**(윈도우 전역 포인터 리스너 폴백 및 경계 클램핑 포함), **`Reset Center`(`중앙 초기화`)** 버튼, **`Download Minimap`(`미니맵 다운로드`)** 3× PNG 스냅샷 내보내기 구현.
+  3. **[그리드 RTT 히트맵 & 헤더 실시간 활성 카운터] `App.tsx`, `components/IPCell.tsx`**:
+     - `grid_heatmap_mode` 영속 토글, `<15ms`/`15–59ms`/`60–149ms`/`150ms+·불안정` 4단계 셀 배경 틴팅, 셀 내 RTT 수치(`ms`/`!`), 상단 실시간 카운트 범례 바(`No RTT` 포함) 및 호버 진단 배너 구현.
+     - 데스크톱(`data-testid="header-active-count"`) 및 모바일(`data-testid="mobile-header-active-count"`) 헤더에 스캔 진행과 연동해 즉시 갱신되는 활성 장치 카운터 배지 상시 표시.
+  4. **[자아성찰(Deep Audit) 6차 결함 수정] `QuickConnectModal.tsx`, `EngineConnectModal.tsx`, `IPCell.tsx`, `topologyLayoutEngine.ts`, `TopologyMapView.tsx`, `App.tsx`**:
+     - 모바일 장치 프로필(`z-[200]`)에서 열린 `QuickConnectModal`(`z-50`→`z-[260]`) 및 모바일 사이드바(`z-[150]`)에서 열린 `EngineConnectModal`(`z-[120]`→`z-[250]`)의 Z-Index 가림 결함 수정.
+     - 선택된 `YOU` 호스트 셀(`bg-sky-500`)에서 동일 색상으로 묻히던 배지 텍스트를 `isSelected ? 'text-white' : 'text-sky-500'`로 교정.
+     - `latencyMs > 0` / truthy 판별로 `0ms` 응답이 누락되던 `topologyLayoutEngine.ts`와 `TopologyMapView.tsx`(에지·노드·카드·데스크톱 툴팁·모바일 하단 시트) 5곳을 `typeof ... === 'number' && ... >= 0`으로 교정.
+     - `TopologyMapView.tsx` 내보내기 피드백 타이머 중복·누수 방지(`feedbackTimerRef`) 및 좁은 모바일 화면에서 미니맵과 좌측 하단 카메라 컨트롤 바 중첩 회피(`bottom-[170px] sm:bottom-3`) 적용, 그리드 히트맵 범례 바에 `미측정 (No RTT)` 카운트 추가.
+  5. **[빌드·검증 & `docs/` 문서 일괄 최신화]**:
+     - Vite 프로덕션 빌드(`compile_applet`), TypeScript 정적 검사(`tsc --noEmit`), Go 백엔드 단위 테스트(`go test .` 통과) 완료 후 `docs/PATCH_NOTE.md`, `docs/WorkLog.md`, `docs/FILE_STRUCTURE_GUIDE.md`, `docs/README.md`, `docs/DISTRIBUTION_AND_TIER_STRATEGY.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.*` 최신화.
+
 ### 85. 앱 전체 UI·그리드·테이블 통합 글자 확대/축소 개선 및 GitHub·Blogger·기술 문서 일괄 최신화 (2026-11-26)
 - **사용자 요청 사항 및 피드백**:
   - "글자 확대 축소 기능 개선" → 앱 전체 UI + 16×16 그리드 + 테이블 통합 배율(`85%~130%`, 5% 단위, `100%` 초기화), 상단 메인 헤더 바 & 장치 프로필 패널 상단 컨트롤 동기화

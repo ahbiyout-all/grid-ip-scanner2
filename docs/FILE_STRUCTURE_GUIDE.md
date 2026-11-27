@@ -14,13 +14,14 @@ Grid IP Scanner2 Root/
 │       ├── build-and-release.yml   # GitHub Actions CI/CD (Windows .exe/인스톨러, Android APK, 모바일 PWA)
 │       └── mobile-release.yml      # 모바일 전용 독립 릴리스 워크플로우
 │
-├── 📂 components/                  # React 개별 컴포넌트 폴더 (23개 모달·뷰·셀·컨트롤)
+├── 📂 components/                  # React 개별 컴포넌트 폴더 (24개 모달·뷰·셀·컨트롤)
 │   ├── BatchQueueDrawer.tsx        # [v2.7.0] 다중 단말 일괄 WoL·Ping·원격 점검 큐 드로어 (진행률/중단/재시도)
 │   ├── CidrBlockBar.tsx            # [v2.7.0] 가변 CIDR(/20~/30) 256호스트 /24 세그먼트 블록 전환 바
 │   ├── DeviceTableView.tsx         # [v2.7.0] 정렬·검색·일괄 체크박스 선택 지원 고밀도 테이블 뷰
 │   ├── DeviceTimelineTab.tsx       # [v2.7.0] 장치 상세 인스펙터용 접속·포트 변동 시계열 타임라인 탭 및 CSV 내보내기
+│   ├── EngineConnectModal.tsx      # 모바일·원격 브라우저용 로컬 Go 스캔 엔진 엔드포인트 연결/테스트 모달
 │   ├── HelpUpdateModal.tsx         # 도움말, 버전 정보 및 업데이트 확인 통합 모달
-│   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, Diff 뱃지, Proxy-ARP 및 일괄 선택 인디케이터 컴포넌트
+│   ├── IPCell.tsx                  # 16x16 그리드 개별 IP 상태, 지연시간(RTT) 히트맵 틴팅·수치 표기, Diff 뱃지, Proxy-ARP 및 일괄 선택 셀 컴포넌트
 │   ├── InterfaceExplorerModal.tsx  # 전체 물리/가상/VPN 네트워크 어댑터 탐색 및 서브넷 원클릭 전환 모달
 │   ├── IntruderLogModal.tsx        # 24/7 무인 백그라운드 서비스 침입 탐지 이력 조회 및 화이트리스트 모달
 │   ├── LicenseModal.tsx            # Community/Pro/Enterprise 라이선스 상태 조회·활성화·해제 모달
@@ -35,7 +36,7 @@ Grid IP Scanner2 Root/
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
 │   ├── SnmpSwitchConfigModal.tsx   # [v2.7.0] SNMPv2c 스위치 등록(RAM 전용 볼트) 및 L2 물리 포트 탐색 실행 모달
 │   ├── TextScaleControl.tsx        # [v2.7.0] 앱 전체 UI·그리드·테이블 85%~130%(5% 단위) 통합 글자 배율 컨트롤 & 마이그레이션 유틸리티
-│   ├── TopologyMapView.tsx         # 3계층 인터랙티브 토폴로지 SVG 맵, SNMP L2 스위치 링크 & Security Correlation 뷰
+│   ├── TopologyMapView.tsx         # [v2.7.0] 3모드(계층/그룹/방사) 인터랙티브 토폴로지 맵, 실시간 검색·RTT 히트맵·업링크 추적·미니맵(Pan-on-Drag/Reset Center/PNG)·SVG/PNG 내보내기 & L2/보안 뷰
 │   ├── TrayStatusIndicator.tsx     # 트레이 실시간 스캔 진척도 및 침입 경보 타임스탬프 보조 인디케이터
 │   └── UpdateModal.tsx             # GitHub Releases 실시간 업데이트 센터 안내 및 다운로드 모달
 │
@@ -60,6 +61,7 @@ Grid IP Scanner2 Root/
 │   ├── snmpService.ts              # [v2.7.0] SNMPv2c 스위치 볼트 관리 & L2 물리 포트/VLAN 매핑 API 클라이언트
 │   ├── timelineService.ts          # [v2.7.0] 단말별 접속·포트 변동 타임라인 조회/요약/정리/CSV 내보내기 서비스
 │   ├── topologyGraphBuilder.ts     # 3계층 토폴로지 노드·SNMP L2 스위치 링크·보안 상관분석 빌더
+│   ├── topologyLayoutEngine.ts     # [v2.7.0] 계층형/그룹형/방사형 레이아웃 계산, RTT 히트맵 스케일, 업링크 경로 탐색, 독립 SVG·2x PNG·미니맵 3x PNG 내보내기 엔진
 │   ├── updateChecker.ts            # GitHub Releases API 조회 및 버전 비교 실시간 업데이트 체커 (v2.7.0)
 │   └── wolService.ts               # Wake-on-LAN (UDP 9/7 매직 패킷) 원격 부팅 서비스
 │
@@ -78,7 +80,7 @@ Grid IP Scanner2 Root/
 │   ├── secure_vault.cpp/.h         # C++17 AES-256-GCM 네이티브 암호화 엔진 (`v2.6.0`)
 │   └── build_all_dlls.bat          # MSYS2 GCC 16.1.0 정적 링크(`-static-libgcc -static-libstdc++`) 전수 빌드 스크립트
 │
-├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (2026-11-26 v2.7.0 최신화)
+├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (2026-11-27 v2.7.0 최신화)
 │   ├── README.md                   # 문서 저장소 총괄 가이드 및 색인 목차
 │   ├── GOOGLE_BLOGGER_POST.md      # 구글 블로거 포스팅 가이드 ([작성 모드 (서식 있는 텍스트)])
 │   ├── GOOGLE_BLOGGER_POST.html    # 구글 블로거 포스팅 가이드 ([HTML 편집 모드] 전용 소스)
@@ -89,7 +91,7 @@ Grid IP Scanner2 Root/
 │   ├── MOBILE_GITHUB_GUIDE.md      # 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 │   ├── WorkLog.md                  # 개발 및 기능 구현 공식 작업 일지
 │   ├── VERSIONING_POLICY.md        # SemVer 3단계 버전 관리 규정 및 SSOT 10대 타깃 동기화 지침
-│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (2026-11-26 v2.7.0 최신화)
+│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (2026-11-27 v2.7.0 최신화)
 │   ├── GRID_IP_SCANNER_2.md        # 서비스 개요 및 제품 설명서 백서
 │   ├── SECURITY_REPORT.md          # 보안 점검 및 암호화 검증 보고서
 │   ├── FILE_STRUCTURE_GUIDE.md     # [본 문서] 파일 구조 및 디렉토리 상세 명세서
@@ -105,7 +107,7 @@ Grid IP Scanner2 Root/
 │   ├── logo.png                    # 풀 블리드(Full-Bleed) 공식 대표 로고 이미지
 │   └── manifest.json               # PWA 모바일 웹 매니페스트
 │
-├── 📝 App.tsx / index.css / index.html / types.ts / env.d.ts # React 19 + Tailwind v4 코어 (통합 글자 배율 85%~130%, Grid/Table/Topology/Diff)
+├── 📝 App.tsx / index.css / index.html / types.ts / env.d.ts # React 19 + Tailwind v4 코어 (통합 배율 85%~130%, 모바일 노치 safe-area 오프셋, 헤더 실시간 활성 카운터, 그리드 RTT 히트맵)
 ├── 🐹 main.go / engine.go / name_resolver.go / license_guard.go # Go 병렬 백엔드, 라이선스 가드 & /api/* 라우터
 ├── 🐹 cidr_engine.go               # [v2.7.0] 가변 CIDR(/20~/30) 파싱·청킹 스캔 플래너
 ├── 🐹 timeline_store.go            # [v2.7.0] JSONL/JSON 기반 단말 접속·포트 변동 시계열 타임라인 DB
@@ -127,8 +129,8 @@ Grid IP Scanner2 Root/
 ### 💻 2-1. 프론트엔드 계층 (Frontend Layer)
 
 #### 📝 `App.tsx` & 모달·뷰 분리 구조 (`components/*.tsx`)
-* **역할**: 프론트엔드의 3대 메인 뷰(`grid` / `topology` / `diff`), 테마 선택(Dark/Gray/White/Beige) 관리, 실시간 SSE 스트리밍 수신 및 버퍼링 제어, 세부 IP 프로필 사이드바(네이티브 패킷 텔레메트리 포함), 다중 서브넷/VLAN 캐시 전환·순차 Batch Sweep 및 Go/Electron 트레이 양방향 상태 동기화를 전담합니다.
-* **컴포넌트 분리**: 3계층 토폴로지 뷰(`TopologyMapView.tsx`), 다중 서브넷 바·통합 대시보드(`MultiSubnetBar.tsx`, `MultiSubnetModal.tsx`), 포트 빠른 연결 모달(`QuickConnectModal.tsx`), 통합 보고서 센터(`ReportCenterModal.tsx`), 환경설정·트레이(`PreferencesTrayModal.tsx`), 도움말/업데이트(`HelpUpdateModal.tsx`), 어댑터 탐색기(`InterfaceExplorerModal.tsx`), 라이선스(`LicenseModal.tsx`), PRO 잠금 안내(`ProFeatureLockedModal.tsx`)를 독립 컴포넌트로 분리했습니다.
+* **역할**: 프론트엔드의 4대 메인 뷰(`grid` / `table` / `topology` / `diff`), 테마 선택(Dark/Gray/White/Beige) 관리, 실시간 헤더 활성 장치 카운터(`header-active-count` / `mobile-header-active-count`), 그리드 지연시간(RTT) 히트맵 모드(`gridHeatmapMode` + `gridHeatmapStats`), 모바일 카메라 노치 안전 여백(`--mobile-notch-offset`), 실시간 SSE 스트리밍 수신 및 버퍼링 제어, 세부 IP 프로필 사이드바·드로어, 다중 서브넷/VLAN 캐시 전환·순차 Batch Sweep 및 Go/Electron 트레이 양방향 상태 동기화를 전담합니다.
+* **컴포넌트 분리**: 3모드 토폴로지 뷰(`TopologyMapView.tsx` + `services/topologyLayoutEngine.ts`), 다중 서브넷 바·통합 대시보드(`MultiSubnetBar.tsx`, `MultiSubnetModal.tsx`), 포트 빠른 연결 모달(`QuickConnectModal.tsx`), 모바일 엔진 연결 모달(`EngineConnectModal.tsx`), 통합 보고서 센터(`ReportCenterModal.tsx`), 환경설정·트레이(`PreferencesTrayModal.tsx`), 도움말/업데이트(`HelpUpdateModal.tsx`), 어댑터 탐색기(`InterfaceExplorerModal.tsx`), 라이선스(`LicenseModal.tsx`), PRO 잠금 안내(`ProFeatureLockedModal.tsx`)를 독립 컴포넌트로 분리했습니다.
 
 #### 📝 `components/PreferencesTrayModal.tsx` & `tray_engine.go` & `utils_windows.go`
 * **역할**: Windows 네이티브 트레이(`Shell_NotifyIconW`)·SCM 서비스(`GridIPScannerService`)·Electron 트레이·웹 UI 간의 양방향 제어 허브입니다.

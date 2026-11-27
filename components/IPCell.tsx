@@ -29,6 +29,8 @@ interface IPCellProps {
   diffFilter?: 'all' | 'new' | 'offline' | 'changed' | 'same';
   isDiffMode?: boolean;
   baselineColor?: 'sky' | 'indigo' | 'teal' | 'slate';
+  isHeatmapMode?: boolean;
+  missCount?: number;
 }
 
 const IPCell: React.FC<IPCellProps> = ({ 
@@ -56,7 +58,9 @@ const IPCell: React.FC<IPCellProps> = ({
   baselineDevice,
   diffFilter,
   isDiffMode,
-  baselineColor = 'sky'
+  baselineColor = 'sky',
+  isHeatmapMode = false,
+  missCount = 0
 }) => {
   const currentLang = lang || (s?.lang === 'en' ? 'en' : 'ko');
   const isGatewayProxyArp = Boolean(
@@ -77,6 +81,22 @@ const IPCell: React.FC<IPCellProps> = ({
   
   const displayDevice = device || baselineDevice;
   const isFilteredOut = Boolean(diffFilter && diffFilter !== 'all' && diffFilter !== diffStatus);
+
+  const latencyMs = displayDevice?.latency;
+  const isUnstable = status === 'active' && missCount > 0;
+  const heatmapActive = Boolean(isHeatmapMode && !diffStatus && !isDiffMode);
+  const heatTier: 'fast' | 'normal' | 'elevated' | 'critical' | 'unknown' | null =
+    heatmapActive && status === 'active'
+      ? isUnstable || (typeof latencyMs === 'number' && latencyMs >= 150)
+        ? 'critical'
+        : typeof latencyMs === 'number' && latencyMs >= 60
+        ? 'elevated'
+        : typeof latencyMs === 'number' && latencyMs >= 15
+        ? 'normal'
+        : typeof latencyMs === 'number' && latencyMs >= 0
+        ? 'fast'
+        : 'unknown'
+      : null;
 
   const getStatusBase = () => {
     const isDark = theme === 'dark' || theme === 'gray';
@@ -161,27 +181,53 @@ const IPCell: React.FC<IPCellProps> = ({
 
     switch (status) {
       case 'active': 
-        return isSelected 
-          ? 'bg-sky-500 border-sky-300 shadow-[0_0_15px_rgba(14,165,233,0.5)] z-20' 
-          : isDark 
-            ? 'bg-emerald-500/20 border-emerald-500/30 hover:bg-emerald-500/30'
-            : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100';
+        if (isSelected) {
+          return 'bg-sky-500 border-sky-300 shadow-[0_0_15px_rgba(14,165,233,0.5)] z-20';
+        }
+        if (heatmapActive) {
+          if (heatTier === 'critical') {
+            return isDark
+              ? `bg-rose-500/40 border-rose-400/80 hover:bg-rose-500/55 shadow-[inset_0_0_10px_rgba(244,63,94,0.35)] ${isUnstable ? 'ring-1 ring-rose-400/80 animate-pulse' : ''}`
+              : `bg-rose-200 border-rose-500 hover:bg-rose-300 shadow-[inset_0_0_8px_rgba(244,63,94,0.25)] ${isUnstable ? 'ring-1 ring-rose-500 animate-pulse' : ''}`;
+          }
+          if (heatTier === 'elevated') {
+            return isDark
+              ? 'bg-amber-500/35 border-amber-400/70 hover:bg-amber-500/50 shadow-[inset_0_0_8px_rgba(245,158,11,0.28)]'
+              : 'bg-amber-200/90 border-amber-500 hover:bg-amber-300';
+          }
+          if (heatTier === 'normal') {
+            return isDark
+              ? 'bg-sky-500/30 border-sky-400/55 hover:bg-sky-500/45'
+              : 'bg-sky-100 border-sky-400 hover:bg-sky-200';
+          }
+          if (heatTier === 'fast') {
+            return isDark
+              ? 'bg-emerald-500/25 border-emerald-400/45 hover:bg-emerald-500/40'
+              : 'bg-emerald-100 border-emerald-300 hover:bg-emerald-200';
+          }
+          return isDark
+            ? 'bg-slate-600/35 border-slate-400/50 hover:bg-slate-600/50'
+            : 'bg-slate-200 border-slate-400 hover:bg-slate-300';
+        }
+        return isDark 
+          ? 'bg-emerald-500/20 border-emerald-500/30 hover:bg-emerald-500/30'
+          : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100';
       case 'scanning': 
         return isDark 
           ? 'bg-amber-500/40 border-amber-500/60 animate-[pulse_0.8s_infinite] shadow-[0_0_12px_rgba(245,158,11,0.4)] z-10'
           : 'bg-amber-100 border-amber-500 animate-[pulse_0.8s_infinite]';
       case 'inactive': 
         return isDark 
-          ? 'bg-slate-900/40 border-slate-700/30 opacity-70 hover:opacity-100'
+          ? `bg-slate-900/40 border-slate-700/30 ${heatmapActive ? 'opacity-40' : 'opacity-70'} hover:opacity-100`
           : theme === 'beige'
-          ? 'bg-[#efe4d2]/80 border-[#dcc7a1] opacity-85 hover:opacity-100'
-          : 'bg-slate-200/60 border-slate-300 opacity-80 hover:opacity-100';
+          ? `bg-[#efe4d2]/80 border-[#dcc7a1] ${heatmapActive ? 'opacity-45' : 'opacity-85'} hover:opacity-100`
+          : `bg-slate-200/60 border-slate-300 ${heatmapActive ? 'opacity-45' : 'opacity-80'} hover:opacity-100`;
       default: 
         return isDark 
-          ? 'bg-zinc-800/60 border-zinc-700/50'
+          ? `bg-zinc-800/60 border-zinc-700/50 ${heatmapActive ? 'opacity-45 hover:opacity-90' : ''}`
           : theme === 'beige'
-          ? 'bg-[#f3eadb] border-[#dcc7a1]'
-          : 'bg-slate-100 border-slate-200';
+          ? `bg-[#f3eadb] border-[#dcc7a1] ${heatmapActive ? 'opacity-50 hover:opacity-90' : ''}`
+          : `bg-slate-100 border-slate-200 ${heatmapActive ? 'opacity-50 hover:opacity-90' : ''}`;
     }
   };
 
@@ -215,7 +261,17 @@ const IPCell: React.FC<IPCellProps> = ({
       }
     }
 
-    if (status === 'active') return (theme === 'beige' || theme === 'white') ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
+    if (status === 'active') {
+      const isLight = theme === 'beige' || theme === 'white';
+      if (heatmapActive) {
+        if (heatTier === 'critical') return isLight ? 'text-rose-950 font-black' : 'text-rose-100 font-black';
+        if (heatTier === 'elevated') return isLight ? 'text-amber-950 font-black' : 'text-amber-100 font-black';
+        if (heatTier === 'normal') return isLight ? 'text-sky-950 font-black' : 'text-sky-100 font-black';
+        if (heatTier === 'fast') return isLight ? 'text-emerald-950 font-black' : 'text-emerald-200 font-black';
+        return isLight ? 'text-slate-900 font-black' : 'text-slate-200 font-black';
+      }
+      return isLight ? 'text-emerald-800 font-black' : 'text-emerald-300 font-black';
+    }
     if (status === 'scanning') return (theme === 'beige' || theme === 'white') ? 'text-amber-800 font-black' : 'text-amber-300 font-black';
     if (theme === 'beige') return 'text-[#3b2a1a] font-bold';
     if (theme === 'white') return 'text-slate-800 font-bold';
@@ -304,7 +360,7 @@ const IPCell: React.FC<IPCellProps> = ({
       {isHost && (
         <>
           <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-sky-500 rounded-full border border-white z-20 animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
-          <span className="absolute bottom-0.5 right-0.5 text-[6px] font-black text-sky-500 opacity-80 select-none">YOU</span>
+          <span className={`absolute bottom-0.5 right-0.5 text-[6px] font-black opacity-85 select-none ${isSelected ? 'text-white' : 'text-sky-500'}`}>YOU</span>
         </>
       )}
 
@@ -409,17 +465,41 @@ const IPCell: React.FC<IPCellProps> = ({
           <div className={`absolute top-1 left-1 pointer-events-none ${diffStatus === 'offline' ? 'opacity-30 text-rose-400' : 'opacity-40'}`}>
              {getDeviceIcon()}
           </div>
-          {status === 'active' && !diffStatus && <div className="absolute inset-0 bg-emerald-500/5 animate-[pulse_3s_infinite] pointer-events-none rounded-inherit" />}
+          {status === 'active' && !diffStatus && !heatmapActive && (
+            <div className="absolute inset-0 bg-emerald-500/5 animate-[pulse_3s_infinite] pointer-events-none rounded-inherit" />
+          )}
         </>
       )}
 
-      <span className={`
-        grid-cell-octet font-black mono tracking-tight leading-none select-none z-10
-        ${getTextColor()}
-        ${(theme === 'dark' || theme === 'gray' || (isSelected && !usesBlackSelectedText)) ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : ''}
-      `}>
-        {lastOctet}
-      </span>
+      {heatmapActive && status === 'active' ? (
+        <div className="flex flex-col items-center justify-center leading-none z-10 select-none pointer-events-none">
+          <span className={`
+            grid-cell-octet font-black mono tracking-tight leading-none
+            ${getTextColor()}
+            ${(theme === 'dark' || theme === 'gray' || (isSelected && !usesBlackSelectedText)) ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : ''}
+          `}>
+            {lastOctet}
+          </span>
+          {(typeof latencyMs === 'number' || isUnstable) && (
+            <span className={`
+              text-[6.5px] sm:text-[7.5px] font-mono tabular-nums font-black leading-none mt-[1px] opacity-90
+              ${getTextColor()}
+            `}>
+              {isUnstable
+                ? `${typeof latencyMs === 'number' ? latencyMs : '?'}!`
+                : `${latencyMs}ms`}
+            </span>
+          )}
+        </div>
+      ) : (
+        <span className={`
+          grid-cell-octet font-black mono tracking-tight leading-none select-none z-10
+          ${getTextColor()}
+          ${(theme === 'dark' || theme === 'gray' || (isSelected && !usesBlackSelectedText)) ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]' : ''}
+        `}>
+          {lastOctet}
+        </span>
+      )}
 
       {/* 툴팁 (Hover) - 활성 장비 및 스냅샷 비교 상태 노드 모두 상세 툴팁 지원 */}
       {showTooltip && displayDevice && (
@@ -459,6 +539,26 @@ const IPCell: React.FC<IPCellProps> = ({
                 </span>
                 <span className="text-[8px] uppercase opacity-80">
                   {diffStatus === 'offline' ? 'Offline' : diffStatus.toUpperCase()}
+                </span>
+              </div>
+            )}
+
+            {(typeof latencyMs === 'number' || isUnstable) && status === 'active' && (
+              <div className={`px-2 py-1 rounded-lg text-[9px] font-black flex items-center justify-between border ${
+                isUnstable || (typeof latencyMs === 'number' && latencyMs >= 150)
+                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                  : typeof latencyMs === 'number' && latencyMs >= 60
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                  : typeof latencyMs === 'number' && latencyMs >= 15
+                  ? 'bg-sky-500/20 text-sky-400 border-sky-500/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+              }`}>
+                <span>
+                  {currentLang === 'ko' ? '응답 지연 (RTT)' : 'Response Latency'}
+                  {isUnstable ? (currentLang === 'ko' ? ` · 불안정 (${missCount}회 누락)` : ` · Unstable (${missCount} miss)`) : ''}
+                </span>
+                <span className="font-mono tabular-nums">
+                  {typeof latencyMs === 'number' ? `${latencyMs}ms` : '—'}
                 </span>
               </div>
             )}

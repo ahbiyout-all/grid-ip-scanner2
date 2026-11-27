@@ -1216,6 +1216,35 @@ const App: React.FC = () => {
 
   // Snapshots, Topology & Diff Mode State
   const [viewMode, setViewMode] = useState<'grid' | 'table' | 'topology' | 'diff'>('grid');
+  const [gridHeatmapMode, setGridHeatmapMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('grid_heatmap_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleGridHeatmapMode = useCallback(() => {
+    if (viewMode !== 'grid') {
+      setViewMode('grid');
+      setGridHeatmapMode(true);
+      try {
+        localStorage.setItem('grid_heatmap_mode', 'true');
+      } catch {}
+      showToast(lang === 'ko' ? '그리드 지연시간 히트맵 모드 활성화' : 'Grid Latency Heatmap Mode Enabled');
+      return;
+    }
+    setGridHeatmapMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('grid_heatmap_mode', String(next));
+      } catch {}
+      showToast(next
+        ? (lang === 'ko' ? '지연시간 히트맵 활성화 (느리거나 불안정한 장치 색상 강조)' : 'Latency Heatmap Enabled (Highlighting slow/unstable devices)')
+        : (lang === 'ko' ? '지연시간 히트맵 비활성화 (기본 상태 색상)' : 'Latency Heatmap Disabled'));
+      return next;
+    });
+  }, [viewMode, lang]);
   const [snapshots, setSnapshots] = useState<ScanSnapshot[]>(getSavedSnapshots());
   const [baselineSnapshotId, setBaselineSnapshotId] = useState<string | null>(null);
   const [showDiffStudioModal, setShowDiffStudioModal] = useState(false);
@@ -4466,6 +4495,34 @@ const App: React.FC = () => {
     return filteredIps.filter((ip) => ip.startsWith(`${blk.subnet}.`));
   }, [filteredIps, activeCidrPlan, activeCidrBlockIndex]);
 
+  const gridHeatmapStats = useMemo(() => {
+    let fast = 0;
+    let normal = 0;
+    let elevated = 0;
+    let critical = 0;
+    let unstable = 0;
+    let unknown = 0;
+    for (const ip of gridDisplayIps) {
+      const res = results[ip];
+      if (!res || res.status !== 'active') continue;
+      const ms = res.device?.latency;
+      const isFlapping = (res.missCount ?? 0) > 0;
+      if (isFlapping) unstable += 1;
+      if (isFlapping || (typeof ms === 'number' && ms >= 150)) {
+        critical += 1;
+      } else if (typeof ms === 'number' && ms >= 60) {
+        elevated += 1;
+      } else if (typeof ms === 'number' && ms >= 15) {
+        normal += 1;
+      } else if (typeof ms === 'number' && ms >= 0) {
+        fast += 1;
+      } else {
+        unknown += 1;
+      }
+    }
+    return { fast, normal, elevated, critical, unstable, unknown };
+  }, [gridDisplayIps, results]);
+
   const t = {
     dark: { bg: 'bg-zinc-950', sidebar: 'bg-zinc-900 border-zinc-800', main: 'bg-zinc-950', header: 'bg-zinc-900/90 border-zinc-800 backdrop-blur-md', text: 'text-zinc-100', textMuted: 'text-zinc-300', input: 'bg-zinc-950 border-zinc-700 text-zinc-100', panel: 'bg-zinc-900 border-zinc-800', accent: 'text-emerald-400' },
     gray: { bg: 'bg-[#1e1f22]', sidebar: 'bg-[#2b2d31] border-[#18191c]', main: 'bg-[#313338]', header: 'bg-[#2b2d31]/90 border-[#18191c] backdrop-blur-md', text: 'text-[#f2f3f5]', textMuted: 'text-[#c2c7d0]', input: 'bg-[#1e1f22] border-[#383a40] text-[#f2f3f5]', panel: 'bg-[#2b2d31] border-[#18191c]', accent: 'text-[#5865f2]' },
@@ -5419,7 +5476,7 @@ const App: React.FC = () => {
         <header className={`border-b ${t.header} shrink-0 transition-colors`}>
           {/* ================= DESKTOP HEADER (md and above) ================= */}
           <div className="hidden md:flex min-h-[46px] py-1.5 items-center justify-between px-3 lg:px-6 gap-2 flex-wrap">
-            {/* Left section: Desktop Scanning Progress or Subnet Summary */}
+            {/* Left section: Desktop Scanning Progress or Subnet Summary + Real-time Active Count */}
             <div className="flex items-center gap-2 shrink-0 min-w-0 flex-wrap">
               {(isScanning || (hasStartedScan && progressPercent > 0)) ? (
                 <div className="flex items-center space-x-3 bg-black/20 px-3 py-1 rounded-full border border-white/5 shadow-inner shrink-0">
@@ -5445,17 +5502,37 @@ const App: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-[11px] font-bold opacity-80">
-                  <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/25 font-mono">
-                    {activeCidrPlan && activeCidrPlan.prefixLen !== 24
-                      ? activeCidrPlan.normalizedCidr
-                      : `${config.subnet}.${config.start}-${config.end}`}
-                  </span>
-                  <span className={`${t.textMuted} text-[10px]`}>
-                    {lang === 'ko' ? `활성 ${activeCount}대` : `${activeCount} active`}
-                  </span>
-                </div>
+                <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/25 font-mono text-[11px] font-bold">
+                  {activeCidrPlan && activeCidrPlan.prefixLen !== 24
+                    ? activeCidrPlan.normalizedCidr
+                    : `${config.subnet}.${config.start}-${config.end}`}
+                </span>
               )}
+
+              <span
+                data-testid="header-active-count"
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10.5px] font-black font-mono tabular-nums whitespace-nowrap shrink-0 ${
+                  activeCount > 0
+                    ? theme === 'beige' || theme === 'white'
+                      ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/35'
+                      : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    : theme === 'beige' || theme === 'white'
+                    ? 'bg-slate-500/10 text-slate-600 border-slate-300/60'
+                    : 'bg-black/20 text-zinc-400 border-white/10'
+                }`}
+                title={lang === 'ko' ? `현재 식별된 활성 장치 수: ${activeCount}대` : `Currently active devices discovered: ${activeCount}`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    activeCount > 0
+                      ? isScanning
+                        ? 'bg-emerald-400 animate-ping'
+                        : 'bg-emerald-500'
+                      : 'bg-zinc-500/60'
+                  }`}
+                />
+                <span>{lang === 'ko' ? `활성 ${activeCount}대` : `${activeCount} active`}</span>
+              </span>
             </div>
 
             {/* Right Primary Controls Container */}
@@ -5730,6 +5807,27 @@ const App: React.FC = () => {
                 )}
               </button>
 
+              <button
+                type="button"
+                onClick={toggleGridHeatmapMode}
+                aria-pressed={viewMode === 'grid' && gridHeatmapMode}
+                title={lang === 'ko'
+                  ? '그리드 지연시간 히트맵 (응답 속도 및 불안정 장치 색상 표시)'
+                  : 'Grid Latency Heatmap (Tint cells by RTT latency & stability)'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0 ${
+                  viewMode === 'grid' && gridHeatmapMode
+                    ? (theme === 'beige' || theme === 'white'
+                        ? 'bg-amber-500/20 text-amber-800 border-amber-500/60 ring-1 ring-amber-500/40 shadow-xs'
+                        : 'bg-amber-500/20 text-amber-300 border-amber-500/50 ring-1 ring-amber-500/40 shadow-xs')
+                    : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37] hover:bg-[#f5ebd6]' :
+                       theme === 'white' ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-100 shadow-xs' :
+                       'bg-black/20 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white')
+                }`}
+              >
+                <Flame className={`w-3 h-3 shrink-0 ${viewMode === 'grid' && gridHeatmapMode ? 'text-amber-400' : 'text-zinc-400'}`} />
+                <span>{lang === 'ko' ? '히트맵' : 'Heatmap'}</span>
+              </button>
+
               <TextScaleControl
                 scalePct={textScalePct}
                 onChange={handleSetTextScalePct}
@@ -5801,6 +5899,25 @@ const App: React.FC = () => {
                     className="w-6 h-6 rounded-lg object-cover shrink-0 shadow-xs border border-sky-500/40"
                   />
                   <span className="font-black text-xs uppercase tracking-tight">Grid IP</span>
+                  <span
+                    data-testid="mobile-header-active-count"
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9.5px] font-black font-mono tabular-nums whitespace-nowrap ${
+                      activeCount > 0
+                        ? theme === 'beige' || theme === 'white'
+                          ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/35'
+                          : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : theme === 'beige' || theme === 'white'
+                        ? 'bg-slate-500/10 text-slate-600 border-slate-300/60'
+                        : 'bg-black/20 text-zinc-400 border-white/10'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        activeCount > 0 ? (isScanning ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500') : 'bg-zinc-500/60'
+                      }`}
+                    />
+                    <span>{lang === 'ko' ? `활성 ${activeCount}` : `${activeCount} active`}</span>
+                  </span>
                   {updateInfo?.hasUpdate && (
                     <button
                       onClick={() => setShowUpdateModal(true)}
@@ -5956,6 +6073,25 @@ const App: React.FC = () => {
                 >
                   {gridCanvasMode === 'scroll' ? <Move className="w-3 h-3 text-sky-400 shrink-0" /> : <Maximize2 className="w-3 h-3 text-zinc-400 shrink-0" />}
                   <span>{gridCanvasMode === 'scroll' ? (lang === 'ko' ? '스크롤' : 'Scroll') : (lang === 'ko' ? '맞춤' : 'Fit')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleGridHeatmapMode}
+                  aria-pressed={viewMode === 'grid' && gridHeatmapMode}
+                  title={lang === 'ko' ? '그리드 지연시간 히트맵 토글' : 'Toggle Grid Latency Heatmap'}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shrink-0 ${
+                    viewMode === 'grid' && gridHeatmapMode
+                      ? (theme === 'beige' || theme === 'white'
+                          ? 'bg-amber-500/20 text-amber-800 border-amber-500/60 ring-1 ring-amber-500/35'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/50 ring-1 ring-amber-500/35')
+                      : (theme === 'beige' ? 'bg-[#fcf8f2] border-[#e6d0a7] text-[#5c4a37]' :
+                         theme === 'white' ? 'bg-white border-slate-300 text-slate-800 shadow-xs' :
+                         'bg-black/20 border-white/10 text-zinc-300')
+                  }`}
+                >
+                  <Flame className={`w-3 h-3 shrink-0 ${viewMode === 'grid' && gridHeatmapMode ? 'text-amber-400' : 'text-zinc-400'}`} />
+                  <span>{lang === 'ko' ? '히트맵' : 'Heat'}</span>
                 </button>
 
                 <TextScaleControl
@@ -6290,53 +6426,114 @@ const App: React.FC = () => {
             lang={lang as 'ko' | 'en'}
           />
         ) : (
-          <div className="flex-1 w-full h-full p-2 md:p-3 pb-16 md:pb-3 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)] overflow-auto min-h-0 min-w-0 grid-scroll-canvas flex">
-            <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] relative z-10 transition-all m-auto ${
-              gridCanvasMode === 'scroll'
-                ? (textScalePct >= 115
-                    ? 'min-w-[640px] min-h-[640px] w-[640px] h-[640px] sm:min-w-[700px] sm:min-h-[700px] sm:w-[700px] sm:h-[700px] aspect-square my-2'
-                    : 'min-w-[560px] min-h-[560px] w-[560px] h-[560px] sm:min-w-[620px] sm:min-h-[620px] sm:w-[620px] sm:h-[620px] aspect-square my-2')
-                : viewMode === 'diff' 
-                  ? 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-180px))]' 
-                  : 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-140px))] md:max-w-[min(800px,calc(100vh-85px))]'
-            }`}>
-              {gridDisplayIps.map((ip, index) => {
-                const res = results[ip];
-                const alias = resolveAlias(res?.device?.mac, ip);
-                const conflict = detectedConflicts.get(ip);
-                const isIntruder = detectedIntruders.some(d => d.ip === ip);
+          <div className="flex-1 w-full h-full flex flex-col min-h-0 min-w-0 relative bg-[radial-gradient(circle_at_center,_rgba(14,165,233,0.03)_0%,_transparent_70%)]">
+            {viewMode === 'grid' && gridHeatmapMode && (
+              <div className={`px-3 py-1.5 border-b flex items-center justify-between gap-2 flex-wrap text-[10px] shrink-0 ${
+                theme === 'beige' ? 'bg-[#f8f1e5]/90 border-[#e6d0a7] text-[#5c4a37]' :
+                theme === 'white' ? 'bg-white/95 border-slate-200 text-slate-700' :
+                'bg-black/25 border-white/10 text-zinc-200'
+              }`}>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1 font-black uppercase tracking-wider text-amber-400">
+                    <Flame className="w-3 h-3" />
+                    <span>{lang === 'ko' ? '지연시간 히트맵' : 'RTT Heatmap'}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                    <span className="w-2 h-2 rounded-xs bg-emerald-500 inline-block" />
+                    <span>&lt;15ms</span>
+                    <span className="opacity-65">({gridHeatmapStats.fast})</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                    <span className="w-2 h-2 rounded-xs bg-sky-500 inline-block" />
+                    <span>15–59ms</span>
+                    <span className="opacity-65">({gridHeatmapStats.normal})</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                    <span className="w-2 h-2 rounded-xs bg-amber-500 inline-block" />
+                    <span>60–149ms</span>
+                    <span className="opacity-65">({gridHeatmapStats.elevated})</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                    <span className="w-2 h-2 rounded-xs bg-rose-500 inline-block" />
+                    <span>{lang === 'ko' ? '150ms+ / 불안정' : '150ms+ / Unstable'}</span>
+                    <span className="opacity-65">({gridHeatmapStats.critical})</span>
+                  </span>
+                  {gridHeatmapStats.unknown > 0 && (
+                    <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                      <span className="w-2 h-2 rounded-xs bg-slate-400 inline-block" />
+                      <span>{lang === 'ko' ? '미측정' : 'No RTT'}</span>
+                      <span className="opacity-65">({gridHeatmapStats.unknown})</span>
+                    </span>
+                  )}
+                  {gridHeatmapStats.unstable > 0 && (
+                    <span className="px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-400 font-bold font-mono tabular-nums text-[9px]">
+                      {lang === 'ko' ? `응답 누락 ${gridHeatmapStats.unstable}대` : `${gridHeatmapStats.unstable} flapping`}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleGridHeatmapMode}
+                  className="px-2 py-0.5 rounded border border-current/20 opacity-75 hover:opacity-100 text-[9px] font-black uppercase tracking-wider cursor-pointer"
+                  title={lang === 'ko' ? '히트맵 끄기' : 'Turn off heatmap'}
+                >
+                  {lang === 'ko' ? '끄기' : 'Off'}
+                </button>
+              </div>
+            )}
 
-                return (
-                  <IPCell 
-                    key={ip}
-                    ip={ip}
-                    index={index}
-                    status={res.status}
-                    device={res.device}
-                    isSelected={selectedIp === ip}
-                    isBatchSelected={selectedBatchIps.has(ip)}
-                    isHost={ip === localIpInfo?.ip}
-                    onClick={handleGridCellClick}
-                    onDoubleClick={handleCellDoubleClick}
-                    theme={theme}
-                    s={s}
-                    lang={lang}
-                    diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
-                    isConflict={isConflictAlert(conflict)}
-                    isGatewayProxyArp={Boolean(conflict?.isGatewayProxyArp)}
-                    conflictSeverity={conflict?.severity}
-                    conflictCategory={conflict?.category}
-                    conflictDetails={conflict?.reason}
-                    isNewIntruder={isIntruder}
-                    isSoftTrust={softTrustedDevices.some(d => d.ip === ip)}
-                    customNickname={alias?.nickname}
-                    baselineDevice={viewMode === 'diff' && baselineSnapshot ? baselineSnapshot.results[ip]?.device : undefined}
-                    diffFilter={viewMode === 'diff' ? diffFilter : undefined}
-                    isDiffMode={viewMode === 'diff'}
-                    baselineColor={diffBaselineColor}
-                  />
-                );
-              })}
+            <div className="flex-1 w-full h-full p-2 md:p-3 pb-16 md:pb-3 overflow-auto min-h-0 min-w-0 grid-scroll-canvas flex">
+              <div className={`grid grid-cols-16 grid-rows-16 gap-[1px] relative z-10 transition-all m-auto ${
+                gridCanvasMode === 'scroll'
+                  ? (textScalePct >= 115
+                      ? 'min-w-[640px] min-h-[640px] w-[640px] h-[640px] sm:min-w-[700px] sm:min-h-[700px] sm:w-[700px] sm:h-[700px] aspect-square my-2'
+                      : 'min-w-[560px] min-h-[560px] w-[560px] h-[560px] sm:min-w-[620px] sm:min-h-[620px] sm:w-[620px] sm:h-[620px] aspect-square my-2')
+                  : viewMode === 'diff' 
+                    ? 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-180px))]' 
+                    : (viewMode === 'grid' && gridHeatmapMode
+                        ? 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-175px))] md:max-w-[min(800px,calc(100vh-120px))]'
+                        : 'w-full aspect-square my-auto max-w-[min(800px,calc(100dvh-140px))] md:max-w-[min(800px,calc(100vh-85px))]')
+              }`}>
+                {gridDisplayIps.map((ip, index) => {
+                  const res = results[ip];
+                  const alias = resolveAlias(res?.device?.mac, ip);
+                  const conflict = detectedConflicts.get(ip);
+                  const isIntruder = detectedIntruders.some(d => d.ip === ip);
+
+                  return (
+                    <IPCell 
+                      key={ip}
+                      ip={ip}
+                      index={index}
+                      status={res.status}
+                      device={res.device}
+                      missCount={res.missCount}
+                      isSelected={selectedIp === ip}
+                      isBatchSelected={selectedBatchIps.has(ip)}
+                      isHost={ip === localIpInfo?.ip}
+                      onClick={handleGridCellClick}
+                      onDoubleClick={handleCellDoubleClick}
+                      theme={theme}
+                      s={s}
+                      lang={lang}
+                      diffStatus={viewMode === 'diff' ? diffAnalysis.diffMap[ip] : undefined}
+                      isConflict={isConflictAlert(conflict)}
+                      isGatewayProxyArp={Boolean(conflict?.isGatewayProxyArp)}
+                      conflictSeverity={conflict?.severity}
+                      conflictCategory={conflict?.category}
+                      conflictDetails={conflict?.reason}
+                      isNewIntruder={isIntruder}
+                      isSoftTrust={softTrustedDevices.some(d => d.ip === ip)}
+                      customNickname={alias?.nickname}
+                      baselineDevice={viewMode === 'diff' && baselineSnapshot ? baselineSnapshot.results[ip]?.device : undefined}
+                      diffFilter={viewMode === 'diff' ? diffFilter : undefined}
+                      isDiffMode={viewMode === 'diff'}
+                      baselineColor={diffBaselineColor}
+                      isHeatmapMode={viewMode === 'grid' && gridHeatmapMode}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

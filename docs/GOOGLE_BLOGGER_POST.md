@@ -1,8 +1,8 @@
-# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.7.0 · 2026-11-26 최신 개편판)
+# 📝 [구글 블로거 포스팅 완벽 가이드] Grid IP Scanner2 공식 소개 및 배포 (v2.7.0 · 2026-11-27 최신 개편판)
 > **공식 블로그**: [https://ahbiyoutvibe.blogspot.com/](https://ahbiyoutvibe.blogspot.com/)  
 > **공식 깃허브**: [https://github.com/AhBiYout-all/grid-ip-scanner2](https://github.com/AhBiYout-all/grid-ip-scanner2)  
 > **공식 배포사**: [https://ahbiyoutvibe.blogspot.com](https://ahbiyoutvibe.blogspot.com)  
-> **현재 버전**: v2.7.0 | **최신 업데이트**: 2026-11-26
+> **현재 버전**: v2.7.0 | **최신 업데이트**: 2026-11-27
 
 ---
 
@@ -35,7 +35,7 @@
 
 #### 🚀 Grid IP Scanner2 핵심 기능
 * **🗺️ 4대 통합 워크스페이스 뷰 (`Grid` | `Table` | `Topology Map` | `Snapshot Diff`)**:
-  - 16x16 그리드 맵으로 대역 상태를 신호등처럼 1초 만에 조망하고, 정렬·검색·일괄 체크박스 선택에 최적화된 **고밀도 테이블 뷰(`DeviceTableView`)**와 **3계층 줌/팬 SVG 토폴로지 맵**·**4색 스냅샷 Diff v2**를 원클릭 전환.
+  - 16x16 그리드 맵(**RTT 지연시간 히트맵 토글** 포함)과 **실시간 헤더 활성 장치 카운터**로 대역 상태를 1초 만에 조망하고, 정렬·검색·일괄 체크박스에 최적화된 **고밀도 테이블 뷰(`DeviceTableView`)**, **계층형/그룹형/방사형 3모드 토폴로지 맵 & 미니맵(Pan-on-Drag · Reset Center · PNG 다운로드 · SVG/2× PNG 내보내기)**, **4색 스냅샷 Diff v2**를 원클릭 전환.
   - Pro 티어에서는 `grid_topology_guard.dll`(`v2.6.1`) 연동 **Topology Security Correlation(충돌·ARP 스푸핑·위험 포트·침입 교차 분석)** 오버레이 제공.
 * **🌐 가변 CIDR (`/20`–`/30`, 최대 4,094 호스트) 확장 스캔 & 세그먼트 블록 분할**:
   - 기존 고정 `/24` 범위를 넘어 `/30`부터 초대형 `/20` 대역까지 자동 계획·청킹 스캔하며, 상단 `CidrBlockBar`에서 `256` 호스트 `/24` 블록 탭(전체·활성 수 표시)을 즉시 전환 (Free `≤/23`, Pro `/22`, Enterprise `/21`–`/20`).
@@ -57,7 +57,10 @@
 
 ---
 
-### 3. 업데이트 (v2.7.0 · 2026-11-25~26 마이너 릴리즈 하이라이트)
+### 3. 업데이트 (v2.7.0 · 2026-11-25~27 마이너 릴리즈 하이라이트)
+* **🗺️ 인터랙티브 토폴로지 3모드·미니맵 & 그리드 RTT 히트맵 · 헤더 활성 카운터 — *2026-11-27 최신 업데이트***:
+  - **토폴로지 맵**: 계층형/그룹형/방사형 3종 레이아웃, 팬·휠/핀치 줌·노드 드래그 재배치, 검색 점프, RTT 히트맵, 업링크 추적, SVG·2× PNG 내보내기 및 **미니맵 오버레이(Pan-on-Drag 뷰 창 이동 · `Reset Center` · `Download Minimap` 3× PNG)**를 기본 제공합니다.
+  - **그리드 히트맵 & 실시간 카운터 & 모바일 노치 보정**: 16×16 셀 RTT 구간 틴팅·수치 표기, 데스크톱·모바일 헤더 활성 장치 카운터 상시 표시, 모바일 카메라 노치 안전 여백(`--mobile-notch-offset`) 및 Deep Audit 6차 안정화 패치를 반영했습니다.
 * **🌐 가변 CIDR (`/20`–`/30`) 확장 스캔 · 분할 그리드 & 고밀도 테이블 뷰 (`DeviceTableView`, `CidrBlockBar`)**:
   - `cidr_engine.go` 및 `services/cidrUtils.ts` 도입으로 `/30`~`/20` 최대 4,094 호스트 가변 스캔, `/24` 블록 탭 분할, 컬럼 정렬·빠른 필터·일괄 선택 테이블 뷰를 탑재했습니다.
 * **📜 단말별 접속·포트 변동 이력 타임라인 DB (`timeline_store.go`, `DeviceTimelineTab`)**:
@@ -66,7 +69,7 @@
   - Pure-Go SNMPv2c + RAM-only 자격증명 볼트로 스위치 포트 및 VLAN을 매핑해 `TopologyMapView` L2 링크·테이블·보고서 컬럼에 통합 표시합니다.
 * **⚡ 다중 단말 일괄 WoL 및 원격 제어 큐 (`batch_queue.go`, `BatchQueueDrawer`)**:
   - `Ctrl/Cmd+Click`·체크박스 다중 선택으로 일괄 WoL·Ping·원격 프로브를 큐에 등록하고 워커 수/지연 시간 조절 및 실패 항목 재시도를 지원합니다.
-* **🔍 앱 전체 UI·그리드·테이블 통합 글자 배율 조절 (`85%~130%`, `TextScaleControl`) — *2026-11-26 최신 개선***:
+* **🔍 앱 전체 UI·그리드·테이블 통합 글자 배율 조절 (`85%~130%`, `TextScaleControl`)**:
   - 기존 장치 프로필 패널 전용 2단계(`100%/115%`) 버튼을 앱 전체 UI + 16×16 그리드 + 테이블 + 프로필 통합 **`85%~130%` (5% 단위, `100%` 초기화)** 컨트롤로 고도화하고 상단 메인 헤더 바·모바일 바·장치 프로필 패널 양방향 동기화 및 `Ctrl/Cmd + +/-/0` 단축키를 지원합니다.
 * **📊 Excel 내보내기 티어 정교화 & Quick Connect 포트 빠른 연결 모달**:
   - **Free 티어**는 **`Grid_16x16` 엑셀 그리드(.xls)** 전용 생성, **Pro / Enterprise**는 **5시트 전체 보고서 엑셀 통합문서(.xls)** 생성으로 역할을 명확화했으며, 장치 상세 프로필의 **Listening Ports** 클릭 시 포트별 권장 프로토콜을 안내하는 `QuickConnectModal`을 추가했습니다.

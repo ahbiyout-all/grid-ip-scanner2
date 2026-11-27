@@ -1,5 +1,5 @@
 <!-- ===================================================================== -->
-<!-- Grid IP Scanner2 v2.7.0 (2026-11-26 최신 개편판) - Google Blogger [HTML 편집 모드] 전용 게시글 -->
+<!-- Grid IP Scanner2 v2.7.0 (2026-11-27 최신 개편판) - Google Blogger [HTML 편집 모드] 전용 게시글 -->
 <!-- 구글 블로거 글쓰기 좌측 상단 연필 아이콘 클릭 후 [HTML 보기/편집]에서 그대로 복사하여 붙여넣으세요 -->
 <!-- ===================================================================== -->
 
@@ -16,7 +16,7 @@
 
 <h4>🚀 Grid IP Scanner2 핵심 기능</h4>
 <ul>
-  <li><strong>🗺️ 4대 통합 워크스페이스 뷰 (<code>Grid</code> | <code>Table</code> | <code>Topology Map</code> | <code>Snapshot Diff</code>)</strong>: 16x16 그리드 맵으로 대역 상태를 1초 만에 조망하고, 정렬·검색·일괄 체크박스 선택에 특화된 <strong>고밀도 테이블 뷰(<code>DeviceTableView</code>)</strong>와 <strong>3계층 줌/팬 SVG 토폴로지 맵</strong>·<strong>4색 스냅샷 Diff v2</strong>를 원클릭 전환하며 Pro 티어에서 <code>grid_topology_guard.dll</code> 연계 보안 상관분석 오버레이 제공.</li>
+  <li><strong>🗺️ 4대 통합 워크스페이스 뷰 (<code>Grid</code> | <code>Table</code> | <code>Topology Map</code> | <code>Snapshot Diff</code>)</strong>: 16x16 그리드 맵(<strong>RTT 지연시간 히트맵</strong> 포함)과 <strong>실시간 헤더 활성 장치 카운터</strong>로 대역 상태를 1초 만에 조망하고, 정렬·검색·일괄 체크박스에 특화된 <strong>고밀도 테이블 뷰(<code>DeviceTableView</code>)</strong>, <strong>계층형/그룹형/방사형 3모드 토폴로지 맵 &amp; 미니맵(Pan-on-Drag · Reset Center · PNG 다운로드 · SVG/2× PNG 내보내기)</strong>, <strong>4색 스냅샷 Diff v2</strong>를 원클릭 전환하며 Pro 티어에서 <code>grid_topology_guard.dll</code> 연계 보안 상관분석 오버레이 제공.</li>
   <li><strong>🌐 가변 CIDR (<code>/20</code>–<code>/30</code>, 최대 4,094 호스트) 확장 스캔 &amp; 세그먼트 블록 분할</strong>: 기존 고정 <code>/24</code> 범위를 넘어 <code>/30</code>부터 초대형 <code>/20</code> 대역까지 자동 계획·청킹 스캔하며, 상단 <code>CidrBlockBar</code>에서 256 호스트 <code>/24</code> 블록 탭을 즉시 전환 (Free <code>≤/23</code>, Pro <code>/22</code>, Enterprise <code>/21</code>–<code>/20</code>).</li>
   <li><strong>📜 단말별 접속·포트 변동 이력 타임라인 DB (<code>DeviceTimelineTab</code>)</strong>: Go 로컬 영속 시계열 저장소(<code>timeline_events.jsonl</code>)에 <code>FIRST_SEEN</code>, <code>ONLINE</code>, <code>OFFLINE</code>, <code>IP_CHANGED</code>, <code>PORT_OPENED</code>, <code>PORT_CLOSED</code>, <code>VENDOR_OR_HOST_UPDATED</code>, <code>SWITCH_PORT_MOVED</code> 8종 이벤트를 자동 기록하고 CSV 감사 내보내기 지원 (Free 24시간/50건, Pro 30일, Enterprise 무제한).</li>
   <li><strong>🔌 SNMP v2c 스위치 포트 &amp; L2 물리 연결 매핑 (<code>SnmpSwitchConfigModal</code>)</strong>: Pure-Go <code>IF-MIB</code>/<code>BRIDGE-MIB</code>/<code>Q-BRIDGE-MIB</code>/<code>LLDP-MIB</code> 탐색과 디스크·스토리지에 절대 남지 않는 <strong>RAM 전용 자격증명 볼트</strong>로 단말의 스위치 포트·VLAN 연결을 자동 매핑하고 토폴로지 L2 링크·테이블·보고서에 통합 표기 (Pro 최대 2대 / Enterprise 무제한).</li>
@@ -29,8 +29,13 @@
 
 <hr />
 
-<h3>2. 업데이트 (v2.7.0 · 2026-11-25~26 마이너 릴리즈 하이라이트)</h3>
+<h3>2. 업데이트 (v2.7.0 · 2026-11-25~27 마이너 릴리즈 하이라이트)</h3>
 <ul>
+  <li><strong>🗺️ 인터랙티브 토폴로지 3모드·미니맵 &amp; 그리드 RTT 히트맵 · 헤더 활성 카운터 — <em>2026-11-27 최신 업데이트</em></strong>:
+    <ul>
+      <li><strong>계층형/그룹형/방사형 3모드 토폴로지</strong>, 실시간 검색 점프, RTT 히트맵, 업링크 강조, SVG·2× PNG 내보내기 및 <strong>미니맵(Pan-on-Drag · Reset Center · Download Minimap 3× PNG)</strong>과 <strong>그리드 RTT 히트맵</strong>, <strong>헤더 실시간 활성 카운터</strong>, 모바일 노치 안전 여백 보정 및 Deep Audit 6차 결함 수정을 반영했습니다.</li>
+    </ul>
+  </li>
   <li><strong>🌐 가변 CIDR (<code>/20</code>–<code>/30</code>) 확장 스캔 · 분할 그리드 &amp; 고밀도 테이블 뷰 (<code>DeviceTableView</code>, <code>CidrBlockBar</code>)</strong>:
     <ul>
       <li><code>cidr_engine.go</code> 및 <code>services/cidrUtils.ts</code> 도입으로 <code>/30</code>~<code>/20</code> 최대 4,094 호스트 가변 스캔, <code>/24</code> 블록 탭 분할, 컬럼 정렬·빠른 필터·일괄 선택 테이블 뷰를 탑재했습니다.</li>
