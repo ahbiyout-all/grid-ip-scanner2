@@ -1206,6 +1206,341 @@ export function generateMultiSheetExcelXml(dataset: PreparedReportDataset, confi
 </Workbook>`;
 }
 
+export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function applyXlsxStyle(
+  cell: any,
+  opts: {
+    font?: Record<string, unknown>;
+    fillColor?: string;
+    alignment?: Record<string, unknown>;
+    borderColor?: string;
+  }
+) {
+  if (opts.font) cell.font = opts.font;
+  if (opts.fillColor) {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: opts.fillColor },
+    };
+  }
+  if (opts.alignment) cell.alignment = opts.alignment;
+  if (opts.borderColor) {
+    const borderSide = { style: 'thin', color: { argb: opts.borderColor } };
+    cell.border = { top: borderSide, bottom: borderSide, left: borderSide, right: borderSide };
+  }
+}
+
+/**
+ * Generates a standard OOXML (.xlsx) workbook via ExcelJS.
+ * - Free tier: exports only the 16x16 visual IP grid worksheet (`Grid_16x16`).
+ * - Pro / Enterprise tier: exports the complete multi-sheet report (`1_Summary`, `2_Grid_16x16`,
+ *   `3_Device_Inventory`, `4_Security_Audit`, and conditional `5_Snapshot_Diff`).
+ */
+export async function generateMultiSheetXlsxBuffer(
+  dataset: PreparedReportDataset,
+  config: ReportConfig
+): Promise<ArrayBuffer> {
+  const ExcelJSModule = await import('exceljs');
+  const ExcelJS = (ExcelJSModule as any).default ?? ExcelJSModule;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Grid IP Scanner2 (AhBiYout)';
+  workbook.created = new Date();
+
+  const isKo = dataset.lang === 'ko';
+  const gates = resolveFeatureGates(dataset.license);
+  const isFullWorkbook = gates.reportExcelFullWorkbook;
+  const cols = config.selectedColumns.length > 0 ? config.selectedColumns : DEFAULT_SELECTED_COLUMNS;
+  const durationSec = (dataset.kpis.totalScanDurationMs / 1000).toFixed(2);
+  const startLabel = formatTimestampLocal(dataset.kpis.scanStartTimestamp);
+  const endLabel =
+    dataset.kpis.isScanning && !dataset.kpis.scanEndTimestamp
+      ? isKo
+        ? '진행 중'
+        : 'In Progress'
+      : formatTimestampLocal(dataset.kpis.scanEndTimestamp);
+
+  const addGridWorksheet = () => {
+    const ws = workbook.addWorksheet(isFullWorkbook ? '2_Grid_16x16' : 'Grid_16x16');
+    ws.columns = Array.from({ length: 16 }, () => ({ width: 14 }));
+
+    const titleRow = ws.addRow([`GRID 16x16 MAP — ${dataset.subnet}.0/24 (${dataset.kpis.activeDeviceCount} active)`]);
+    titleRow.height = 24;
+    ws.mergeCells(1, 1, 1, 16);
+    applyXlsxStyle(titleRow.getCell(1), {
+      font: { bold: true, size: 13, color: { argb: 'FF0F172A' } },
+      alignment: { vertical: 'middle' },
+    });
+
+    const spacer = ws.addRow([]);
+    spacer.height = 10;
+
+    for (let i = 0; i < 16; i++) {
+      const octetValues: string[] = [];
+      const hostValues: string[] = [];
+      const styles: ('empty' | 'idle' | 'risk' | 'active')[] = [];
+
+      for (let j = 0; j < 16; j++) {
+        const octet = dataset.start + i * 16 + j;
+        if (octet > dataset.end) {
+          octetValues.push('');
+          hostValues.push('');
+          styles.push('empty');
+        } else {
+          const ip = `${dataset.subnet}.${octet}`;
+          const r = dataset.rawResults[ip];
+          const isActive = r?.status === 'active';
+          const hasRisk = (r?.device?.openPorts || []).some((p) => Boolean(HIGH_RISK_PORT_RULES[p]));
+          styles.push(!isActive ? 'idle' : hasRisk ? 'risk' : 'active');
+          octetValues.push(`.${octet}`);
+          const label = r?.device?.hostname || r?.device?.realVendor || r?.device?.vendor || (isActive ? 'ONLINE' : '-');
+          hostValues.push(String(label).slice(0, 18));
+        }
+      }
+
+      const octetRow = ws.addRow(octetValues);
+      octetRow.height = 20;
+      const hostRow = ws.addRow(hostValues);
+      hostRow.height = 18;
+
+      for (let j = 0; j < 16; j++) {
+        const st = styles[j];
+        const styleCfg =
+          st === 'active'
+            ? {
+                font: { bold: true, size: 9, color: { argb: 'FF065F46' } },
+                fillColor: 'FFD1FAE5',
+                borderColor: 'FFA7F3D0',
+              }
+            : st === 'risk'
+            ? {
+                font: { bold: true, size: 9, color: { argb: 'FF9F1239' } },
+                fillColor: 'FFFFE4E6',
+                borderColor: 'FFFECDD3',
+              }
+            : st === 'idle'
+            ? {
+                font: { size: 9, color: { argb: 'FF64748B' } },
+                fillColor: 'FFF8FAFC',
+                borderColor: 'FFE2E8F0',
+              }
+            : {
+                font: { size: 9, color: { argb: 'FF94A3B8' } },
+                fillColor: 'FFF1F5F9',
+                borderColor: 'FFE2E8F0',
+              };
+        const alignment = { horizontal: 'center', vertical: 'middle' };
+        applyXlsxStyle(octetRow.getCell(j + 1), { ...styleCfg, alignment });
+        applyXlsxStyle(hostRow.getCell(j + 1), { ...styleCfg, alignment });
+      }
+    }
+  };
+
+  if (isFullWorkbook) {
+    // Sheet 1: Summary
+    const s1 = workbook.addWorksheet('1_Summary');
+    s1.columns = [{ width: 28 }, { width: 28 }, { width: 24 }, { width: 24 }];
+    const rTitle = s1.addRow([dataset.branding.reportTitle]);
+    rTitle.height = 26;
+    s1.mergeCells(1, 1, 1, 4);
+    applyXlsxStyle(rTitle.getCell(1), { font: { bold: true, size: 14, color: { argb: 'FF0F172A' } }, alignment: { vertical: 'middle' } });
+
+    const rSub = s1.addRow([`${dataset.branding.organizationName} · ${dataset.branding.auditorName} · ${dataset.branding.classificationLabel}`]);
+    rSub.height = 18;
+    s1.mergeCells(2, 1, 2, 4);
+    applyXlsxStyle(rSub.getCell(1), { font: { size: 10, color: { argb: 'FF64748B' } }, alignment: { vertical: 'middle' } });
+
+    s1.addRow([]).height = 10;
+
+    const h1 = s1.addRow([isKo ? '지표 항목' : 'Summary Metric', isKo ? '측정 결과' : 'Value', isKo ? '비고' : 'Notes', '']);
+    h1.height = 22;
+    s1.mergeCells(4, 3, 4, 4);
+    for (let c = 1; c <= 4; c++) {
+      applyXlsxStyle(h1.getCell(c), {
+        font: { bold: true, color: { argb: 'FFFFFFFF' } },
+        fillColor: 'FF0F172A',
+        alignment: { vertical: 'middle' },
+      });
+    }
+
+    const summaryEntries: [string, string | number, string, boolean?][] = [
+      [isKo ? '대상 서브넷' : 'Target Subnet', `${dataset.subnet}.0/24`, `${dataset.subnet}.${dataset.start} ~ ${dataset.subnet}.${dataset.end}`],
+      [isKo ? '총 스캔 IP 수' : 'Total Scanned IPs', dataset.kpis.totalScannedIpCount, `${dataset.kpis.scannedCoveragePct}% coverage`, true],
+      [isKo ? '활성 / 전체 단말' : 'Active vs Total Devices', `${dataset.kpis.activeDeviceCount} / ${dataset.kpis.totalDeviceCount}`, `${dataset.kpis.activeRatioPct}% active`],
+      [isKo ? '스캔 시작 일시' : 'Scan Start Timestamp', startLabel, isKo ? '시작 타임스탬프' : 'Start timestamp'],
+      [isKo ? '스캔 종료 일시' : 'Scan End Timestamp', endLabel, `${durationSec}s (${dataset.kpis.totalScanDurationMs}ms)`],
+      [isKo ? '보안 주의 포트 알림' : 'High-Risk Port Alerts', dataset.kpis.highRiskAlertCount, `${dataset.kpis.totalOpenPorts} total open ports`, true],
+    ];
+    summaryEntries.forEach(([k, v, note, isNum], idx) => {
+      const rowNum = 5 + idx;
+      const rr = s1.addRow([k, v, note, '']);
+      s1.mergeCells(rowNum, 3, rowNum, 4);
+      applyXlsxStyle(rr.getCell(1), { font: { bold: true, color: { argb: 'FF334155' } }, fillColor: 'FFF1F5F9' });
+      applyXlsxStyle(rr.getCell(2), {
+        font: { name: 'Consolas', bold: true, color: { argb: isNum ? 'FF0284C7' : 'FF0F172A' } },
+        alignment: isNum ? { horizontal: 'right', vertical: 'middle' } : { vertical: 'middle' },
+      });
+    });
+
+    s1.addRow([]).height = 14;
+    const hv = s1.addRow([
+      isKo ? '하드웨어 제조사 (Top Vendors)' : 'Hardware Vendor',
+      isKo ? '단말 대수' : 'Units',
+      isKo ? '점유율 (%)' : 'Share (%)',
+      isKo ? '범위' : 'Scope',
+    ]);
+    hv.height = 22;
+    for (let c = 1; c <= 4; c++) {
+      applyXlsxStyle(hv.getCell(c), {
+        font: { bold: true, color: { argb: 'FFFFFFFF' } },
+        fillColor: 'FF0F172A',
+        alignment: { vertical: 'middle' },
+      });
+    }
+    dataset.vendorBreakdown.slice(0, 20).forEach((v) => {
+      const vr = s1.addRow([v.vendor, v.count, `${v.sharePct}%`, dataset.scopeLabel]);
+      applyXlsxStyle(vr.getCell(2), { font: { name: 'Consolas', bold: true, color: { argb: 'FF0284C7' } }, alignment: { horizontal: 'right' } });
+      applyXlsxStyle(vr.getCell(3), { font: { name: 'Consolas', color: { argb: 'FF0F172A' } } });
+    });
+
+    // Sheet 2: 2_Grid_16x16
+    addGridWorksheet();
+
+    // Sheet 3: 3_Device_Inventory
+    const s3 = workbook.addWorksheet('3_Device_Inventory');
+    const invHeaders = cols.map((c) => getColumnHeader(c, dataset.lang));
+    if (dataset.diffAnalysis) {
+      invHeaders.push('Diff', isKo ? '변동 상세' : 'Diff Details');
+    }
+    s3.columns = invHeaders.map((h) => ({ width: Math.max(14, Math.min(34, h.length + 8)) }));
+    const invHeaderRow = s3.addRow(invHeaders);
+    invHeaderRow.height = 22;
+    for (let c = 1; c <= invHeaders.length; c++) {
+      applyXlsxStyle(invHeaderRow.getCell(c), {
+        font: { bold: true, color: { argb: 'FFFFFFFF' } },
+        fillColor: 'FF0F172A',
+        alignment: { vertical: 'middle' },
+      });
+    }
+    dataset.rows.forEach((row) => {
+      const isRisk = row.riskLevel === 'CRITICAL' || row.riskLevel === 'HIGH';
+      const isActive = row.status === 'active';
+      const vals: (string | number)[] = cols.map((c) => {
+        if (c === 'latency' && row.latency !== null) return row.latency;
+        return getColumnValue(row, c, dataset.lang);
+      });
+      if (dataset.diffAnalysis) {
+        vals.push(row.diffStatus ? row.diffStatus.toUpperCase() : '-');
+        vals.push((row.diffDetails || []).join(' | '));
+      }
+      const dr = s3.addRow(vals);
+      cols.forEach((c, idx) => {
+        const cell = dr.getCell(idx + 1);
+        if (c === 'latency' && row.latency !== null) {
+          applyXlsxStyle(cell, { font: { name: 'Consolas', bold: true, color: { argb: 'FF0284C7' } }, alignment: { horizontal: 'right' } });
+        } else if (c === 'ip' || c === 'mac') {
+          applyXlsxStyle(cell, { font: { name: 'Consolas', color: { argb: 'FF0F172A' } }, fillColor: isRisk ? 'FFFFF1F2' : undefined });
+        } else if (isRisk) {
+          applyXlsxStyle(cell, { font: { color: { argb: 'FF9F1239' } }, fillColor: 'FFFFF1F2' });
+        } else if (!isActive) {
+          applyXlsxStyle(cell, { font: { color: { argb: 'FF94A3B8' } } });
+        }
+      });
+    });
+
+    // Sheet 4: 4_Security_Audit
+    const s4 = workbook.addWorksheet('4_Security_Audit');
+    s4.columns = [{ width: 18 }, { width: 10 }, { width: 22 }, { width: 13 }, { width: 42 }, { width: 45 }];
+    const s4Head = s4.addRow([
+      'IP',
+      'Port',
+      isKo ? '서비스' : 'Service',
+      isKo ? '심각도' : 'Severity',
+      isKo ? '위협 설명' : 'Threat',
+      isKo ? '권고 조치' : 'Remediation',
+    ]);
+    s4Head.height = 22;
+    for (let c = 1; c <= 6; c++) {
+      applyXlsxStyle(s4Head.getCell(c), {
+        font: { bold: true, color: { argb: 'FFFFFFFF' } },
+        fillColor: 'FF0F172A',
+        alignment: { vertical: 'middle' },
+      });
+    }
+    if (dataset.highRiskAlerts.length > 0) {
+      dataset.highRiskAlerts.forEach((a) => {
+        const ar = s4.addRow([a.ip, a.port, a.name, a.severity, a.threat, a.remediation]);
+        applyXlsxStyle(ar.getCell(1), { font: { name: 'Consolas', color: { argb: 'FF0F172A' } } });
+        applyXlsxStyle(ar.getCell(2), { font: { name: 'Consolas', bold: true, color: { argb: 'FF0284C7' } }, alignment: { horizontal: 'right' } });
+        applyXlsxStyle(ar.getCell(4), { font: { bold: true, color: { argb: 'FFE11D48' } }, fillColor: 'FFFFF1F2' });
+      });
+    } else {
+      const okRow = s4.addRow([
+        isKo
+          ? '주요 취약 포트(445, 3389, 23, 21, 6379, 5900) 노출 단말이 탐지되지 않았습니다.'
+          : 'No high-risk open ports detected in this scan.',
+      ]);
+      s4.mergeCells(2, 1, 2, 6);
+      applyXlsxStyle(okRow.getCell(1), { font: { bold: true, color: { argb: 'FF059669' } }, fillColor: 'FFECFDF5' });
+    }
+
+    // Sheet 5: 5_Snapshot_Diff
+    if (dataset.diffAnalysis) {
+      const s5 = workbook.addWorksheet('5_Snapshot_Diff');
+      s5.columns = [{ width: 18 }, { width: 14 }, { width: 18 }, { width: 14 }, { width: 48 }];
+      const sDiff = dataset.diffAnalysis.summary;
+      const dTitle = s5.addRow([
+        `${isKo ? '기준점' : 'Baseline'}: ${dataset.diffAnalysis.baselineName} -> ${dataset.diffAnalysis.targetName} (+NEW ${sDiff.newCount} / -OFF ${sDiff.offlineCount} / !CHG ${sDiff.changedCount} / =SAME ${sDiff.sameCount})`,
+      ]);
+      dTitle.height = 22;
+      s5.mergeCells(1, 1, 1, 5);
+      applyXlsxStyle(dTitle.getCell(1), { font: { bold: true, size: 12, color: { argb: 'FF0F172A' } } });
+
+      const dHead = s5.addRow([
+        'IP',
+        'Diff Status',
+        isKo ? '카테고리' : 'Category',
+        isKo ? '보안 위험' : 'Security Risk',
+        isKo ? '변동 상세 내역' : 'Change Details',
+      ]);
+      dHead.height = 20;
+      for (let c = 1; c <= 5; c++) {
+        applyXlsxStyle(dHead.getCell(c), {
+          font: { bold: true, color: { argb: 'FFFFFFFF' } },
+          fillColor: 'FF0F172A',
+          alignment: { vertical: 'middle' },
+        });
+      }
+      dataset.diffAnalysis.items
+        .filter((item) => item.diffStatus !== 'same')
+        .forEach((item) => {
+          const dr = s5.addRow([
+            item.ip,
+            item.diffStatus.toUpperCase(),
+            item.category || 'general',
+            item.hasSecurityRisk ? 'YES' : 'NO',
+            item.changeDetails.join(' | '),
+          ]);
+          applyXlsxStyle(dr.getCell(1), { font: { name: 'Consolas', color: { argb: 'FF0F172A' } } });
+          applyXlsxStyle(dr.getCell(2), {
+            font: { bold: true, color: { argb: item.diffStatus === 'new' ? 'FF059669' : item.diffStatus === 'offline' ? 'FFE11D48' : 'FF0284C7' } },
+            fillColor: item.diffStatus === 'new' ? 'FFECFDF5' : item.diffStatus === 'offline' ? 'FFFFF1F2' : undefined,
+          });
+          if (item.hasSecurityRisk) {
+            applyXlsxStyle(dr.getCell(4), { font: { bold: true, color: { argb: 'FFE11D48' } }, fillColor: 'FFFFF1F2' });
+          }
+        });
+    }
+  } else {
+    // Free tier: Grid_16x16 worksheet only
+    addGridWorksheet();
+  }
+
+  const rawBuf = await workbook.xlsx.writeBuffer();
+  return rawBuf instanceof ArrayBuffer ? rawBuf : rawBuf.buffer.slice(rawBuf.byteOffset, rawBuf.byteOffset + rawBuf.byteLength);
+}
+
 function escapeHtml(value: unknown): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -1468,6 +1803,12 @@ export function buildReportFilename(
   switch (format) {
     case 'pdf':
       return `GridIPScanner2_${scopePart}_${safeSubnet}_${datePart}.pdf`;
+    case 'xlsx': {
+      const gates = resolveFeatureGates(dataset.license);
+      return gates.reportExcelFullWorkbook
+        ? `GridIPScanner2_FullReport_${safeSubnet}_${datePart}.xlsx`
+        : `GridIPScanner2_Grid_${safeSubnet}_${datePart}.xlsx`;
+    }
     case 'excel': {
       const gates = resolveFeatureGates(dataset.license);
       return gates.reportExcelFullWorkbook
@@ -1490,6 +1831,38 @@ export function buildReportFilename(
   }
 }
 
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+export function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+export function downloadBinaryBlob(data: ArrayBuffer | Uint8Array, filename: string, mimeType: string): void {
+  const part: BlobPart = data instanceof Uint8Array ? (data.buffer as ArrayBuffer) : data;
+  const blob = new Blob([part], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function downloadTextBlob(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -1507,6 +1880,10 @@ export function downloadAutoReportRecord(rec: AutoGeneratedReportRecord): string
     rec.format === 'pdf' && rec.mimeType.includes('markdown') && /\.pdf$/i.test(rec.filename)
       ? rec.filename.replace(/\.pdf$/i, '-summary.md')
       : rec.filename;
+  if (rec.contentBase64) {
+    downloadBinaryBlob(base64ToUint8Array(rec.contentBase64), safeFilename, rec.mimeType || XLSX_MIME_TYPE);
+    return safeFilename;
+  }
   if (rec.contentText) {
     downloadTextBlob(rec.contentText, safeFilename, rec.mimeType);
   }

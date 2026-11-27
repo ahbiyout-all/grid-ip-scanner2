@@ -305,6 +305,15 @@ async function startServer() {
     }
   }));
 
+  // Ensure /api/* never falls through to SPA index.html (which would return 200 text/html to SSE clients)
+  app.use('/api', (_req, res) => {
+    if (!res.headersSent) {
+      res.status(503).json({
+        error: 'Go backend is unavailable or still initializing.',
+      });
+    }
+  });
+
   let viteServer: Awaited<ReturnType<typeof createViteServer>> | null = null;
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(process.cwd(), 'dist')));

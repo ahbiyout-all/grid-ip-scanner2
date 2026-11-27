@@ -954,8 +954,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                     {autoExportEnabled && (
                       <div className="pl-6 space-y-2.5">
                         <div className="flex flex-wrap gap-1.5">
-                          {(['pdf', 'excel', 'csv', 'json', 'markdown', 'html'] as AutoExportFormat[]).map((fmt) => {
+                          {(['pdf', 'xlsx', 'excel', 'csv', 'json', 'markdown', 'html'] as AutoExportFormat[]).map((fmt) => {
                             const active = autoExportFormats.includes(fmt);
+                            const label = fmt === 'excel' ? 'XLS' : fmt.toUpperCase();
                             return (
                               <button
                                 key={fmt}
@@ -967,7 +968,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                                     : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
                                 }`}
                               >
-                                {fmt.toUpperCase()}
+                                {label}
                               </button>
                             );
                           })}

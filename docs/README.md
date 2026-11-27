@@ -24,7 +24,7 @@
    - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 및 DLL 콘솔에서 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), OS 추정, Live ARP 스푸핑 정합성 검사** 실시간 실행
    - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 상단 **`다중 서브넷·VLAN`**(`VLAN`) 버튼 클릭 시 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 커스텀 CIDR(`/20`–`/30`) 등록, **Free 최대 2개 서브넷 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕 및 교차 대역 이상 징후 대시보드** 제공
    - **🏷️ UPnP/SSDP XML & mDNS 실제 제조사 판별 & OUI 시맨틱 분류 + LAA 랜덤 MAC 역추적**: OUI + 포트/mDNS/UPnP 복합 점수 시맨틱 분류(`services/ouiClassifier.ts`), 사설 랜덤 MAC(LAA) 교차 역추적 및 신뢰도/근거 표기
-   - **📋 원클릭 IP 주소 복사 (Clipboard API)**: 장치 상세 프로필 패널에서 한 번의 클릭으로 선택한 IP 주소를 클립보드에 완벽 복사 (Clipboard API & Fallback 지원)
+   - **📋 원클릭 IP 주소 복사 & 🔍 통합 글자 확대·축소 (`85%~130%`, `TextScaleControl`)**: 장치 상세 프로필 패널의 원클릭 IP 복사, 그리고 상단 헤더 바(데스크톱·모바일)와 장치 프로필 패널에서 동기화 제어되는 85%~130%(5% 단위, `Ctrl/Cmd + +/-/0`) 앱 전체 UI·그리드·테이블 통합 글자 배율 조절 지원 (A4 출력/SVG 토폴로지 격리)
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치
    - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 전용 배포 자산 최적화 관리 (`v2.7.0`)
 
@@ -43,7 +43,7 @@
    - **미할당 빈 IP 슬롯(245개) 완전 분리**: 장비 없는 빈 슬롯을 `=SAME`에서 제외하여 실제 온라인 장비만 정확히 계측
    - **1:1 Side-by-Side 대조 스튜디오**: 임의 2개 시점(A ↔ B) 교차 비교, CSV 보고서 및 IT 요약 복사
    - **Zero-Clipping 고정 서브헤더**: 스크롤 및 해상도에 무관하게 툴바 상단 잘림 0% 보장
-   - **2단계 폰트 확대 (`[가 100%] ↔ [가⁺ 115%]`)**: 장치 상세 패널 표준 가독성 확보
+   - **85%~130% 통합 글자 확대·축소 (`[ - | 100% | + ]`)**: 앱 전체 UI, 16×16 IP 그리드, 고밀도 테이블 및 장치 상세 패널 통합 가독성 배율 조절 및 `100%` 초기화 지원
 
 4. **⏰ 정기 자동 네트워크 스캔 스케줄러 (`services/schedulerService.ts`, `components/ScheduleModal.tsx`)**
    - **무인 백그라운드 주기적 스캔**: 15분, 30분, 1시간, 2시간, 6시간, 12시간, 매일/매주 및 사용자 지정 분 단위 주기 자동 실행
@@ -61,7 +61,7 @@
 6. **⚠️ 게이트웨이 Proxy-ARP 정상 분리 & IP/MAC 충돌 감지 (`conflictDetector.ts`, `IPCell.tsx`)**
    - 학교/기업망 게이트웨이(`.254`/`.1`) L3 스위치 Proxy-ARP 동일 MAC 다중 IP 응답을 **`Gateway Proxy-ARP` 비알림 Info**로 분리하고 스카이블루 **`Proxy-ARP`** 뱃지로 표기해 실제 MAC 복제/스푸핑 경보(`⚠️`)와 구분
 
-7. **🔒 12대 네이티브 C/C++ DLL 엔진 & PBKDF2+AES-256-GCM Secure Vault (`v2.6.0`)**
+7. **🔒 12대 네이티브 C/C++ DLL 엔진 & PBKDF2+AES-256-GCM Secure Vault (`GVAULT11`)**
    - 순수 창작 `grid_topology_guard.dll` (`v2.6.1`), `Probe_SweepCidrAsyncBatch` 비동기 ICMP/ARP 스위프, `PortScan_IocpMultiHostSweep` IOCP 포트 스위프 및 `GVAULT11` 16B 솔트 PBKDF2-HMAC-SHA256 스택 고속 경로 적용
 
 8. **🔑 하이브리드 Ed25519 라이선스 매니저 & USB 물리 바인딩 + 30일 1회 체험권 (`license_guard.go`, `components/LicenseModal.tsx`)**
@@ -148,11 +148,11 @@ github-push.bat     # Windows (또는 npm run git:push)
 
 ## 📂 문서 구조 (Documentation Hub)
 
-- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-25 v2.7.0 최신화)
+- [`docs/PATCH_NOTE.md`](./PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-26 v2.7.0 최신화)
 - [`docs/SCHEDULED_SCAN_SPEC.md`](./SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](./SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2, 1:1 대조 스튜디오 및 잘림 방지 서브헤더 기술 명세서
-- [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`)
-- [`docs/GOOGLE_BLOGGER_POST.html`](./GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]` 전용 소스)
+- [`docs/GOOGLE_BLOGGER_POST.md`](./GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`, v2.7.0 최신화)
+- [`docs/GOOGLE_BLOGGER_POST.html`](./GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]` 전용 소스, v2.7.0 최신화)
 - [`docs/WorkLog.md`](./WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (v2.7.0 가변 CIDR·타임라인 DB·SNMP L2·일괄 큐 반영)
 - [`docs/GITHUB_GUIDE.md`](./GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.7.0 최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](./MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드

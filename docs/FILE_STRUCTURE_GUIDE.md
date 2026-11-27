@@ -14,7 +14,7 @@ Grid IP Scanner2 Root/
 │       ├── build-and-release.yml   # GitHub Actions CI/CD (Windows .exe/인스톨러, Android APK, 모바일 PWA)
 │       └── mobile-release.yml      # 모바일 전용 독립 릴리스 워크플로우
 │
-├── 📂 components/                  # React 개별 컴포넌트 폴더 (22개 모달·뷰·셀)
+├── 📂 components/                  # React 개별 컴포넌트 폴더 (23개 모달·뷰·셀·컨트롤)
 │   ├── BatchQueueDrawer.tsx        # [v2.7.0] 다중 단말 일괄 WoL·Ping·원격 점검 큐 드로어 (진행률/중단/재시도)
 │   ├── CidrBlockBar.tsx            # [v2.7.0] 가변 CIDR(/20~/30) 256호스트 /24 세그먼트 블록 전환 바
 │   ├── DeviceTableView.tsx         # [v2.7.0] 정렬·검색·일괄 체크박스 선택 지원 고밀도 테이블 뷰
@@ -34,6 +34,7 @@ Grid IP Scanner2 Root/
 │   ├── ScheduleModal.tsx           # 정기 자동 네트워크 스캔 스케줄 관리 및 실행 이력 모달
 │   ├── SnapshotDiffModal.tsx       # 1:1 Side-by-Side 딥 스냅샷 비교 스튜디오 모달
 │   ├── SnmpSwitchConfigModal.tsx   # [v2.7.0] SNMPv2c 스위치 등록(RAM 전용 볼트) 및 L2 물리 포트 탐색 실행 모달
+│   ├── TextScaleControl.tsx        # [v2.7.0] 앱 전체 UI·그리드·테이블 85%~130%(5% 단위) 통합 글자 배율 컨트롤 & 마이그레이션 유틸리티
 │   ├── TopologyMapView.tsx         # 3계층 인터랙티브 토폴로지 SVG 맵, SNMP L2 스위치 링크 & Security Correlation 뷰
 │   ├── TrayStatusIndicator.tsx     # 트레이 실시간 스캔 진척도 및 침입 경보 타임스탬프 보조 인디케이터
 │   └── UpdateModal.tsx             # GitHub Releases 실시간 업데이트 센터 안내 및 다운로드 모달
@@ -77,7 +78,7 @@ Grid IP Scanner2 Root/
 │   ├── secure_vault.cpp/.h         # C++17 AES-256-GCM 네이티브 암호화 엔진 (`v2.6.0`)
 │   └── build_all_dlls.bat          # MSYS2 GCC 16.1.0 정적 링크(`-static-libgcc -static-libstdc++`) 전수 빌드 스크립트
 │
-├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (2026-11-20 v2.6.0 최신화)
+├── 📂 docs/                        # 시스템 및 프로그램 공식 기술 문서 허브 (2026-11-26 v2.7.0 최신화)
 │   ├── README.md                   # 문서 저장소 총괄 가이드 및 색인 목차
 │   ├── GOOGLE_BLOGGER_POST.md      # 구글 블로거 포스팅 가이드 ([작성 모드 (서식 있는 텍스트)])
 │   ├── GOOGLE_BLOGGER_POST.html    # 구글 블로거 포스팅 가이드 ([HTML 편집 모드] 전용 소스)
@@ -88,7 +89,7 @@ Grid IP Scanner2 Root/
 │   ├── MOBILE_GITHUB_GUIDE.md      # 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 │   ├── WorkLog.md                  # 개발 및 기능 구현 공식 작업 일지
 │   ├── VERSIONING_POLICY.md        # SemVer 3단계 버전 관리 규정 및 SSOT 10대 타깃 동기화 지침
-│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (2026-11-21 v2.6.0 감사·최신화)
+│   ├── PATCH_NOTE.md               # 기능 추가 및 패치 이력 (2026-11-26 v2.7.0 최신화)
 │   ├── GRID_IP_SCANNER_2.md        # 서비스 개요 및 제품 설명서 백서
 │   ├── SECURITY_REPORT.md          # 보안 점검 및 암호화 검증 보고서
 │   ├── FILE_STRUCTURE_GUIDE.md     # [본 문서] 파일 구조 및 디렉토리 상세 명세서
@@ -104,7 +105,7 @@ Grid IP Scanner2 Root/
 │   ├── logo.png                    # 풀 블리드(Full-Bleed) 공식 대표 로고 이미지
 │   └── manifest.json               # PWA 모바일 웹 매니페스트
 │
-├── 📝 App.tsx / index.html / types.ts / env.d.ts # React 19 프론트엔드 코어 (Grid/Table/Topology/Diff, Packet Telemetry)
+├── 📝 App.tsx / index.css / index.html / types.ts / env.d.ts # React 19 + Tailwind v4 코어 (통합 글자 배율 85%~130%, Grid/Table/Topology/Diff)
 ├── 🐹 main.go / engine.go / name_resolver.go / license_guard.go # Go 병렬 백엔드, 라이선스 가드 & /api/* 라우터
 ├── 🐹 cidr_engine.go               # [v2.7.0] 가변 CIDR(/20~/30) 파싱·청킹 스캔 플래너
 ├── 🐹 timeline_store.go            # [v2.7.0] JSONL/JSON 기반 단말 접속·포트 변동 시계열 타임라인 DB

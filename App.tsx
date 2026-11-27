@@ -20,11 +20,15 @@ import {
   getStoredReportConfig,
   generateCsvReportString,
   generateMultiSheetExcelXml,
+  generateMultiSheetXlsxBuffer,
   generateJsonReportString,
   generateMarkdownReportString,
   generatePrintableAuditHtml,
   saveAutoReportRecord,
+  downloadBinaryBlob,
   downloadTextBlob,
+  arrayBufferToBase64,
+  XLSX_MIME_TYPE,
   buildReportFilename,
 } from './services/reportCenterService';
 import { UpdateModal } from './components/UpdateModal';
@@ -85,7 +89,15 @@ import { getSchedules, recordScheduleRunCompletion, addHistoryRecord, reconcileS
 import { IntruderLogModal } from './components/IntruderLogModal';
 import { recordIntrudersFromDetection, getIntruderLogs } from './services/intruderLogService';
 import { classifyDeviceHybrid, ClassificationEvidence, OUIBlockType } from './services/ouiClassifier';
-import { getApiUrl, safeTimeout } from './services/apiConfig';
+import {
+  getApiUrl,
+  safeTimeout,
+  probeEngineInfo,
+  parseEngineInfoResponse,
+  isMobileDeviceBrowser,
+  isCapacitorNative,
+} from './services/apiConfig';
+import { EngineConnectModal } from './components/EngineConnectModal';
 import { copyTextToClipboard } from './services/clipboard';
 
 const escapeHtml = (value: unknown): string =>
@@ -865,6 +877,8 @@ const App: React.FC = () => {
   const [interfaceSearch, setInterfaceSearch] = useState('');
   const [showInterfaceModal, setShowInterfaceModal] = useState(false);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
+  const [showEngineConnectModal, setShowEngineConnectModal] = useState(false);
+  const [engineConnectErrorReason, setEngineConnectErrorReason] = useState<string | undefined>(undefined);
   const [showSecurityNotice, setShowSecurityNotice] = useState<boolean>(() => {
     try {
       return localStorage.getItem('grid_security_notice_dismissed') !== 'true';
@@ -2278,7 +2292,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleQuickExport = async (format: 'pdf' | 'csv' | 'excel', scope: ReportScope = 'active') => {
+  const handleQuickExport = async (format: 'pdf' | 'csv' | 'excel' | 'xlsx', scope: ReportScope = 'active') => {
     if (format === 'pdf' && isExportingPdf) return;
     const allResults = Object.values(results) as ScanResult[];
     const activeCount = allResults.filter((r) => r.status === 'active').length;
@@ -2320,6 +2334,25 @@ const App: React.FC = () => {
       lang,
       s,
     });
+
+    if (format === 'xlsx') {
+      try {
+        const buffer = await generateMultiSheetXlsxBuffer(dataset, storedCfg);
+        downloadBinaryBlob(buffer, buildReportFilename(dataset, 'xlsx'), XLSX_MIME_TYPE);
+        showToast(
+          featureGates.reportExcelFullWorkbook
+            ? lang === 'ko'
+              ? '전체 보고서 엑셀 통합문서(.xlsx 5-Sheet)가 다운로드되었습니다.'
+              : 'Full Report Excel Workbook (.xlsx 5-Sheet) downloaded.'
+            : lang === 'ko'
+            ? '16×16 엑셀 그리드(.xlsx)가 다운로드되었습니다.'
+            : '16×16 Excel Grid (.xlsx) downloaded.'
+        );
+      } catch (e: any) {
+        showToast((lang === 'ko' ? 'XLSX 내보내기 실패: ' : 'XLSX export failed: ') + (e?.message || e));
+      }
+      return;
+    }
 
     if (format === 'excel') {
       const xml = generateMultiSheetExcelXml(dataset, storedCfg);
@@ -2386,12 +2419,89 @@ const App: React.FC = () => {
     }
   };
 
+  const applyEngineInfoPayload = async (data: any) => {
+    setGoEngineAlive(true);
+    setEngineConnectErrorReason(undefined);
+
+    const manualIp = selectedInterfaceIpRef.current;
+    const updatedInterfaces: InterfaceInfo[] = data.interfaces || [];
+    const chosenIface = manualIp
+      ? updatedInterfaces.find(i => i.ip === manualIp)
+      : (updatedInterfaces.find(i => i.type === 'physical' && i.status === 'up' && i.ip) ||
+         updatedInterfaces.find(i => i.type === 'physical' && i.ip) ||
+         null);
+
+    if (chosenIface) {
+      setLocalIpInfo(prev =>
+        prev && prev.ip === chosenIface.ip && prev.subnet === chosenIface.subnet && prev.computerName === data.computerName
+          ? prev
+          : { ip: chosenIface.ip, subnet: chosenIface.subnet, computerName: data.computerName }
+      );
+      setConfig(prev => {
+        let hasSavedOrUserConfig = false;
+        try {
+          hasSavedOrUserConfig =
+            localStorage.getItem('grid_config_user_set') === 'true' ||
+            Object.values(resultsRef.current).some(r => r.status === 'active');
+        } catch {}
+        if (!hasSavedOrUserConfig && chosenIface.subnet && (prev.subnet === '192.168.0' || prev.subnet === '')) {
+          return { ...prev, subnet: chosenIface.subnet };
+        }
+        return prev;
+      });
+    } else {
+      let activeIp = data.ip;
+      let activeSubnet = data.subnet;
+      if (data.ip === '192.168.0.1' || !data.ip || data.ip === '127.0.0.1') {
+        const webRtcRes = await getClientLocalIP().catch(() => null);
+        if (webRtcRes) {
+          activeIp = webRtcRes.ip;
+          activeSubnet = webRtcRes.subnet;
+        }
+      }
+
+      setLocalIpInfo(prev =>
+        prev && prev.ip === activeIp && prev.subnet === activeSubnet && prev.computerName === data.computerName
+          ? prev
+          : { ip: activeIp, subnet: activeSubnet, computerName: data.computerName }
+      );
+      setConfig(prev => {
+        let hasSavedOrUserConfig = false;
+        try {
+          hasSavedOrUserConfig =
+            localStorage.getItem('grid_config_user_set') === 'true' ||
+            Object.values(resultsRef.current).some(r => r.status === 'active');
+        } catch {}
+        if (!hasSavedOrUserConfig && activeSubnet && (prev.subnet === '192.168.0' || prev.subnet === '')) {
+          return { ...prev, subnet: activeSubnet };
+        }
+        return prev;
+      });
+    }
+
+    setInterfaces(updatedInterfaces);
+    setIsAdmin(data.isAdmin || false);
+    if (data.ouiCount !== undefined) {
+      setRegistryMeta(prev => ({
+        ...prev,
+        count: data.ouiCount,
+        status: 'synced',
+        sourceName: data.ouiSource || prev.sourceName,
+        cachePath: data.ouiCachePath || prev.cachePath,
+        databaseLocation: data.ouiDatabaseLocation || prev.databaseLocation
+      }));
+    }
+    if (data.message) {
+      setToastMessage(data.message);
+    }
+  };
+
   const syncOUI = async () => {
     setRegistryMeta(prev => ({ ...prev, isSyncing: true }));
     try {
-      const res = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(3000) });
-      if (res.ok) {
-        const data = await res.json();
+      const probed = await probeEngineInfo(3000);
+      if (probed?.data) {
+        const data = probed.data;
         setRegistryMeta({
           status: 'synced',
           count: data.ouiCount || 0,
@@ -2416,94 +2526,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkEngine = async () => {
       try {
-        // Increase timeout for health check to be more resilient during heavy scans
-        const res = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(6000) });
-        if (res.ok) {
-          const data = await res.json();
-          setGoEngineAlive(true);
-          
-          const manualIp = selectedInterfaceIpRef.current;
-          const updatedInterfaces: InterfaceInfo[] = data.interfaces || [];
-          const chosenIface = manualIp 
-            ? updatedInterfaces.find(i => i.ip === manualIp) 
-            : (updatedInterfaces.find(i => i.type === 'physical' && i.status === 'up' && i.ip) ||
-               updatedInterfaces.find(i => i.type === 'physical' && i.ip) ||
-               null);
-
-          if (chosenIface) {
-            setLocalIpInfo(prev =>
-              prev && prev.ip === chosenIface.ip && prev.subnet === chosenIface.subnet && prev.computerName === data.computerName
-                ? prev
-                : { ip: chosenIface.ip, subnet: chosenIface.subnet, computerName: data.computerName }
-            );
-            setConfig(prev => {
-              let hasSavedOrUserConfig = false;
-              try {
-                hasSavedOrUserConfig =
-                  localStorage.getItem('grid_config_user_set') === 'true' ||
-                  Object.values(resultsRef.current).some(r => r.status === 'active');
-              } catch {}
-              if (!hasSavedOrUserConfig && chosenIface.subnet && (prev.subnet === '192.168.0' || prev.subnet === '')) {
-                return { ...prev, subnet: chosenIface.subnet };
-              }
-              return prev;
-            });
-          } else {
-            // Check WebRTC client-side Wi-Fi IP resolution if default or preview IP returned
-            let activeIp = data.ip;
-            let activeSubnet = data.subnet;
-            if (data.ip === '192.168.0.1' || !data.ip || data.ip === '127.0.0.1') {
-              const webRtcRes = await getClientLocalIP().catch(() => null);
-              if (webRtcRes) {
-                activeIp = webRtcRes.ip;
-                activeSubnet = webRtcRes.subnet;
-              }
-            }
-
-            setLocalIpInfo(prev =>
-              prev && prev.ip === activeIp && prev.subnet === activeSubnet && prev.computerName === data.computerName
-                ? prev
-                : { ip: activeIp, subnet: activeSubnet, computerName: data.computerName }
-            );
-            setConfig(prev => {
-              let hasSavedOrUserConfig = false;
-              try {
-                hasSavedOrUserConfig =
-                  localStorage.getItem('grid_config_user_set') === 'true' ||
-                  Object.values(resultsRef.current).some(r => r.status === 'active');
-              } catch {}
-              if (!hasSavedOrUserConfig && activeSubnet && (prev.subnet === '192.168.0' || prev.subnet === '')) {
-                return { ...prev, subnet: activeSubnet };
-              }
-              return prev;
-            });
-          }
-
-          setInterfaces(updatedInterfaces);
-          setIsAdmin(data.isAdmin || false);
-          if (data.ouiCount !== undefined) {
-            setRegistryMeta(prev => ({ 
-              ...prev, 
-              count: data.ouiCount, 
-              status: 'synced',
-              sourceName: data.ouiSource || prev.sourceName,
-              cachePath: data.ouiCachePath || prev.cachePath,
-              databaseLocation: data.ouiDatabaseLocation || prev.databaseLocation
-            }));
-          }
-          if (data.message) {
-            setToastMessage(data.message);
-          }
+        const probed = await probeEngineInfo(5000);
+        if (probed?.data) {
+          await applyEngineInfoPayload(probed.data);
         } else {
-          // If response is not OK, don't immediately set to false if it was true, 
-          // maybe it's just a temporary hiccup
-          setGoEngineAlive(prev => prev); 
-        }
-      } catch (e) {
-        // Only set to false if it's not an AbortError (timeout)
-        if ((e as Error).name !== 'AbortError') {
           setGoEngineAlive(false);
-          // Try client-side WebRTC Wi-Fi IP detection when backend is offline
           const webRtcRes = await getClientLocalIP().catch(() => null);
           if (webRtcRes) {
             setLocalIpInfo(prev =>
@@ -2524,6 +2551,10 @@ const App: React.FC = () => {
               return prev;
             });
           }
+        }
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') {
+          setGoEngineAlive(false);
         }
       }
     };
@@ -2863,8 +2894,8 @@ const App: React.FC = () => {
 
     if (!engineReady) {
       try {
-        const pingRes = await fetch(getApiUrl('/api/info'), { signal: safeTimeout(3000) });
-        if (pingRes.ok) {
+        const probed = await probeEngineInfo(3000);
+        if (probed?.data) {
           engineReady = true;
           setGoEngineAlive(true);
         }
@@ -3099,7 +3130,39 @@ const App: React.FC = () => {
             errText = rawBody.trim();
           }
         }
+        if (response.status === 503 || response.status === 404) {
+          setGoEngineAlive(false);
+          setEngineConnectErrorReason(
+            lang === 'ko'
+              ? `스캔 엔진 서버에 연결할 수 없습니다 (${response.status}). 모바일 웹에서는 Android APK를 설치하거나 로컬/LAN Go 엔진 주소를 연결해주세요.`
+              : `Scan engine unavailable (${response.status}). On mobile browsers, install the Android APK or connect a local/LAN Go engine.`
+          );
+          setShowEngineConnectModal(true);
+        }
         throw new Error(lang === 'ko' ? `스캔 시작 실패 (${response.status}): ${errText}` : `Scan start failed (${response.status}): ${errText}`);
+      }
+
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (contentType && !contentType.includes('text/event-stream')) {
+        try {
+          await response.body?.cancel();
+        } catch {}
+        setGoEngineAlive(false);
+        const isHtmlFallback = contentType.includes('text/html');
+        const reasonMsg = isHtmlFallback
+          ? (lang === 'ko'
+              ? (isMobileDeviceBrowser() && !isCapacitorNative()
+                  ? '현재 정적 웹/모바일 브라우저 환경에는 로컬 Go 스캔 엔진이 없습니다. Android APK를 사용하거나 동일 Wi-Fi PC의 Go 엔진 URL을 연결해주세요.'
+                  : '백엔드 API(/api/scan) 대신 웹페이지 HTML이 반환되었습니다. Go/네이티브 스캔 엔진 연결을 확인해주세요.')
+              : (isMobileDeviceBrowser() && !isCapacitorNative()
+                  ? 'No local Go scan engine is available in this mobile web browser. Use the Android APK or connect to a LAN PC Go engine.'
+                  : 'Web HTML was returned instead of an SSE scan stream. Check Go/native engine connection.'))
+          : (lang === 'ko'
+              ? `스캔 스트림 형식이 올바르지 않습니다 (${contentType}). 엔진 연결을 확인해주세요.`
+              : `Invalid scan stream content-type (${contentType}). Check engine connection.`);
+        setEngineConnectErrorReason(reasonMsg);
+        setShowEngineConnectModal(true);
+        throw new Error(reasonMsg);
       }
 
       const reader = response.body?.getReader();
@@ -3147,6 +3210,9 @@ const App: React.FC = () => {
           scanErrorMessage = lang === 'ko'
             ? '백엔드 스캔 스트림 응답이 없습니다. Go 엔진 상태를 확인해주세요.'
             : 'Empty scan stream from backend. Check Go engine status.';
+          setGoEngineAlive(false);
+          setEngineConnectErrorReason(scanErrorMessage);
+          setShowEngineConnectModal(true);
           showToast(`⚠️ ${scanErrorMessage}`);
         }
       }
@@ -3157,6 +3223,10 @@ const App: React.FC = () => {
         console.error("Scan Failed:", e);
         scanErrorMessage = (e as Error)?.message || 'Scan failed';
         showToast(lang === 'ko' ? `⚠️ 스캔 오류: ${scanErrorMessage}` : `⚠️ Scan error: ${scanErrorMessage}`);
+        if (isMobileDeviceBrowser() || !goEngineAlive) {
+          setEngineConnectErrorReason(scanErrorMessage);
+          setShowEngineConnectModal(true);
+        }
       }
     } finally {
       if (updateTimerRef.current) {
@@ -3312,9 +3382,16 @@ const App: React.FC = () => {
                 const reportId = `rep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
                 const filename = buildReportFilename(schedDataset, fmt);
                 let contentText = '';
+                let contentBase64: string | undefined;
+                let xlsxBuffer: ArrayBuffer | null = null;
                 let mimeType = 'text/plain;charset=utf-8;';
 
-                if (fmt === 'excel') {
+                if (fmt === 'xlsx') {
+                  xlsxBuffer = await generateMultiSheetXlsxBuffer(schedDataset, storedCfg);
+                  contentBase64 = arrayBufferToBase64(xlsxBuffer);
+                  contentText = generateMarkdownReportString(schedDataset, storedCfg);
+                  mimeType = XLSX_MIME_TYPE;
+                } else if (fmt === 'excel') {
                   contentText = generateMultiSheetExcelXml(schedDataset, storedCfg);
                   mimeType = 'application/vnd.ms-excel;charset=utf-8;';
                 } else if (fmt === 'csv') {
@@ -3351,6 +3428,7 @@ const App: React.FC = () => {
                   offlineCount: offlineDevCount,
                   changedCount: changedDevCount,
                   contentText,
+                  ...(contentBase64 ? { contentBase64 } : {}),
                   summaryNote: `${schedDataset.subnet}.0/24 · ${finalActive}/${targetTotalCount} active`,
                 };
                 saveAutoReportRecord(record);
@@ -3359,6 +3437,8 @@ const App: React.FC = () => {
                 if (scheduledTask.autoDownloadFile) {
                   if (fmt === 'pdf') {
                     exportDatasetToPDF(schedDataset, storedCfg.selectedColumns, { filename }).catch(() => {});
+                  } else if (fmt === 'xlsx' && xlsxBuffer) {
+                    downloadBinaryBlob(xlsxBuffer, filename, mimeType);
                   } else if (contentText) {
                     downloadTextBlob(contentText, filename, mimeType);
                   }
@@ -4921,6 +5001,20 @@ const App: React.FC = () => {
               {isScanning ? s.stopScan : (hasStartedScan ? s.restartScan : s.startScan)}
             </button>
 
+            {!goEngineAlive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEngineConnectErrorReason(undefined);
+                  setShowEngineConnectModal(true);
+                }}
+                className="w-full py-1.5 px-2.5 rounded-lg border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[10px] font-black tracking-tight flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                <span>{lang === 'ko' ? '모바일 · 로컬 엔진 연결 설정' : 'Connect Mobile / Local Engine'}</span>
+              </button>
+            )}
+
             {/* Quick Scheduler Access in Sidebar (PRO autoScheduler) */}
             <button
               type="button"
@@ -5157,11 +5251,11 @@ const App: React.FC = () => {
                     </span>
                   </span>
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/15 shrink-0">
-                    7 FORMATS
+                    8 FORMATS
                   </span>
                 </button>
 
-                {/* Quick Actions Grid (2x2) */}
+                {/* Quick Actions Grid */}
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
@@ -5178,39 +5272,6 @@ const App: React.FC = () => {
                   >
                     <FileDown className="w-3 h-3 text-rose-400 shrink-0" />
                     <span>PDF</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickExport('excel', searchTerm ? 'search' : 'active')}
-                    disabled={Object.keys(results).length === 0}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
-                      theme === 'beige'
-                        ? 'bg-[#fcf8f2] border-[#d4be9c] hover:bg-[#f5ebd6] text-[#1a0f05]'
-                        : theme === 'white'
-                        ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800'
-                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
-                    }`}
-                    title={
-                      featureGates.reportExcelFullWorkbook
-                        ? lang === 'ko'
-                          ? '전체 보고서 엑셀 통합문서 (.xls 16×16 맵 포함 5-Sheet)'
-                          : 'Full Report Excel Workbook (.xls 5-Sheet with 16×16 Grid)'
-                        : lang === 'ko'
-                        ? '16×16 엑셀 그리드 (.xls 단일 그리드 시트 — 전체 보고서 시트는 PRO)'
-                        : '16×16 Excel Grid (.xls Grid Only — Full Report Sheets in PRO)'
-                    }
-                  >
-                    <FileSpreadsheet className="w-3 h-3 text-emerald-500 shrink-0" />
-                    <span className="truncate">
-                      {featureGates.reportExcelFullWorkbook
-                        ? lang === 'ko'
-                          ? '엑셀 보고서'
-                          : 'Excel Report'
-                        : lang === 'ko'
-                        ? '엑셀 그리드'
-                        : 'Excel Grid'}
-                    </span>
                   </button>
 
                   <button
@@ -5232,9 +5293,75 @@ const App: React.FC = () => {
 
                   <button
                     type="button"
+                    onClick={() => handleQuickExport('xlsx', searchTerm ? 'search' : 'active')}
+                    disabled={Object.keys(results).length === 0}
+                    className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
+                      theme === 'beige'
+                        ? 'bg-[#fcf8f2] border-[#d4be9c] hover:bg-[#f5ebd6] text-[#1a0f05]'
+                        : theme === 'white'
+                        ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
+                    }`}
+                    title={
+                      featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '전체 보고서 엑셀 통합문서 (.xlsx 표준 OOXML 5-Sheet)'
+                          : 'Full Report Excel Workbook (.xlsx 5-Sheet)'
+                        : lang === 'ko'
+                        ? '16×16 엑셀 그리드 (.xlsx 표준 OOXML — 전체 보고서 시트는 PRO)'
+                        : '16×16 Excel Grid (.xlsx Grid Only — Full Report Sheets in PRO)'
+                    }
+                  >
+                    <FileSpreadsheet className="w-3 h-3 text-emerald-500 shrink-0" />
+                    <span className="truncate">
+                      {featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '엑셀 .xlsx'
+                          : 'Report .xlsx'
+                        : lang === 'ko'
+                        ? '그리드 .xlsx'
+                        : 'Grid .xlsx'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickExport('excel', searchTerm ? 'search' : 'active')}
+                    disabled={Object.keys(results).length === 0}
+                    className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
+                      theme === 'beige'
+                        ? 'bg-[#fcf8f2] border-[#d4be9c] hover:bg-[#f5ebd6] text-[#1a0f05]'
+                        : theme === 'white'
+                        ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-200'
+                    }`}
+                    title={
+                      featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '전체 보고서 엑셀 호환 통합문서 (.xls 16×16 맵 포함 5-Sheet)'
+                          : 'Full Report Legacy Excel (.xls 5-Sheet)'
+                        : lang === 'ko'
+                        ? '16×16 엑셀 호환 그리드 (.xls 단일 그리드 시트 — 전체 보고서 시트는 PRO)'
+                        : '16×16 Legacy Excel Grid (.xls Grid Only)'
+                    }
+                  >
+                    <FileSpreadsheet className="w-3 h-3 text-teal-400 shrink-0" />
+                    <span className="truncate">
+                      {featureGates.reportExcelFullWorkbook
+                        ? lang === 'ko'
+                          ? '엑셀 .xls'
+                          : 'Report .xls'
+                        : lang === 'ko'
+                        ? '그리드 .xls'
+                        : 'Grid .xls'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handleSaveSnapshot()}
                     disabled={activeCount === 0}
-                    className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
+                    className={`col-span-2 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-[10px] font-black transition-all cursor-pointer disabled:opacity-45 ${
                       theme === 'beige'
                         ? 'bg-[#fcf8f2] border-[#d4be9c] hover:bg-[#f5ebd6] text-[#1a0f05]'
                         : theme === 'white'
@@ -5244,7 +5371,7 @@ const App: React.FC = () => {
                     title={lang === 'ko' ? '현재 스캔 상태를 비교 기준 스냅샷으로 저장' : 'Save current scan state as baseline snapshot'}
                   >
                     <BookmarkPlus className="w-3 h-3 text-purple-400 shrink-0" />
-                    <span>{lang === 'ko' ? '스냅샷' : 'Snap'}</span>
+                    <span>{lang === 'ko' ? '스냅샷 저장' : 'Save Snapshot'}</span>
                   </button>
                 </div>
               </div>
@@ -8225,6 +8352,19 @@ const App: React.FC = () => {
         initialAction={batchDefaultAction}
         featureGates={featureGates}
         onRequirePro={(fid, ctx) => openProFeatureLockedModal(fid, ctx)}
+        theme={theme}
+        lang={lang as 'ko' | 'en'}
+        showToast={showToast}
+      />
+
+      {/* Mobile & Local Scan Engine Connection Modal */}
+      <EngineConnectModal
+        isOpen={showEngineConnectModal}
+        onClose={() => setShowEngineConnectModal(false)}
+        onConnected={(infoData) => {
+          void applyEngineInfoPayload(infoData);
+        }}
+        lastErrorReason={engineConnectErrorReason}
         theme={theme}
         lang={lang as 'ko' | 'en'}
         showToast={showToast}

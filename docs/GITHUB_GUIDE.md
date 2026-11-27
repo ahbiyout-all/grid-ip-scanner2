@@ -1,6 +1,6 @@
-# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.6.0)
+# 🐙 Grid IP Scanner2 - GitHub 연동 및 CI/CD 자동 배포 가이드 (v2.7.0)
 
-본 문서는 **Grid IP Scanner2** 프로젝트를 공식 깃허브(GitHub) 저장소에 등록하고, **클린 소스코드 전용 `.gitignore` 격리 규칙** 및 **GitHub Actions 클라우드 파이프라인**을 통해 소스코드 푸시 시 12대 C/C++ 네이티브 DLL, Windows 포터블/인스톨러 및 모바일 APK를 전자동으로 생성·배포하는 운영 지침서입니다.
+본 문서는 **Grid IP Scanner2 (v2.7.0)** 프로젝트를 공식 깃허브(GitHub) 저장소에 등록하고, **클린 소스코드 전용 `.gitignore` 격리 규칙** 및 **GitHub Actions 클라우드 파이프라인**을 통해 소스코드 푸시 시 12대 C/C++ 네이티브 DLL, Windows 포터블/인스톨러 및 모바일 APK를 전자동으로 생성·배포하는 운영 지침서입니다.
 
 ---
 
@@ -28,16 +28,16 @@
 | 구분 | 포함 (GitHub 푸시 대상) ✅ | 제외 (원격 업로드 완전 차단) 🚫 |
 | :--- | :--- | :--- |
 | **푸시 스크립트** | *(없음 - 전면 비공개 유지)* | **`github-push.bat`**, **`scripts/github-sync.bat`**, **`scripts/github-mobile-sync.bat`**, **`*.sh`** |
-| **소스 코드** | React/TS(`App.tsx`, `components/` 16종 뷰·모달·셀 포함 `TopologyMapView.tsx`·`MultiSubnetBar.tsx`·`MultiSubnetModal.tsx`, `services/`), Go 백엔드(`main.go`, `engine.go`, `name_resolver.go`, `license_guard.go`, `tray_engine.go`, `native_modules_bridge*.go`, `utils_*.go`, `*_test.go`), 12대 C/C++ DLL 소스(`native_dll/*.c/.cpp/.h`), Electron(`main.js`, `preload.js`), OUI DB(`master_oui.txt`), 리소스(`winres.json`, `public/`) | 임시 파일(`*.tmp`, `*.temp`), 백업 파일(`*.bak`), 컴파일된 바이너리(`*.dll`, `*.o`), 테스트 임시 산출물(`*.exe`) |
-| **문서 및 설정** | **`README.md`**, **`LICENSE.md`**, **`docs/`** 전체 문서(GitHub 가이드, Blogger `[작성 모드]`/`[HTML 편집 모드]` 문서, DLL 명세서, 패치노트, 작업일지 등), **`package.json`**, **`tsconfig.json`**, **`vite.config.ts`**, **`.github/workflows/`** | **`.env`**, 개인 인증키(`*.key`, `*.pem`), IDE 설정(`.vscode/`, `.idea/`), 로컬 트레이 설정(`tray_config.json`) |
-| **빌드 스크립트** | **`build.bat`**, **`build.sh`**, **`build-win.js`**, **`generate-assets.js`**, **`native_dll/build_all_dlls.bat`**, **`installer/`**, **`scripts/build-dll.js`**, **`scripts/build-distribution.js`**, **`scripts/sync-version.js`** | *(빌드 재현성을 위해 스크립트 자체는 포함)* |
+| **소스 코드** | React/TS(`App.tsx`, `index.css`, `components/` 23종 뷰·모달·셀·컨트롤 포함 `CidrBlockBar.tsx`·`DeviceTableView.tsx`·`DeviceTimelineTab.tsx`·`SnmpSwitchConfigModal.tsx`·`BatchQueueDrawer.tsx`·`QuickConnectModal.tsx`·`TextScaleControl.tsx`·`TopologyMapView.tsx`·`MultiSubnetBar.tsx`·`MultiSubnetModal.tsx`, `services/`), Go 백엔드(`main.go`, `engine.go`, `cidr_engine.go`, `timeline_store.go`, `snmp_l2.go`, `batch_queue.go`, `name_resolver.go`, `license_guard.go`, `tray_engine.go`, `native_modules_bridge*.go`, `utils_*.go`, `*_test.go`), 12대 C/C++ DLL 소스(`native_dll/*.c/.cpp/.h`), Electron(`main.js`, `preload.js`), OUI DB(`master_oui.txt`), 리소스(`winres.json`, `public/`) | 임시 파일(`*.tmp`, `*.temp`), 백업 파일(`*.bak`), 컴파일된 바이너리(`*.dll`, `*.o`), 테스트 임시 산출물(`*.exe`), 런타임 타임라인 DB(`timeline_events.jsonl`, `timeline_state.json`) |
+| **문서 및 설정** | **`README.md`**, **`LICENSE.md`**, **`docs/`** 전체 문서(GitHub 가이드, Blogger `[작성 모드 (서식 있는 텍스트)]`/`[HTML 편집 모드]` 문서, DLL 명세서, 패치노트, 작업일지, 파일 구조 명세서 등), **`package.json`**, **`tsconfig.json`**, **`vite.config.ts`**, **`.github/workflows/`** | **`.env`**, 개인 인증키(`*.key`, `*.pem`), IDE 설정(`.vscode/`, `.idea/`), 로컬 트레이 설정(`tray_config.json`), 봉인 라이선스(`license.sealed.json`) |
+| **빌드 스크립트** | **`build.bat`**, **`build.sh`**, **`build-win.js`**, **`generate-assets.js`**, **`native_dll/build_all_dlls.bat`**, **`installer/`**, **`scripts/build-dll.js`**, **`scripts/build-distribution.js`**, **`scripts/sync-version.js`**, **`scripts/prune-old-release-assets.js`** | *(빌드 재현성을 위해 스크립트 자체는 포함)* |
 | **빌드 산출물** | *(GitHub Releases 탭에서만 클라우드 자동 배포)* | **`dist/`**, **`dist_installer/`**, **`dist_releases/`**, **`*.exe`**, **`*.syso`**, **`*.apk`**, **`*.zip`**, **`engine_arm64`**, **`node_modules/`**, **`go/`** |
 
 ---
 
 ## 🚀 3. GitHub Actions 자동 빌드 파이프라인 명세 (`.github/workflows/build-and-release.yml`)
 
-저장소에 코드를 `git push`하거나 새 버전 태그(예: `v2.6.0`)를 푸시하면 깃허브 클라우드 러너가 스스로 다음 빌드 잡(Job)을 수행합니다:
+저장소에 코드를 `git push`하거나 새 버전 태그(예: `v2.7.0`)를 푸시하면 깃허브 클라우드 러너가 스스로 다음 빌드 잡(Job)을 수행합니다:
 
 ### 💻 Job 1: Windows PC 12-DLL · 인스톨러 · 포터블 동시 빌드 (`build-windows`)
 * **구동 환경**: `windows-latest` 가상 머신
@@ -45,8 +45,8 @@
   1. `actions/checkout@v4`로 최신 소스코드 동기화
   2. Node.js v24, Go v1.22 및 MinGW/GCC 컴파일러 자동 세팅
   3. 12대 C/C++ 네이티브 DLL(`grid_pcap_analyzer.dll v2.6.2`, `grid_topology_guard.dll v2.6.1`, `grid_probe_engine.dll`, `grid_port_iocp.dll`, `grid_vault_driver.dll`, `secure_vault.dll` 등) 정적 링크 컴파일
-  4. `npm run build:exe` 실행 ➔ **무설치 포터블 바이너리(`Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.6.0_Portable.exe`) 컴파일**
-  5. Inno Setup 6 자동 설치 및 `npm run build:installer` 실행 ➔ **12대 DLL 분리 배치형 정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.6.0_Setup.exe`) 자동 패키징** (제어판 프로그램 추가/제거 및 포그라운드 무클릭 업그레이드 포함)
+  4. `npm run build:exe` 실행 ➔ **무설치 포터블 바이너리(`Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.7.0_Portable.exe`) 컴파일**
+  5. Inno Setup 6 자동 설치 및 `npm run build:installer` 실행 ➔ **12대 DLL 분리 배치형 정식 윈도우 인스톨러(`Grid_IP_Scanner2_v2.7.0_Setup.exe`) 자동 패키징** (제어판 프로그램 추가/제거 및 포그라운드 무클릭 업그레이드 포함)
 
 ### 📱 Job 2: 모바일 웹 & iOS PWA 패키징 (`build-web-mobile`)
 * **구동 환경**: `ubuntu-latest` 고속 컨테이너
@@ -58,17 +58,17 @@
 * **구동 환경**: `ubuntu-latest` + Node.js 24 + Go 1.22 + Java 21 + Android SDK 35
 * **수행 절차**:
   1. `chmod +x android/gradlew` 실행 권한 부여
-  2. Go ARM64 네이티브 스캔 엔진 크로스 컴파일
-  3. `assembleRelease` 또는 `assembleDebug` 실행 및 ZipAlign/서명 처리 ➔ **안드로이드 APK(`Grid_IP_Scanner2_v2.6.0.apk`) 패키징**
+  2. Go ARM64 네이티브 스캔 엔진(`cidr_engine.go`, `timeline_store.go`, `snmp_l2.go`, `batch_queue.go` 포함) 크로스 컴파일
+  3. `assembleRelease` 또는 `assembleDebug` 실행 및 ZipAlign/서명 처리 ➔ **안드로이드 APK(`Grid_IP_Scanner2_v2.7.0.apk`) 패키징**
 
 ### 📦 Job 4: GitHub Releases 공식 릴리즈 자동 발행 (`publish-github-release`)
 * **발동 조건**: `v*` 형태의 시맨틱 버전 태그 푸시 또는 main 브랜치 푸시
 * **안전 가드**: `actions/download-artifact@v4`에 `continue-on-error: true` 적용으로 모바일 산출물 다운로드 실패 시에도 릴리스 중단 방지
 * **첨부 릴리즈 파일**:
-  1. `Grid_IP_Scanner2_v2.6.0_Setup.exe` (Windows 정식 인스톨러 - 12대 DLL 분리 배치 & 제어판 등록)
-  2. `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.6.0_Portable.exe` (Windows 단일 무설치 포터블)
-  3. `Grid_IP_Scanner2_v2.6.0.apk` (안드로이드 스마트폰 직접 설치 파일)
-  4. `Grid_IP_Scanner2_v2.6.0_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
+  1. `Grid_IP_Scanner2_v2.7.0_Setup.exe` (Windows 정식 인스톨러 - 12대 DLL 분리 배치 & 제어판 등록)
+  2. `Grid_IP_Scanner2.exe` / `Grid_IP_Scanner2_v2.7.0_Portable.exe` (Windows 단일 무설치 포터블)
+  3. `Grid_IP_Scanner2_v2.7.0.apk` (안드로이드 스마트폰 직접 설치 파일)
+  4. `Grid_IP_Scanner2_v2.7.0_Mobile_PWA.zip` (모바일 웹 & iOS PWA 패키지)
 * **이전 릴리즈 바이너리 자동 정리 (`scripts/prune-old-release-assets.js`)**: 새 릴리즈 업로드가 완료된 뒤 **최신 3개 GitHub Releases**의 바이너리 에셋만 유지하고, 4번째 이상 구버전 릴리즈는 릴리즈 노트·제목·태그·변경 이력은 보존한 채 첨부 바이너리 파일만 자동 삭제
 * 사용자가 `https://github.com/AhBiYout-all/grid-ip-scanner2/releases`에서 즉시 다운로드 가능
 
@@ -77,16 +77,16 @@
 ## 🔄 4. 지속적 버전 연동 (Single Source of Truth) 메커니즘
 
 버전 불일치가 발생하지 않도록 **중앙 집중형 버전 동기화 엔진(`scripts/sync-version.js`)**이 탑재되어 있습니다:
-* **단일 원천(SSOT)**: `package.json`의 `"version"`을 기준으로 삼거나, `node scripts/sync-version.js --bump-patch` / `--bump-minor` 실행 시 1회 명령으로 다음 10개 대상이 동시 수정됩니다:
-  1. `package.json`: `"version": "2.6.0"`
-  2. `winres.json`: Windows 바이너리 메타데이터 및 PE 리소스 버전 정보 (`2.6.0.0`)
+* **단일 원천(SSOT)**: `package.json`의 `"version"`을 기준으로 삼거나, `node scripts/sync-version.js --bump-patch` / `--bump-minor` 실행 시 1회 명령으로 다음 10개 대상이 동시 수정되며, `--check` 플래그로 읽기 전용 무결성 검증이 가능합니다:
+  1. `package.json`: `"version": "2.7.0"`
+  2. `winres.json`: Windows 바이너리 메타데이터 및 PE 리소스 버전 정보 (`2.7.0.0`)
   3. `installer/Grid_IP_Scanner2_Dedicated_Setup.iss`: Inno Setup 인스톨러 스크립트 정의
   4. `App.tsx`: 사이드바, 모바일 상단 바, 모달 내부의 버전 뱃지 및 인스톨러 파일명
-  5. `services/updateChecker.ts`: 실시간 릴리즈 비교 기준 버전 (`2.6.0`)
+  5. `services/updateChecker.ts`: 실시간 릴리즈 비교 기준 버전 (`2.7.0`)
   6. `installer/setup_builder.go`: 내장 셋업 빌더 버전
   7. `docs/PATCH_NOTE.md`: 패치 노트 최상단 헤더 버전
   8. `docs/README.md` & `README.md`: 공식 문서 허브 최신 버전 표기
-  9. `android/app/build.gradle`: 안드로이드 빌드 버전 정보 (`versionCode 20600`, `versionName "2.6.0"`)
+  9. `android/app/build.gradle`: 안드로이드 빌드 버전 정보 (`versionCode 20700`, `versionName "2.7.0"`)
   10. `docs/WorkLog.md`: 개발 작업 일지 연동 확인
 
 ---
@@ -95,7 +95,7 @@
 
 * **인앱 자동 감지 (`services/updateChecker.ts`, `components/UpdateModal.tsx`)**:
   - 앱 구동 2.5초 후 GitHub Releases API(`api.github.com/repos/AhBiYout-all/grid-ip-scanner2/releases/latest`)를 백그라운드에서 실시간 조회.
-  - 최신 릴리즈가 존재할 경우 **업데이트 알림 팝업창(UpdateModal) 자동 실행**.
+  - 최신 릴리즈가 존재할 경우 **업데이트 알림 팝업창(UpdateModal) 자동 실행** (공식 HTTPS GitHub 도메인 허용 목록 검증 적용).
   - 원클릭으로 최신 `Setup.exe` 다운로드 및 패치노트 확인 가능.
 * **자동 업데이트 스크립트 (`scripts/auto-update.bat`)**:
   - 콘솔에서 최신 공식 인스톨러를 자동 다운로드받고 설치할 수 있는 자동화 배치 파일 제공.
@@ -104,11 +104,18 @@
 
 ## 💻 6. 로컬 동기화 및 푸시 방법
 
-로컬 PC에서 아래 둘 중 하나를 실행하시면, 푸시 스크립트와 바이너리 없이 **순수 소스코드만 GitHub에 깨끗하게 업로드**되며 릴리스가 자동 트리거됩니다:
+저장소를 클론한 표준 개발 환경에서는 `git` 태그 푸시로, 로컬 관리자 PC에서는 전용 푸시 스크립트로 바이너리·임시 파일 없이 **순수 소스코드만 GitHub에 깨끗하게 업로드**하며 릴리스를 자동 트리거할 수 있습니다:
+```bash
+# [표준 Git 배포] 소스 푸시 및 v2.7.0 릴리스 태그 발행
+git add .
+git commit -m "chore: release v2.7.0"
+git tag v2.7.0
+git push origin main --tags
+```
 ```cmd
-:: 방법 1 (원클릭)
+:: [로컬 관리자 전용] 방법 1 (원클릭)
 github-push.bat
 
-:: 방법 2 (터미널)
+:: [로컬 관리자 전용] 방법 2 (터미널)
 npm run git:push
 ```

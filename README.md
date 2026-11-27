@@ -24,7 +24,7 @@
    - **🔬 네이티브 패킷 정밀 텔레메트리 (`grid_pcap_analyzer.dll v2.6.2`)**: 장치 상세 프로필 패널에서 원클릭으로 **TTL/초기 TTL/추정 홉 수, TCP 핸드셰이크 RTT(Min/Avg/Max/Jitter), Window 힌트, OS 추정(신뢰도) 및 Live ARP 정합성 검증** 수행
    - **🌐 온디맨드 다중 서브넷 & VLAN 통합 대시보드 (`MultiSubnetBar`, `MultiSubnetModal`)**: 상단 **`다중 서브넷·VLAN`**(`VLAN`) 활성화 버튼을 누를 때 즉시 표시되며, **활성 프로필 VLAN Tag ID 인디케이터**, 로컬 NIC/VLAN CIDR 자동 탐색(`/api/subnets/discover`), 커스텀 CIDR(`/20`–`/30`) 등록, **Free 최대 2개 대역 전환**, **Pro(5대역)/Enterprise(무제한) 순차 일괄 스윕(Batch Sweep) 및 교차 대역 이상 징후 통합 관제** 지원
    - **🏷️ UPnP/SSDP XML & mDNS 실제 제조사 정밀 판별 & OUI 시맨틱 분류 + LAA 랜덤 MAC 역추적**: OUI + 개방 포트 + mDNS + UPnP 복합 점수 시맨틱 분류(`services/ouiClassifier.ts`), 사설 랜덤 MAC(LAA) 교차 역추적 및 신뢰도/판별 근거 UI 표기
-   - **📋 원클릭 IP 주소 복사 (Clipboard API)**: 장치 상세 프로필 패널에서 한 번의 클릭으로 선택한 IP 주소를 클립보드에 완벽 복사 (Clipboard API & Fallback 지원)
+   - **📋 원클릭 IP 주소 복사 & 🔍 통합 글자 확대·축소 (`85%~130%`, `TextScaleControl`)**: 장치 상세 프로필 패널의 원클릭 IP 복사, 그리고 상단 헤더 바(데스크톱·모바일)와 장치 프로필 패널에서 동기화 제어되는 85%~130%(5% 단위, `Ctrl/Cmd + +/-/0`) 앱 전체 UI·그리드·테이블 통합 글자 배율 조절 지원 (A4 출력/SVG 토폴로지 격리)
    - **🛡️ Windows 인스톨러 UAC 권한 승계 & 12대 네이티브 DLL 분리 설치**: Inno Setup 6 커널 UAC 권한 승계(`runascurrentuser`) 및 포그라운드 무클릭 자동 업그레이드·12대 C/C++ DLL 분리 배치로 백신 오탐지 예방
    - **🚦 3단계 시맨틱 버저닝(SemVer) 및 10대 SSOT 자동 동기화**: MAJOR.MINOR.PATCH 원칙 수립 및 구글 블로거/깃허브 배포 자산 표준 관리 (`v2.7.0`)
 
@@ -56,7 +56,7 @@
 6. **⚠️ 게이트웨이 Proxy-ARP 정상 분리 & IP/MAC 충돌 감지 (`services/conflictDetector.ts`, `components/IPCell.tsx`)**
    - 학교/캠퍼스/기업망 게이트웨이(`.254`/`.1`) L3 스위치 Proxy-ARP 동일 MAC 다중 IP 응답을 **`Gateway Proxy-ARP (비알림 Info)`** 로 안전 판별하여 스카이블루 **`Proxy-ARP`** 뱃지로 시각화하고 실제 MAC 복제/스푸핑 경보(`⚠️`)와 명확히 분리
 
-7. **🔒 12대 C/C++ 네이티브 DLL 가속 & PBKDF2+AES-256-GCM Secure Vault (`v2.6.0`)**
+7. **🔒 12대 C/C++ 네이티브 DLL 가속 & PBKDF2+AES-256-GCM Secure Vault (`GVAULT11`)**
    - 순수 창작 `grid_topology_guard.dll` (`v2.6.1`), `Probe_SweepCidrAsyncBatch` 비동기 ICMP/ARP 스위프, `PortScan_IocpMultiHostSweep` Win32 IOCP 포트 스위프 탑재
    - `LoadLibraryExW(LOAD_LIBRARY_SEARCH_APPLICATION_DIR)` 경로 고정, `GVAULT11` 16B 솔트 + PBKDF2-HMAC-SHA256(10,000회) 256B 스택 고속 경로 및 JSON 음수 포트 방어 적용
 
@@ -145,13 +145,13 @@ github-push.bat     # Windows (또는 npm run git:push)
 ## 📂 문서 구조 (Documentation Hub)
 
 - [`docs/README.md`](docs/README.md) : 전체 기술 문서 저장소 총괄 허브 (v2.7.0)
-- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-25 v2.7.0 최신화)
-- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (가변 CIDR·타임라인 DB·SNMP L2·일괄 큐 반영)
+- [`docs/PATCH_NOTE.md`](docs/PATCH_NOTE.md) : 버전별 변경 내역 및 상세 패치 노트 (2026-11-26 v2.7.0 최신화)
+- [`docs/WorkLog.md`](docs/WorkLog.md) : 개발 및 기능 구현 공식 작업 일지 (가변 CIDR·타임라인 DB·SNMP L2·일괄 큐·통합 글자 배율 반영)
 - [`docs/SCHEDULED_SCAN_SPEC.md`](docs/SCHEDULED_SCAN_SPEC.md) : 정기 자동 네트워크 스캔 스케줄러, 일시정지/즉시 실행 및 트레이 연동 명세서
 - [`docs/SNAPSHOT_DIFF_SPEC.md`](docs/SNAPSHOT_DIFF_SPEC.md) : 딥 스냅샷 비교 엔진 v2 및 1:1 대조 스튜디오 명세서
 - [`docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md`](docs/GRID_TOPOLOGY_GUARD_DLL_SPEC.md) : 순수 창작 `grid_topology_guard.dll` 명세 및 12대 DLL 감사·하드닝 보고서
-- [`docs/GOOGLE_BLOGGER_POST.md`](docs/GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`)
-- [`docs/GOOGLE_BLOGGER_POST.html`](docs/GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]`)
+- [`docs/GOOGLE_BLOGGER_POST.md`](docs/GOOGLE_BLOGGER_POST.md) : 구글 블로거 포스팅 가이드 (`[작성 모드 (서식 있는 텍스트)]`, v2.7.0 최신화)
+- [`docs/GOOGLE_BLOGGER_POST.html`](docs/GOOGLE_BLOGGER_POST.html) : 구글 블로거 포스팅 가이드 (`[HTML 편집 모드]`, v2.7.0 최신화)
 - [`docs/GITHUB_GUIDE.md`](docs/GITHUB_GUIDE.md) : 깃허브 연동, .gitignore 격리 규칙 및 CI/CD 자동 배포 가이드 (v2.7.0 최신화)
 - [`docs/MOBILE_GITHUB_GUIDE.md`](docs/MOBILE_GITHUB_GUIDE.md) : 모바일 APK 및 PWA 단일 리포지토리 배포 가이드
 - [`docs/A4_REPORT_ENGINE_SPEC.md`](docs/A4_REPORT_ENGINE_SPEC.md) : A4 규격 최적화 PDF 보고서 및 브라우저 제어 기술 명세서
@@ -161,7 +161,7 @@ github-push.bat     # Windows (또는 npm run git:push)
 - [`docs/DISTRIBUTION_AND_TIER_STRATEGY.md`](docs/DISTRIBUTION_AND_TIER_STRATEGY.md) : 포터블 & 인스톨러 배포 전략 및 유료화 사양서 (v2.7.0 티어 매트릭스 반영)
 - [`docs/V3_FALSE_POSITIVE_GUIDE.md`](docs/V3_FALSE_POSITIVE_GUIDE.md) : AhnLab V3 오진 분석 및 화이트리스트 신청 가이드
 - [`docs/DIGITAL_SIGNATURE_GUIDE.md`](docs/DIGITAL_SIGNATURE_GUIDE.md) : 테스트용 자가 서명(PowerShell) 가이드
-- [`docs/SECURITY_REPORT.md`](docs/SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서 (v2.6.0)
+- [`docs/SECURITY_REPORT.md`](docs/SECURITY_REPORT.md) : 보안 점검 및 암호화 검증 보고서 (Deep Audit 기록)
 - [`docs/PROPRIETARY_TECHNOLOGY.md`](docs/PROPRIETARY_TECHNOLOGY.md) : 15대 핵심 독점 기술 및 코어 엔진 기술 명세서
 - [`docs/LICENSE_KR.md`](docs/LICENSE_KR.md) : 한국어 라이선스 전문
 - [`docs/LICENSE.md`](docs/LICENSE.md) : 프로그램 라이선스 계약서

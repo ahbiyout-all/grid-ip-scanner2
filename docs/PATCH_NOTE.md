@@ -35,6 +35,14 @@
      - 동시 워커 수(1–4) 및 패킷 간 지연(100–2000ms) 설정, 실시간 진행률 폴링, 실패 항목 일괄 재시도 및 즉시 중단(Abort) 제어를 제공합니다.
    - **티어 제한**: **Free** 잠금, **Pro** 작업당 최대 16대 동시 실행, **Enterprise** 무제한 단말 일괄 처리.
 
+5. **앱 전체 UI · 그리드 · 테이블 통합 글자 확대/축소 개선 (`index.css`, `components/TextScaleControl.tsx`, `components/IPCell.tsx`, `components/DeviceTableView.tsx`, `components/ReportCenterModal.tsx`, `components/TopologyMapView.tsx`, `App.tsx`) — *2026-11-26 반영***
+   - **85%~130% (5% 단위) 통합 배율 & `100%` 초기화 (`--ui-text-scale`)**:
+     - 기존 장치 프로필 패널 전용 2단계(`100% / 115%`) 토글을 앱 전체 UI(헤더·사이드바·모달·드로어) + 16×16 IP 그리드(`.grid-cell-octet`) + 고밀도 테이블(`DeviceTableView` 행 높이 연동) + 장치 프로필 인스펙터 통합 배율 시스템으로 고도화했습니다.
+     - 상단 워크스페이스 헤더 바(데스크톱·모바일)와 장치 상세 프로필 패널 상단에 양방향 동기화된 `[ - | 100% | + ]` 컨트롤(`TextScaleControl`) 및 `Ctrl/Cmd + +/-/0` 단축키(입력 필드 포커스 시 자동 무시)를 탑재했습니다.
+   - **레이아웃 보호 · 자동 확장 & 출력 격리**:
+     - 배율 상향 시 장치 상세 패널 폭(`>= 110%`, `>= 120%`)과 2D 스크롤 그리드 캔버스(`>= 115%`) 및 호버 툴팁 폭을 자동 확장하고, 기존 115% 설정(`grid_profile_text_scale`)을 새 저장 키(`grid_ui_text_scale_pct_v1`)로 자동 마이그레이션했습니다.
+     - A4 보고서 미리보기(`.a4-report-page`, `ReportCenterModal`), 인쇄 스타일(`@media print`), SVG 토폴로지 맵(`TopologyMapView`) 및 배율 스테퍼 자체(`.ui-scale-reset`)는 전역 UI 배율에서 격리해 정확한 1:1 출력 비율을 유지합니다.
+
 ---
 
 ## 🚀 [v2.6.0] - 2026-11-20

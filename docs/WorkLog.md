@@ -1,3 +1,19 @@
+### 85. 앱 전체 UI·그리드·테이블 통합 글자 확대/축소 개선 및 GitHub·Blogger·기술 문서 일괄 최신화 (2026-11-26)
+- **사용자 요청 사항 및 피드백**:
+  - "글자 확대 축소 기능 개선" → 앱 전체 UI + 16×16 그리드 + 테이블 통합 배율(`85%~130%`, 5% 단위, `100%` 초기화), 상단 메인 헤더 바 & 장치 프로필 패널 상단 컨트롤 동기화
+  - "docs폴더에 문서들을 수정된 최신 내용으로 업데이트 합니다. 문서폴더에 깃허브용 문서 업데이트, 구글 블로거용 문서를 생성 해주세요. [작성 모드 (서식 있는 텍스트)] 및 [HTML 편집 모드]"
+- **구현 및 해결 조치**:
+  1. **[Tailwind v4 CSS 변수 통합 배율 엔진] `index.css`**:
+     - `:root`에 `--ui-text-scale` (`0.85`–`1.30`) 및 `--text-xs`..`--text-3xl` 계산식 오버라이드를 정의하고, `@layer utilities` 내 임의 px 유틸리티(`.text-[8px]`..`.text-[13px]`, `@media (min-width: 768px)` 반응형 규칙 포함) 및 `.grid-cell-octet` 클램핑 규칙을 구축.
+     - `.a4-report-page`, `.ui-scale-reset` 및 `@media print`에 모든 `--text-*` 토큰 1:1 명시 리셋을 적용해 인쇄·A4 미리보기·SVG·스테퍼 UI 크기가 깨지지 않도록 격리.
+  2. **[통합 배율 스테퍼 컴포넌트 & 단축키·이중 배치] `components/TextScaleControl.tsx`, `App.tsx`**:
+     - `[ - | 100% | + ]` 세그먼트 컨트롤(`header` / `mobile` / `inspector` 변형), `grid_ui_text_scale_pct_v1` 저장 및 구 `grid_profile_text_scale === 'large'` → `115%` 자동 마이그레이션 구현.
+     - 상단 워크스페이스 헤더 바(데스크톱·모바일) 및 장치 상세 프로필 패널 상단에 동기화 배치, `Ctrl/Cmd + +/-/0` 단축키(입력 폼 예외 처리) 및 기존 인스펙터 `isLgText` 이중 스케일링 분기 제거, 배율별 드로어/2D 스크롤 그리드 자동 확장 적용.
+  3. **[그리드·테이블·모달 격리 보정] `components/IPCell.tsx`, `components/DeviceTableView.tsx`, `components/ReportCenterModal.tsx`, `components/TopologyMapView.tsx`**:
+     - `IPCell` 옥텟 `.grid-cell-octet` 적용 및 호버 툴팁 폭 확장, `DeviceTableView` 행 높이(`h-[calc(2.5rem*var(--ui-text-scale))]`) 및 열 최대 폭 확장, A4 미리보기·SVG 토폴로지 `ui-scale-reset` 격리 적용.
+  4. **[GitHub · Google Blogger · `docs/` 전체 기술 문서 최신화] `docs/GITHUB_GUIDE.md`, `docs/MOBILE_GITHUB_GUIDE.md`, `docs/GOOGLE_BLOGGER_POST.md`, `docs/GOOGLE_BLOGGER_POST.html`, `docs/PATCH_NOTE.md`, `docs/WorkLog.md`, `docs/FILE_STRUCTURE_GUIDE.md`, `docs/GRID_IP_SCANNER_2.md`, `docs/README.md`, `README.md`**:
+     - `v2.7.0` 가변 CIDR(`/20`–`/30`), 타임라인 DB, SNMP L2 매핑, 다중 단말 일괄 WoL 큐, Free 16×16 엑셀 그리드 vs Pro 5시트 전체 보고서 엑셀, Quick Connect 모달, 85%~130% 통합 글자 배율 조절 사양을 깃허브 가이드·구글 블로거 `[작성 모드 (서식 있는 텍스트)]` / `[HTML 편집 모드]` 문서 및 전체 `docs/` 문서군에 반영 완료.
+
 ### 84. v2.7.0 네트워크 엔지니어링 & 스위치·대역 분석 확장 4대 핵심 기능 구현 및 릴리즈 동기화 (2026-11-25)
 - **사용자 요청 사항 및 피드백**:
   - "앞으로 앱 개발 방향 설계" → **네트워크 엔지니어링 및 스위치·대역 분석 확장 (v2.7.0 실무 기능 고도화 및 Pro 차별화)**: ① 가변 CIDR(`/20`–`/30`) 대역 확장 스캔, ② 단말별 접속·포트 변동 이력 타임라인 DB, ③ SNMP 스위치 포트 및 L2 물리 연결 매핑, ④ 다중 단말 일괄 WoL 및 원격 제어 큐

@@ -1891,6 +1891,7 @@ func ensureFirewallRulesSilently() {
 func main() {
 	startInTray := false
 	runAsService := false
+	allowLan := os.Getenv("GRIDSCAN_LAN") == "1" || strings.EqualFold(os.Getenv("GRIDSCAN_LAN"), "true")
 	cliPort := ""
 	for _, arg := range os.Args[1:] {
 		lower := strings.ToLower(strings.TrimSpace(arg))
@@ -1899,6 +1900,8 @@ func main() {
 			startInTray = true
 		case lower == "--service" || lower == "/service":
 			runAsService = true
+		case lower == "--lan" || lower == "/lan":
+			allowLan = true
 		case strings.HasPrefix(lower, "--port="):
 			cliPort = strings.TrimSpace(strings.TrimSpace(arg)[len("--port="):])
 		}
@@ -4097,7 +4100,7 @@ func main() {
 	}
 
 	listenAddr := "127.0.0.1:" + port
-	if isPreview {
+	if isPreview || allowLan {
 		listenAddr = "0.0.0.0:" + port
 	}
 

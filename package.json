@@ -6,6 +6,7 @@
   "author": "AhBiYout",
   "scripts": {
     "dev": "tsx server.ts",
+    "start": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
@@ -47,6 +48,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.0",
     "@types/express": "^5.0.6",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "http-proxy-middleware": "^3.0.5",
